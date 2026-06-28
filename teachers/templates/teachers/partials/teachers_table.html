@@ -1,0 +1,65 @@
+<div class="table-responsive">
+    <table class="table table-hover mb-0">
+        <thead>
+            <tr>
+                <th>Professor</th>
+                <th>E-mail</th>
+                <th>Matrícula</th>
+                <th>Disciplinas</th>
+                <th>Admissão</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for teacher in result.items %}
+            <tr>
+                <td>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="avatar-text avatar-sm bg-soft-success text-success">
+                            {{ teacher.full_name|first|upper }}
+                        </div>
+                        <a href="{% url 'teacher_detail' teacher.pk %}" class="fw-semibold">{{ teacher.full_name }}</a>
+                    </div>
+                </td>
+                <td class="text-muted">{{ teacher.email }}</td>
+                <td><span class="badge bg-soft-secondary text-secondary">{{ teacher.registration_number }}</span></td>
+                <td>
+                    {% for s in teacher.subjects.all %}
+                        <span class="badge bg-soft-info text-info me-1">{{ s.code }}</span>
+                    {% empty %}
+                        <span class="text-muted">—</span>
+                    {% endfor %}
+                </td>
+                <td class="text-muted">{{ teacher.hire_date|date:"d/m/Y"|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="text-center text-muted py-4">Nenhum professor encontrado.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if result.total_pages > 1 %}
+<div class="d-flex justify-content-center py-3">
+    <nav>
+        <ul class="pagination pagination-sm mb-0">
+            {% if result.has_previous %}
+            <li class="page-item">
+                <a class="page-link" hx-get="?page={{ result.page|add:'-1' }}&q={{ q }}"
+                   hx-target="#teachers-table" hx-swap="innerHTML">«</a>
+            </li>
+            {% endif %}
+            <li class="page-item active">
+                <span class="page-link">{{ result.page }} / {{ result.total_pages }}</span>
+            </li>
+            {% if result.has_next %}
+            <li class="page-item">
+                <a class="page-link" hx-get="?page={{ result.page|add:'1' }}&q={{ q }}"
+                   hx-target="#teachers-table" hx-swap="innerHTML">»</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endif %}

@@ -1,0 +1,39 @@
+[tool.black]
+line-length = 100
+target-version = ["py313"]
+include = '\.pyi?$'
+exclude = '''
+/(
+    migrations
+  | \.git
+  | \.venv
+  | build
+)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "T20", "DJ"]
+ignore = [
+    "DJ001",   # Avoid using null=True on string-based fields — we handle it explicitly
+    "A003",    # Class attribute shadowing builtin (id, type etc.)
+    "DJ012",   # Mis-fires on the `all_objects = models.Manager()` next to a custom default manager;
+               # reordering would change Django's default-manager semantics.
+]
+exclude = ["migrations", ".git", ".venv", "build"]
+
+[tool.ruff.lint.per-file-ignores]
+"*/tests/*" = ["N802", "S101", "ANN"]
+"*/conftest.py" = ["N802", "ANN"]
+"*/migrations/*" = ["ALL"]
+
+[tool.coverage.run]
+source = ["base", "core", "accounts", "audit", "teachers", "students", "guardians"]
+omit = ["*/migrations/*", "*/tests/*", "*/conftest.py", "manage.py"]
+
+[tool.coverage.report]
+skip_empty = true
+fail_under = 80

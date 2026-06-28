@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}{{ student.get_full_name }} — School Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title">
+            <h5 class="m-b-10">Perfil do Aluno</h5>
+        </div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'students_list' %}">Alunos</a></li>
+            <li class="breadcrumb-item">{{ student.get_full_name }}</li>
+        </ul>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    {% if student.photo %}
+                    <img src="{{ student.photo.url }}" class="rounded-circle mb-3" width="80" height="80" alt="">
+                    {% else %}
+                    <div class="avatar-text avatar-xl bg-soft-warning text-warning mb-3 mx-auto" style="width:64px;height:64px;font-size:1.5rem">
+                        {{ student.first_name|first|upper }}
+                    </div>
+                    {% endif %}
+                    <h5 class="mb-1">{{ student.get_full_name }}</h5>
+                    <span class="badge bg-soft-secondary text-secondary mb-2">Mat. {{ student.enrollment_number }}</span>
+                    <div class="text-muted small">
+                        <p class="mb-1">Nascimento: {{ student.birth_date|date:"d/m/Y" }}</p>
+                        <p class="mb-1">Gênero: {{ student.get_gender_display }}</p>
+                        {% if student.blood_type %}
+                        <p class="mb-0">Tipo Sanguíneo: <span class="badge bg-soft-danger text-danger">{{ student.blood_type }}</span></p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">Responsáveis</h6>
+                </div>
+                <div class="card-body">
+                    {% for link in guardians %}
+                    <div class="d-flex align-items-center justify-content-between mb-3 pb-3 border-bottom">
+                        <div>
+                            <span class="fw-semibold">{{ link.guardian.full_name }}</span>
+                            <span class="badge bg-soft-info text-info ms-2">{{ link.guardian.get_relationship_type_display }}</span>
+                            {% if link.is_primary %}
+                            <span class="badge bg-soft-success text-success ms-1">Principal</span>
+                            {% endif %}
+                        </div>
+                        <div class="text-muted small">
+                            {% if link.guardian.phone %}{{ link.guardian.phone }}{% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted mb-0">Nenhum responsável vinculado.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

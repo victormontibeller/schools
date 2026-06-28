@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>School Manager — Plataforma de Gestão Escolar</title>
+    <meta name="description" content="Plataforma SaaS Multi-Tenant para Gestão Escolar. Monólito Modular, Multi-Tenant por Schema PostgreSQL, Security First, Observabilidade desde o Sprint 0.">
+    <link rel="shortcut icon" type="image/x-icon" href="design_system/refs/duralux/images/favicon.ico">
+    <link rel="stylesheet" type="text/css" href="design_system/refs/duralux/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="design_system/refs/duralux/css/vendors.min.css">
+    <link rel="stylesheet" type="text/css" href="design_system/refs/duralux/css/theme.min.css">
+    <style>
+        /* =============================================
+           Landing Page — Custom Overrides
+        ============================================= */
+        html { scroll-behavior: smooth; }
+
+        /* Top Navbar */
+        .lp-navbar {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: var(--bs-body-bg, #fff);
+            border-bottom: 1px solid var(--bs-border-color, #e9ecef);
+            padding: 0.875rem 0;
+        }
+        .lp-navbar .nav-link {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--bs-body-color);
+            padding: 0.375rem 0.75rem;
+            transition: color 0.15s;
+        }
+        .lp-navbar .nav-link:hover { color: var(--bs-primary); }
+
+        /* Hero */
+        .lp-hero {
+            background: var(--bs-dark, #212529);
+            color: #fff;
+            padding: 80px 0 72px;
+            position: relative;
+            overflow: hidden;
+        }
+        .lp-hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse 70% 60% at 50% 0%, rgba(var(--bs-primary-rgb, 13,110,253),.18) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .lp-hero-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            background: rgba(255,255,255,.08);
+            border: 1px solid rgba(255,255,255,.14);
+            border-radius: 20px;
+            padding: 4px 14px;
+            color: rgba(255,255,255,.85);
+            margin-bottom: 24px;
+        }
+        .lp-hero h1 {
+            font-size: clamp(28px, 5vw, 48px);
+            font-weight: 800;
+            line-height: 1.15;
+            letter-spacing: -0.02em;
+            color: #fff;
+            margin-bottom: 20px;
+        }
+        .lp-hero h1 span { color: var(--bs-primary, #0d6efd); }
+        .lp-hero p.lead {
+            font-size: 16px;
+            color: rgba(255,255,255,.65);
+            max-width: 560px;
+            line-height: 1.65;
+            margin-bottom: 36px;
+        }
+        .lp-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 40px;
+        }
+        .lp-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            background: rgba(255,255,255,.07);
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 20px;
+            padding: 5px 14px;
+            color: rgba(255,255,255,.8);
+        }
+        .lp-pill i { font-size: 11px; opacity: .7; }
+
+        /* Section wrapper */
+        .lp-section { padding: 72px 0; }
+        .lp-section-sm { padding: 56px 0; }
+        .lp-section-title {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 6px;
+        }
+        .lp-section-subtitle {
+            font-size: 13px;
+            color: var(--bs-secondary-color, #6c757d);
+            margin-bottom: 40px;
+        }
+        .lp-divider {
+            width: 40px;
+            height: 3px;
+            border-radius: 2px;
+            background: var(--bs-primary);
+            margin: 12px 0 36px;
+        }
+
+        /* KPI cards row */
+        .lp-kpi-card {
+            text-align: center;
+            padding: 28px 16px;
+        }
+        .lp-kpi-number {
+            font-size: 36px;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            line-height: 1;
+            margin-bottom: 6px;
+        }
+        .lp-kpi-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--bs-secondary-color, #6c757d);
+        }
+
+        /* Feature card hover */
+        .lp-feature-card {
+            transition: transform .18s, box-shadow .18s;
+            height: 100%;
+        }
+        .lp-feature-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0,0,0,.08) !important;
+        }
+
+        /* Stack pill */
+        .lp-stack-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 20px;
+            padding: 5px 13px;
+            border: 1px solid;
+        }
+
+        /* Module grid */
+        .lp-module-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 16px;
+            border: 1px solid var(--bs-border-color, #dee2e6);
+            border-radius: 8px;
+            transition: border-color .15s, background .15s;
+        }
+        .lp-module-item:hover {
+            border-color: var(--bs-primary);
+            background: var(--bs-primary-bg-subtle, rgba(13,110,253,.04));
+        }
+
+        /* Timeline / Sprint list */
+        .lp-sprint-item {
+            display: flex;
+            gap: 16px;
+            padding: 16px 0;
+            border-bottom: 1px dashed var(--bs-border-color, #dee2e6);
+        }
+        .lp-sprint-item:last-child { border-bottom: none; }
+        .lp-sprint-badge {
+            flex-shrink: 0;
+            width: 72px;
+            text-align: center;
+        }
+        .lp-sprint-num {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            background: var(--bs-primary);
+            color: #fff;
+            border-radius: 4px;
+            padding: 3px 8px;
+            margin-bottom: 4px;
+        }
+
+        /* Rule cards */
+        .lp-rule-ok { border-left: 3px solid var(--bs-success); }
+        .lp-rule-no { border-left: 3px solid var(--bs-danger); }
+
+        /* Footer */
+        .lp-footer {
+            background: var(--bs-dark, #212529);
+            color: rgba(255,255,255,.55);
+            padding: 40px 0;
+        }
+        .lp-footer a { color: rgba(255,255,255,.7); text-decoration: none; }
+        .lp-footer a:hover { color: #fff; }
+
+        /* Responsive tweaks */
+        @media (max-width: 768px) {
+            .lp-hero { padding: 56px 0 48px; }
+            .lp-section { padding: 48px 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ============================================================ -->
+    <!-- TOP NAVBAR -->
+    <!-- ============================================================ -->
+    <nav class="lp-navbar">
+        <div class="container">
+            <div class="d-flex align-items-center justify-content-between">
+                <a href="#hero" class="b-brand text-decoration-none d-flex align-items-center gap-2">
+                    <img src="design_system/refs/duralux/images/logo-full.png" alt="School Manager" style="height:32px">
+                </a>
+                <div class="d-none d-md-flex align-items-center gap-1">
+                    <a href="#arquitetura" class="nav-link">Arquitetura</a>
+                    <a href="#stack" class="nav-link">Stack</a>
+                    <a href="#modulos" class="nav-link">Módulos</a>
+                    <a href="#roadmap" class="nav-link">Roadmap</a>
+                    <a href="#principios" class="nav-link">Princípios</a>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="design_system/design-system.html" class="btn btn-light-brand btn-sm">
+                        <i class="feather-layout me-1"></i>
+                        <span class="d-none d-sm-inline">Design System</span>
+                    </a>
+                    <a href="docs/02_ARCHITECTURE.md" class="btn btn-primary btn-sm">
+                        <i class="feather-file-text me-1"></i>
+                        <span class="d-none d-sm-inline">Documentação</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ============================================================ -->
+    <!-- HERO -->
+    <!-- ============================================================ -->
+    <section class="lp-hero" id="hero">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-7">
+                    <div class="lp-hero-eyebrow">
+                        <i class="feather-shield"></i>
+                        SaaS Multi-Tenant · Security First · Monólito Modular
+                    </div>
+                    <h1>
+                        Plataforma de<br>
+                        <span>Gestão Escolar</span><br>
+                        Pronta para Escalar
+                    </h1>
+                    <p class="lead">
+                        Uma plataforma SaaS Multi-Tenant desenvolvida com foco em escalabilidade,
+                        segurança e manutenibilidade — capaz de atender desde uma única escola
+                        até milhares de instituições sem reestruturação arquitetural.
+                    </p>
+                    <div class="d-flex flex-wrap gap-3">
+                        <a href="#roadmap" class="btn btn-primary btn-md">
+                            <i class="feather-map me-2"></i>Ver Roadmap
+                        </a>
+                        <a href="docs/02_ARCHITECTURE.md" class="btn btn-outline-light btn-md">
+                            <i class="feather-book me-2"></i>Arquitetura
+                        </a>
+                    </div>
+                    <div class="lp-pills">
+                        <span class="lp-pill"><i class="feather-layers"></i> Monólito Modular</span>
+                        <span class="lp-pill"><i class="feather-database"></i> Multi-Tenant por Schema</span>
+                        <span class="lp-pill"><i class="feather-eye"></i> Observabilidade desde Sprint 0</span>
+                        <span class="lp-pill"><i class="feather-shield"></i> OWASP Top 10</span>
+                        <span class="lp-pill"><i class="feather-git-branch"></i> 11 Sprints</span>
+                        <span class="lp-pill"><i class="feather-box"></i> 15 Módulos</span>
+                    </div>
+                </div>
+                <div class="col-lg-5 d-none d-lg-flex justify-content-end">
+                    <!-- Visual KPI cluster -->
+                    <div class="row g-3" style="max-width:340px">
+                        <div class="col-6">
+                            <div class="card stretch stretch-full h-100" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)">
+                                <div class="card-body p-3 text-center">
+                                    <div class="avatar-text avatar-lg bg-soft-primary mx-auto mb-2">
+                                        <i class="feather-users"></i>
+                                    </div>
+                                    <div class="fs-4 fw-bold text-white">15+</div>
+                                    <div class="fs-11 text-white-50">Módulos</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="card stretch stretch-full h-100" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)">
+                                <div class="card-body p-3 text-center">
+                                    <div class="avatar-text avatar-lg bg-soft-success mx-auto mb-2">
+                                        <i class="feather-zap"></i>
+                                    </div>
+                                    <div class="fs-4 fw-bold text-white">11</div>
+                                    <div class="fs-11 text-white-50">Sprints</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="card stretch stretch-full h-100" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)">
+                                <div class="card-body p-3 text-center">
+                                    <div class="avatar-text avatar-lg bg-soft-warning mx-auto mb-2">
+                                        <i class="feather-server"></i>
+                                    </div>
+                                    <div class="fs-4 fw-bold text-white">14</div>
+                                    <div class="fs-11 text-white-50">Tecnologias</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="card stretch stretch-full h-100" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)">
+                                <div class="card-body p-3 text-center">
+                                    <div class="avatar-text avatar-lg bg-soft-danger mx-auto mb-2">
+                                        <i class="feather-clock"></i>
+                                    </div>
+                                    <div class="fs-4 fw-bold text-white">22</div>
+                                    <div class="fs-11 text-white-50">Semanas</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- OBJETIVOS ARQUITETURAIS -->
+    <!-- ============================================================ -->
+    <section class="lp-section-sm bg-gray-200" id="principios">
+        <div class="container">
+            <div class="text-center mb-4">
+                <h2 class="lp-section-title">Objetivos Arquiteturais</h2>
+                <div class="lp-divider mx-auto"></div>
+                <p class="lp-section-subtitle">Toda decisão técnica deverá considerar estes princípios.</p>
+            </div>
+            <div class="row g-3 justify-content-center">
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card stretch stretch-full lp-feature-card">
+                        <div class="card-body p-3 text-center">
+                            <div class="avatar-text avatar-md bg-soft-primary text-primary mx-auto mb-2">
+                                <i class="feather-layers"></i>
+                            </div>
+                            <div class="fs-12 fw-semibold">Simplicidade</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card stretch stretch-full lp-feature-card">
+                        <div class="card-body p-3 text-center">
+                            <div class="avatar-text avatar-md bg-soft-success text-success mx-auto mb-2">
+                                <i class="feather-refresh-cw"></i>
+                            </div>
+                            <div class="fs-12 fw-semibold">Reutilização</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card stretch stretch-full lp-feature-card">
+                        <div class="card-body p-3 text-center">
+                            <div class="avatar-text avatar-md bg-soft-warning text-warning mx-auto mb-2">
+                                <i class="feather-link-2"></i>
+                            </div>
+                            <div class="fs-12 fw-semibold">Baixo Acoplamento</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card stretch stretch-full lp-feature-card">
+                        <div class="card-body p-3 text-center">
+                            <div class="avatar-text avatar-md bg-soft-danger text-danger mx-auto mb-2">
+                                <i class="feather-shield"></i>
+                            </div>
+                            <div class="fs-12 fw-semibold">Segurança</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card stretch stretch-full lp-feature-card">
+                        <div class="card-body p-3 text-center">
+                            <div class="avatar-text avatar-md bg-soft-info text-info mx-auto mb-2">
+                                <i class="feather-eye"></i>
+                            </div>
+                            <div class="fs-12 fw-semibold">Observabilidade</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card stretch stretch-full lp-feature-card">
+                        <div class="card-body p-3 text-center">
+                            <div class="avatar-text avatar-md bg-soft-dark text-dark mx-auto mb-2">
+                                <i class="feather-trending-up"></i>
+                            </div>
+                            <div class="fs-12 fw-semibold">Escalabilidade</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card stretch stretch-full lp-feature-card">
+                        <div class="card-body p-3 text-center">
+                            <div class="avatar-text avatar-md bg-soft-primary text-primary mx-auto mb-2">
+                                <i class="feather-tool"></i>
+                            </div>
+                            <div class="fs-12 fw-semibold">Manutenibilidade</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card stretch stretch-full lp-feature-card">
+                        <div class="card-body p-3 text-center">
+                            <div class="avatar-text avatar-md bg-soft-success text-success mx-auto mb-2">
+                                <i class="feather-check-circle"></i>
+                            </div>
+                            <div class="fs-12 fw-semibold">Testabilidade</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card stretch stretch-full lp-feature-card">
+                        <div class="card-body p-3 text-center">
+                            <div class="avatar-text avatar-md bg-soft-warning text-warning mx-auto mb-2">
+                                <i class="feather-target"></i>
+                            </div>
+                            <div class="fs-12 fw-semibold">Alta Coesão</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card stretch stretch-full lp-feature-card">
+                        <div class="card-body p-3 text-center">
+                            <div class="avatar-text avatar-md bg-soft-indigo text-indigo mx-auto mb-2">
+                                <i class="feather-git-branch"></i>
+                            </div>
+                            <div class="fs-12 fw-semibold">Evolução Contínua</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- ARQUITETURA -->
+    <!-- ============================================================ -->
+    <section class="lp-section" id="arquitetura">
+        <div class="container">
+            <div class="row align-items-start g-5">
+                <div class="col-lg-5">
+                    <h2 class="lp-section-title">Arquitetura do Sistema</h2>
+                    <div class="lp-divider"></div>
+                    <p class="fs-13 text-muted mb-4">
+                        O sistema deverá utilizar uma arquitetura de <strong>Monólito Modular</strong>,
+                        permitindo evolução contínua sem a complexidade de microserviços.
+                        Cada domínio deverá possuir seu próprio módulo independente.
+                    </p>
+                    <!-- Flow diagram as schedule pattern -->
+                    <div class="p-3 border border-dashed rounded-3 mb-3">
+                        <div class="d-flex justify-content-between">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="wd-7 ht-40 rounded-pill bg-primary"></div>
+                                <div>
+                                    <p class="fw-bold mb-1 fs-13">Traefik</p>
+                                    <p class="fs-12 text-muted mb-0">HTTPS · Reverse Proxy · Load Balancer</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-3 border border-dashed rounded-3 mb-3">
+                        <div class="d-flex justify-content-between">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="wd-7 ht-40 rounded-pill bg-success"></div>
+                                <div>
+                                    <p class="fw-bold mb-1 fs-13">Django (Monólito Modular)</p>
+                                    <p class="fs-12 text-muted mb-0">Tenant Middleware → Auth → Service → View</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-3 border border-dashed rounded-3 mb-3">
+                        <div class="d-flex justify-content-between">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="wd-7 ht-40 rounded-pill bg-warning"></div>
+                                <div>
+                                    <p class="fw-bold mb-1 fs-13">PostgreSQL + django-tenants</p>
+                                    <p class="fs-12 text-muted mb-0">Schema por escola · Isolamento total</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-3 border border-dashed rounded-3 mb-3">
+                        <div class="d-flex justify-content-between">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="wd-7 ht-40 rounded-pill bg-info"></div>
+                                <div>
+                                    <p class="fw-bold mb-1 fs-13">Celery + RabbitMQ</p>
+                                    <p class="fs-12 text-muted mb-0">E-mail · WhatsApp · Relatórios · IA</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-3 border border-dashed rounded-3">
+                        <div class="d-flex justify-content-between">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="wd-7 ht-40 rounded-pill bg-danger"></div>
+                                <div>
+                                    <p class="fw-bold mb-1 fs-13">Grafana · Prometheus · Loki</p>
+                                    <p class="fs-12 text-muted mb-0">Logs JSON · Correlation ID · Métricas</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-7">
+                    <h6 class="fw-bold text-dark mb-3">Estrutura Interna de Cada Módulo</h6>
+                    <div class="card stretch stretch-full mb-4">
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-6">
+                                    <div class="d-flex align-items-start gap-2 mb-3">
+                                        <div class="avatar-text avatar-sm bg-soft-primary text-primary flex-shrink-0">
+                                            <i class="feather-database"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fs-12 fw-bold">models/</div>
+                                            <div class="fs-11 text-muted">Entidades e persistência</div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-start gap-2 mb-3">
+                                        <div class="avatar-text avatar-sm bg-soft-success text-success flex-shrink-0">
+                                            <i class="feather-settings"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fs-12 fw-bold">services/</div>
+                                            <div class="fs-11 text-muted">Regras de negócio</div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-start gap-2 mb-3">
+                                        <div class="avatar-text avatar-sm bg-soft-warning text-warning flex-shrink-0">
+                                            <i class="feather-archive"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fs-12 fw-bold">repositories/</div>
+                                            <div class="fs-11 text-muted">Persistência especializada</div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-start gap-2 mb-3">
+                                        <div class="avatar-text avatar-sm bg-soft-info text-info flex-shrink-0">
+                                            <i class="feather-search"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fs-12 fw-bold">selectors/</div>
+                                            <div class="fs-11 text-muted">Consultas complexas</div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-start gap-2">
+                                        <div class="avatar-text avatar-sm bg-soft-danger text-danger flex-shrink-0">
+                                            <i class="feather-zap"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fs-12 fw-bold">tasks/</div>
+                                            <div class="fs-11 text-muted">Tarefas Celery</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="d-flex align-items-start gap-2 mb-3">
+                                        <div class="avatar-text avatar-sm bg-soft-dark text-dark flex-shrink-0">
+                                            <i class="feather-edit-3"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fs-12 fw-bold">forms/</div>
+                                            <div class="fs-11 text-muted">Validação de interface</div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-start gap-2 mb-3">
+                                        <div class="avatar-text avatar-sm bg-soft-primary text-primary flex-shrink-0">
+                                            <i class="feather-monitor"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fs-12 fw-bold">views/</div>
+                                            <div class="fs-11 text-muted">Apenas orquestração</div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-start gap-2 mb-3">
+                                        <div class="avatar-text avatar-sm bg-soft-success text-success flex-shrink-0">
+                                            <i class="feather-check-square"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fs-12 fw-bold">validators/</div>
+                                            <div class="fs-11 text-muted">Regras reutilizáveis</div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-start gap-2 mb-3">
+                                        <div class="avatar-text avatar-sm bg-soft-warning text-warning flex-shrink-0">
+                                            <i class="feather-sliders"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fs-12 fw-bold">admin/</div>
+                                            <div class="fs-11 text-muted">Django Admin</div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-start gap-2">
+                                        <div class="avatar-text avatar-sm bg-soft-info text-info flex-shrink-0">
+                                            <i class="feather-activity"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fs-12 fw-bold">tests/</div>
+                                            <div class="fs-11 text-muted">Testes unitários e integração</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Multi-Tenant highlight -->
+                    <div class="card stretch stretch-full">
+                        <div class="card-header">
+                            <h5 class="card-title d-flex align-items-center gap-2">
+                                <i class="feather-server text-primary"></i>
+                                Multi-Tenant por Schema PostgreSQL
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <div class="p-3 border border-dashed rounded text-center">
+                                        <div class="fs-11 text-muted mb-1">Tenant A</div>
+                                        <div class="fw-bold fs-12">escola_a.*</div>
+                                        <div class="progress mt-2 ht-3">
+                                            <div class="progress-bar bg-primary" style="width:100%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="p-3 border border-dashed rounded text-center">
+                                        <div class="fs-11 text-muted mb-1">Tenant B</div>
+                                        <div class="fw-bold fs-12">escola_b.*</div>
+                                        <div class="progress mt-2 ht-3">
+                                            <div class="progress-bar bg-success" style="width:100%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="p-3 border border-dashed rounded text-center">
+                                        <div class="fs-11 text-muted mb-1">Schema Público</div>
+                                        <div class="fw-bold fs-12">public.*</div>
+                                        <div class="progress mt-2 ht-3">
+                                            <div class="progress-bar bg-warning" style="width:100%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3 d-flex flex-wrap gap-2">
+                                <span class="badge bg-soft-danger text-danger"><i class="feather-x me-1"></i>Compartilhamento de dados é proibido</span>
+                                <span class="badge bg-soft-success text-success"><i class="feather-check me-1"></i>Isolamento total por schema</span>
+                                <span class="badge bg-soft-primary text-primary"><i class="feather-globe me-1"></i>Tenant resolvido pelo domínio</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- STACK TECNOLÓGICA -->
+    <!-- ============================================================ -->
+    <section class="lp-section-sm bg-gray-200" id="stack">
+        <div class="container">
+            <div class="text-center mb-4">
+                <h2 class="lp-section-title">Stack Tecnológica</h2>
+                <div class="lp-divider mx-auto"></div>
+                <p class="lp-section-subtitle">Cada tecnologia deverá ser utilizada dentro de seu papel específico e intransferível.</p>
+            </div>
+            <div class="row g-4">
+                <!-- Backend -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card stretch stretch-full lp-feature-card">
+                        <div class="card-header">
+                            <h5 class="card-title d-flex align-items-center gap-2">
+                                <div class="avatar-text avatar-sm bg-soft-primary text-primary">
+                                    <i class="feather-code"></i>
+                                </div>
+                                Backend
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex flex-wrap gap-2">
+                                <span class="badge bg-soft-primary text-primary">Python 3.13</span>
+                                <span class="badge bg-soft-primary text-primary">Django</span>
+                                <span class="badge bg-soft-primary text-primary">Django Templates</span>
+                                <span class="badge bg-soft-primary text-primary">HTMX</span>
+                                <span class="badge bg-soft-primary text-primary">Alpine.js</span>
+                                <span class="badge bg-soft-primary text-primary">Bootstrap</span>
+                            </div>
+                            <hr class="border-dashed mt-3 mb-2">
+                            <p class="fs-11 text-muted mb-0">Toda lógica de negócio permanecerá no backend. React, Angular ou Vue não serão utilizados no MVP.</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Banco de Dados -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card stretch stretch-full lp-feature-card">
+                        <div class="card-header">
+                            <h5 class="card-title d-flex align-items-center gap-2">
+                                <div class="avatar-text avatar-sm bg-soft-success text-success">
+                                    <i class="feather-database"></i>
+                                </div>
+                                Banco de Dados
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex flex-wrap gap-2">
+                                <span class="badge bg-soft-success text-success">PostgreSQL</span>
+                                <span class="badge bg-soft-success text-success">django-tenants</span>
+                            </div>
+                            <hr class="border-dashed mt-3 mb-2">
+                            <p class="fs-11 text-muted mb-0">Um Schema PostgreSQL por escola (Tenant). Nenhum compartilhamento de dados entre Tenants.</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Processamento Assíncrono -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card stretch stretch-full lp-feature-card">
+                        <div class="card-header">
+                            <h5 class="card-title d-flex align-items-center gap-2">
+                                <div class="avatar-text avatar-sm bg-soft-warning text-warning">
+                                    <i class="feather-send"></i>
+                                </div>
+                                Processamento Assíncrono
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex flex-wrap gap-2">
+                                <span class="badge bg-soft-warning text-warning">Celery</span>
+                                <span class="badge bg-soft-warning text-warning">RabbitMQ (Broker)</span>
+                            </div>
+                            <hr class="border-dashed mt-3 mb-2">
+                            <p class="fs-11 text-muted mb-0">E-mail · WhatsApp · Relatórios · Processamentos demorados · Tarefas de IA. Redis <strong>não</strong> será o Broker.</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Cache -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card stretch stretch-full lp-feature-card">
+                        <div class="card-header">
+                            <h5 class="card-title d-flex align-items-center gap-2">
+                                <div class="avatar-text avatar-sm bg-soft-danger text-danger">
+                                    <i class="feather-zap"></i>
+                                </div>
+                                Cache
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex flex-wrap gap-2">
+                                <span class="badge bg-soft-danger text-danger">Redis</span>
+                            </div>
+                            <hr class="border-dashed mt-3 mb-2">
+                            <p class="fs-11 text-muted mb-0">Cache de consultas · Dashboards · Sessões · Rate Limiting.</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Infraestrutura -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card stretch stretch-full lp-feature-card">
+                        <div class="card-header">
+                            <h5 class="card-title d-flex align-items-center gap-2">
+                                <div class="avatar-text avatar-sm bg-soft-info text-info">
+                                    <i class="feather-server"></i>
+                                </div>
+                                Infraestrutura
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex flex-wrap gap-2">
+                                <span class="badge bg-soft-info text-info">Docker</span>
+                                <span class="badge bg-soft-info text-info">Docker Compose</span>
+                                <span class="badge bg-soft-info text-info">Docker Swarm</span>
+                                <span class="badge bg-soft-info text-info">Traefik</span>
+                            </div>
+                            <hr class="border-dashed mt-3 mb-2">
+                            <p class="fs-11 text-muted mb-0">Traefik: Reverse Proxy · HTTPS · Load Balancer · Roteamento por domínio.</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Observabilidade -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="card stretch stretch-full lp-feature-card">
+                        <div class="card-header">
+                            <h5 class="card-title d-flex align-items-center gap-2">
+                                <div class="avatar-text avatar-sm bg-soft-dark text-dark">
+                                    <i class="feather-eye"></i>
+                                </div>
+                                Observabilidade
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex flex-wrap gap-2">
+                                <span class="badge bg-gray-200 text-dark">Grafana</span>
+                                <span class="badge bg-gray-200 text-dark">Prometheus</span>
+                                <span class="badge bg-gray-200 text-dark">Loki</span>
+                                <span class="badge bg-gray-200 text-dark">OpenTelemetry</span>
+                            </div>
+                            <hr class="border-dashed mt-3 mb-2">
+                            <p class="fs-11 text-muted mb-0">Logs JSON · Correlation ID por requisição · Métricas desde a Sprint 0.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- MÓDULOS DO SISTEMA -->
+    <!-- ============================================================ -->
+    <section class="lp-section" id="modulos">
+        <div class="container">
+            <div class="row align-items-start g-5">
+                <div class="col-lg-4">
+                    <h2 class="lp-section-title">Módulos do Sistema</h2>
+                    <div class="lp-divider"></div>
+                    <p class="fs-13 text-muted mb-4">
+                        Cada domínio deverá possuir seu próprio módulo independente.
+                        Nenhum módulo poderá conhecer detalhes internos de outro.
+                    </p>
+                    <div class="card stretch stretch-full">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center gap-3 mb-3">
+                                <div class="avatar-text avatar-lg bg-soft-primary text-primary">
+                                    <i class="feather-share-2"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-13">Sistema de Eventos</div>
+                                    <div class="fs-11 text-muted">Toda ação importante deverá produzir um evento interno</div>
+                                </div>
+                            </div>
+                            <div class="d-flex flex-column gap-1 fs-12 text-muted">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="wd-10 ht-10 bg-primary rounded-circle"></i>
+                                    <span>Aluno criado <i class="feather-arrow-right fs-10"></i> Evento</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 ms-3">
+                                    <i class="wd-8 ht-8 bg-success rounded-circle"></i>
+                                    <span>Auditoria registrada</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 ms-3">
+                                    <i class="wd-8 ht-8 bg-warning rounded-circle"></i>
+                                    <span>Dashboard atualizado</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 ms-3">
+                                    <i class="wd-8 ht-8 bg-info rounded-circle"></i>
+                                    <span>Notificação gerada</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 ms-3">
+                                    <i class="wd-8 ht-8 bg-danger rounded-circle"></i>
+                                    <span>E-mail / WhatsApp enviado</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-8">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="lp-module-item">
+                                <div class="avatar-text avatar-sm bg-soft-primary text-primary flex-shrink-0">
+                                    <i class="feather-user"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-13">accounts/</div>
+                                    <div class="fs-11 text-muted">Usuários, autenticação, perfis e permissões</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="lp-module-item">
+                                <div class="avatar-text avatar-sm bg-soft-success text-success flex-shrink-0">
+                                    <i class="feather-home"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-13">schools/</div>
+                                    <div class="fs-11 text-muted">Escola, configurações e dados institucionais</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="lp-module-item">
+                                <div class="avatar-text avatar-sm bg-soft-warning text-warning flex-shrink-0">
+                                    <i class="feather-briefcase"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-13">teachers/</div>
+                                    <div class="fs-11 text-muted">Professores e suas disciplinas</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="lp-module-item">
+                                <div class="avatar-text avatar-sm bg-soft-info text-info flex-shrink-0">
+                                    <i class="feather-users"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-13">students/</div>
+                                    <div class="fs-11 text-muted">Alunos e seus dados</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="lp-module-item">
+                                <div class="avatar-text avatar-sm bg-soft-danger text-danger flex-shrink-0">
+                                    <i class="feather-heart"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-13">guardians/</div>
+                                    <div class="fs-11 text-muted">Responsáveis e vínculos com alunos</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="lp-module-item">
+                                <div class="avatar-text avatar-sm bg-soft-dark text-dark flex-shrink-0">
+                                    <i class="feather-book"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-13">classes/</div>
+                                    <div class="fs-11 text-muted">Turmas, matrículas e ano letivo</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="lp-module-item">
+                                <div class="avatar-text avatar-sm bg-soft-primary text-primary flex-shrink-0">
+                                    <i class="feather-map-pin"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-13">rooms/</div>
+                                    <div class="fs-11 text-muted">Salas físicas e recursos</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="lp-module-item">
+                                <div class="avatar-text avatar-sm bg-soft-success text-success flex-shrink-0">
+                                    <i class="feather-clock"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-13">agenda/</div>
+                                    <div class="fs-11 text-muted">Grade horária e agendamentos</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="lp-module-item">
+                                <div class="avatar-text avatar-sm bg-soft-warning text-warning flex-shrink-0">
+                                    <i class="feather-edit"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-13">activities/</div>
+                                    <div class="fs-11 text-muted">Atividades, avaliações e notas</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="lp-module-item">
+                                <div class="avatar-text avatar-sm bg-soft-info text-info flex-shrink-0">
+                                    <i class="feather-check-square"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-13">attendance/</div>
+                                    <div class="fs-11 text-muted">Frequência e controle de presença</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="lp-module-item">
+                                <div class="avatar-text avatar-sm bg-soft-danger text-danger flex-shrink-0">
+                                    <i class="feather-calendar"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-13">calendar/</div>
+                                    <div class="fs-11 text-muted">Calendário acadêmico e eventos</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="lp-module-item">
+                                <div class="avatar-text avatar-sm bg-soft-dark text-dark flex-shrink-0">
+                                    <i class="feather-bell"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-13">notifications/</div>
+                                    <div class="fs-11 text-muted">Notificações, e-mails e WhatsApp</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="lp-module-item">
+                                <div class="avatar-text avatar-sm bg-soft-primary text-primary flex-shrink-0">
+                                    <i class="feather-bar-chart-2"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-13">dashboard/</div>
+                                    <div class="fs-11 text-muted">Dashboards técnico, escolar e executivo</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="lp-module-item">
+                                <div class="avatar-text avatar-sm bg-soft-success text-success flex-shrink-0">
+                                    <i class="feather-file-text"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-13">audit/</div>
+                                    <div class="fs-11 text-muted">Auditoria de todas as ações do sistema</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="lp-module-item">
+                                <div class="avatar-text avatar-sm bg-soft-warning text-warning flex-shrink-0">
+                                    <i class="feather-share"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-13">shared/</div>
+                                    <div class="fs-11 text-muted">BaseModel, mixins, utils compartilhados</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- REGRAS DE ENGENHARIA -->
+    <!-- ============================================================ -->
+    <section class="lp-section-sm bg-gray-200">
+        <div class="container">
+            <div class="text-center mb-4">
+                <h2 class="lp-section-title">Regras de Engenharia</h2>
+                <div class="lp-divider mx-auto"></div>
+            </div>
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card stretch stretch-full lp-rule-ok">
+                        <div class="card-header">
+                            <h5 class="card-title d-flex align-items-center gap-2">
+                                <div class="avatar-text avatar-sm bg-soft-success text-success">
+                                    <i class="feather-check"></i>
+                                </div>
+                                É Obrigatório
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <tbody>
+                                        <tr><td><i class="feather-check text-success me-2"></i><span class="fs-12">Black + Ruff + PEP 8</span></td></tr>
+                                        <tr><td><i class="feather-check text-success me-2"></i><span class="fs-12">Type hints em todas as funções públicas</span></td></tr>
+                                        <tr><td><i class="feather-check text-success me-2"></i><span class="fs-12">Toda regra de negócio em <code>services/</code></span></td></tr>
+                                        <tr><td><i class="feather-check text-success me-2"></i><span class="fs-12">Logs estruturados em JSON com Correlation ID</span></td></tr>
+                                        <tr><td><i class="feather-check text-success me-2"></i><span class="fs-12">Auditoria em toda operação de escrita</span></td></tr>
+                                        <tr><td><i class="feather-check text-success me-2"></i><span class="fs-12">Testes para toda regra de negócio crítica</span></td></tr>
+                                        <tr><td><i class="feather-check text-success me-2"></i><span class="fs-12">Soft Delete obrigatório em todas as entidades</span></td></tr>
+                                        <tr><td><i class="feather-check text-success me-2"></i><span class="fs-12">ADRs para decisões arquiteturais</span></td></tr>
+                                        <tr><td><i class="feather-check text-success me-2"></i><span class="fs-12">DRY e SOLID em todo o código</span></td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card stretch stretch-full lp-rule-no">
+                        <div class="card-header">
+                            <h5 class="card-title d-flex align-items-center gap-2">
+                                <div class="avatar-text avatar-sm bg-soft-danger text-danger">
+                                    <i class="feather-x"></i>
+                                </div>
+                                É Proibido
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <tbody>
+                                        <tr><td><i class="feather-x text-danger me-2"></i><span class="fs-12">Regras de negócio em Views</span></td></tr>
+                                        <tr><td><i class="feather-x text-danger me-2"></i><span class="fs-12"><code>print()</code> para logging</span></td></tr>
+                                        <tr><td><i class="feather-x text-danger me-2"></i><span class="fs-12">SQL direto em Views</span></td></tr>
+                                        <tr><td><i class="feather-x text-danger me-2"></i><span class="fs-12">Duplicação de código</span></td></tr>
+                                        <tr><td><i class="feather-x text-danger me-2"></i><span class="fs-12">Dependências circulares entre módulos</span></td></tr>
+                                        <tr><td><i class="feather-x text-danger me-2"></i><span class="fs-12">Ignorar o contexto do Tenant</span></td></tr>
+                                        <tr><td><i class="feather-x text-danger me-2"></i><span class="fs-12">Remover registros fisicamente</span></td></tr>
+                                        <tr><td><i class="feather-x text-danger me-2"></i><span class="fs-12">Secrets em código-fonte</span></td></tr>
+                                        <tr><td><i class="feather-x text-danger me-2"></i><span class="fs-12">Informações sensíveis em logs</span></td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- ROADMAP / SPRINTS -->
+    <!-- ============================================================ -->
+    <section class="lp-section" id="roadmap">
+        <div class="container">
+            <div class="row align-items-start g-5">
+                <div class="col-lg-4">
+                    <h2 class="lp-section-title">Roadmap</h2>
+                    <div class="lp-divider"></div>
+                    <p class="fs-13 text-muted mb-4">
+                        11 Sprints de 2 semanas cada. Toda Sprint deverá entregar
+                        valor incremental com observabilidade e auditoria aplicadas
+                        desde o início.
+                    </p>
+                    <!-- KPI stats -->
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="p-3 border border-dashed rounded">
+                                <div class="fs-12 text-muted mb-1">Sprints</div>
+                                <h6 class="fw-bold text-dark">11</h6>
+                                <div class="progress mt-2 ht-3">
+                                    <div class="progress-bar bg-primary" role="progressbar" style="width: 100%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 border border-dashed rounded">
+                                <div class="fs-12 text-muted mb-1">Semanas</div>
+                                <h6 class="fw-bold text-dark">~22</h6>
+                                <div class="progress mt-2 ht-3">
+                                    <div class="progress-bar bg-success" role="progressbar" style="width: 100%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 border border-dashed rounded">
+                                <div class="fs-12 text-muted mb-1">Módulos</div>
+                                <h6 class="fw-bold text-dark">15+</h6>
+                                <div class="progress mt-2 ht-3">
+                                    <div class="progress-bar bg-warning" role="progressbar" style="width: 100%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 border border-dashed rounded">
+                                <div class="fs-12 text-muted mb-1">Tecnologias</div>
+                                <h6 class="fw-bold text-dark">14</h6>
+                                <div class="progress mt-2 ht-3">
+                                    <div class="progress-bar bg-danger" role="progressbar" style="width: 100%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-8">
+                    <div class="card stretch stretch-full">
+                        <div class="card-header">
+                            <h5 class="card-title">Sprints de Desenvolvimento</h5>
+                            <div class="card-header-action">
+                                <a href="docs/13_ROADMAP.md" class="btn btn-light-brand btn-sm">
+                                    <i class="feather-external-link me-1"></i>Ver Completo
+                                </a>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <!-- Sprint 00 -->
+                            <div class="lp-sprint-item">
+                                <div class="lp-sprint-badge">
+                                    <span class="lp-sprint-num">Sprint 00</span>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold fs-13 mb-1">Infraestrutura</div>
+                                    <p class="fs-12 text-muted mb-2">Docker, PostgreSQL, Redis, RabbitMQ, Celery, Traefik, Grafana, Prometheus, Loki, BaseModel.</p>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <span class="badge bg-soft-primary text-primary">Docker Compose</span>
+                                        <span class="badge bg-soft-success text-success">Multi-Tenant</span>
+                                        <span class="badge bg-soft-warning text-warning">Observabilidade</span>
+                                    </div>
+                                </div>
+                                <div class="ms-2"><span class="badge bg-soft-success text-success">Base</span></div>
+                            </div>
+                            <!-- Sprint 01 -->
+                            <div class="lp-sprint-item">
+                                <div class="lp-sprint-badge">
+                                    <span class="lp-sprint-num">Sprint 01</span>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold fs-13 mb-1">Arquitetura Base</div>
+                                    <p class="fs-12 text-muted mb-2">BaseService, BaseRepository, BaseSelector, AuditService, Middlewares, Sistema de Eventos, CI.</p>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <span class="badge bg-soft-primary text-primary">BaseModel</span>
+                                        <span class="badge bg-soft-success text-success">Auditoria</span>
+                                        <span class="badge bg-soft-info text-info">CI/CD</span>
+                                    </div>
+                                </div>
+                                <div class="ms-2"><span class="badge bg-soft-primary text-primary">Core</span></div>
+                            </div>
+                            <!-- Sprint 02 -->
+                            <div class="lp-sprint-item">
+                                <div class="lp-sprint-badge">
+                                    <span class="lp-sprint-num">Sprint 02</span>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold fs-13 mb-1">Contas e Autenticação</div>
+                                    <p class="fs-12 text-muted mb-2">CustomUser, roles, login/logout, recuperação de senha, rate limiting, schools module.</p>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <span class="badge bg-soft-warning text-warning">Argon2</span>
+                                        <span class="badge bg-soft-danger text-danger">Rate Limiting</span>
+                                    </div>
+                                </div>
+                                <div class="ms-2"><span class="badge bg-soft-warning text-warning">Auth</span></div>
+                            </div>
+                            <!-- Sprint 03 -->
+                            <div class="lp-sprint-item">
+                                <div class="lp-sprint-badge">
+                                    <span class="lp-sprint-num">Sprint 03</span>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold fs-13 mb-1">Cadastros Principais</div>
+                                    <p class="fs-12 text-muted mb-2">Professores, alunos, responsáveis, vínculos, importação CSV, HTMX interfaces.</p>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <span class="badge bg-soft-primary text-primary">HTMX</span>
+                                        <span class="badge bg-soft-success text-success">Soft Delete</span>
+                                    </div>
+                                </div>
+                                <div class="ms-2"><span class="badge bg-gray-200 text-dark">Dados</span></div>
+                            </div>
+                            <!-- Sprint 04 -->
+                            <div class="lp-sprint-item">
+                                <div class="lp-sprint-badge">
+                                    <span class="lp-sprint-num">Sprint 04</span>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold fs-13 mb-1">Turmas e Agenda</div>
+                                    <p class="fs-12 text-muted mb-2">Turmas, salas, matrículas, grade horária, atividades, lançamento de notas.</p>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <span class="badge bg-soft-info text-info">Matrículas</span>
+                                        <span class="badge bg-soft-warning text-warning">Grade Horária</span>
+                                    </div>
+                                </div>
+                                <div class="ms-2"><span class="badge bg-gray-200 text-dark">Acadêmico</span></div>
+                            </div>
+                            <!-- Sprint 05 -->
+                            <div class="lp-sprint-item">
+                                <div class="lp-sprint-badge">
+                                    <span class="lp-sprint-num">Sprint 05</span>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold fs-13 mb-1">Calendário</div>
+                                    <p class="fs-12 text-muted mb-2">Calendário acadêmico, eventos, feriados, recorrência, exportação iCal.</p>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <span class="badge bg-soft-danger text-danger">Feriados</span>
+                                        <span class="badge bg-soft-success text-success">iCal Export</span>
+                                    </div>
+                                </div>
+                                <div class="ms-2"><span class="badge bg-gray-200 text-dark">Calendário</span></div>
+                            </div>
+                            <!-- Sprint 06 -->
+                            <div class="lp-sprint-item">
+                                <div class="lp-sprint-badge">
+                                    <span class="lp-sprint-num">Sprint 06</span>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold fs-13 mb-1">Frequência</div>
+                                    <p class="fs-12 text-muted mb-2">Chamada por aula, percentual automático, alertas (75% / 50%), justificativas.</p>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <span class="badge bg-soft-warning text-warning">Alertas Celery</span>
+                                        <span class="badge bg-soft-danger text-danger">Alunos em Risco</span>
+                                    </div>
+                                </div>
+                                <div class="ms-2"><span class="badge bg-gray-200 text-dark">Presença</span></div>
+                            </div>
+                            <!-- Sprint 07 -->
+                            <div class="lp-sprint-item">
+                                <div class="lp-sprint-badge">
+                                    <span class="lp-sprint-num">Sprint 07</span>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold fs-13 mb-1">Comunicação</div>
+                                    <p class="fs-12 text-muted mb-2">Notificações in-app, e-mail assíncrono, WhatsApp, comunicados, templates.</p>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <span class="badge bg-soft-primary text-primary">Celery Tasks</span>
+                                        <span class="badge bg-soft-success text-success">WhatsApp</span>
+                                    </div>
+                                </div>
+                                <div class="ms-2"><span class="badge bg-gray-200 text-dark">Notif.</span></div>
+                            </div>
+                            <!-- Sprint 08 -->
+                            <div class="lp-sprint-item">
+                                <div class="lp-sprint-badge">
+                                    <span class="lp-sprint-num">Sprint 08</span>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold fs-13 mb-1">Dashboards</div>
+                                    <p class="fs-12 text-muted mb-2">Dashboard técnico (Grafana), escolar (HTMX), executivo (multi-tenant). Cache Redis.</p>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <span class="badge bg-soft-info text-info">Grafana</span>
+                                        <span class="badge bg-soft-warning text-warning">Redis Cache</span>
+                                    </div>
+                                </div>
+                                <div class="ms-2"><span class="badge bg-gray-200 text-dark">Analytics</span></div>
+                            </div>
+                            <!-- Sprint 09 -->
+                            <div class="lp-sprint-item">
+                                <div class="lp-sprint-badge">
+                                    <span class="lp-sprint-num">Sprint 09</span>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold fs-13 mb-1">Produção</div>
+                                    <p class="fs-12 text-muted mb-2">Docker Swarm, Let's Encrypt, backup PostgreSQL, alertas, hardening, testes de carga.</p>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <span class="badge bg-soft-danger text-danger">Docker Swarm</span>
+                                        <span class="badge bg-soft-success text-success">OWASP Audit</span>
+                                    </div>
+                                </div>
+                                <div class="ms-2"><span class="badge bg-soft-success text-success">Go-Live</span></div>
+                            </div>
+                            <!-- Sprint 10 -->
+                            <div class="lp-sprint-item">
+                                <div class="lp-sprint-badge">
+                                    <span class="lp-sprint-num">Sprint 10</span>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold fs-13 mb-1">Inteligência Artificial</div>
+                                    <p class="fs-12 text-muted mb-2">Score de risco preditivo, relatórios pedagógicos com IA, sugestões de atividades.</p>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <span class="badge bg-soft-primary text-primary">LLM</span>
+                                        <span class="badge bg-soft-info text-info">LGPD Compliant</span>
+                                    </div>
+                                </div>
+                                <div class="ms-2"><span class="badge bg-soft-primary text-primary">IA</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- DOCUMENTAÇÃO -->
+    <!-- ============================================================ -->
+    <section class="lp-section-sm bg-gray-200">
+        <div class="container">
+            <div class="text-center mb-4">
+                <h2 class="lp-section-title">Documentação</h2>
+                <div class="lp-divider mx-auto"></div>
+                <p class="lp-section-subtitle">Toda decisão arquitetural deverá estar documentada.</p>
+            </div>
+            <div class="row g-3 justify-content-center">
+                <div class="col-md-4 col-lg-3">
+                    <a href="docs/00_PROJECT_VISION.md" class="card stretch stretch-full lp-feature-card text-decoration-none">
+                        <div class="card-body p-3 d-flex align-items-center gap-3">
+                            <div class="avatar-text avatar-md bg-soft-primary text-primary flex-shrink-0">
+                                <i class="feather-flag"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold fs-12">Visão do Projeto</div>
+                                <div class="fs-11 text-muted">Missão e princípios</div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-4 col-lg-3">
+                    <a href="docs/02_ARCHITECTURE.md" class="card stretch stretch-full lp-feature-card text-decoration-none">
+                        <div class="card-body p-3 d-flex align-items-center gap-3">
+                            <div class="avatar-text avatar-md bg-soft-success text-success flex-shrink-0">
+                                <i class="feather-layers"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold fs-12">Arquitetura</div>
+                                <div class="fs-11 text-muted">Stack e estrutura</div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-4 col-lg-3">
+                    <a href="docs/04_SECURITY.md" class="card stretch stretch-full lp-feature-card text-decoration-none">
+                        <div class="card-body p-3 d-flex align-items-center gap-3">
+                            <div class="avatar-text avatar-md bg-soft-danger text-danger flex-shrink-0">
+                                <i class="feather-shield"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold fs-12">Segurança</div>
+                                <div class="fs-11 text-muted">OWASP Top 10</div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-4 col-lg-3">
+                    <a href="docs/05_DATABASE.md" class="card stretch stretch-full lp-feature-card text-decoration-none">
+                        <div class="card-body p-3 d-flex align-items-center gap-3">
+                            <div class="avatar-text avatar-md bg-soft-warning text-warning flex-shrink-0">
+                                <i class="feather-database"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold fs-12">Banco de Dados</div>
+                                <div class="fs-11 text-muted">BaseModel e Soft Delete</div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-4 col-lg-3">
+                    <a href="docs/06_MULTI_TENANT.md" class="card stretch stretch-full lp-feature-card text-decoration-none">
+                        <div class="card-body p-3 d-flex align-items-center gap-3">
+                            <div class="avatar-text avatar-md bg-soft-info text-info flex-shrink-0">
+                                <i class="feather-server"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold fs-12">Multi-Tenant</div>
+                                <div class="fs-11 text-muted">Schema por escola</div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-4 col-lg-3">
+                    <a href="docs/07_OBSERVABILITY.md" class="card stretch stretch-full lp-feature-card text-decoration-none">
+                        <div class="card-body p-3 d-flex align-items-center gap-3">
+                            <div class="avatar-text avatar-md bg-soft-dark text-dark flex-shrink-0">
+                                <i class="feather-eye"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold fs-12">Observabilidade</div>
+                                <div class="fs-11 text-muted">Logs, métricas e traces</div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-4 col-lg-3">
+                    <a href="docs/13_ROADMAP.md" class="card stretch stretch-full lp-feature-card text-decoration-none">
+                        <div class="card-body p-3 d-flex align-items-center gap-3">
+                            <div class="avatar-text avatar-md bg-soft-primary text-primary flex-shrink-0">
+                                <i class="feather-map"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold fs-12">Roadmap</div>
+                                <div class="fs-11 text-muted">11 sprints detalhadas</div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-4 col-lg-3">
+                    <a href="design_system/design-system.html" class="card stretch stretch-full lp-feature-card text-decoration-none">
+                        <div class="card-body p-3 d-flex align-items-center gap-3">
+                            <div class="avatar-text avatar-md bg-soft-success text-success flex-shrink-0">
+                                <i class="feather-layout"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold fs-12">Design System</div>
+                                <div class="fs-11 text-muted">Componentes UI</div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- FOOTER -->
+    <!-- ============================================================ -->
+    <footer class="lp-footer">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-4 mb-3 mb-md-0">
+                    <img src="design_system/refs/duralux/images/logo-full.png" alt="School Manager" style="height:28px;opacity:.6">
+                    <p class="fs-11 mt-2 mb-0">Plataforma SaaS Multi-Tenant para Gestão Escolar</p>
+                </div>
+                <div class="col-md-4 text-center mb-3 mb-md-0">
+                    <div class="d-flex justify-content-center flex-wrap gap-3">
+                        <a href="docs/02_ARCHITECTURE.md" class="fs-12">Arquitetura</a>
+                        <a href="docs/13_ROADMAP.md" class="fs-12">Roadmap</a>
+                        <a href="design_system/design-system.html" class="fs-12">Design System</a>
+                        <a href="docs/04_SECURITY.md" class="fs-12">Segurança</a>
+                    </div>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <div class="d-flex flex-wrap justify-content-md-end gap-2">
+                        <span class="badge bg-soft-success text-success">Python 3.13</span>
+                        <span class="badge bg-soft-primary text-primary">Django</span>
+                        <span class="badge bg-soft-warning text-warning">PostgreSQL</span>
+                        <span class="badge bg-soft-info text-info">Multi-Tenant</span>
+                    </div>
+                </div>
+            </div>
+            <hr style="border-color:rgba(255,255,255,.1);margin:24px 0 16px">
+            <div class="text-center fs-11">
+                Plataforma SaaS Multi-Tenant para Gestão Escolar &mdash; Monólito Modular · Security First · Observabilidade Desde o Sprint 0
+            </div>
+        </div>
+    </footer>
+
+    <!-- ============================================================ -->
+    <!-- JS -->
+    <!-- ============================================================ -->
+    <script src="design_system/refs/duralux/js/vendors.min.js"></script>
+    <script src="design_system/refs/duralux/js/common-init.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}{{ guardian.full_name }} — School Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title">
+            <h5 class="m-b-10">Perfil do Responsável</h5>
+        </div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'guardians_list' %}">Responsáveis</a></li>
+            <li class="breadcrumb-item">{{ guardian.full_name }}</li>
+        </ul>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="avatar-text avatar-xl bg-soft-purple text-purple mb-3 mx-auto" style="width:64px;height:64px;font-size:1.5rem">
+                        {{ guardian.full_name|first|upper }}
+                    </div>
+                    <h5 class="mb-1">{{ guardian.full_name }}</h5>
+                    <span class="badge bg-soft-info text-info mb-2">{{ guardian.get_relationship_type_display }}</span>
+                    <div class="text-muted small">
+                        {% if guardian.phone %}<p class="mb-1">Tel: {{ guardian.phone }}</p>{% endif %}
+                        {% if guardian.phone_whatsapp %}<p class="mb-1">WhatsApp: {{ guardian.phone_whatsapp }}</p>{% endif %}
+                        {% if guardian.cpf %}<p class="mb-0">CPF: {{ guardian.cpf }}</p>{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">Alunos Vinculados</h6>
+                </div>
+                <div class="card-body">
+                    {% for link in students %}
+                    <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+                        <div>
+                            <a href="{% url 'student_profile' link.student.pk %}" class="fw-semibold">
+                                {{ link.student.get_full_name }}
+                            </a>
+                            <span class="text-muted ms-2 small">{{ link.student.enrollment_number }}</span>
+                        </div>
+                        <div>
+                            {% if link.is_primary %}
+                            <span class="badge bg-soft-success text-success">Principal</span>
+                            {% endif %}
+                            {% if link.can_pickup %}
+                            <span class="badge bg-soft-info text-info ms-1">Autorizado a buscar</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted mb-0">Nenhum aluno vinculado.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

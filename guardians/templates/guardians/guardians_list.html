@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Responsáveis — School Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title">
+            <h5 class="m-b-10">Responsáveis</h5>
+        </div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item">Responsáveis</li>
+        </ul>
+    </div>
+    <div class="page-header-right ms-auto">
+        <span class="badge bg-soft-primary text-primary fs-6">{{ result.total }} registros</span>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <h6 class="card-title mb-0">Lista de Responsáveis</h6>
+            <form class="d-flex gap-2" hx-get="{% url 'guardians_list' %}" hx-target="#guardians-table" hx-trigger="submit">
+                <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Buscar...">
+                <button class="btn btn-sm btn-primary">Buscar</button>
+            </form>
+        </div>
+        <div class="card-body p-0" id="guardians-table">
+            {% include "guardians/partials/guardians_table.html" %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/htmx.org@1.9.12"></script>
+{% endblock %}

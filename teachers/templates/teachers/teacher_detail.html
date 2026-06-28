@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}{{ teacher.full_name }} — School Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title">
+            <h5 class="m-b-10">Perfil do Professor</h5>
+        </div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'teachers_list' %}">Professores</a></li>
+            <li class="breadcrumb-item">{{ teacher.full_name }}</li>
+        </ul>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="avatar-text avatar-xl bg-soft-success text-success mb-3 mx-auto" style="width:64px;height:64px;font-size:1.5rem">
+                        {{ teacher.full_name|first|upper }}
+                    </div>
+                    <h5 class="mb-1">{{ teacher.full_name }}</h5>
+                    <p class="text-muted mb-1">{{ teacher.email }}</p>
+                    <span class="badge bg-soft-secondary text-secondary">Mat. {{ teacher.registration_number }}</span>
+                    {% if teacher.hire_date %}
+                    <p class="text-muted mt-2 mb-0 small">Admitido em {{ teacher.hire_date|date:"d/m/Y" }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">Disciplinas</h6>
+                </div>
+                <div class="card-body">
+                    {% for s in subjects %}
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div>
+                            <span class="fw-semibold">{{ s.name }}</span>
+                            <span class="text-muted ms-2 small">({{ s.code }})</span>
+                        </div>
+                        <span class="badge bg-soft-info text-info">{{ s.workload }}h/ano</span>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted mb-0">Nenhuma disciplina atribuída.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
