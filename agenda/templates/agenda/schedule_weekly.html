@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Grade — {{ class_obj.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title"><h5 class="m-b-10">Grade Horária — {{ class_obj.name }}</h5></div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'classes_list' %}">Turmas</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'class_detail' class_obj.pk %}">{{ class_obj.name }}</a></li>
+            <li class="breadcrumb-item">Grade</li>
+        </ul>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="card-title mb-0">Schedule Semanal</h6>
+            <a href="{% url 'schedule_create' class_obj.pk %}" class="btn btn-primary btn-sm">Novo Item</a>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small">Itens ativos da grade horária da turma:</p>
+            <ul>
+                {% for d, items in by_day.items %}
+                    {% for s in items %}
+                    <li>{{ s.time_slot }} — {{ s.subject }} ({{ s.teacher }}){% if s.room %} · {{ s.room }}{% endif %}</li>
+                    {% endfor %}
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -15,7 +15,7 @@
     <nav class="nxl-navigation">
         <div class="navbar-wrapper">
             <div class="m-header">
-                <a href="{% url 'dashboard' %}" class="b-brand">
+                <a href="{% url 'index' %}" class="b-brand">
                     <span class="fw-bold text-white fs-5">School Manager</span>
                 </a>
             </div>
@@ -25,7 +25,7 @@
                     <li class="nxl-item">
                         <a href="{% url 'dashboard' %}" class="nxl-link">
                             <span class="nxl-micon"><i class="feather-airplay"></i></span>
-                            <span class="nxl-mtext">Dashboard</span>
+                            <span class="nxl-mtext">Painel</span>
                         </a>
                     </li>
                     <li class="nxl-item nxl-caption"><label>Acadêmico</label></li>
@@ -45,6 +45,42 @@
                         <a href="{% url 'guardians_list' %}" class="nxl-link">
                             <span class="nxl-micon"><i class="feather-heart"></i></span>
                             <span class="nxl-mtext">Responsáveis</span>
+                        </a>
+                    </li>
+                    <li class="nxl-item">
+                        <a href="{% url 'classes_list' %}" class="nxl-link">
+                            <span class="nxl-micon"><i class="feather-layers"></i></span>
+                            <span class="nxl-mtext">Turmas</span>
+                        </a>
+                    </li>
+                    <li class="nxl-item">
+                        <a href="{% url 'rooms_list' %}" class="nxl-link">
+                            <span class="nxl-micon"><i class="feather-home"></i></span>
+                            <span class="nxl-mtext">Salas</span>
+                        </a>
+                    </li>
+                    <li class="nxl-item">
+                        <a href="{% url 'activities_list' %}" class="nxl-link">
+                            <span class="nxl-micon"><i class="feather-edit-3"></i></span>
+                            <span class="nxl-mtext">Atividades</span>
+                        </a>
+                    </li>
+                    <li class="nxl-item">
+                        <a href="{% url 'attendance_records_list' %}" class="nxl-link">
+                            <span class="nxl-micon"><i class="feather-check-circle"></i></span>
+                            <span class="nxl-mtext">Frequência</span>
+                        </a>
+                    </li>
+                    <li class="nxl-item">
+                        <a href="{% url 'time_slots_list' %}" class="nxl-link">
+                            <span class="nxl-micon"><i class="feather-clock"></i></span>
+                            <span class="nxl-mtext">Horários</span>
+                        </a>
+                    </li>
+                    <li class="nxl-item">
+                        <a href="{% url 'calendar_month' %}" class="nxl-link">
+                            <span class="nxl-micon"><i class="feather-calendar"></i></span>
+                            <span class="nxl-mtext">Calendário</span>
                         </a>
                     </li>
                     <li class="nxl-item nxl-caption"><label>Administração</label></li>
@@ -123,6 +159,7 @@
 
     <script src="{% static 'js/vendors.min.js' %}"></script>
     <script src="{% static 'js/common-init.min.js' %}"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

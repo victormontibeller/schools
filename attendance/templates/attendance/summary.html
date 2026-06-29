@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Frequência — {{ class_obj.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title"><h5 class="m-b-10">Frequência — {{ class_obj.name }}</h5></div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'attendance_records_list' %}">Frequência</a></li>
+            <li class="breadcrumb-item">{{ class_obj.name }}</li>
+        </ul>
+    </div>
+</div>
+
+<div class="main-content">
+    {% if at_risk %}
+    <div class="alert alert-warning">
+        <i class="feather-alert-triangle me-1"></i>
+        <b>{{ at_risk|length }} aluno(s)</b> com frequência abaixo de 75% nesta turma.
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-header"><h6 class="card-title mb-0">Resumo por aluno</h6></div>
+        <div class="card-body p-0">
+            <table class="table table-hover align-middle">
+                <thead><tr><th>Aluno</th><th>Presentes</th><th>Ausentes</th><th>Justificados</th><th>Frequência</th><th>Ações</th></tr></thead>
+                <tbody>
+                    {% for s in summary %}
+                    <tr>
+                        <td>{{ s.student.get_full_name }}</td>
+                        <td><span class="badge bg-success">{{ s.present }}</span></td>
+                        <td><span class="badge bg-danger">{{ s.absent }}</span></td>
+                        <td><span class="badge bg-warning text-dark">{{ s.justified }}</span></td>
+                        <td>
+                            {% if s.rate is None %}
+                                <span class="text-muted">—</span>
+                            {% elif s.rate < 50 %}
+                                <span class="badge bg-danger">{{ s.rate }}% · Crítico</span>
+                            {% elif s.rate < 75 %}
+                                <span class="badge bg-warning text-dark">{{ s.rate }}% · Alerta</span>
+                            {% else %}
+                                <span class="badge bg-success">{{ s.rate }}%</span>
+                            {% endif %}
+                        </td>
+                        <td><a href="{% url 'student_attendance_class' s.student.pk class_obj.pk %}" class="btn btn-sm btn-outline-secondary">Histórico</a></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center text-muted py-4">Nenhum aluno matriculado.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

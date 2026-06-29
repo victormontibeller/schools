@@ -1,0 +1,32 @@
+{% load calendar_extras %}
+<table class="table table-bordered table-sm mb-0 text-center">
+    <thead class="table-light">
+        <tr>
+            <th>Dom</th><th>Seg</th><th>Ter</th><th>Qua</th><th>Qui</th><th>Sex</th><th>Sáb</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for week in weeks %}
+        <tr>
+            {% for day in week %}
+            <td style="height:90px; width:14%; vertical-align:top; {% if day.month != month %}background:#f8f9fa;{% endif %} {% if day == today %}border:2px solid #4361ee;{% endif %}">
+                <div class="text-end small {% if day.month != month %}text-muted{% else %}fw-semibold{% endif %}">{{ day.day }}</div>
+                <div class="d-flex flex-wrap gap-1 mt-1">
+                    {% for ev in by_day|get:day %}
+                    {% if ev.type == 'HOLIDAY' or ev.type == 'NON_SCHOOL_DAY' %}
+                        <span class="badge bg-danger" title="{{ ev.title }}">{{ ev.title|truncatechars:12 }}</span>
+                    {% elif ev.type == 'ASSESSMENT' %}
+                        <span class="badge bg-warning text-dark" title="{{ ev.title }}">{{ ev.title|truncatechars:12 }}</span>
+                    {% elif ev.type == 'MEETING' %}
+                        <span class="badge bg-info" title="{{ ev.title }}">{{ ev.title|truncatechars:12 }}</span>
+                    {% else %}
+                        <span class="badge bg-primary" title="{{ ev.title }}">{{ ev.title|truncatechars:12 }}</span>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

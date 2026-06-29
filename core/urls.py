@@ -5,16 +5,23 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
-from core.views import dashboard, health
+from core.views import dashboard, health, index
 
 urlpatterns = [
-    path("", dashboard, name="dashboard"),
+    path("", index, name="index"),
+    path("app/", dashboard, name="dashboard"),
     path("admin/", admin.site.urls),
     path("health/", health, name="health"),
     path("", include("accounts.urls")),
     path("", include("teachers.urls")),
     path("", include("students.urls")),
     path("", include("guardians.urls")),
+    path("", include("classes.urls")),
+    path("", include("rooms.urls")),
+    path("", include("agenda.urls")),
+    path("", include("activities.urls")),
+    path("", include("academic_calendar.urls")),
+    path("", include("attendance.urls")),
 ]
 
 if settings.DEBUG:

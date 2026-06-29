@@ -1,0 +1,52 @@
+<table class="table table-hover align-middle">
+    <thead>
+        <tr>
+            <th>Nome</th>
+            <th>Série</th>
+            <th>Turno</th>
+            <th>Ano</th>
+            <th>Vagas</th>
+            <th>Professor Resp.</th>
+            <th>Ações</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for c in result.items %}
+        <tr>
+            <td>{{ c.name }}</td>
+            <td>{{ c.grade }}</td>
+            <td>{{ c.get_shift_display }}</td>
+            <td>{{ c.academic_year }}</td>
+            <td>
+                <span class="badge {% if c.has_open_seats %}bg-success{% else %}bg-danger{% endif %}">
+                    {{ c.enrollment_count }}/{{ c.max_students }}
+                </span>
+            </td>
+            <td>{{ c.class_teacher|default:"—" }}</td>
+            <td><a href="{% url 'class_detail' c.pk %}" class="btn btn-sm btn-outline-secondary">Ver</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-muted py-4">Nenhuma turma encontrada.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if result.has_previous or result.has_next %}
+<nav class="d-flex justify-content-between align-items-center mt-3">
+    <div class="text-muted small">
+        Página {{ result.page }} de {{ result.total_pages }} · {{ result.total }} turmas
+    </div>
+    <div class="btn-group">
+        {% if result.has_previous %}
+        <a class="btn btn-outline-secondary btn-sm"
+           hx-get="/classes/?page={{ result.page|add:'-1' }}{% if q %}&q={{ q }}{% endif %}"
+           hx-target="#classes-table-container">Anterior</a>
+        {% endif %}
+        {% if result.has_next %}
+        <a class="btn btn-outline-secondary btn-sm"
+           hx-get="/classes/?page={{ result.page|add:'1' }}{% if q %}&q={{ q }}{% endif %}"
+           hx-target="#classes-table-container">Próxima</a>
+        {% endif %}
+    </div>
+</nav>
+{% endif %}

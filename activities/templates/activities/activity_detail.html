@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}{{ activity.title }} — School Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title"><h5 class="m-b-10">{{ activity.title }}</h5></div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'activities_list' %}">Atividades</a></li>
+            <li class="breadcrumb-item">{{ activity.title }}</li>
+        </ul>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="card mb-3">
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Turma</dt><dd class="col-sm-9">{{ activity.class_obj }}</dd>
+                <dt class="col-sm-3">Disciplina</dt><dd class="col-sm-9">{{ activity.subject }}</dd>
+                <dt class="col-sm-3">Professor</dt><dd class="col-sm-9">{{ activity.teacher }}</dd>
+                <dt class="col-sm-3">Tipo</dt><dd class="col-sm-9">{{ activity.get_type_display }}</dd>
+                <dt class="col-sm-3">Entrega</dt><dd class="col-sm-9">{{ activity.due_date|date:"d/m/Y" }}</dd>
+                <dt class="col-sm-3">Nota Máxima</dt><dd class="col-sm-9">{{ activity.max_score }}</dd>
+                <dt class="col-sm-3">Peso</dt><dd class="col-sm-9">{{ activity.weight }}</dd>
+                {% if activity.description %}<dt class="col-sm-3">Descrição</dt><dd class="col-sm-9">{{ activity.description }}</dd>{% endif %}
+            </dl>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="card-title mb-0">Notas Lançadas</h6>
+            <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#score-form">Lançar Nota</button>
+        </div>
+        <div class="card-body">
+            <div class="collapse mb-3" id="score-form">
+                <form method="post" action="{% url 'activity_record_score' activity.pk %}" class="row g-2 align-items-end">
+                    {% csrf_token %}
+                    <div class="col-md-4">
+                        <label class="form-label">Aluno</label>
+                        {{ form.student }}
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Nota</label>
+                        {{ form.score }}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Feedback</label>
+                        {{ form.feedback }}
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">Lançar</button>
+                    </div>
+                </form>
+            </div>
+
+            <table class="table table-hover">
+                <thead><tr><th>Aluno</th><th>Nota</th><th>Entregue em</th><th>Feedback</th></tr></thead>
+                <tbody>
+                    {% for s in submissions %}
+                    <tr>
+                        <td>{{ s.student }}</td>
+                        <td>{{ s.score|default:"—" }}</td>
+                        <td>{{ s.submitted_at|date:"d/m/Y H:i"|default:"—" }}</td>
+                        <td>{{ s.feedback|default:"—" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center text-muted py-3">Nenhuma nota lançada.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

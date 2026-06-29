@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — School Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title"><h5 class="m-b-10">Dashboard</h5></div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item">Home</li>
+        </ul>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="row g-3">
+        {% for m in modules %}
+        <div class="col-sm-6 col-lg-4 col-xl-3">
+            <a href="{% url m.url %}" class="text-decoration-none">
+                <div class="card widget-card">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <div class="avatar-text avatar bg-soft-primary text-primary">
+                            <i class="{{ m.icon }}"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-0">{{ m.name }}</h6>
+                            <span class="text-muted small">Abrir módulo</span>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="row g-3 mt-1">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="card-title mb-0">Próximos Eventos (7 dias)</h6>
+                    <a href="{% url 'calendar_month' %}" class="btn btn-outline-secondary btn-sm">Ver calendário</a>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead><tr><th style="width:120px">Data</th><th>Título</th><th>Tipo</th><th>Público</th></tr></thead>
+                        <tbody>
+                            {% for e in upcoming %}
+                            <tr>
+                                <td>{{ e.start_date|date:"d/m/Y" }}</td>
+                                <td><a href="{% url 'event_detail' e.pk %}" class="text-decoration-none">{{ e.title }}</a></td>
+                                <td><span class="badge bg-primary">{{ e.get_type_display }}</span></td>
+                                <td>{{ e.get_audience_display }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center text-muted py-4">Nenhum evento nos próximos 7 dias.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

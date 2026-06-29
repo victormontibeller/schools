@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Grade — {{ teacher.full_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title"><h5 class="m-b-10">Grade de {{ teacher.full_name }}</h5></div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'teachers_list' %}">Professores</a></li>
+            <li class="breadcrumb-item">{{ teacher.full_name }}</li>
+            <li class="breadcrumb-item">Grade</li>
+        </ul>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="card">
+        <div class="card-header"><h6 class="card-title mb-0">Itens ativos da grade</h6></div>
+        <div class="card-body">
+            <ul class="mb-0">
+                {% for d, items in by_day.items %}
+                    {% for s in items %}
+                    <li>{{ s.time_slot }} — {{ s.class_obj }} · {{ s.subject }}{% if s.room %} · {{ s.room }}{% endif %}</li>
+                    {% endfor %}
+                {% empty %}
+                    <li class="text-muted">Nenhum item atribuído.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

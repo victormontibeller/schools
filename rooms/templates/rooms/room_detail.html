@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ room.name }} — School Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title"><h5 class="m-b-10">{{ room.name }}</h5></div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'rooms_list' %}">Salas</a></li>
+            <li class="breadcrumb-item">{{ room.code }}</li>
+        </ul>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="card" style="max-width: 720px;">
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Código</dt><dd class="col-sm-9">{{ room.code }}</dd>
+                <dt class="col-sm-3">Tipo</dt><dd class="col-sm-9">{{ room.get_type_display }}</dd>
+                <dt class="col-sm-3">Capacidade</dt><dd class="col-sm-9">{{ room.capacity }} lugares</dd>
+                <dt class="col-sm-3">Prédio</dt><dd class="col-sm-9">{{ room.building|default:"—" }}</dd>
+                <dt class="col-sm-3">Andar</dt><dd class="col-sm-9">{{ room.floor|default:"—" }}</dd>
+                {% if room.resources %}
+                <dt class="col-sm-3">Recursos</dt>
+                <dd class="col-sm-9">
+                    <ul class="mb-0">
+                        {% for k, v in room.resources.items %}<li>{{ k }}: {{ v }}</li>{% endfor %}
+                    </ul>
+                </dd>
+                {% endif %}
+            </dl>
+        </div>
+    </div>
+</div>
+{% endblock %}

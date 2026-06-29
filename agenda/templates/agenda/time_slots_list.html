@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} — School Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title"><h5 class="m-b-10">{{ title }}</h5></div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item">{{ title }}</li>
+        </ul>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="row g-3">
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-header"><h6 class="card-title mb-0">Novo Horário</h6></div>
+                <div class="card-body">
+                    {% if errors %}
+                    <div class="alert alert-danger small">
+                        {% for field, errs in errors.items %}
+                            {% for e in errs %}<div>{{ e }}</div>{% endfor %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <form method="post" action="{% url 'time_slot_create' %}">
+                        {% csrf_token %}
+                        {% for field in form %}
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endfor %}
+                        <button type="submit" class="btn btn-primary">Salvar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-header"><h6 class="card-title mb-0">Horários Cadastrados</h6></div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr><th>Dia</th><th>Nº</th><th>Início</th><th>Fim</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for t in result.items %}
+                            <tr>
+                                <td>{{ t.get_day_of_week_display }}</td>
+                                <td>{{ t.slot_number }}</td>
+                                <td>{{ t.start_time|time:"H:i" }}</td>
+                                <td>{{ t.end_time|time:"H:i" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center text-muted py-4">Nenhum horário cadastrado.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

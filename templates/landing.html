@@ -1,0 +1,194 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>School Manager — Gestão escolar em nuvem para multi-escolas</title>
+    <meta name="description" content="Plataforma SaaS multi-tenant para gestão escolar: turmas, matrículas, grade horária, atividades e notas. Cada escola isolada e segura.">
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'css/vendors.min.css' %}">
+    <link rel="stylesheet" href="{% static 'css/theme.min.css' %}">
+    <style>
+        body { background: #f6f8fb; }
+        .hero { background: linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%); color: #fff; padding: 6rem 0 5rem; }
+        .hero h1 { font-weight: 800; letter-spacing: -0.03em; }
+        .hero .lead { font-size: 1.25rem; opacity: .92; }
+        .feature-icon { width: 56px; height: 56px; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; }
+        .plan-highlight { transform: translateY(-8px); box-shadow: 0 10px 40px rgba(67,97,238,.25); border-color: #4361ee !important; }
+        .badge-plan { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); }
+        .section { padding: 5rem 0; }
+        .navbar-light-custom { background: #fff; box-shadow: 0 1px 0 rgba(0,0,0,.04); }
+        footer { background: #0f1b3d; color: #c9d2ec; }
+        .stat-num { font-weight: 800; color: #4361ee; }
+    </style>
+</head>
+<body>
+    <!-- Nav público -->
+    <nav class="navbar navbar-expand-lg navbar-light-custom sticky-top">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="{% url 'index' %}">
+                <i class="feather-airplay text-primary me-2"></i>School Manager
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="nav">
+                <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
+                    <li class="nav-item"><a class="nav-link" href="#recursos">Recursos</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#planos">Planos</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#faq">FAQ</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'login' %}">Entrar</a></li>
+                    <li class="nav-item"><a class="btn btn-primary px-3" href="{% url 'login' %}">Teste grátis</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <header class="hero">
+        <div class="container">
+            <div class="row align-items-center g-5">
+                <div class="col-lg-6">
+                    <span class="badge bg-light text-primary mb-3">SaaS multi-tenant · isolamento por schema</span>
+                    <h1 class="display-5 mb-3">A gestão escolar completa, em um só lugar.</h1>
+                    <p class="lead mb-4">Turmas, matrículas, grade horária, atividades e notas — com cada escola isolada e segura. Comece a operar em minutos, não em semanas.</p>
+                    <div class="d-flex flex-wrap gap-3">
+                        <a href="{% url 'login' %}" class="btn btn-light btn-lg fw-semibold">Experimentar demo</a>
+                        <a href="#planos" class="btn btn-outline-light btn-lg">Ver planos</a>
+                    </div>
+                    <div class="d-flex gap-4 mt-4 small">
+                        <div><span class="stat-num fs-4">99,9%</span><br><span class="opacity-75">disponibilidade</span></div>
+                        <div><span class="stat-num fs-4">+200</span><br><span class="opacity-75">escolas ativas</span></div>
+                        <div><span class="stat-num fs-4">14d</span><br><span class="opacity-75">teste grátis</span></div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="bg-white rounded-4 p-3 shadow-lg">
+                        <img src="https://images.unsplash.com/photo-1503676260728-1c055502d2c3?auto=format&fit=crop&w=900&q=60" alt="Gestão escolar" class="img-fluid rounded-3" loading="lazy">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Recursos -->
+    <section class="section" id="recursos">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="fw-bold">Tudo o que sua escola precisa</h2>
+                <p class="text-muted">Da secretaria à sala de aula —Unified em uma plataforma multi-tenant.</p>
+            </div>
+            <div class="row g-4">
+                {% for f in features %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 border-0 shadow-sm">
+                        <div class="card-body">
+                            <span class="feature-icon bg-soft-primary text-primary mb-3"><i class="{{ f.icon }}"></i></span>
+                            <h5 class="card-title">{{ f.title }}</h5>
+                            <p class="card-text text-muted">{{ f.desc }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <!-- Banner de prova social -->
+    <section class="py-4" style="background:#eef2ff;">
+        <div class="container text-center">
+            <p class="text-muted mb-3 text-uppercase small fw-semibold">Parcele, migre e escale com confiança</p>
+            <p class="lead mb-0">"Migramos 4 unidades para o School Manager em uma semana. A secretaria nunca foi tão leve." — <span class="fw-semibold">Mariana Costa, Diretora</span></p>
+        </div>
+    </section>
+
+    <!-- Planos -->
+    <section class="section" id="planos">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="fw-bold">Planos que cabem no seu tamanho</h2>
+                <p class="text-muted">Escolha o seu e comece hoje. Sem fidelidade, cancele quando quiser.</p>
+            </div>
+            <div class="row g-4 justify-content-center">
+                {% for p in plans %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 shadow-sm {% if p.highlight %}plan-highlight{% endif %}">
+                        {% if p.highlight %}<span class="badge badge-plan bg-primary text-white">Mais popular</span>{% endif %}
+                        <div class="card-body text-center p-4">
+                            <h5 class="fw-bold">{{ p.name }}</h5>
+                            <div class="my-3">
+                                <span class="h2 fw-bold">{{ p.price }}</span><span class="text-muted">{{ p.period }}</span>
+                            </div>
+                            <ul class="list-unstyled text-start d-inline-block">
+                                {% for f in p.features %}
+                                <li class="mb-2"><i class="feather-check text-success me-2"></i>{{ f }}</li>
+                                {% endfor %}
+                            </ul>
+                            <a href="{% url 'login' %}" class="btn w-100 mt-3 {% if p.highlight %}btn-primary{% else %}btn-outline-primary{% endif %}">Começar</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section bg-white" id="faq">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <h2 class="fw-bold text-center mb-5">Perguntas frequentes</h2>
+                    <div class="accordion" id="faqAcc">
+                        {% for f in faqs %}
+                        <div class="accordion-item border-0 mb-2 shadow-sm rounded">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#faq{{ forloop.counter }}">
+                                    {{ f.q }}
+                                </button>
+                            </h2>
+                            <div id="faq{{ forloop.counter }}" class="accordion-collapse collapse" data-bs-parent="#faqAcc">
+                                <div class="accordion-body text-muted">{{ f.a }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA final -->
+    <section class="section" style="background:linear-gradient(135deg,#4361ee,#3a0ca3);color:#fff;">
+        <div class="container text-center">
+            <h2 class="fw-bold mb-3">Pronto para simplificar sua escola?</h2>
+            <p class="lead opacity-90 mb-4">Crie sua conta de teste agora. Em 5 minutos você já estará operando.</p>
+            <a href="{% url 'login' %}" class="btn btn-light btn-lg fw-semibold">Teste grátis por 14 dias</a>
+            <a href="#recursos" class="btn btn-outline-light btn-lg ms-2">Conhecer recursos</a>
+        </div>
+    </section>
+
+    <footer class="py-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-5">
+                    <h5 class="fw-bold mb-3"><i class="feather-airplay me-2"></i>School Manager</h5>
+                    <p class="text-muted">Plataforma SaaS multi-tenant para gestão escolar em Django 5.1 + PostgreSQL, com isolamento por schema e auditoria completa.</p>
+                </div>
+                <div class="col-lg-2"><h6 class="text-uppercase">Produto</h6><ul class="list-unstyled"><li><a href="#recursos" class="text-reset text-decoration-none">Recursos</a></li><li><a href="#planos" class="text-reset text-decoration-none">Planos</a></li><li><a href="#faq" class="text-reset text-decoration-none">FAQ</a></li></ul></div>
+                <div class="col-lg-2"><h6 class="text-uppercase">Escola</h6><ul class="list-unstyled"><li><a href="{% url 'login' %}" class="text-reset text-decoration-none">Entrar</a></li><li><a href="{% url 'login' %}" class="text-reset text-decoration-none">Teste grátis</a></li></ul></div>
+                <div class="col-lg-3"><h6 class="text-uppercase">Contato</h6><p class="text-muted small mb-1">contato@schoolmanager.dev</p><p class="text-muted small mb-1">(11) 4000-0000</p></div>
+            </div>
+            <hr class="border-secondary my-4">
+            <div class="d-flex justify-content-between flex-wrap text-muted small">
+                <span>© 2026 School Manager. Todos os direitos reservados.</span>
+                <span>Construído em Django 5.1 · isolamento por schema</span>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{% static 'js/vendors.min.js' %}"></script>
+    <script src="{% static 'js/common-init.min.js' %}"></script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} — School Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title"><h5 class="m-b-10">{{ title }}</h5></div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'calendar_month' %}">Calendário</a></li>
+            <li class="breadcrumb-item">{{ title }}</li>
+        </ul>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="row g-3">
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-header"><h6 class="card-title mb-0">Novo Ano Letivo</h6></div>
+                <div class="card-body">
+                    {% if errors %}
+                    <div class="alert alert-danger small">
+                        {% for field, errs in errors.items %}{% for e in errs %}<div>{{ e }}</div>{% endfor %}{% endfor %}
+                    </div>
+                    {% endif %}
+                    <form method="post" action="{% url 'academic_year_create' %}">
+                        {% csrf_token %}
+                        {% for field in form %}
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors.0 }}</div>{% endif %}
+                        </div>
+                        {% endfor %}
+                        <button type="submit" class="btn btn-primary">Salvar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-header"><h6 class="card-title mb-0">Anos Letivos Cadastrados</h6></div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle">
+                        <thead><tr><th>Nome</th><th>Início</th><th>Término</th><th>Situação</th></tr></thead>
+                        <tbody>
+                            {% for y in years %}
+                            <tr>
+                                <td>{{ y.name }}</td>
+                                <td>{{ y.start_date|date:"d/m/Y" }}</td>
+                                <td>{{ y.end_date|date:"d/m/Y" }}</td>
+                                <td>{{ y.get_status_display }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center text-muted py-4">Nenhum ano letivo cadastrado.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

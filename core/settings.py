@@ -40,7 +40,18 @@ BASE_APPS = [
 ]
 
 # Apps que rodam por schema de tenant (dados por escola)
-TENANT_SPECIFIC_APPS = ["audit", "teachers", "students", "guardians"]
+TENANT_SPECIFIC_APPS = [
+    "audit",
+    "teachers",
+    "students",
+    "guardians",
+    "classes",
+    "rooms",
+    "agenda",
+    "activities",
+    "academic_calendar",
+    "attendance",
+]
 
 if TESTING:
     # Perfil rápido: sem django_tenants, SQLite, fixtures mínimas.

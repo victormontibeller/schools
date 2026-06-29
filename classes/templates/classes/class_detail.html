@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}{{ class_obj.name }} — School Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title"><h5 class="m-b-10">{{ class_obj.name }}</h5></div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'classes_list' %}">Turmas</a></li>
+            <li class="breadcrumb-item">{{ class_obj.name }}</li>
+        </ul>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="d-flex gap-2 mb-3">
+        <a href="{% url 'schedule_weekly' class_obj.pk %}" class="btn btn-outline-primary btn-sm">Grade Horária</a>
+        <a href="{% url 'activities_list' %}?class_obj={{ class_obj.pk }}" class="btn btn-outline-primary btn-sm">Atividades</a>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Série</dt><dd class="col-sm-9">{{ class_obj.grade }}</dd>
+                <dt class="col-sm-3">Turno</dt><dd class="col-sm-9">{{ class_obj.get_shift_display }}</dd>
+                <dt class="col-sm-3">Ano Letivo</dt><dd class="col-sm-9">{{ class_obj.academic_year }}</dd>
+                <dt class="col-sm-3">Vagas</dt>
+                <dd class="col-sm-9">
+                    {{ class_obj.enrollment_count }}/{{ class_obj.max_students }}
+                    {% if class_obj.has_open_seats %}<span class="badge bg-success ms-2">Vagas abertas</span>{% else %}<span class="badge bg-danger ms-2">Lotada</span>{% endif %}
+                </dd>
+                <dt class="col-sm-3">Professor Resp.</dt><dd class="col-sm-9">{{ class_obj.class_teacher|default:"—" }}</dd>
+            </dl>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="card-title mb-0">Alunos Matriculados</h6>
+            <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#enroll-form">Matricular Aluno</button>
+        </div>
+        <div class="card-body">
+            <div class="collapse mb-3" id="enroll-form">
+                <form method="post" action="{% url 'class_enroll' class_obj.pk %}" class="row g-2">
+                    {% csrf_token %}
+                    <div class="col-auto">
+                        <input type="text" name="student_id" class="form-control" placeholder="UUID do aluno" required>
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-primary">Matricular</button>
+                    </div>
+                </form>
+            </div>
+
+            <table class="table table-hover">
+                <thead><tr><th>Aluno</th><th>Matrícula</th><th>Data</th></tr></thead>
+                <tbody>
+                    {% for e in enrollments %}
+                    <tr>
+                        <td>{{ e.student.get_full_name }}</td>
+                        <td>{{ e.student.enrollment_number }}</td>
+                        <td>{{ e.enrollment_date|date:"d/m/Y" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="text-center text-muted py-3">Nenhum aluno matriculado.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

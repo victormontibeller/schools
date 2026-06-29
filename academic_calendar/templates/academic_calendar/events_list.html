@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Eventos — School Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title"><h5 class="m-b-10">Próximos Eventos</h5></div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'calendar_month' %}">Calendário</a></li>
+            <li class="breadcrumb-item">Próximos</li>
+        </ul>
+    </div>
+    <div class="page-header-right ms-auto">
+        <a href="{% url 'event_create' %}" class="btn btn-primary btn-sm">Novo Evento</a>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="card">
+        <div class="card-header"><h6 class="card-title mb-0">Eventos dos próximos 30 dias</h6></div>
+        <div class="card-body p-0">
+            <table class="table table-hover align-middle">
+                <thead><tr><th>Data</th><th>Título</th><th>Tipo</th><th>Público</th><th>Ações</th></tr></thead>
+                <tbody>
+                    {% for e in events %}
+                    <tr>
+                        <td>{{ e.start_date|date:"d/m/Y" }}</td>
+                        <td>{{ e.title }}</td>
+                        <td><span class="badge bg-primary">{{ e.get_type_display }}</span></td>
+                        <td>{{ e.get_audience_display }}</td>
+                        <td><a href="{% url 'event_detail' e.pk %}" class="btn btn-sm btn-outline-secondary">Ver</a></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted py-4">Nenhum evento nos próximos 30 dias.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

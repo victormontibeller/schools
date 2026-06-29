@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Atividades — School Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title"><h5 class="m-b-10">Atividades</h5></div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item">Atividades</li>
+        </ul>
+    </div>
+    <div class="page-header-right ms-auto">
+        <span class="badge bg-soft-primary text-primary fs-6">{{ result.total }} registros</span>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="card-title mb-0">Atividades Cadastradas</h6>
+            <a href="{% url 'activity_create' %}" class="btn btn-primary btn-sm">Nova Atividade</a>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Título</th>
+                        <th>Turma</th>
+                        <th>Disciplina</th>
+                        <th>Tipo</th>
+                        <th>Entrega</th>
+                        <th>Nota Máx.</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in result.items %}
+                    <tr>
+                        <td>{{ a.title }}</td>
+                        <td>{{ a.class_obj }}</td>
+                        <td>{{ a.subject }}</td>
+                        <td>{{ a.get_type_display }}</td>
+                        <td>{{ a.due_date|date:"d/m/Y" }}</td>
+                        <td>{{ a.max_score }}</td>
+                        <td><a href="{% url 'activity_detail' a.pk %}" class="btn btn-sm btn-outline-secondary">Ver</a></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" class="text-center text-muted py-4">Nenhuma atividade encontrada.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
