@@ -22,6 +22,17 @@ class ScheduleSelector(BaseSelector):
             .order_by("time_slot__day_of_week", "time_slot__start_time")
         )
 
+    @staticmethod
+    def group_by_day_of_week(schedules) -> dict[str, list]:
+        """Agrupa itens de grade por dia da semana (MON..SUN)."""
+        from agenda.models import TimeSlot
+
+        days = [d[0] for d in TimeSlot.Day.choices]
+        by_day: dict[str, list] = {d: [] for d in days}
+        for s in schedules:
+            by_day[s.time_slot.day_of_week].append(s)
+        return by_day
+
     def get_teacher_schedule(self, teacher_id):
         """Retorna itens ativos da grade atribuídos a um professor."""
         from agenda.models import Schedule

@@ -24,8 +24,10 @@ def guardians_list(request):
 @login_required
 def guardian_detail(request, pk):
     """Exibe o detalhe do responsável e os alunos vinculados."""
+    from guardians.selectors import GuardianSelector
+
     guardian = get_object_or_404(Guardian, pk=pk)
-    students = guardian.students.select_related("student").all()
+    students = GuardianSelector().get_guardian_students(guardian.pk)
     return render(
         request, "guardians/guardian_detail.html", {"guardian": guardian, "students": students}
     )

@@ -70,10 +70,14 @@ class TestRestoreUser:
 @pytest.mark.django_db
 class TestChangePassword:
     def test_success(self, user):
-        AccountService(user=user).change_password(user.pk, "NovaSenha456")
+        AccountService(user=user).change_password(user.pk, "Senha123", "NovaSenha456")
         user.refresh_from_db()
         assert user.check_password("NovaSenha456")
 
     def test_weak_password(self, user):
         with pytest.raises(ValidationError):
-            AccountService(user=user).change_password(user.pk, "fraca")
+            AccountService(user=user).change_password(user.pk, "Senha123", "fraca")
+
+    def test_wrong_current_password(self, user):
+        with pytest.raises(ValidationError):
+            AccountService(user=user).change_password(user.pk, "SenhaErrada", "NovaSenha456")

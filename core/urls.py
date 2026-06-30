@@ -5,7 +5,10 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
-from core.views import dashboard, health, index
+from core.views import dashboard, handler404, handler500, health, index
+
+handler404 = handler404
+handler500 = handler500
 
 urlpatterns = [
     path("", index, name="index"),
@@ -22,6 +25,8 @@ urlpatterns = [
     path("", include("activities.urls")),
     path("", include("academic_calendar.urls")),
     path("", include("attendance.urls")),
+    path("", include("notifications.urls")),
+    path("", include("dashboard.urls")),
 ]
 
 if settings.DEBUG:

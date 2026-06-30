@@ -110,3 +110,43 @@ class TestLinkStudent:
         GuardianService(user=user).link_student(g.pk, student.pk)
         GuardianService(user=user).unlink_student(g.pk, student.pk)
         assert not StudentGuardian.objects.filter(guardian=g, student=student).exists()
+
+    def test_unlink_not_found(self, user):
+        g_user = _make_user("g_unf@test.com")
+        g = GuardianService(user=user).create_guardian(
+            {"user_id": g_user.pk, "relationship_type": "MAE"}
+        )
+        student = _make_student(user, "UNF001")
+        with pytest.raises(ObjectNotFoundError):
+            GuardianService(user=user).unlink_student(g.pk, student.pk)
+
+    def test_link_student_not_found(self, user):
+        import uuid
+
+        g_user = _make_user("g_snf@test.com")
+        g = GuardianService(user=user).create_guardian(
+            {"user_id": g_user.pk, "relationship_type": "MAE"}
+        )
+        with pytest.raises(ObjectNotFoundError):
+            GuardianService(user=user).link_student(g.pk, uuid.uuid4())
+
+
+@pytest.mark.django_db
+class TestUpdateGuardian:
+    def test_success(self, user):
+        g_user = _make_user("g_upd@test.com")
+        g = GuardianService(user=user).create_guardian(
+            {"user_id": g_user.pk, "relationship_type": "MAE"}
+        )
+        updated = GuardianService(user=user).update_guardian(
+            g.pk, {"relationship_type": "PAI", "phone": "123456789"}
+        )
+        assert updated.relationship_type == "PAI"
+        assert updated.phone == "123456789"
+
+
+@pytest.mark.django_db
+class TestCreateGuardianEdgeCases:
+    def test_missing_user_id(self, user):
+        with pytest.raises(ValidationError):
+            GuardianService(user=user).create_guardian({"relationship_type": "MAE"})

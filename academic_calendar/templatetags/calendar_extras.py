@@ -13,4 +13,7 @@ def get(mapping, key):
     try:
         return mapping.get(key)
     except AttributeError:
-        return mapping[key]
+        try:
+            return mapping[key]
+        except (KeyError, IndexError, TypeError):
+            return None

@@ -38,20 +38,10 @@ class ActivityService(BaseService):
         """Cria uma atividade. Dispara evento para notificações futuras."""
         from activities.models import Activity
 
-        required = [
-            "class_obj_id",
-            "subject_id",
-            "teacher_id",
-            "title",
-            "due_date",
-            "max_score",
-        ]
-        errors: dict[str, list[str]] = {}
-        for field in required:
-            if data.get(field) in (None, ""):
-                errors[field] = ["Campo obrigatório."]
-        if errors:
-            raise ValidationError(errors=errors)
+        self.validate_required(
+            data,
+            ["class_obj_id", "subject_id", "teacher_id", "title", "due_date", "max_score"],
+        )
 
         from classes.models import Class
         from teachers.models import Subject, Teacher
@@ -118,8 +108,8 @@ class ActivityService(BaseService):
 
         try:
             score_decimal = Decimal(str(score))
-        except Exception as exc:
-            raise ValidationError(errors={"score": ["Nota inválida."]}) from exc
+        except (ValueError, TypeError, ArithmeticError) as exc:
+            raise ValidationError(errors={"score": ["Nota invalida."]}) from exc
 
         if score_decimal < 0 or score_decimal > activity.max_score:
             raise ValidationError(
@@ -167,6 +157,10 @@ class ActivityService(BaseService):
                 )
                 submissions.append(sub)
             except Exception as exc:
+                logger.warning(
+                    "Falha ao lancar nota (batch)",
+                    extra={"student_id": str(entry.get("student_id")), "error": str(exc)},
+                )
                 errors.append({"student_id": str(entry.get("student_id")), "message": str(exc)})
 
         self._log(

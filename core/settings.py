@@ -51,6 +51,8 @@ TENANT_SPECIFIC_APPS = [
     "activities",
     "academic_calendar",
     "attendance",
+    "notifications",
+    "dashboard",
 ]
 
 if TESTING:
@@ -72,12 +74,12 @@ MIDDLEWARE = [
     *([] if TESTING else ["django_tenants.middleware.main.TenantMainMiddleware"]),
     "axes.middleware.AxesMiddleware",
     "core.middleware.CorrelationIdMiddleware",
-    "core.middleware.AuditContextMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "core.middleware.AuditContextMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -247,6 +249,25 @@ LOGGING = {
         "django": {"handlers": ["console"], "level": "WARNING", "propagate": False},
     },
 }
+
+# ── Email ──────────────────────────────────────────────────────────────────────
+# Em dev: console.EmailBackend (emails aparecem no terminal).
+# Em prod/test_pg: SMTP com credenciais do .env.
+if TESTING or TEST_PG:
+    EMAIL_BACKEND = "django.core.mail.backends.dummy.DummyBackend"
+elif DEBUG:
+    EMAIL_BACKEND = config(
+        "EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend"
+    )
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+
+EMAIL_HOST = config("EMAIL_HOST", default="smtp.example.com")
+EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
+EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = True
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@schools.example.com")
 
 # ── Segurança ──────────────────────────────────────────────────────────────────
 SECURE_BROWSER_XSS_FILTER = True

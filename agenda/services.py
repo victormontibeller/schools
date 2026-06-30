@@ -36,13 +36,10 @@ class ScheduleService(BaseService):
         """Cria entrada de grade; valida conflito de professor e sala."""
         from agenda.models import Schedule
 
-        required = ["class_obj_id", "teacher_id", "subject_id", "time_slot_id", "valid_from"]
-        errors: dict[str, list[str]] = {}
-        for field in required:
-            if not data.get(field):
-                errors[field] = ["Campo obrigatório."]
-        if errors:
-            raise ValidationError(errors=errors)
+        self.validate_required(
+            data,
+            ["class_obj_id", "teacher_id", "subject_id", "time_slot_id", "valid_from"],
+        )
 
         from agenda.models import TimeSlot
         from classes.models import Class
@@ -162,13 +159,7 @@ class ScheduleService(BaseService):
         """Cria uma faixa de horário recorrente para a grade escolar."""
         from agenda.models import TimeSlot
 
-        required = ["day_of_week", "start_time", "end_time"]
-        errors: dict[str, list[str]] = {}
-        for field in required:
-            if not data.get(field):
-                errors[field] = ["Campo obrigatório."]
-        if errors:
-            raise ValidationError(errors=errors)
+        self.validate_required(data, ["day_of_week", "start_time", "end_time"])
 
         if data["end_time"] <= data["start_time"]:
             raise ValidationError(
@@ -196,32 +187,35 @@ class ScheduleService(BaseService):
         return slot
 
     def _assert_teacher_available(self, teacher, time_slot, valid_from, exclude_schedule=None):
-        """Garante que o professor não está atribuído a outra turma no mesmo horário."""
-        from django.db.models import Q
-
-        from agenda.models import Schedule
-
-        qs = Schedule.objects.filter(
-            teacher=teacher,
-            time_slot=time_slot,
-            is_active=True,
-            valid_from__lte=valid_from,
-        ).filter(Q(valid_until__isnull=True) | Q(valid_until__gte=valid_from))
-        if exclude_schedule is not None:
-            qs = qs.exclude(pk=exclude_schedule.pk)
-        if qs.exists():
-            raise BusinessRuleViolationError(
-                "Professor já está atribuído a outro item da grade neste horário."
-            )
+        """Garante que o professor nao esta atribuido a outra turma no mesmo horario."""
+        self._assert_slot_available(
+            {"teacher": teacher},
+            time_slot,
+            valid_from,
+            "Professor ja esta atribuido a outro item da grade neste horario.",
+            exclude_schedule,
+        )
 
     def _assert_room_available(self, room, time_slot, valid_from, exclude_schedule=None):
-        """Garante que a sala não está em uso concorrente no mesmo horário."""
+        """Garante que a sala nao esta em uso concorrente no mesmo horario."""
+        self._assert_slot_available(
+            {"room": room},
+            time_slot,
+            valid_from,
+            "Sala ja em uso neste horario.",
+            exclude_schedule,
+        )
+
+    def _assert_slot_available(
+        self, filter_kw: dict, time_slot, valid_from, message: str, exclude_schedule=None
+    ):
+        """Verifica conflito de horario para um recurso (professor ou sala)."""
         from django.db.models import Q
 
         from agenda.models import Schedule
 
         qs = Schedule.objects.filter(
-            room=room,
+            **filter_kw,
             time_slot=time_slot,
             is_active=True,
             valid_from__lte=valid_from,
@@ -229,4 +223,4 @@ class ScheduleService(BaseService):
         if exclude_schedule is not None:
             qs = qs.exclude(pk=exclude_schedule.pk)
         if qs.exists():
-            raise BusinessRuleViolationError("Sala já em uso neste horário.")
+            raise BusinessRuleViolationError(message)

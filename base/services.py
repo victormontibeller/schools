@@ -45,6 +45,45 @@ class BaseService:
     def __init__(self, user: "AbstractBaseUser | None" = None) -> None:
         self.user = user
 
+    # ── Helpers DRY compartilhados ──────────────────────────────────────────
+
+    @staticmethod
+    def validate_required(data: dict, fields: list[str]) -> None:
+        """Valida que os campos obrigatorios estao presentes e nao vazios.
+
+        Raises:
+            ValidationError: com dict de erros por campo.
+        """
+        from base.exceptions import ValidationError
+
+        errors: dict[str, list[str]] = {}
+        for field in fields:
+            if data.get(field) in (None, ""):
+                errors[field] = ["Campo obrigatorio."]
+        if errors:
+            raise ValidationError(errors=errors)
+
+    def _deactivate(self, model_class, entity_id, entity_label: str):
+        """Soft-delete generico para qualquer modelo de dominio.
+
+        Raises:
+            ObjectNotFoundError: se a entidade nao existir.
+            BusinessRuleViolationError: se ja estiver desativada.
+        """
+        from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError
+
+        try:
+            instance = model_class.all_objects.get(pk=entity_id)
+        except model_class.DoesNotExist:
+            raise ObjectNotFoundError(entity_label, str(entity_id)) from None
+        if instance.is_deleted:
+            raise BusinessRuleViolationError(f"{entity_label} ja esta desativado(a).")
+        instance.soft_delete(user=self.user)
+        self._record_audit("DELETE", instance)
+        return instance
+
+    # ── Logging e auditoria ─────────────────────────────────────────────────
+
     def _log(self, message: str, level: str = "info", **extra) -> None:
         # Guarda de PII — docs/04_SECURITY.md §39. Em dev (DEBUG) levanta;
         # em prod apenas descarta a chave e loga warning (não derruba serviço).

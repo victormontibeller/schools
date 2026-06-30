@@ -46,6 +46,12 @@ class ClassSelector(BaseSelector):
                 result.append(cls)
         return result
 
+    def list_ordered(self):
+        """Lista todas as turmas ordenadas por ano letivo (decrescente) e nome."""
+        from classes.models import Class
+
+        return Class.objects.all().order_by("-academic_year", "name")
+
     def get_enrollment_count(self, class_id) -> int:
         """Retorna o total de matrículas ativas na turma."""
         from classes.models import Enrollment

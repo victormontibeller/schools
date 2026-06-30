@@ -44,7 +44,7 @@ def student_profile(request, pk):
     from students.models import Student
 
     student = get_object_or_404(Student, pk=pk)
-    guardians = student.guardians.select_related("guardian__user").all()
+    guardians = StudentSelector().get_student_guardians(student.pk)
     return render(
         request, "students/student_profile.html", {"student": student, "guardians": guardians}
     )

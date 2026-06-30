@@ -1,12 +1,16 @@
 """Views HTMX para atividades."""
 
+import logging
+
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
 from activities.forms import ActivityForm, ScoreForm
 from activities.selectors import ActivitySelector
 from activities.services import ActivityService
-from base.exceptions import ValidationError
+from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -84,7 +88,8 @@ def activity_record_score(request, pk):
                 form.cleaned_data["score"],
                 form.cleaned_data.get("feedback", ""),
             )
-        except Exception as exc:
+        except (ValidationError, ObjectNotFoundError, BusinessRuleViolationError) as exc:
+            logger.warning("Erro ao lancar nota: %s", exc, extra={"activity_id": str(pk)})
             from django.contrib import messages
 
             messages.error(request, str(exc))

@@ -47,17 +47,12 @@ def schedule_weekly(request, class_id):
 
     class_obj = get_object_or_404(Class, pk=class_id)
     schedules = ScheduleSelector().get_weekly_schedule(class_obj.pk)
-
-    # Agrupa por dia da semana.
-    days = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
-    by_day: dict[str, list] = {d: [] for d in days}
-    for s in schedules:
-        by_day[s.time_slot.day_of_week].append(s)
+    by_day = ScheduleSelector.group_by_day_of_week(schedules)
 
     return render(
         request,
         "agenda/schedule_weekly.html",
-        {"class_obj": class_obj, "by_day": by_day, "days": days},
+        {"class_obj": class_obj, "by_day": by_day},
     )
 
 
@@ -68,16 +63,12 @@ def teacher_schedule(request, teacher_id):
 
     teacher = get_object_or_404(Teacher, pk=teacher_id)
     schedules = ScheduleSelector().get_teacher_schedule(teacher_id)
-
-    days = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
-    by_day: dict[str, list] = {d: [] for d in days}
-    for s in schedules:
-        by_day[s.time_slot.day_of_week].append(s)
+    by_day = ScheduleSelector.group_by_day_of_week(schedules)
 
     return render(
         request,
         "agenda/teacher_schedule.html",
-        {"teacher": teacher, "by_day": by_day, "days": days},
+        {"teacher": teacher, "by_day": by_day},
     )
 
 

@@ -39,6 +39,9 @@ Todo código deverá ser escrito como se fosse ser mantido por outra pessoa no f
 ### Decisões Arquiteturais
 
 - Toda decisão arquitetural significativa deverá ser documentada como **ADR** (Architecture Decision Record) na pasta `docs/adr/`.
+- Todo provedor de serviço externo (e-mail, WhatsApp, SMS, push) deverá ser abstraído atrás de uma interface **SDK** (`channels/BaseChannel`), nunca chamado diretamente. Ver ADR-0005.
+- Toda lógica de transporte de mensagens (renderização de template, log de entrega, retry) deverá ser centralizada no **MessageTransport**, não duplicada em tasks.
+- Rotinas genéricas reutilizáveis (validação de campos obrigatórios, soft-delete) deverão residir no **BaseService**. Ver `docs/10_CODING_STANDARDS.md` — Catálogo de Rotinas Genéricas.
 
 ---
 
@@ -49,12 +52,13 @@ Todo código deverá ser escrito como se fosse ser mantido por outra pessoa no f
 | `print()` para logging | Usar `logging` com saída JSON estruturada |
 | SQL direto nas Views | Usar ORM ou Repositories |
 | Regras de negócio nas Views | Views são apenas orquestração |
-| Duplicação de código | Extrair para `shared/` ou validators |
+| Duplicação de código | Extrair para `base/` helpers ou SDK channels |
 | Dependências circulares entre módulos | Redesenhar via interfaces ou eventos |
 | Ignorar o contexto do Tenant | Toda query deve operar no schema correto |
 | Ignorar auditoria em operações de escrita | Usar `BaseService` que já audita automaticamente |
 | Secrets em código fonte | Usar variáveis de ambiente |
 | Migrations sem revisão | Toda migration deve ser revisada antes de aplicar |
+| Chamada direta a API de terceiros em tasks | Usar `channels/` SDK — `BaseChannel.send()` |
 
 ---
 

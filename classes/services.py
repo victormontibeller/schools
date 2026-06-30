@@ -39,13 +39,7 @@ class ClassService(BaseService):
         """Cria uma turma. Não admite (name, academic_year) duplicados."""
         from classes.models import Class
 
-        required = ["name", "grade", "academic_year"]
-        errors: dict[str, list[str]] = {}
-        for field in required:
-            if data.get(field) in (None, ""):
-                errors[field] = ["Campo obrigatório."]
-        if errors:
-            raise ValidationError(errors=errors)
+        self.validate_required(data, ["name", "grade", "academic_year"])
 
         year = int(data["academic_year"])
         name = data["name"].strip()
@@ -110,15 +104,7 @@ class ClassService(BaseService):
         """Desativa uma turma (soft delete)."""
         from classes.models import Class
 
-        try:
-            cls = Class.all_objects.get(pk=class_id)
-        except Class.DoesNotExist:
-            raise ObjectNotFoundError("Class", str(class_id)) from None
-        if cls.is_deleted:
-            raise BusinessRuleViolationError("Turma já está desativada.")
-        cls.soft_delete(user=self.user)
-        self._record_audit("DELETE", cls)
-        return cls
+        return self._deactivate(Class, class_id, "Class")
 
     @transaction.atomic
     def enroll_student(self, class_id, student_id):

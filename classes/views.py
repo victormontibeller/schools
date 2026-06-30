@@ -1,12 +1,16 @@
-"""Views HTMX para turmas e matrículas."""
+"""Views HTMX para turmas e matriculas."""
+
+import logging
 
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
-from base.exceptions import ValidationError
+from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 from classes.forms import ClassForm
 from classes.selectors import ClassSelector
 from classes.services import ClassService
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -78,7 +82,8 @@ def class_enroll(request, class_id):
 
     try:
         ClassService(user=request.user).enroll_student(class_id, student_id)
-    except Exception as exc:
+    except (ValidationError, ObjectNotFoundError, BusinessRuleViolationError) as exc:
+        logger.warning("Erro ao matricular aluno: %s", exc, extra={"class_id": str(class_id)})
         from django.contrib import messages
 
         messages.error(request, str(exc))

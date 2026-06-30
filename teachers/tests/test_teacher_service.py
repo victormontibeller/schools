@@ -93,6 +93,35 @@ class TestAssignSubject:
         TeacherService(user=user).assign_subject(teacher.pk, subject.pk)
         assert teacher.subjects.filter(pk=subject.pk).exists()
 
+    def test_deactivate_not_found(self, user):
+        import uuid
+
+        with pytest.raises(ObjectNotFoundError):
+            TeacherService(user=user).deactivate_teacher(uuid.uuid4())
+
+    def test_remove_subject(self, user):
+        target = _make_user("rmsubj@test.com")
+        teacher = TeacherService(user=user).create_teacher(
+            {"user_id": target.pk, "registration_number": "MAT-RM"}
+        )
+        subject = Subject.objects.create(
+            name="Física", code="FIS", created_by=user, updated_by=user
+        )
+        TeacherService(user=user).assign_subject(teacher.pk, subject.pk)
+        TeacherService(user=user).remove_subject(teacher.pk, subject.pk)
+        assert not teacher.subjects.filter(pk=subject.pk).exists()
+
+    def test_update_teacher(self, user):
+        target = _make_user("updtch@test.com")
+        teacher = TeacherService(user=user).create_teacher(
+            {"user_id": target.pk, "registration_number": "MAT-UP"}
+        )
+        updated = TeacherService(user=user).update_teacher(
+            teacher.pk, {"hire_date": "2025-01-15", "registration_number": "MAT-UP2"}
+        )
+        assert updated.hire_date == "2025-01-15"
+        assert updated.registration_number == "MAT-UP2"
+
     def test_duplicate_assignment(self, user):
         target = _make_user("subj2@test.com")
         teacher = TeacherService(user=user).create_teacher(

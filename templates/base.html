@@ -23,7 +23,7 @@
                 <ul class="nxl-navbar">
                     <li class="nxl-item nxl-caption"><label>Principal</label></li>
                     <li class="nxl-item">
-                        <a href="{% url 'dashboard' %}" class="nxl-link">
+                        <a href="{% url 'school_dashboard' %}" class="nxl-link">
                             <span class="nxl-micon"><i class="feather-airplay"></i></span>
                             <span class="nxl-mtext">Painel</span>
                         </a>
@@ -83,6 +83,19 @@
                             <span class="nxl-mtext">Calendário</span>
                         </a>
                     </li>
+                    <li class="nxl-item nxl-caption"><label>Comunicação</label></li>
+                    <li class="nxl-item">
+                        <a href="{% url 'notification_list' %}" class="nxl-link">
+                            <span class="nxl-micon"><i class="feather-bell"></i></span>
+                            <span class="nxl-mtext">Notificações</span>
+                        </a>
+                    </li>
+                    <li class="nxl-item">
+                        <a href="{% url 'announcement_list' %}" class="nxl-link">
+                            <span class="nxl-micon"><i class="feather-message-square"></i></span>
+                            <span class="nxl-mtext">Comunicados</span>
+                        </a>
+                    </li>
                     <li class="nxl-item nxl-caption"><label>Administração</label></li>
                     <li class="nxl-item">
                         <a href="{% url 'users_list' %}" class="nxl-link">
@@ -90,6 +103,14 @@
                             <span class="nxl-mtext">Usuários</span>
                         </a>
                     </li>
+                    {% if request.user.is_staff %}
+                    <li class="nxl-item">
+                        <a href="{% url 'executive_dashboard' %}" class="nxl-link">
+                            <span class="nxl-micon"><i class="feather-bar-chart-2"></i></span>
+                            <span class="nxl-mtext">Dashboard Executivo</span>
+                        </a>
+                    </li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
@@ -112,7 +133,16 @@
                 </div>
             </div>
             <div class="header-right ms-auto">
-                <div class="d-flex align-items-center">
+                <div class="d-flex align-items-center gap-3">
+                    <a href="{% url 'notification_list' %}" class="position-relative text-decoration-none"
+                       title="Notificações">
+                        <i class="feather-bell fs-5"></i>
+                        <span id="unread-badge"
+                              hx-get="{% url 'unread_count' %}"
+                              hx-trigger="every 30s"
+                              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                              style="display: none;">0</span>
+                    </a>
                     <div class="dropdown">
                         <a href="#" class="arrow-none d-flex align-items-center gap-2"
                            data-bs-toggle="dropdown" data-bs-offset="0,10">

@@ -1,0 +1,168 @@
+{% load dashboard_extras %}
+
+<!-- KPIs cards -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card border-primary">
+      <div class="card-body text-center">
+        <h5 class="card-title text-muted">Alunos</h5>
+        <p class="display-4 text-primary mb-0">{{ data.total_students|default:"—" }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-success">
+      <div class="card-body text-center">
+        <h5 class="card-title text-muted">Professores</h5>
+        <p class="display-4 text-success mb-0">{{ data.total_teachers|default:"—" }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-info">
+      <div class="card-body text-center">
+        <h5 class="card-title text-muted">Turmas</h5>
+        <p class="display-4 text-info mb-0">{{ data.total_classes|default:"—" }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-warning">
+      <div class="card-body text-center">
+        <h5 class="card-title text-muted">Em Risco</h5>
+        <p class="display-4 text-warning mb-0">{{ data.students_at_risk|default:"—" }}</p>
+        {% if data.students_at_risk %}
+        <a href="{% url 'students_at_risk' %}" class="btn btn-sm btn-outline-warning mt-2">Ver lista</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Frequencia hoje -->
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Frequencia Hoje</div>
+      <div class="card-body">
+        {% if data.today_attendance %}
+        <div class="d-flex align-items-center">
+          <div class="flex-grow-1">
+            <div class="progress" style="height: 30px;">
+              <div class="progress-bar {% if data.today_attendance.rate >= 75 %}bg-success{% elif data.today_attendance.rate >= 50 %}bg-warning{% else %}bg-danger{% endif %}"
+                   style="width: {{ data.today_attendance.rate }}%">
+                {{ data.today_attendance.rate }}%
+              </div>
+            </div>
+          </div>
+        </div>
+        <small class="text-muted mt-2 d-block">
+          {{ data.today_attendance.present }} presentes de {{ data.today_attendance.total }} alunos
+        </small>
+        {% else %}
+        <p class="text-muted">Nenhuma chamada registrada hoje.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Frequencia semanal -->
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Frequencia — Ultimos 7 dias</div>
+      <div class="card-body">
+        {% if data.weekly_attendance %}
+        <div class="d-flex align-items-end" style="height: 120px;">
+          {% for day in data.weekly_attendance %}
+          <div class="flex-fill text-center mx-1">
+            <div class="bg-{% if not day.rate %}secondary{% elif day.rate >= 75 %}success{% elif day.rate >= 50 %}warning{% else %}danger{% endif %} rounded-top"
+                 style="height: {% if day.rate %}{{ day.rate }}%{% else %}5%{% endif %}; min-height: 5px;">
+            </div>
+            <small class="text-muted">{{ day.label }}</small>
+            {% if day.rate %}<small class="fw-bold d-block">{{ day.rate }}%</small>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted">Sem dados de frequencia.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Atividades e Eventos -->
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        Atividades Pendentes
+        <a href="{% url 'activities_list' %}" class="btn btn-sm btn-outline-primary">Ver todas</a>
+      </div>
+      <div class="card-body">
+        {% if data.pending_activities %}
+        <ul class="list-group list-group-flush">
+          {% for a in data.pending_activities %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <strong>{{ a.title }}</strong>
+              <small class="text-muted d-block">{{ a.subject }} · {{ a.class_obj }}</small>
+            </div>
+            <span class="badge bg-primary rounded-pill">{{ a.due_date }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted">Nenhuma atividade pendente.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        Proximos Eventos
+        <a href="{% url 'calendar_month' %}" class="btn btn-sm btn-outline-primary">Calendario</a>
+      </div>
+      <div class="card-body">
+        {% if data.upcoming_events %}
+        <ul class="list-group list-group-flush">
+          {% for e in data.upcoming_events %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <strong>{{ e.title }}</strong>
+              <small class="text-muted d-block">{{ e.type }}</small>
+            </div>
+            <span class="badge bg-info rounded-pill">{{ e.start_date }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted">Nenhum evento proximo.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Comunicados recentes -->
+{% if data.recent_announcements %}
+<div class="row g-3 mt-3">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Comunicados Recentes</div>
+      <div class="card-body">
+        <ul class="list-group list-group-flush">
+          {% for a in data.recent_announcements %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            {{ a.title }}
+            <small class="text-muted">{{ a.audience }} · {{ a.sent_at }}</small>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}

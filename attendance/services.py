@@ -46,26 +46,20 @@ class AttendanceService(BaseService):
         from classes.models import Class, Enrollment
         from teachers.models import Subject, Teacher
 
-        required = ["class_id", "subject_id", "teacher_id", "date"]
-        errors: dict[str, list[str]] = {}
-        for field in required:
-            if not data.get(field):
-                errors[field] = ["Campo obrigatório."]
-        if errors:
-            raise ValidationError(errors=errors)
+        self.validate_required(data, ["class_id", "subject_id", "teacher_id", "date"])
 
         try:
             cls = Class.objects.get(pk=data["class_id"])
-        except Class.DoesNotExist as exc:
-            raise ValidationError(errors={"class_id": ["Turma não encontrada."]}) from exc
+        except Class.DoesNotExist:
+            raise ObjectNotFoundError("Class", str(data["class_id"])) from None
         try:
             subject = Subject.objects.get(pk=data["subject_id"])
-        except Subject.DoesNotExist as exc:
-            raise ValidationError(errors={"subject_id": ["Disciplina não encontrada."]}) from exc
+        except Subject.DoesNotExist:
+            raise ObjectNotFoundError("Subject", str(data["subject_id"])) from None
         try:
             teacher = Teacher.objects.get(pk=data["teacher_id"])
-        except Teacher.DoesNotExist as exc:
-            raise ValidationError(errors={"teacher_id": ["Professor não encontrado."]}) from exc
+        except Teacher.DoesNotExist:
+            raise ObjectNotFoundError("Teacher", str(data["teacher_id"])) from None
 
         date = data["date"]
         lesson_number = int(data.get("lesson_number", 1) or 1)
@@ -111,6 +105,31 @@ class AttendanceService(BaseService):
             students=len(entries),
         )
         return record
+
+    # ── Parsing de formulário de chamada ─────────────────────────────────────
+
+    @staticmethod
+    def parse_attendance_post(post_data, entries) -> dict:
+        """Converte dados do formulario HTTP no formato esperado por record_attendance.
+
+        Formato do POST: chave `status_{student_id}` com valor "STATUS" ou
+        "STATUS|justificativa". Alunos nao explicitamente marcados sao PRESENT.
+        """
+        from attendance.models import AttendanceEntry
+
+        entries_data: dict = {}
+        for entry in entries:
+            key = f"status_{entry.student_id}"
+            raw = post_data.get(key, AttendanceEntry.Status.PRESENT)
+            if "|" in raw:
+                status, justification = raw.split("|", 1)
+            else:
+                status, justification = raw, ""
+            entries_data[str(entry.student_id)] = {
+                "status": status,
+                "justification": justification,
+            }
+        return entries_data
 
     # ── Lançamento em lote ───────────────────────────────────────────────────
     @transaction.atomic
@@ -185,13 +204,7 @@ class AttendanceService(BaseService):
         from attendance.models import AttendanceJustification
         from students.models import Student
 
-        required = ["student_id", "start_date", "end_date", "reason"]
-        errors: dict[str, list[str]] = {}
-        for field in required:
-            if not data.get(field):
-                errors[field] = ["Campo obrigatório."]
-        if errors:
-            raise ValidationError(errors=errors)
+        self.validate_required(data, ["student_id", "start_date", "end_date", "reason"])
 
         try:
             student = Student.objects.get(pk=data["student_id"])

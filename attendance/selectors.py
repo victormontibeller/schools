@@ -95,6 +95,39 @@ class AttendanceSelector(BaseSelector):
         """Chamadas lançadas por um professor em determinado intervalo."""
         return self.list_records(teacher_id=teacher_id, date_from=date_from, date_to=date_to)
 
+    def get_record_with_entries(self, record_id):
+        """Retorna registro de chamada com entradas de alunos ordenadas."""
+        from attendance.models import AttendanceEntry, AttendanceRecord
+
+        record = (
+            AttendanceRecord.objects.select_related("class_obj", "subject")
+            .filter(pk=record_id)
+            .first()
+        )
+        if record is None:
+            return None, None
+        entries = (
+            AttendanceEntry.objects.filter(record=record)
+            .select_related("student")
+            .order_by("student__first_name")
+        )
+        return record, entries
+
+    def get_student_attendance_rate(self, student_id, class_id):
+        """Retorna percentual de frequencia (0-100) ou None se sem dados."""
+        from attendance.models import AttendanceEntry
+
+        entries = AttendanceEntry.objects.filter(
+            student_id=student_id, record__class_obj_id=class_id
+        )
+        total = entries.count()
+        if total == 0:
+            return None
+        presences = entries.filter(
+            status__in=[AttendanceEntry.Status.PRESENT, AttendanceEntry.Status.JUSTIFIED]
+        ).count()
+        return round((presences / total) * 100, 2)
+
 
 class JustificationSelector(BaseSelector):
     """Selector para justificativas de ausência."""

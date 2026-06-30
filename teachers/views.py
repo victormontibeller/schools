@@ -26,7 +26,7 @@ def teacher_detail(request, pk):
     from teachers.models import Teacher
 
     teacher = get_object_or_404(Teacher, pk=pk)
-    subjects = teacher.subjects.all()
+    subjects = TeacherSelector().list_teacher_subjects(teacher.pk)
     return render(
         request, "teachers/teacher_detail.html", {"teacher": teacher, "subjects": subjects}
     )

@@ -68,16 +68,7 @@ class AccountService(BaseService):
         """Aplica exclusão lógica no usuário e registra auditoria."""
         from core.models import CustomUser
 
-        try:
-            user = CustomUser.all_objects.get(pk=user_id)
-        except CustomUser.DoesNotExist:
-            raise ObjectNotFoundError("CustomUser", str(user_id)) from None
-
-        if user.is_deleted:
-            raise BusinessRuleViolationError("Usuário já está desativado.")
-        user.soft_delete(user=self.user)
-        self._record_audit("DELETE", user)
-        return user
+        return self._deactivate(CustomUser, user_id, "CustomUser")
 
     def restore_user(self, user_id):
         """Reverte a exclusão lógica do usuário e registra auditoria."""
@@ -94,15 +85,23 @@ class AccountService(BaseService):
         self._record_audit("RESTORE", user)
         return user
 
-    def change_password(self, user_id, new_password: str):
-        """Altera a senha do usuário, após validar a nova senha."""
+    def change_password(self, user_id, current_password: str, new_password: str):
+        """Altera a senha do usuario, validando senha atual e nova senha.
+
+        Raises:
+            ValidationError: se a senha atual estiver incorreta ou a nova for fraca.
+        """
         from core.models import CustomUser
 
-        self._validate_password(new_password)
         try:
             user = CustomUser.objects.get(pk=user_id)
         except CustomUser.DoesNotExist:
             raise ObjectNotFoundError("CustomUser", str(user_id)) from None
+
+        if not user.check_password(current_password):
+            raise ValidationError(errors={"current_password": ["Senha atual incorreta."]})
+
+        self._validate_password(new_password)
         user.set_password(new_password)
         user.save(update_fields=["password", "updated_at"])
         self._record_audit(

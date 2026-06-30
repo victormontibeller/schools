@@ -48,6 +48,7 @@ def import_students_csv(self, csv_content: str, created_by_id: str) -> dict[str,
             )
             created += 1
         except Exception as exc:
+            logger.warning("Falha ao importar linha CSV %d: %s", row_num, exc)
             errors.append({"row": row_num, "message": str(exc)})
 
     logger.info(

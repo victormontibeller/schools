@@ -1,12 +1,17 @@
-"""Views HTMX para o módulo de frequência."""
+"""Views HTMX para o modulo de frequencia."""
 
+import logging
+
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
 from attendance.forms import AttendanceRecordForm, JustificationForm
 from attendance.selectors import AttendanceSelector, JustificationSelector
 from attendance.services import AttendanceService
-from base.exceptions import ValidationError
+from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -49,32 +54,26 @@ def attendance_record_create(request):
 @login_required
 def attendance_record_fill(request, record_id):
     """Tela de chamada bulk: lista alunos com radio presente/ausente/justificado."""
-    from attendance.models import AttendanceEntry, AttendanceRecord
+    record, entries = AttendanceSelector().get_record_with_entries(record_id)
+    if record is None:
+        from django.http import Http404
 
-    record = get_object_or_404(
-        AttendanceRecord.objects.select_related("class_obj", "subject"), pk=record_id
-    )
-    entries = (
-        AttendanceEntry.objects.filter(record=record)
-        .select_related("student")
-        .order_by("student__first_name")
-    )
+        raise Http404("Registro de chamada nao encontrado.")
 
     if request.method == "POST":
-        entries_data: dict = {}
-        for entry in entries:
-            key = f"status_{entry.student_id}"
-            raw = request.POST.get(key, AttendanceEntry.Status.PRESENT)
-            # Aceita valor "STATUS" ou "STATUS|justificativa"
-            if "|" in raw:
-                status, justification = raw.split("|", 1)
-            else:
-                status, justification = raw, ""
-            entries_data[str(entry.student_id)] = {
-                "status": status,
-                "justification": justification,
-            }
-        AttendanceService(user=request.user).record_attendance(record_id, entries_data)
+        entries_data = AttendanceService.parse_attendance_post(request.POST, entries)
+        try:
+            AttendanceService(user=request.user).record_attendance(record_id, entries_data)
+        except (ValidationError, ObjectNotFoundError, BusinessRuleViolationError) as exc:
+            logger.warning(
+                "Erro ao registrar chamada: %s", exc, extra={"record_id": str(record_id)}
+            )
+            messages.error(request, str(exc))
+            return render(
+                request,
+                "attendance/record_fill.html",
+                {"record": record, "entries": entries},
+            )
         return redirect("attendance_records_list")
 
     return render(request, "attendance/record_fill.html", {"record": record, "entries": entries})
@@ -101,11 +100,9 @@ def student_attendance(request, student_id, class_id=None):
 
     student = get_object_or_404(Student, pk=student_id)
     entries = AttendanceSelector().get_student_attendance(student_id, class_id=class_id)
-    svc = AttendanceService()
+    rate = None
     if class_id:
-        rate = svc.calculate_attendance_rate(student_id, class_id)
-    else:
-        rate = None
+        rate = AttendanceSelector().get_student_attendance_rate(student_id, class_id)
     return render(
         request,
         "attendance/student_attendance.html",
@@ -117,8 +114,9 @@ def student_attendance(request, student_id, class_id=None):
 def students_at_risk(request):
     """Tela de alunos em risco (abaixo de 75%), filtro por turma."""
     from classes.models import Class
+    from classes.selectors import ClassSelector
 
-    classes = Class.objects.all().order_by("-academic_year", "name")
+    classes = ClassSelector().list_ordered()
     selected = request.GET.get("class_obj")
     at_risk: list = []
     cls = None
@@ -172,7 +170,11 @@ def justification_approve(request, pk):
     """Coordenador aprova justificativa pendente."""
     if request.method != "POST":
         return redirect("justifications_list")
-    AttendanceService(user=request.user).approve_justification(pk)
+    try:
+        AttendanceService(user=request.user).approve_justification(pk)
+    except (ObjectNotFoundError, BusinessRuleViolationError) as exc:
+        logger.warning("Erro ao aprovar justificativa: %s", exc, extra={"pk": str(pk)})
+        messages.error(request, str(exc))
     return redirect("justifications_list")
 
 
@@ -181,5 +183,11 @@ def justification_reject(request, pk):
     """Coordenador rejeita justificativa pendente."""
     if request.method != "POST":
         return redirect("justifications_list")
-    AttendanceService(user=request.user).reject_justification(pk, request.POST.get("reason", ""))
+    try:
+        AttendanceService(user=request.user).reject_justification(
+            pk, request.POST.get("reason", "")
+        )
+    except (ObjectNotFoundError, BusinessRuleViolationError) as exc:
+        logger.warning("Erro ao rejeitar justificativa: %s", exc, extra={"pk": str(pk)})
+        messages.error(request, str(exc))
     return redirect("justifications_list")

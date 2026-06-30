@@ -64,6 +64,52 @@ class CalendarSelector(BaseSelector):
             .order_by("start_date", "start_time")
         )
 
+    def get_month_grid(self, year: int, month: int):
+        """Retorna grade mensal 6x7 com eventos indexados por dia.
+
+        Returns:
+            dict com weeks, by_day, prev_year, prev_month, next_year, next_month,
+            month_name, today.
+        """
+        import calendar as cal
+
+        today = dt.date.today()
+        events = self.get_events_by_month(year, month)
+
+        # Indexa eventos por dia.
+        by_day: dict[dt.date, list] = {}
+        for ev in events:
+            current = ev.start_date
+            while current <= ev.end_date:
+                by_day.setdefault(current, []).append(ev)
+                current += dt.timedelta(days=1)
+
+        # Constrói grade 6x7.
+        first = dt.date(year, month, 1)
+        offset = first.weekday() + 1 if first.weekday() < 6 else 0
+        grid_start = first - dt.timedelta(days=offset)
+        weeks: list[list[dt.date]] = []
+        cur = grid_start
+        for _ in range(6):
+            weeks.append([cur + dt.timedelta(days=i) for i in range(7)])
+            cur += dt.timedelta(days=7)
+
+        prev_d = dt.date(year, month, 1) - dt.timedelta(days=1)
+        next_d = dt.date(year, month, 1) + dt.timedelta(days=31)
+
+        return {
+            "year": year,
+            "month": month,
+            "month_name": cal.month_name[month],
+            "weeks": weeks,
+            "by_day": by_day,
+            "today": today,
+            "prev_year": prev_d.year,
+            "prev_month": prev_d.month,
+            "next_year": next_d.year,
+            "next_month": next_d.month,
+        }
+
     def get_academic_year_events(self, academic_year_id):
         """Retorna os eventos vinculados a um ano letivo."""
         from academic_calendar.models import CalendarEvent

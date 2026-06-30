@@ -3,7 +3,7 @@
 import datetime as dt
 import logging
 
-from base.exceptions import BusinessRuleViolationError, ValidationError
+from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 from base.repositories import BaseRepository
 from base.services import BaseService
 
@@ -42,13 +42,7 @@ class CalendarService(BaseService):
         """Cria um ano letivo validando janela de datas."""
         from academic_calendar.models import AcademicYear
 
-        required = ["name", "start_date", "end_date"]
-        errors: dict[str, list[str]] = {}
-        for field in required:
-            if not data.get(field):
-                errors[field] = ["Campo obrigatório."]
-        if errors:
-            raise ValidationError(errors=errors)
+        self.validate_required(data, ["name", "start_date", "end_date"])
 
         start = data["start_date"]
         end = data["end_date"]
@@ -76,13 +70,7 @@ class CalendarService(BaseService):
         """Cria um evento de calendário. Público CLASS exige turma informada."""
         from academic_calendar.models import CalendarEvent
 
-        required = ["title", "start_date", "end_date", "type"]
-        errors: dict[str, list[str]] = {}
-        for field in required:
-            if not data.get(field):
-                errors[field] = ["Campo obrigatório."]
-        if errors:
-            raise ValidationError(errors=errors)
+        self.validate_required(data, ["title", "start_date", "end_date", "type"])
 
         start = data["start_date"]
         end = data["end_date"]
@@ -102,8 +90,8 @@ class CalendarService(BaseService):
 
             try:
                 class_obj = Class.objects.get(pk=class_obj_id)
-            except Class.DoesNotExist as exc:
-                raise ValidationError(errors={"class_obj_id": ["Turma não encontrada."]}) from exc
+            except Class.DoesNotExist:
+                raise ObjectNotFoundError("Class", str(class_obj_id)) from None
 
         academic_year = None
         if ay_id := data.get("academic_year_id"):
@@ -111,10 +99,8 @@ class CalendarService(BaseService):
 
             try:
                 academic_year = AcademicYear.objects.get(pk=ay_id)
-            except AcademicYear.DoesNotExist as exc:
-                raise ValidationError(
-                    errors={"academic_year_id": ["Ano letivo não encontrado."]}
-                ) from exc
+            except AcademicYear.DoesNotExist:
+                raise ObjectNotFoundError("AcademicYear", str(ay_id)) from None
 
         event = CalendarEvent.objects.create(
             title=data["title"].strip(),
@@ -200,13 +186,7 @@ class CalendarService(BaseService):
         """Cria um feriado/dia não letivo."""
         from academic_calendar.models import Holiday
 
-        required = ["name", "date", "type"]
-        errors: dict[str, list[str]] = {}
-        for field in required:
-            if not data.get(field):
-                errors[field] = ["Campo obrigatório."]
-        if errors:
-            raise ValidationError(errors=errors)
+        self.validate_required(data, ["name", "date", "type"])
 
         name = data["name"].strip()
         date = data["date"]

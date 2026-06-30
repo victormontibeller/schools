@@ -90,15 +90,7 @@ class TeacherService(BaseService):
         """Aplica exclusão lógica no professor e registra auditoria."""
         from teachers.models import Teacher
 
-        try:
-            teacher = Teacher.all_objects.get(pk=teacher_id)
-        except Teacher.DoesNotExist:
-            raise ObjectNotFoundError("Teacher", str(teacher_id)) from None
-        if teacher.is_deleted:
-            raise BusinessRuleViolationError("Professor já está desativado.")
-        teacher.soft_delete(user=self.user)
-        self._record_audit("DELETE", teacher)
-        return teacher
+        return self._deactivate(Teacher, teacher_id, "Teacher")
 
     def assign_subject(self, teacher_id, subject_id):
         """Atribui uma disciplina ao professor e registra auditoria."""

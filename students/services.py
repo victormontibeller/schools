@@ -24,13 +24,7 @@ class StudentService(BaseService):
         """Cria um aluno validando obrigatórios e matrícula única, registrando auditoria."""
         from students.models import Student
 
-        required = ["first_name", "last_name", "birth_date", "enrollment_number"]
-        errors = {}
-        for field in required:
-            if not data.get(field):
-                errors[field] = ["Campo obrigatório."]
-        if errors:
-            raise ValidationError(errors=errors)
+        self.validate_required(data, ["first_name", "last_name", "birth_date", "enrollment_number"])
 
         enrollment = data["enrollment_number"].strip()
         if Student.objects.filter(enrollment_number=enrollment).exists():
@@ -78,15 +72,7 @@ class StudentService(BaseService):
         """Aplica exclusão lógica no aluno e registra auditoria."""
         from students.models import Student
 
-        try:
-            student = Student.all_objects.get(pk=student_id)
-        except Student.DoesNotExist:
-            raise ObjectNotFoundError("Student", str(student_id)) from None
-        if student.is_deleted:
-            raise BusinessRuleViolationError("Aluno já está desativado.")
-        student.soft_delete(user=self.user)
-        self._record_audit("DELETE", student)
-        return student
+        return self._deactivate(Student, student_id, "Student")
 
     def restore_student(self, student_id):
         """Reverte a exclusão lógica do aluno e registra auditoria."""

@@ -1,7 +1,7 @@
-"""Views HTMX para o calendário acadêmico."""
+"""Views HTMX para o calendario academico."""
 
-import calendar as cal
 import datetime as dt
+import logging
 
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
@@ -9,20 +9,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from academic_calendar.forms import AcademicYearForm, EventForm, HolidayForm
 from academic_calendar.selectors import AcademicYearSelector, CalendarSelector, HolidaySelector
 from academic_calendar.services import CalendarService
-from base.exceptions import ValidationError
+from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 
-
-def _month_bounds(year: int, month: int) -> tuple[dt.date, dt.date]:
-    """Retorna o primeiro e o último dia do mês, considerando a grade visual."""
-    first = dt.date(year, month, 1)
-    # A grade começa no domingo anterior ao primeiro do mês.
-    start = first - dt.timedelta(days=first.weekday() + 1 if first.weekday() < 6 else 0)
-    # cal.monthrange devolve (weekday do dia 1, último dia)
-    last_day = cal.monthrange(year, month)[1]
-    last = dt.date(year, month, last_day)
-    # A grade termina no sábado seguinte.
-    end = last + dt.timedelta(days=5 - last.weekday())
-    return start, end
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -32,40 +21,7 @@ def calendar_month(request, year: int | None = None, month: int | None = None):
     year = int(year) if year else today.year
     month = int(month) if month else today.month
 
-    prev_d = dt.date(year, month, 1) - dt.timedelta(days=1)
-    next_d = dt.date(year, month, 1) + dt.timedelta(days=31)
-    events = CalendarSelector().get_events_by_month(year, month)
-
-    # Indexa por dia para renderizar fácil na grade.
-    by_day: dict[dt.date, list] = {}
-    for ev in events:
-        current = ev.start_date
-        while current <= ev.end_date:
-            by_day.setdefault(current, []).append(ev)
-            current += dt.timedelta(days=1)
-
-    # Constrói a grade 6x7 (semanas).
-    first = dt.date(year, month, 1)
-    grid_start = first - dt.timedelta(days=first.weekday() + 1 if first.weekday() < 6 else 0)
-    weeks: list[list[dt.date]] = []
-    cur = grid_start
-    for _ in range(6):
-        week = [cur + dt.timedelta(days=i) for i in range(7)]
-        weeks.append(week)
-        cur += dt.timedelta(days=7)
-
-    ctx = {
-        "year": year,
-        "month": month,
-        "month_name": cal.month_name[month],
-        "weeks": weeks,
-        "by_day": by_day,
-        "today": today,
-        "prev_year": prev_d.year,
-        "prev_month": prev_d.month,
-        "next_year": next_d.year,
-        "next_month": next_d.month,
-    }
+    ctx = CalendarSelector().get_month_grid(year, month)
     if request.headers.get("HX-Request"):
         return render(request, "academic_calendar/partials/calendar_grid.html", ctx)
     return render(request, "academic_calendar/calendar_month.html", ctx)
@@ -90,6 +46,11 @@ def event_create(request):
             for field, errors in exc.errors.items():
                 for error in errors:
                     form.add_error(field if field != "__all__" else None, error)
+        except ObjectNotFoundError as exc:
+            logger.warning("Entidade nao encontrada ao criar evento: %s", exc)
+            from django.contrib import messages
+
+            messages.error(request, str(exc))
     return render(
         request,
         "academic_calendar/event_form.html",
@@ -113,7 +74,8 @@ def event_cancel(request, pk):
         return redirect("event_detail", pk=pk)
     try:
         CalendarService(user=request.user).cancel_event(pk, request.POST.get("reason", ""))
-    except Exception as exc:
+    except (ValidationError, ObjectNotFoundError, BusinessRuleViolationError) as exc:
+        logger.warning("Erro ao cancelar evento: %s", exc, extra={"event_id": str(pk)})
         from django.contrib import messages
 
         messages.error(request, str(exc))

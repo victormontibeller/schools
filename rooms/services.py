@@ -2,7 +2,7 @@
 
 import logging
 
-from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+from base.exceptions import ObjectNotFoundError, ValidationError
 from base.repositories import BaseRepository
 from base.services import BaseService
 
@@ -24,13 +24,7 @@ class RoomService(BaseService):
         """Cria uma sala a partir dos dados validados."""
         from rooms.models import Room
 
-        required = ["name", "code"]
-        errors: dict[str, list[str]] = {}
-        for field in required:
-            if not data.get(field):
-                errors[field] = ["Campo obrigatório."]
-        if errors:
-            raise ValidationError(errors=errors)
+        self.validate_required(data, ["name", "code"])
 
         code = data["code"].strip()
         if Room.objects.filter(code=code).exists():
@@ -77,15 +71,7 @@ class RoomService(BaseService):
         """Desativa uma sala (soft delete)."""
         from rooms.models import Room
 
-        try:
-            room = Room.all_objects.get(pk=room_id)
-        except Room.DoesNotExist:
-            raise ObjectNotFoundError("Room", str(room_id)) from None
-        if room.is_deleted:
-            raise BusinessRuleViolationError("Sala já está desativada.")
-        room.soft_delete(user=self.user)
-        self._record_audit("DELETE", room)
-        return room
+        return self._deactivate(Room, room_id, "Room")
 
     def check_availability(self, room_id, date, start_time, end_time):
         """Verifica disponibilidade de uma sala em uma data e janela de horário.

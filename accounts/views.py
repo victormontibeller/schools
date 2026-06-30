@@ -33,7 +33,7 @@ def login_view(request):
                 "Login bem-sucedido",
                 extra={"user_id": str(user.pk), "correlation_id": context.correlation_id.get()},
             )
-            return redirect(request.GET.get("next", "dashboard"))
+            return redirect(request.GET.get("next", "school_dashboard"))
         logger.warning("Login com falha", extra={"login_user_id": None})
         form.add_error(None, "E-mail ou senha inválidos.")
     return render(request, "auth/login.html", {"form": form})
@@ -57,19 +57,18 @@ def change_password_view(request):
     """Processa a troca de senha do usuário autenticado."""
     form = ChangePasswordForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
-        if not request.user.check_password(form.cleaned_data["current_password"]):
-            form.add_error("current_password", "Senha atual incorreta.")
-        else:
-            try:
-                AccountService(user=request.user).change_password(
-                    request.user.pk, form.cleaned_data["new_password"]
-                )
-                messages.success(request, "Senha alterada com sucesso.")
-                return redirect("profile")
-            except ValidationError as exc:
-                for field, errors in exc.errors.items():
-                    for error in errors:
-                        form.add_error(field, error)
+        try:
+            AccountService(user=request.user).change_password(
+                request.user.pk,
+                form.cleaned_data["current_password"],
+                form.cleaned_data["new_password"],
+            )
+            messages.success(request, "Senha alterada com sucesso.")
+            return redirect("profile")
+        except ValidationError as exc:
+            for field, errors in exc.errors.items():
+                for error in errors:
+                    form.add_error(field, error)
     return render(request, "accounts/change_password.html", {"form": form})
 
 

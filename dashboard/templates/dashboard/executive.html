@@ -1,0 +1,72 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <h1 class="mb-4">Dashboard Executivo</h1>
+
+  <!-- KPIs -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card border-primary">
+        <div class="card-body text-center">
+          <h5 class="card-title text-muted">Escolas Ativas</h5>
+          <p class="display-4 text-primary mb-0">{{ data.total_tenants|default:"0" }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-success">
+        <div class="card-body text-center">
+          <h5 class="card-title text-muted">Usuarios Totais</h5>
+          <p class="display-4 text-success mb-0">{{ data.platform_users.total|default:"0" }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-info">
+        <div class="card-body text-center">
+          <h5 class="card-title text-muted">Professores</h5>
+          <p class="display-4 text-info mb-0">{{ data.platform_users.teachers|default:"0" }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Distribuicao de usuarios -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">Distribuicao de Usuarios</div>
+        <div class="card-body">
+          <table class="table table-sm">
+            <tr><td>Alunos</td><td class="text-end fw-bold">{{ data.platform_users.students|default:"0" }}</td></tr>
+            <tr><td>Professores</td><td class="text-end fw-bold">{{ data.platform_users.teachers|default:"0" }}</td></tr>
+            <tr><td>Responsaveis</td><td class="text-end fw-bold">{{ data.platform_users.guardians|default:"0" }}</td></tr>
+            <tr class="table-active"><td><strong>Total</strong></td><td class="text-end fw-bold">{{ data.platform_users.total|default:"0" }}</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">Crescimento — Ultimos 6 meses</div>
+        <div class="card-body">
+          {% if data.platform_growth %}
+          <table class="table table-sm">
+            {% for item in data.platform_growth %}
+            <tr>
+              <td>{{ item.month }}</td>
+              <td class="text-end fw-bold">{{ item.count }} novas</td>
+            </tr>
+            {% endfor %}
+          </table>
+          {% else %}
+          <p class="text-muted">Sem dados de crescimento.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

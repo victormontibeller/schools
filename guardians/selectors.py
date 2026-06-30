@@ -16,3 +16,8 @@ class GuardianSelector(BaseSelector):
     def list_guardians(self, filters=None, page=1, page_size=20) -> PageResult:
         """Lista responsáveis com filtros e paginação."""
         return self.list(filters=filters, page=page, page_size=page_size)
+
+    def get_guardian_students(self, guardian_id):
+        """Retorna alunos vinculados ao responsavel, com dados do aluno."""
+        guardian = self.get_by_id(guardian_id)
+        return guardian.students.select_related("student").all()

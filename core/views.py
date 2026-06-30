@@ -1,10 +1,15 @@
-"""Health check, landing page pública e dashboard principal."""
+"""Health check, landing page publica, dashboard principal e error handlers."""
 
 import json
+import logging
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+
+from base import context
+
+logger = logging.getLogger(__name__)
 
 # ── Textos da landing page (mantidos fora das views para legibilidade) ────────
 _LANDING_FEATURES = [
@@ -144,7 +149,7 @@ def index(request: HttpRequest) -> HttpResponse:
     encaminhados direto ao dashboard.
     """
     if request.user.is_authenticated:
-        return redirect("dashboard")
+        return redirect("school_dashboard")
 
     return render(
         request,
@@ -176,3 +181,36 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     ]
     upcoming = CalendarSelector().get_upcoming_events(days=7)[:5]
     return render(request, "dashboard.html", {"modules": modules, "upcoming": upcoming})
+
+
+# ── Error handlers ───────────────────────────────────────────────────────────
+
+
+def handler404(request: HttpRequest, exception=None) -> HttpResponse:
+    """Pagina 404 personalizada com correlation_id."""
+    cid = context.correlation_id.get() or "-"
+    return render(
+        request,
+        "errors/404.html",
+        {"correlation_id": cid},
+        status=404,
+    )
+
+
+def handler500(request: HttpRequest) -> HttpResponse:
+    """Pagina 500 personalizada com correlation_id e log estruturado."""
+    cid = context.correlation_id.get() or "-"
+    logger.critical(
+        "Erro interno do servidor (500)",
+        extra={
+            "correlation_id": cid,
+            "path": request.path,
+            "method": request.method,
+        },
+    )
+    return render(
+        request,
+        "errors/500.html",
+        {"correlation_id": cid},
+        status=500,
+    )
