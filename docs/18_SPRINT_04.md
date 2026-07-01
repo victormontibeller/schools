@@ -1,157 +1,114 @@
-# Sprint 04 — Turmas e Agenda
+# Sprint 04 - Enderecos Unificados
 
 ## Objetivo
 
-Implementar o gerenciamento de turmas, salas, grade horária e atividades acadêmicas, permitindo que a escola estruture seu ano letivo e os professores registrem conteúdos e avaliações.
+Criar o modulo de Enderecos para centralizar e padronizar o cadastro de enderecos vinculados a School, Teacher, Student e Guardian.
 
-## Duração Estimada
+## Duracao Estimada
 
 2 semanas
 
 ---
 
-## Critérios de Aceite
+## Criterios de Aceite
 
-- [x] Turmas deverão ser criadas com ano letivo, série, turno e professor responsável.
-- [x] Alunos deverão ser matriculados em turmas com controle de vagas.
-- [x] Salas deverão ser cadastradas com capacidade e recursos disponíveis.
-- [x] A grade horária deverá permitir atribuição de professor, disciplina e sala por horário.
-- [x] Atividades deverão ser criadas com data de entrega, tipo e valor máximo.
-- [x] Toda operação deverá gerar auditoria e logs estruturados.
+- [ ] O sistema devera permitir cadastrar endereco para School, Teacher, Student e Guardian.
+- [ ] O endereco devera conter os campos obrigatorios:
+  - destinatario
+  - logradouro
+  - numero
+  - complemento
+  - bairro
+  - CEP
+  - municipio
+  - estado
+- [ ] O modulo devera suportar pelo menos um endereco por entidade.
+- [ ] O cadastro devera validar formato de CEP e UF.
+- [ ] Operacoes de criacao e atualizacao deverao gerar auditoria.
+- [ ] As telas de cadastro existentes deverao permitir vincular/editar endereco sem quebrar fluxo atual.
 
 ---
 
 ## Tarefas
 
-### Módulo `classes/`
+### Modelagem
 
-- [x] Criar model `Class` (Turma):
-  - `name`, `grade` (série), `shift` (turno: matutino, vespertino, noturno)
-  - `academic_year`
-  - FK para `School`
-  - `max_students` (vagas)
-  - `class_teacher` (FK para `Teacher`)
-  - Herança de `BaseModel`
+- [ ] Criar app `addresses`.
+- [ ] Criar model `Address` herdando de `BaseModel` com campos:
+  - `recipient`
+  - `street`
+  - `number`
+  - `complement`
+  - `district`
+  - `postal_code`
+  - `city`
+  - `state`
+- [ ] Definir estrategia de vinculo entre endereco e entidade dona:
+  - opcao A: um model de vinculo por entidade (`SchoolAddress`, `TeacherAddress`, `StudentAddress`, `GuardianAddress`)
+  - opcao B: generic relation com `content_type` e `object_id`
+- [ ] Definir indice/constraint para evitar duplicacao indevida de endereco por entidade.
 
-- [x] Criar model `Enrollment` (Matrícula):
-  - FK para `Student`
-  - FK para `Class`
-  - `enrollment_date`, `status` (ativa, transferida, cancelada)
-  - Herança de `BaseModel`
+### Services
 
-- [x] Implementar `ClassService`:
-  - `create_class(data, created_by)`
-  - `update_class(class_id, data, updated_by)`
-  - `enroll_student(class_id, student_id, enrolled_by)` — valida vagas disponíveis
-  - `transfer_student(student_id, from_class_id, to_class_id, transferred_by)`
-  - `unenroll_student(enrollment_id, reason, unenrolled_by)`
+- [ ] Criar `AddressService` com operacoes:
+  - `create_address_for_school`
+  - `create_address_for_teacher`
+  - `create_address_for_student`
+  - `create_address_for_guardian`
+  - `update_address`
+  - `deactivate_address` (soft delete)
+- [ ] Aplicar validacoes de negocio:
+  - CEP com 8 digitos
+  - UF com 2 caracteres validos
+  - campos obrigatorios preenchidos
+- [ ] Garantir `self._record_audit(...)` em toda escrita.
 
-- [x] Implementar `ClassSelector`:
-  - `list_classes(filters)`
-  - `get_class_students(class_id)`
-  - `get_available_classes(grade, shift)`
-  - `get_enrollment_count(class_id)`
+### Selectors
 
-### Módulo `rooms/`
+- [ ] Criar `AddressSelector` para consultas read-only:
+  - listar endereco por entidade
+  - buscar endereco principal por entidade
+  - listar enderecos com filtro por cidade/estado/CEP
 
-- [x] Criar model `Room` (Sala):
-  - `name`, `code`
-  - `capacity`
-  - `type` (sala de aula, laboratório, quadra, biblioteca, etc.)
-  - `resources` (JSONField: projetor, ar condicionado, etc.)
-  - `floor`, `building`
-  - Herança de `BaseModel`
+### Views e Forms
 
-- [x] Implementar `RoomService`:
-  - `create_room(data, created_by)`
-  - `update_room(room_id, data, updated_by)`
-  - `check_availability(room_id, date, start_time, end_time)` — verifica conflitos
+- [ ] Criar formularios de endereco com validacao de campo.
+- [ ] Integrar formularios de endereco nas telas de School, Teacher, Student e Guardian.
+- [ ] Ajustar views para orquestrar AddressService e AddressSelector.
 
-### Módulo `agenda/`
+### Templates
 
-- [x] Criar model `TimeSlot` (Horário):
-  - `day_of_week`, `start_time`, `end_time`, `slot_number`
+- [ ] Criar partial reutilizavel de endereco para formularios.
+- [ ] Exibir endereco formatado nas telas de detalhe.
+- [ ] Manter padrao Duralux e fluxo HTMX quando aplicavel.
 
-- [x] Criar model `Schedule` (Grade Horária):
-  - FK para `Class`
-  - FK para `Teacher`
-  - FK para `Subject`
-  - FK para `Room`
-  - FK para `TimeSlot`
-  - `valid_from`, `valid_until`
-  - Herança de `BaseModel`
+### Migracoes e Dados
 
-- [x] Implementar `ScheduleService`:
-  - `create_schedule(data, created_by)` — valida conflitos de professor e sala
-  - `update_schedule(schedule_id, data, updated_by)`
-  - `get_weekly_schedule(class_id)`
-  - `get_teacher_schedule(teacher_id)`
-  - `create_time_slot(data, created_by)` — gestão de faixas de horário
+- [ ] Criar migracoes do novo app.
+- [ ] Criar script opcional para migrar dados de endereco existentes (se houver campos legados nas entidades).
 
-### Módulo `activities/`
+### Testes
 
-- [x] Criar model `Activity` (Atividade/Avaliação):
-  - FK para `Class`
-  - FK para `Subject`
-  - FK para `Teacher`
-  - `title`, `description`
-  - `type` (tarefa, prova, trabalho, participação)
-  - `due_date`, `max_score`
-  - `weight` (peso na média)
-  - Herança de `BaseModel`
-
-- [x] Criar model `ActivitySubmission` (Nota/Entrega):
-  - FK para `Activity`
-  - FK para `Student`
-  - `score`, `submitted_at`, `feedback`
-  - Herança de `BaseModel`
-
-- [x] Implementar `ActivityService`:
-  - `create_activity(data, created_by)` — envia notificação via evento
-  - `update_activity(activity_id, data, updated_by)`
-  - `record_score(activity_id, student_id, score, feedback, recorded_by)`
-  - `batch_record_scores(activity_id, scores_data, recorded_by)`
-
-### Frontend — Templates HTMX
-
-- [x] Tela de gestão de turmas com lista de alunos matriculados
-- [x] Formulário de matrícula com busca de aluno
-- [x] Visualização da grade horária semanal (tabela por horário)
-- [x] Formulário de atividade com campo de data e tipo
-- [x] Tela de lançamento de notas (bulk entry com HTMX)
+- [ ] Testes de model para constraints e validacoes basicas.
+- [ ] Testes de service para regras de negocio e auditoria.
+- [ ] Testes de selector para consultas e filtros.
+- [ ] Testes de views/forms para fluxo completo de cadastro e edicao.
 
 ---
 
-## Dependências
+## Dependencias
 
-- Sprint 03 concluída: `Teacher`, `Student`, `Subject`
+- Sprints 03 concluidas (entidades Teacher, Student e Guardian disponiveis)
+- Sprint 01 concluida (padroes BaseModel, BaseService, auditoria)
+- Sprint 05 recomendada para padronizar identificacao e contato das entidades vinculadas
 
 ---
 
 ## Definition of Done
 
-- [x] Todos os critérios de aceite validados
-- [ ] Validação de vagas e conflitos de horário com testes unitários
-- [ ] Testes de integração para matrícula e grade horária
-- [x] Auditoria validada para todas as operações
-- [ ] Pipeline CI passando *(lint verde; cobertura <80% por falta de testes dos apps novos)*
-
----
-
-## Progresso
-
-> Atualizado em 2026-06-29
-
-**Concluído:**
-- `classes/`: `Class`, `Enrollment`, `ClassService` (criar/atualizar/matricular/transferir/desmatricular com validação de vagas), `ClassSelector`, admin, views/forms/templates HTMX (list, create, detail com matrícula)
-- `rooms/`: `Room`, `RoomService` (criar/atualizar/disponibilidade com checagem de conflito), `RoomSelector`, admin, views/forms/templates HTMX
-- `agenda/`: `TimeSlot`, `Schedule`, `ScheduleService` (criar/atualizar + validação de conflito de professor e sala considerando `valid_until`), `create_time_slot`, `ScheduleSelector`/`TimeSlotSelector`, admin, views/forms/templates HTMX (grade semanal, grade do professor, gestão de horários)
-- `activities/`: `Activity`, `ActivitySubmission`, `ActivityService` (criar/atualizar/record_score/batch_record_scores), `ActivitySelector`, admin, views/forms/templates HTMX (list, create, detail com lançamento de nota)
-- Migrações iniciais dos 4 apps geradas e aplicadas; `core/settings.py`, `pytest.ini`, `pyproject.toml` e `Makefile` atualizados
-- Bugs corrigidos: `core/urls.py` sem include dos 4 apps; `create_class` não salvava `class_teacher`; forms de Schedule/Atividade exigiam UUIDs manuais → convertidos para dropdowns; activities sem templates; gestão de TimeSlots inexistente; conflito de horário não considerava `valid_until`; variável não usada em `batch_record_scores`
-- Landing page pública de vendas em `/` + dashboard autenticado em `/app/`; `base.html` com htmx e menu completo
-- Ambiente de demonstração funcional: tenant `demo` + superuser + dados de exemplo (professor, 2 alunos, 2 salas, 6 horários, 1 turma, matrícula, 1 atividade); smoke tests de GET e POST validados
-
-**Pendente:**
-- Testes unitários e de integração dos 4 apps (restaurar cobertura ≥80%)
-- Atualizar pipeline CI para incluir os 4 apps no lint/test paths
+- [ ] Todos os criterios de aceite atendidos
+- [ ] App `addresses` registrado no projeto
+- [ ] Migracoes aplicadas com sucesso
+- [ ] Testes do modulo passando
+- [ ] Lint e format passing
+- [ ] Sem regressao nos fluxos atuais de cadastro

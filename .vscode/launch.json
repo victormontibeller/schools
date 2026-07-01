@@ -10,7 +10,7 @@
             "django": true,
             "justMyCode": true,
             "cwd": "${workspaceFolder}",
-            "python": "${workspaceFolder}/.venv/bin/python"
+            "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe"
         },
         {
             "name": "Django: Shell",
@@ -21,7 +21,7 @@
             "django": true,
             "justMyCode": true,
             "cwd": "${workspaceFolder}",
-            "python": "${workspaceFolder}/.venv/bin/python"
+            "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe"
         },
         {
             "name": "Pytest",
@@ -31,7 +31,7 @@
             "args": ["--tb=short", "-v"],
             "justMyCode": true,
             "cwd": "${workspaceFolder}",
-            "python": "${workspaceFolder}/.venv/bin/python"
+            "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe"
         },
         {
             "name": "Open Landing Page",

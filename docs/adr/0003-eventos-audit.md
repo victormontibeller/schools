@@ -35,7 +35,7 @@ Service → BaseService._record_audit → dispatcher.dispatch(DomainEvent)
 
 ## Consequências
 
-- Adicionar notificações (Sprint 07), dashboards (Sprint 08) ou um futuro
+- Adicionar notificações (Sprint 11), dashboards (Sprint 12) ou um futuro
   outbox agora é só `dispatcher.register(DomainEvent, handler)` — zero mudanças
   em cada service.
 - `base.services` não conhece mais `audit` — a regra de dependência
@@ -52,4 +52,4 @@ Service → BaseService._record_audit → dispatcher.dispatch(DomainEvent)
   não há Garantia "auditoria antes de notificação". Aceito: handlers são
   independentes por design (idempotência esperada).
 - Daemon/worker consumo futuro потенциальmente fora do processo: será tratado
-  com outbox real (ADR separada em Sprint 07).
+  com outbox real (ADR separada em Sprint 11).

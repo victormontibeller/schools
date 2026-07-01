@@ -1,125 +1,114 @@
-# Sprint 05 — Calendário
+# Sprint 05 - Identificacao Cadastral
 
 ## Objetivo
 
-Implementar o calendário acadêmico da escola, permitindo o registro de eventos, feriados, dias letivos e datas importantes, integrando com a agenda e as notificações.
+Padronizar os dados pessoais, documentais e de contato de Guardians, Students e Teachers para garantir consistencia de cadastro, melhor rastreabilidade administrativa e base segura para futuras regras academicas e operacionais.
 
-## Duração Estimada
+## Duracao Estimada
 
 2 semanas
 
 ---
 
-## Critérios de Aceite
+## Criterios de Aceite
 
-- [x] O calendário deverá suportar eventos com data única e eventos recorrentes.
-- [x] Feriados nacionais e dias não letivos deverão ser configuráveis por escola.
-- [x] Eventos deverão ser visualizados em formato de calendário mensal.
-- [ ] Criação de evento deverá disparar notificação para o público-alvo. *(evento interno; envio real na Sprint 07)*
-- [x] Toda operação deverá gerar auditoria e logs estruturados.
+- [ ] Guardian, Student e Teacher deverao possuir cadastro com os seguintes dados:
+  - nome completo
+  - data de nascimento
+  - sexo ou genero
+  - nacionalidade
+  - CPF
+  - RG com numero, orgao emissor e UF
+  - telefone celular
+  - email
+- [ ] CPF devera ser unico por entidade quando informado.
+- [ ] CPF devera ser validado por formato e digitos verificadores.
+- [ ] UF do RG devera aceitar apenas siglas validas.
+- [ ] Formularios deverao apresentar mascara e mensagens claras de validacao.
+- [ ] Operacoes de criacao e atualizacao deverao gerar auditoria.
+- [ ] Fluxos existentes nao deverao regredir com a ampliacao cadastral.
 
 ---
 
 ## Tarefas
 
-### Módulo `calendar/`
+### Modelagem
 
-> **Observação:** o nome `calendar` colide com módulo da stdlib Python, então o app foi
-> nomeado `academic_calendar` em código, mantendo o conceito de calendário acadêmico.
+- [ ] Revisar models de `guardians`, `students` e `teachers` para padronizar os campos:
+  - `full_name` ou estrategia equivalente consistente por modulo
+  - `birth_date`
+  - `gender`
+  - `nationality`
+  - `cpf`
+  - `rg_number`
+  - `rg_issuer`
+  - `rg_state`
+  - `phone_mobile`
+  - `email`
+- [ ] Definir estrategia de compatibilidade com a model `CustomUser` quando houver sobreposicao de email, nome ou telefone.
+- [ ] Adicionar constraints e indices para CPF e campos de busca relevantes.
 
-- [x] Criar model `AcademicYear` (Ano Letivo):
-  - `name`, `start_date`, `end_date`
-  - `status` (planejado, em andamento, encerrado)
-  - FK para `School` *(via contexto de tenant)*
-  - Herança de `BaseModel`
+### Services
 
-- [x] Criar model `CalendarEvent` (Evento):
-  - `title`, `description`
-  - `start_date`, `end_date`
-  - `start_time`, `end_time` (opcionais, para eventos com horário)
-  - `type` (feriado, reunião, evento escolar, dia não letivo, avaliação, outro)
-  - `recurrence` (JSONField: regra de recorrência — diária, semanal, mensal)
-  - `audience` (todos, professores, alunos, responsáveis, turma específica)
-  - FK para `Class` (opcional, para eventos de turma)
-  - FK para `AcademicYear`
-  - `is_public` (visível para responsáveis e alunos)
-  - Herança de `BaseModel`
+- [ ] Atualizar services de cadastro e edicao para aplicar validacoes de negocio:
+  - CPF valido
+  - CPF duplicado
+  - UF valida
+  - email com formato valido
+  - obrigatoriedade conforme perfil da entidade
+- [ ] Garantir escrita com `self._record_audit(...)` em todas as alteracoes.
+- [ ] Garantir logs sem PII, preservando apenas IDs e contexto tecnico.
 
-- [x] Criar model `Holiday` (Feriado):
-  - `name`, `date`
-  - `type` (nacional, estadual, municipal, escolar)
-  - `is_recurring` (repete todo ano)
-  - Herança de `BaseModel`
+### Selectors
 
-- [x] Implementar `CalendarService`:
-  - `create_event(data, created_by)` — dispara evento interno → notificação *(envio real na Sprint 07)*
-  - `update_event(event_id, data, updated_by)`
-  - `cancel_event(event_id, reason, cancelled_by)`
-  - `create_holiday(data, created_by)`
-  - `get_working_days(start_date, end_date)` — desconta feriados e dias não letivos
-  - `is_working_day(date)` — verifica se uma data é dia letivo
-  - `create_academic_year(data, created_by)`
+- [ ] Criar ou ajustar selectors para suportar busca por:
+  - nome completo
+  - CPF
+  - email
+  - telefone celular
+- [ ] Ajustar listagens administrativas para exibir informacoes cadastrais essenciais.
 
-- [x] Implementar `CalendarSelector`:
-  - `get_events_by_month(year, month)`
-  - `get_events_by_range(start_date, end_date, audience)`
-  - `get_upcoming_events(days=7)`
-  - `get_academic_year_events(academic_year_id)`
-  - `HolidaySelector.list_holidays(year)` e `AcademicYearSelector.list_academic_years()`
+### Forms e Views
 
-### Frontend — Templates HTMX
+- [ ] Atualizar forms de Guardian, Student e Teacher com validacoes de campo.
+- [ ] Ajustar views para lidar com novos campos sem mover regra de negocio para fora dos services.
+- [ ] Garantir reaproveitamento de widgets e componentes onde fizer sentido.
 
-- [x] Visualização de calendário mensal com navegação entre meses (HTMX)
-- [ ] Modal de criação/edição de evento com seleção de audiência *(implementado como página dedicada em vez de modal)*
-- [x] Lista de próximos eventos no dashboard
-- [x] Tela de gestão de feriados e dias não letivos
-- [x] Destaque visual por tipo de evento (cores por categoria)
-- [ ] Exportação de calendário em formato iCal (.ics) *(pendente)*
+### Templates
 
-### Celery Tasks
+- [ ] Atualizar formularios para exibir os novos campos de forma organizada.
+- [ ] Exibir dados documentais e de contato nas telas de detalhe.
+- [ ] Garantir consistencia visual com o padrao Duralux.
 
-- [ ] Task `notify_upcoming_events`: enviar notificações 24h antes de eventos importantes *(envio real Sprint 07)*
-- [ ] Task `generate_monthly_calendar_pdf`: exportar calendário mensal em PDF *(pendente)*
+### Migracoes e Compatibilidade
+
+- [ ] Criar migracoes para os novos campos.
+- [ ] Definir estrategia para dados existentes:
+  - backfill quando houver fonte confiavel
+  - campos opcionais temporarios quando necessario
+- [ ] Revisar impacto em seeds e fixtures de demo.
+
+### Testes
+
+- [ ] Testes de model para constraints e validacoes basicas.
+- [ ] Testes de service para CPF, RG, email e duplicidade.
+- [ ] Testes de forms e views para fluxos de criacao e edicao.
+- [ ] Testes de selectors para filtros de busca.
 
 ---
 
-## Dependências
+## Dependencias
 
-- Sprint 04 concluída: `Class`, `Teacher`, `AcademicYear`
-- Sprint 07 (Comunicação) será integrada nesta Sprint para notificações — implementar evento interno apenas; o envio real será na Sprint 07
+- Sprint 03 concluida
+- Sprint 01 concluida
+- Sprint 04 recomendada quando houver necessidade de consolidar cadastro civil e endereco no mesmo fluxo
 
 ---
 
 ## Definition of Done
 
-- [x] Todos os critérios de aceite validados (exceto notificação/envio — Sprint 07)
-- [ ] `CalendarService.get_working_days` com testes unitários *(pende escrever testes do app)*
-- [ ] Testes de integração para criação e consulta de eventos *(pende escrever testes do app)*
-- [ ] Exportação iCal validada *(pendente)*
-- [x] Auditoria validada para todas as operações
-- [ ] Pipeline CI passando *(lint verde; cobertura <80% por falta de testes do app)*
-
----
-
-## Progresso
-
-> Atualizado em 2026-06-29
-
-**Concluído:**
-- App `academic_calendar/` criado (nome evita colisão com stdlib `calendar`) e registrado em `TENANT_SPECIFIC_APPS`, `pytest.ini`, `pyproject.toml`, `Makefile`
-- Models: `AcademicYear` (Ano Letivo), `Holiday` (Feriado), `CalendarEvent` (Evento) com ForeignKey para `Class`, JSONField de recorrência, público-alvo, *is_public*, cancelamento
-- `CalendarService`: `create_academic_year`, `create_event`, `update_event`, `cancel_event`, `create_holiday`, `is_working_day`, `get_working_days` (desconta finais de semana, feriados pontuais e recorrentes, e dias não letivos via `CalendarEvent`)
-- `CalendarSelector`/`HolidaySelector`/`AcademicYearSelector`: eventos por mês (com overlap de intervalos), por intervalo, próximos N dias, por ano letivo
-- Admin para os 3 models com filtros e `date_hierarchy`
-- Forms: `AcademicYearForm`, `EventForm` (ModelForm), `HolidayForm`
-- Views HTMX: calendário mensal navegável entre meses (partial trocada via `hx-get`/`hx-target`), detalhe do evento com cancelar, lista de próximos eventos, gestão de feriados (form + tabela), gestão de anos letivos
-- Template tag `calendar_extras.get` para dict-access na grade mensal; `by_day` indexado por data
-- Dashboard com widget "Próximos Eventos (7 dias)"; menu lateral com link "Calendário"
-- Migrations geradas e aplicadas ao tenant `demo`; seed de demo (ano letivo 2026, 8 feriados nacionais, 2 eventos: Reunião de Pais e Festa Junina)
-- Smoke test validado: 8 rotas retornam 200; `is_working_day` confirma feriado (01/05→False) e segunda útil (04/05→True)
-
-**Pendente:**
-- Testes unitários do `CalendarService`/`CalendarSelector` (restaurar cobertura ≥80%)
-- Exportação iCal (.ics) e PDF mensal via Celery
-- Modal de criação rápida de evento (atualmente é página dedicada)
-- Atualizar pipeline CI (`ci.yml`) para incluir `academic_calendar` nos paths de lint/test
+- [ ] Todos os criterios de aceite atendidos
+- [ ] Migracoes aplicadas com sucesso
+- [ ] Testes atualizados e passando
+- [ ] Lint e format passing
+- [ ] Sem regressao nos fluxos atuais de cadastro

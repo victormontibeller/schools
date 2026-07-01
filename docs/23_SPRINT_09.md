@@ -1,8 +1,8 @@
-# Sprint 09 — Produção
+# Sprint 09 — Calendário
 
 ## Objetivo
 
-Preparar a plataforma para o ambiente de produção com Docker Swarm, hardening de segurança, otimização de performance, configuração de alertas e validação de todos os requisitos não-funcionais antes do go-live.
+Implementar o calendário acadêmico da escola, permitindo o registro de eventos, feriados, dias letivos e datas importantes, integrando com a agenda e as notificações.
 
 ## Duração Estimada
 
@@ -12,112 +12,114 @@ Preparar a plataforma para o ambiente de produção com Docker Swarm, hardening 
 
 ## Critérios de Aceite
 
-- [ ] O ambiente de produção deverá estar funcional com Docker Swarm.
-- [ ] Traefik deverá provisionar HTTPS automaticamente via Let's Encrypt.
-- [ ] Backup automático do PostgreSQL deverá estar configurado.
-- [ ] Alertas do Grafana deverão notificar a equipe técnica em caso de falhas.
-- [ ] Todas as verificações de segurança do OWASP Top 10 deverão ser realizadas e aprovadas.
-- [ ] A plataforma deverá suportar a carga esperada com tempo de resposta < 2 segundos (p99).
-- [ ] Documentação de operações (runbook) deverá estar criada.
+- [x] O calendário deverá suportar eventos com data única e eventos recorrentes.
+- [x] Feriados nacionais e dias não letivos deverão ser configuráveis por escola.
+- [x] Eventos deverão ser visualizados em formato de calendário mensal.
+- [ ] Criação de evento deverá disparar notificação para o público-alvo. *(evento interno; envio real na Sprint 11)*
+- [x] Toda operação deverá gerar auditoria e logs estruturados.
 
 ---
 
 ## Tarefas
 
-### Docker Swarm
+### Módulo `calendar/`
 
-- [ ] Criar `docker-stack.yml` para produção (equivalente ao compose, otimizado para Swarm)
-- [ ] Configurar replicas por serviço:
-  - `app`: mínimo 2 réplicas
-  - `worker`: mínimo 2 réplicas
-  - `beat`: exatamente 1 réplica (singleton)
-- [ ] Configurar `deploy.resources` com limites de CPU e memória por serviço
-- [ ] Configurar `deploy.restart_policy` com política de restart automático
-- [ ] Configurar `deploy.update_config` para rolling updates sem downtime
-- [ ] Configurar `secrets` do Docker Swarm para gerenciamento de credenciais
-- [ ] Configurar `healthcheck` para todos os serviços críticos
+> **Observação:** o nome `calendar` colide com módulo da stdlib Python, então o app foi
+> nomeado `academic_calendar` em código, mantendo o conceito de calendário acadêmico.
 
-### Traefik — Produção
+- [x] Criar model `AcademicYear` (Ano Letivo):
+  - `name`, `start_date`, `end_date`
+  - `status` (planejado, em andamento, encerrado)
+  - FK para `School` *(via contexto de tenant)*
+  - Herança de `BaseModel`
 
-- [ ] Configurar provisionamento automático de certificados Let's Encrypt
-- [ ] Configurar roteamento por subdomínio para Tenants
-- [ ] Configurar rate limiting por IP no Traefik
-- [ ] Configurar headers de segurança: HSTS, CSP, X-Frame-Options
-- [ ] Configurar redirect HTTP → HTTPS
+- [x] Criar model `CalendarEvent` (Evento):
+  - `title`, `description`
+  - `start_date`, `end_date`
+  - `start_time`, `end_time` (opcionais, para eventos com horário)
+  - `type` (feriado, reunião, evento escolar, dia não letivo, avaliação, outro)
+  - `recurrence` (JSONField: regra de recorrência — diária, semanal, mensal)
+  - `audience` (todos, professores, alunos, responsáveis, turma específica)
+  - FK para `Class` (opcional, para eventos de turma)
+  - FK para `AcademicYear`
+  - `is_public` (visível para responsáveis e alunos)
+  - Herança de `BaseModel`
 
-### PostgreSQL — Produção
+- [x] Criar model `Holiday` (Feriado):
+  - `name`, `date`
+  - `type` (nacional, estadual, municipal, escolar)
+  - `is_recurring` (repete todo ano)
+  - Herança de `BaseModel`
 
-- [ ] Configurar `postgresql.conf` para produção (max_connections, shared_buffers, work_mem)
-- [ ] Configurar backup automático diário com retenção de 30 dias
-- [ ] Configurar backup incremental via WAL (Point-in-Time Recovery)
-- [ ] Testar e documentar procedimento de restore
-- [ ] Configurar monitoramento de conexões e slow queries no Grafana
+- [x] Implementar `CalendarService`:
+  - `create_event(data, created_by)` — dispara evento interno → notificação *(envio real na Sprint 11)*
+  - `update_event(event_id, data, updated_by)`
+  - `cancel_event(event_id, reason, cancelled_by)`
+  - `create_holiday(data, created_by)`
+  - `get_working_days(start_date, end_date)` — desconta feriados e dias não letivos
+  - `is_working_day(date)` — verifica se uma data é dia letivo
+  - `create_academic_year(data, created_by)`
 
-### Segurança — Hardening
+- [x] Implementar `CalendarSelector`:
+  - `get_events_by_month(year, month)`
+  - `get_events_by_range(start_date, end_date, audience)`
+  - `get_upcoming_events(days=7)`
+  - `get_academic_year_events(academic_year_id)`
+  - `HolidaySelector.list_holidays(year)` e `AcademicYearSelector.list_academic_years()`
 
-- [ ] Executar auditoria de segurança com `django-security-check` ou equivalente
-- [ ] Verificar todos os headers HTTP de segurança
-- [ ] Garantir que `DEBUG = False` em produção
-- [ ] Garantir que `SECRET_KEY` tem 50+ caracteres e não está no código
-- [ ] Configurar `SECURE_BROWSER_XSS_FILTER = True`
-- [ ] Configurar `SESSION_COOKIE_SECURE = True` e `CSRF_COOKIE_SECURE = True`
-- [ ] Revisar permissões de arquivos nos containers (non-root user)
-- [ ] Escanear imagens Docker com `trivy` ou equivalente
-- [ ] Garantir que nenhuma credencial está em variáveis de ambiente expostas nos logs
+### Frontend — Templates HTMX
 
-### Observabilidade — Produção
+- [x] Visualização de calendário mensal com navegação entre meses (HTMX)
+- [ ] Modal de criação/edição de evento com seleção de audiência *(implementado como página dedicada em vez de modal)*
+- [x] Lista de próximos eventos no dashboard
+- [x] Tela de gestão de feriados e dias não letivos
+- [x] Destaque visual por tipo de evento (cores por categoria)
+- [ ] Exportação de calendário em formato iCal (.ics) *(pendente)*
 
-- [ ] Configurar alertas no Grafana:
-  - Taxa de erro > 1% em 5 min → alerta imediato
-  - Latência p99 > 2s → alerta imediato
-  - CPU > 80% por 5 min → alerta de atenção
-  - Memória > 85% → alerta de atenção
-  - Fila Celery > 1000 mensagens → alerta de atenção
-  - Worker Celery inativo → alerta imediato
-  - Banco inacessível → alerta crítico
-- [ ] Configurar canal de destino dos alertas (e-mail ou Slack)
-- [ ] Configurar retenção de logs no Loki (mínimo 90 dias)
-- [ ] Configurar retenção de métricas no Prometheus (mínimo 30 dias)
+### Celery Tasks
 
-### Performance
-
-- [ ] Executar testes de carga com `locust` ou `k6` simulando uso concorrente
-- [ ] Identificar e otimizar queries N+1 com `django-debug-toolbar` (em staging)
-- [ ] Adicionar índices faltantes identificados em queries lentas
-- [ ] Validar que todas as páginas principais carregam em < 2s com 50 usuários simultâneos
-- [ ] Configurar compressão gzip no Traefik para respostas HTML/JSON
-
-### CI/CD — Produção
-
-- [ ] Configurar pipeline de deploy automático para produção após aprovação manual
-- [ ] Pipeline deverá: rodar testes → build da imagem → push para registry → deploy no Swarm
-- [ ] Configurar rollback automático se o healthcheck falhar após deploy
-- [ ] Configurar notificação de deploy no canal da equipe
-
-### Documentação Operacional (Runbook)
-
-- [ ] Documentar: como fazer deploy de nova versão
-- [ ] Documentar: como escalar workers Celery
-- [ ] Documentar: como executar restore do banco de dados
-- [ ] Documentar: como adicionar novo Tenant manualmente
-- [ ] Documentar: como investigar um erro usando Grafana + Loki + Correlation ID
-- [ ] Documentar: procedimento de rollback de deploy
+- [ ] Task `notify_upcoming_events`: enviar notificações 24h antes de eventos importantes *(envio real Sprint 11)*
+- [ ] Task `generate_monthly_calendar_pdf`: exportar calendário mensal em PDF *(pendente)*
 
 ---
 
 ## Dependências
 
-- Sprints 00-08 concluídas e validadas
-- Ambiente de servidor de produção provisionado
+- Sprint 08 concluída: `Class`, `Teacher`, `AcademicYear`
+- Sprint 11 (Comunicação) será integrada nesta Sprint para notificações — implementar evento interno apenas; o envio real será na Sprint 11
 
 ---
 
 ## Definition of Done
 
-- [ ] Todos os critérios de aceite validados
-- [ ] Testes de carga aprovados (< 2s p99 com 50 usuários)
-- [ ] Todos os alertas do Grafana testados e funcionando
-- [ ] Backup e restore testados com sucesso
-- [ ] Auditoria de segurança sem itens críticos em aberto
-- [ ] Runbook revisado e aprovado pela equipe
-- [ ] Go-live autorizado
+- [x] Todos os critérios de aceite validados (exceto notificação/envio — Sprint 11)
+- [ ] `CalendarService.get_working_days` com testes unitários *(pende escrever testes do app)*
+- [ ] Testes de integração para criação e consulta de eventos *(pende escrever testes do app)*
+- [ ] Exportação iCal validada *(pendente)*
+- [x] Auditoria validada para todas as operações
+- [ ] Pipeline CI passando *(lint verde; cobertura <80% por falta de testes do app)*
+
+---
+
+## Progresso
+
+> Atualizado em 2026-06-29
+
+**Concluído:**
+- App `academic_calendar/` criado (nome evita colisão com stdlib `calendar`) e registrado em `TENANT_SPECIFIC_APPS`, `pytest.ini`, `pyproject.toml`, `Makefile`
+- Models: `AcademicYear` (Ano Letivo), `Holiday` (Feriado), `CalendarEvent` (Evento) com ForeignKey para `Class`, JSONField de recorrência, público-alvo, *is_public*, cancelamento
+- `CalendarService`: `create_academic_year`, `create_event`, `update_event`, `cancel_event`, `create_holiday`, `is_working_day`, `get_working_days` (desconta finais de semana, feriados pontuais e recorrentes, e dias não letivos via `CalendarEvent`)
+- `CalendarSelector`/`HolidaySelector`/`AcademicYearSelector`: eventos por mês (com overlap de intervalos), por intervalo, próximos N dias, por ano letivo
+- Admin para os 3 models com filtros e `date_hierarchy`
+- Forms: `AcademicYearForm`, `EventForm` (ModelForm), `HolidayForm`
+- Views HTMX: calendário mensal navegável entre meses (partial trocada via `hx-get`/`hx-target`), detalhe do evento com cancelar, lista de próximos eventos, gestão de feriados (form + tabela), gestão de anos letivos
+- Template tag `calendar_extras.get` para dict-access na grade mensal; `by_day` indexado por data
+- Dashboard com widget "Próximos Eventos (7 dias)"; menu lateral com link "Calendário"
+- Migrations geradas e aplicadas ao tenant `demo`; seed de demo (ano letivo 2026, 8 feriados nacionais, 2 eventos: Reunião de Pais e Festa Junina)
+- Smoke test validado: 8 rotas retornam 200; `is_working_day` confirma feriado (01/05→False) e segunda útil (04/05→True)
+
+**Pendente:**
+- Testes unitários do `CalendarService`/`CalendarSelector` (restaurar cobertura ≥80%)
+- Exportação iCal (.ics) e PDF mensal via Celery
+- Modal de criação rápida de evento (atualmente é página dedicada)
+- Atualizar pipeline CI (`ci.yml`) para incluir `academic_calendar` nos paths de lint/test

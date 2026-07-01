@@ -15,6 +15,7 @@ Implementar os módulos de cadastro dos atores principais da plataforma: profess
 - [x] Professores deverão ser cadastrados, editados e desativados com Soft Delete.
 - [x] Alunos deverão ser cadastrados com dados completos e vinculados a responsáveis.
 - [x] Responsáveis deverão ser cadastrados e vinculados a um ou mais alunos.
+- [ ] Professores, alunos e responsáveis deverão permitir upload de foto com armazenamento seguro.
 - [x] Toda operação deverá gerar registro de auditoria.
 - [x] Toda listagem deverá suportar paginação, busca e filtros.
 - [x] Interface deverá utilizar HTMX para atualizações parciais sem reload.
@@ -30,6 +31,7 @@ Implementar os módulos de cadastro dos atores principais da plataforma: profess
   - `subjects` (ManyToMany para disciplinas)
   - `registration_number` (matrícula interna)
   - `hire_date`
+  - `photo` (upload seguro)
   - Herança de `BaseModel`
 
 - [x] Criar model `Subject` (disciplina):
@@ -77,6 +79,7 @@ Implementar os módulos de cadastro dos atores principais da plataforma: profess
   - `relationship_type` (mãe, pai, avô/avó, responsável legal, etc.)
   - `cpf`, `rg`
   - `phone`, `phone_whatsapp`
+  - `photo` (upload seguro)
   - Herança de `BaseModel`
 
 - [x] Criar model `StudentGuardian` (vínculo aluno-responsável):
@@ -98,9 +101,17 @@ Implementar os módulos de cadastro dos atores principais da plataforma: profess
 - [x] Listagem de professores com filtros, paginação e busca
 - [ ] Formulário de cadastro/edição de professor com upload de foto
 - [x] Listagem de alunos com filtros, paginação e busca
-- [x] Formulário de cadastro/edição de aluno
+- [ ] Formulário de cadastro/edição de aluno com upload de foto
+- [ ] Formulário de cadastro/edição de responsável com upload de foto
 - [x] Componente de vínculo aluno-responsável inline
 - [x] Tela de perfil do aluno com dados de responsáveis vinculados
+
+### Uploads de Imagem
+
+- [ ] Padronizar upload de foto para `Teacher`, `Student` e `Guardian`
+- [ ] Validar tipo e tamanho de arquivo no frontend e backend
+- [ ] Exibir preview da imagem atual quando houver foto cadastrada
+- [ ] Definir fallback visual quando a entidade não possuir foto
 
 ### Importação em Lote (básico)
 
@@ -139,3 +150,4 @@ Implementar os módulos de cadastro dos atores principais da plataforma: profess
 
 **Pendente:**
 - Formulário de cadastro/edição de professor com upload de foto (frontend)
+- Upload de foto para aluno e responsável nos formulários e telas de detalhe
