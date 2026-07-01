@@ -1,0 +1,89 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Django: migrate",
+            "type": "shell",
+            "command": "python manage.py migrate",
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Django: makemigrations",
+            "type": "shell",
+            "command": "python manage.py makemigrations",
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Django: createsuperuser",
+            "type": "shell",
+            "command": "python manage.py createsuperuser",
+            "problemMatcher": []
+        },
+        {
+            "label": "Django: shell",
+            "type": "shell",
+            "command": "python manage.py shell",
+            "problemMatcher": []
+        },
+        {
+            "label": "Tests: pytest with coverage",
+            "type": "shell",
+            "command": "pytest --cov=. --cov-report=term-missing",
+            "group": { "kind": "test", "isDefault": true },
+            "problemMatcher": []
+        },
+        {
+            "label": "Tests: pytest fast (stop on first failure)",
+            "type": "shell",
+            "command": "pytest -x -q",
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Lint: ruff + black check",
+            "type": "shell",
+            "command": "make lint",
+            "problemMatcher": []
+        },
+        {
+            "label": "Format: ruff --fix + black",
+            "type": "shell",
+            "command": "make format",
+            "problemMatcher": []
+        },
+        {
+            "label": "Docker: up (all services)",
+            "type": "shell",
+            "command": "make up",
+            "problemMatcher": []
+        },
+        {
+            "label": "Docker: down",
+            "type": "shell",
+            "command": "make down",
+            "problemMatcher": []
+        },
+        {
+            "label": "Docker: logs (app)",
+            "type": "shell",
+            "command": "make logs",
+            "problemMatcher": []
+        },
+        {
+            "label": "Celery: worker",
+            "type": "shell",
+            "command": "make worker",
+            "isBackground": true,
+            "problemMatcher": []
+        },
+        {
+            "label": "Celery: beat",
+            "type": "shell",
+            "command": "make beat",
+            "isBackground": true,
+            "problemMatcher": []
+        }
+    ]
+}

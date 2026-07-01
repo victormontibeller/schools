@@ -128,8 +128,8 @@ Estabelecer os padrões de código e as fundações arquiteturais que todos os m
 - 7/7 testes passando
 
 **Pendente:**
-- Handler global de exceções HTTP
-- Factories com `factory_boy`
-- Helper `with_tenant()` para testes
+- ~~Handler global de exceções HTTP~~ *(concluído em Sprint 08.5 — `core/middleware.ExceptionHandlerMiddleware` + `templates/errors/business.html`)*
+- ~~Factories com `factory_boy`~~ *(concluído — `base/tests/factories.py`)*
+- ~~Helper `with_tenant()` para testes~~ *(concluído — `conftest.with_tenant()`)*
 - Testes unitários de `BaseRepository` e `BaseSelector`
 - ADR de decisões arquiteturais

@@ -11,6 +11,16 @@ class ClassForm(forms.ModelForm):
     class Meta:
         model = Class
         fields = ["name", "grade", "shift", "academic_year", "max_students", "class_teacher"]
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "form-control"}),
+            "grade": forms.TextInput(attrs={"class": "form-control"}),
+            "shift": forms.Select(attrs={"class": "form-select"}),
+            "academic_year": forms.NumberInput(
+                attrs={"class": "form-control", "min": 2000, "max": 2100}
+            ),
+            "max_students": forms.NumberInput(attrs={"class": "form-control", "min": 1}),
+            "class_teacher": forms.Select(attrs={"class": "form-select"}),
+        }
         labels = {
             "name": "Nome",
             "grade": "Série",
@@ -19,13 +29,16 @@ class ClassForm(forms.ModelForm):
             "max_students": "Vagas",
             "class_teacher": "Professor Responsável",
         }
-        widgets = {
-            "academic_year": forms.NumberInput(attrs={"min": 2000, "max": 2100}),
-        }
 
 
 class EnrollmentForm(forms.Form):
     """Formulário para matricular aluno em turma (via ID)."""
 
-    student_id = forms.UUIDField(label="ID do aluno")
-    class_obj_id = forms.UUIDField(label="ID da turma")
+    student_id = forms.UUIDField(
+        label="ID do aluno",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    class_obj_id = forms.UUIDField(
+        label="ID da turma",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )

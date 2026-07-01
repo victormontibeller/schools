@@ -1,14 +1,15 @@
 """Seed de calendário: ano letivo, feriados nacionais e 2 eventos de demo."""
+
 import datetime as dt
 
-from core.models import School
 from django_tenants.utils import tenant_context
+
+from core.models import School
 
 school = School.objects.get(schema_name="demo")
 
 with tenant_context(school):
     from academic_calendar.models import AcademicYear, CalendarEvent, Holiday
-    from classes.models import Class
 
     ay, _ = AcademicYear.objects.get_or_create(
         name="2026",

@@ -1,3 +1,6 @@
+# docker-compose.yml — ambiente de desenvolvimento completo.
+# Inclui Traefik (proxy reverso + TLS), Prometheus, Grafana e Loki.
+# Ver docs/02_ARCHITECTURE.md e docs/07_OBSERVABILITY.md.
 services:
   postgres:
     image: postgres:15
@@ -5,8 +8,6 @@ services:
       POSTGRES_DB: schools_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -14,30 +15,30 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks: [backend]
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
+    networks: [backend]
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
-    ports:
-      - "5672:5672"
-      - "15672:15672"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks: [backend]
+    labels:
+      - "traefik.enable=false"
 
   app:
     build: .
@@ -45,14 +46,13 @@ services:
     volumes:
       - .:/app
       - media:/app/media
-    ports:
-      - "8000:8000"
     env_file:
       - .env
     environment:
       DB_HOST: postgres
       REDIS_URL: redis://redis:6379/0
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672//
+      DJANGO_ENV: development
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,6 +60,13 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    networks: [backend, proxy]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=schools_proxy"
+      - "traefik.http.routers.schools.rule=Host(`localhost`)"
+      - "traefik.http.routers.schools.entrypoints=web"
+      - "traefik.http.services.schools.loadbalancer.server.port=8000"
 
   worker:
     build: .
@@ -79,6 +86,7 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    networks: [backend]
 
   beat:
     build: .
@@ -98,7 +106,104 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    networks: [backend]
+
+  # ── Reverse Proxy / TLS ────────────────────────────────────────────────────
+  traefik:
+    image: traefik:v2.11
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      # Let's Encrypt automático em produção; acme.json vem do volume.
+      - "--certificatesresolvers.le.acme.tlschallenge=true"
+      - "--certificatesresolvers.le.acme.email=${ACME_EMAIL:-admin@localhost}"
+      - "--certificatesresolvers.le.acme.storage=/acme.json"
+      - "--entrypoints.websecure.http.tls=true"
+      - "--providers.file.filename=/etc/traefik/dynamic.yml"
+      - "--log.format=json"
+      - "--accesslog=true"
+      - "--accesslog.format=json"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./docker/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - acme:/acme.json
+    networks: [proxy]
+
+  # ── Observabilidade: Prometheus ──────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    networks: [backend]
+    labels:
+      - "traefik.enable=false"
+
+  # ── Observabilidade: Grafana ─────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:11.2.0
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - loki
+    networks: [backend]
+    labels:
+      - "traefik.enable=false"
+
+  # ── Observabilidade: Loki ──────────────────────────────────────────────────────
+  loki:
+    image: grafana/loki:3.1.2
+    command: -config.file=/etc/loki/loki-config.yml
+    volumes:
+      - ./docker/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki_data:/loki
+    networks: [backend]
+    labels:
+      - "traefik.enable=false"
+
+  # ── Coleta de logs: Promtail ──────────────────────────────────────────────────
+  promtail:
+    image: grafana/promtail:3.1.2
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./docker/loki/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+    command: -config.file=/etc/promtail/promtail-config.yml
+    depends_on:
+      - loki
+    networks: [backend]
+    labels:
+      - "traefik.enable=false"
 
 volumes:
   pgdata:
   media:
+  acme:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+
+networks:
+  backend:
+  proxy:

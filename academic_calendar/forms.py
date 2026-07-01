@@ -2,7 +2,7 @@
 
 from django import forms
 
-from academic_calendar.models import AcademicYear, CalendarEvent
+from academic_calendar.models import AcademicYear, CalendarEvent, Holiday
 
 
 class AcademicYearForm(forms.ModelForm):
@@ -11,15 +11,17 @@ class AcademicYearForm(forms.ModelForm):
     class Meta:
         model = AcademicYear
         fields = ["name", "start_date", "end_date", "status"]
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "form-control"}),
+            "start_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "end_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "status": forms.Select(attrs={"class": "form-select"}),
+        }
         labels = {
             "name": "Nome",
             "start_date": "Início",
             "end_date": "Término",
             "status": "Situação",
-        }
-        widgets = {
-            "start_date": forms.DateInput(attrs={"type": "date"}),
-            "end_date": forms.DateInput(attrs={"type": "date"}),
         }
 
 
@@ -41,6 +43,19 @@ class EventForm(forms.ModelForm):
             "academic_year",
             "is_public",
         ]
+        widgets = {
+            "title": forms.TextInput(attrs={"class": "form-control"}),
+            "description": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+            "start_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "end_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "start_time": forms.TimeInput(attrs={"type": "time", "class": "form-control"}),
+            "end_time": forms.TimeInput(attrs={"type": "time", "class": "form-control"}),
+            "type": forms.Select(attrs={"class": "form-select"}),
+            "audience": forms.Select(attrs={"class": "form-select"}),
+            "class_obj": forms.Select(attrs={"class": "form-select"}),
+            "academic_year": forms.Select(attrs={"class": "form-select"}),
+            "is_public": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
         labels = {
             "title": "Título",
             "description": "Descrição",
@@ -54,29 +69,23 @@ class EventForm(forms.ModelForm):
             "academic_year": "Ano Letivo",
             "is_public": "Público para responsáveis/alunos",
         }
-        widgets = {
-            "start_date": forms.DateInput(attrs={"type": "date"}),
-            "end_date": forms.DateInput(attrs={"type": "date"}),
-            "start_time": forms.TimeInput(attrs={"type": "time"}),
-            "end_time": forms.TimeInput(attrs={"type": "time"}),
-            "description": forms.Textarea(attrs={"rows": 3}),
-        }
 
 
 class HolidayForm(forms.ModelForm):
     """Formulário ModelForm para criação de feriado."""
 
     class Meta:
-        from academic_calendar.models import Holiday
-
         model = Holiday
         fields = ["name", "date", "type", "is_recurring"]
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "form-control"}),
+            "date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "type": forms.Select(attrs={"class": "form-select"}),
+            "is_recurring": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
         labels = {
             "name": "Nome",
             "date": "Data",
             "type": "Tipo",
             "is_recurring": "Repete todo ano",
-        }
-        widgets = {
-            "date": forms.DateInput(attrs={"type": "date"}),
         }

@@ -1,5 +1,6 @@
-"""Middlewares: Correlation ID e Audit Context."""
+"""Middlewares: Correlation ID, Audit Context e Handler global de exceções."""
 
+import json
 import logging
 import uuid
 from collections.abc import Callable
@@ -7,6 +8,14 @@ from collections.abc import Callable
 from django.http import HttpRequest, HttpResponse
 
 from base import context
+from base.exceptions import (
+    AppBaseError,
+    BusinessRuleViolationError,
+    ObjectNotFoundError,
+    PermissionDeniedError,
+    TenantNotFoundError,
+    ValidationError,
+)
 
 
 class CorrelationIdFilter(logging.Filter):
@@ -66,3 +75,85 @@ class AuditContextMiddleware:
     def _get_ip(request: HttpRequest) -> str:
         xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
         return xff.split(",")[0].strip() if xff else request.META.get("REMOTE_ADDR", "")
+
+
+# ── Handler global de exceções HTTP ──────────────────────────────────────────
+
+
+_LOG = logging.getLogger(__name__)
+
+# Mapeamento exceção da aplicação → (código, status HTTP).
+_EXCEPTION_MAP: dict[type[AppBaseError], tuple[str, int]] = {
+    ValidationError: ("validation_error", 400),
+    ObjectNotFoundError: ("not_found", 404),
+    TenantNotFoundError: ("tenant_not_found", 404),
+    PermissionDeniedError: ("permission_denied", 403),
+    BusinessRuleViolationError: ("business_rule_violation", 422),
+}
+
+
+class ExceptionHandlerMiddleware:
+    """Converte exceções de domínio (`AppBaseError`) em respostas HTTP padronizadas.
+
+    Garante que erros de validação, registros não encontrados, violações de regra
+    de negócio e bloqueios de permissão nunca cheguem ao handler 500 genérico.
+    Responde em JSON para requisições que aceitam JSON; caso contrário, renderiza
+    o template `errors/business.html` com a mensagem amigável.
+    """
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        """Armazena o próximo handler da cadeia de middlewares."""
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        """Executa o handler e captura exceções de domínio, se houver."""
+        try:
+            return self.get_response(request)
+        except AppBaseError as exc:
+            return self._build_response(request, exc)
+
+    def process_exception(self, request: HttpRequest, exception: Exception):
+        """Captura exceções de domínio no caminho `process_exception` do Django.
+
+        Necessário porque o Django consome exceções de view internamente antes
+        que elas cheguem ao `__call__` do middleware.
+        """
+        if isinstance(exception, AppBaseError):
+            return self._build_response(request, exception)
+        return None
+
+    @staticmethod
+    def _build_response(request: HttpRequest, exc: AppBaseError) -> HttpResponse:
+        """Produz a resposta HTTP a partir da exceção capturada."""
+        code, status = _EXCEPTION_MAP.get(type(exc), ("app_error", 500))
+        cid = context.correlation_id.get() or "-"
+        _LOG.warning(
+            "Exceção de domínio capturada",
+            extra={
+                "correlation_id": cid,
+                "exception_type": type(exc).__name__,
+                "status_code": status,
+                "path": request.path,
+                "method": request.method,
+            },
+        )
+        body = {"error": code, "message": exc.message, "correlation_id": cid}
+        if isinstance(exc, ValidationError) and exc.errors:
+            body["errors"] = exc.errors
+
+        accept = request.META.get("HTTP_ACCEPT", "")
+        wants_json = "application/json" in accept
+        if request.headers.get("HX-Request") or wants_json:
+            return HttpResponse(
+                content=json.dumps(body, ensure_ascii=False),
+                content_type="application/json",
+                status=status,
+            )
+        from django.shortcuts import render
+
+        return render(
+            request,
+            "errors/business.html",
+            {"code": code, "message": exc.message, "correlation_id": cid, "status": status},
+            status=status,
+        )

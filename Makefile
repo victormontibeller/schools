@@ -22,6 +22,7 @@ help:
 	@echo "  make up         Start all Docker services"
 	@echo "  make down       Stop all Docker services"
 	@echo "  make logs       Tail Docker logs"
+	@echo "  make clean      Remove __pycache__, .pytest_cache, .ruff_cache, .coverage"
 	@echo ""
 
 # ============================================================
@@ -74,13 +75,13 @@ test-tenant:
 # ============================================================
 .PHONY: lint
 lint:
-	ruff check base core accounts audit teachers students guardians classes rooms agenda activities academic_calendar attendance notifications dashboard
-	black --check base core accounts audit teachers students guardians classes rooms agenda activities academic_calendar attendance notifications dashboard
+	ruff check base core accounts audit teachers students guardians classes rooms agenda activities academic_calendar attendance notifications dashboard scripts
+	black --check base core accounts audit teachers students guardians classes rooms agenda activities academic_calendar attendance notifications dashboard scripts
 
 .PHONY: format
 format:
-	ruff check base core accounts audit teachers students guardians classes rooms agenda activities academic_calendar attendance notifications dashboard --fix
-	black base core accounts audit teachers students guardians classes rooms agenda activities academic_calendar attendance notifications dashboard
+	ruff check base core accounts audit teachers students guardians classes rooms agenda activities academic_calendar attendance notifications dashboard scripts --fix
+	black base core accounts audit teachers students guardians classes rooms agenda activities academic_calendar attendance notifications dashboard scripts
 
 # ============================================================
 # Celery
@@ -92,6 +93,17 @@ worker:
 .PHONY: beat
 beat:
 	celery -A core.celery beat --loglevel=info
+
+# ============================================================
+# Clean
+# ============================================================
+.PHONY: clean
+clean:
+	find . -type d -name '__pycache__' -not -path './.venv/*' -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name '.pytest_cache' -not -path './.venv/*' -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name '.ruff_cache' -not -path './.venv/*' -exec rm -rf {} + 2>/dev/null || true
+	rm -f .coverage
+	@echo "Cache limpo."
 
 # ============================================================
 # Docker

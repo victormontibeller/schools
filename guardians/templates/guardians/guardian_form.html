@@ -1,0 +1,7 @@
+{% extends "form_base.html" %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'guardians_list' %}">Responsáveis</a></li>
+{% endblock %}
+
+{% block cancel_url %}{% url 'guardians_list' %}{% endblock %}

@@ -1,4 +1,5 @@
 """Smoke test de demo via Django test client (host=localhost → tenant demo)."""
+
 # Workaround Django 5.1 + Python 3.14 (mesmo patch do conftest.py).
 from django.template.context import BaseContext
 
@@ -6,7 +7,7 @@ from django.template.context import BaseContext
 def _patched_bctx_copy(self):
     cls = type(self)
     new = object.__new__(cls)
-    for slot in (getattr(cls, "__slots__", ()) or ()):
+    for slot in getattr(cls, "__slots__", ()) or ():
         if hasattr(self, slot):
             try:
                 setattr(new, slot, getattr(self, slot))
@@ -49,7 +50,12 @@ show("GET / (anon)", c.get("/", **HOST))
 from django.urls import reverse
 
 login_url = reverse("login")
-show("POST login", c.post(login_url, {"email": "admin@demo.com", "password": "Senha123", "remember_me": True}, **HOST))
+show(
+    "POST login",
+    c.post(
+        login_url, {"email": "admin@demo.com", "password": "Senha123", "remember_me": True}, **HOST
+    ),
+)
 
 # 3. Dashboard após login.
 show("GET / (auth)", c.get("/", **HOST))
@@ -68,15 +74,21 @@ for name in [
     show(f"GET {url}", c.get(url, **HOST))
 
 # 5. Detalhe da turma + grade + atividade.
-from classes.models import Class
 from activities.models import Activity
+from classes.models import Class
 
 cls = Class.objects.first()
 show(f"GET class_detail {cls.pk}", c.get(reverse("class_detail", kwargs={"pk": cls.pk}), **HOST))
 show("GET schedule_weekly", c.get(reverse("schedule_weekly", kwargs={"class_id": cls.pk}), **HOST))
-show("GET schedule_create (GET)", c.get(reverse("schedule_create", kwargs={"class_id": cls.pk}), **HOST))
+show(
+    "GET schedule_create (GET)",
+    c.get(reverse("schedule_create", kwargs={"class_id": cls.pk}), **HOST),
+)
 act = Activity.objects.first()
-show(f"GET activity_detail {act.pk}", c.get(reverse("activity_detail", kwargs={"pk": act.pk}), **HOST))
+show(
+    f"GET activity_detail {act.pk}",
+    c.get(reverse("activity_detail", kwargs={"pk": act.pk}), **HOST),
+)
 show("GET activity_create (GET)", c.get(reverse("activity_create"), **HOST))
 show("GET class_create (GET)", c.get(reverse("class_create"), **HOST))
 show("GET room_create (GET)", c.get(reverse("room_create"), **HOST))

@@ -11,6 +11,14 @@ class AttendanceRecordForm(forms.ModelForm):
     class Meta:
         model = AttendanceRecord
         fields = ["class_obj", "subject", "teacher", "date", "lesson_number", "notes"]
+        widgets = {
+            "class_obj": forms.Select(attrs={"class": "form-select"}),
+            "subject": forms.Select(attrs={"class": "form-select"}),
+            "teacher": forms.Select(attrs={"class": "form-select"}),
+            "date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "lesson_number": forms.NumberInput(attrs={"class": "form-control", "min": 1}),
+            "notes": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+        }
         labels = {
             "class_obj": "Turma",
             "subject": "Disciplina",
@@ -18,10 +26,6 @@ class AttendanceRecordForm(forms.ModelForm):
             "date": "Data",
             "lesson_number": "Aula nº",
             "notes": "Observações",
-        }
-        widgets = {
-            "date": forms.DateInput(attrs={"type": "date"}),
-            "notes": forms.Textarea(attrs={"rows": 2}),
         }
 
 
@@ -31,15 +35,17 @@ class JustificationForm(forms.ModelForm):
     class Meta:
         model = AttendanceJustification
         fields = ["student", "start_date", "end_date", "reason", "document"]
+        widgets = {
+            "student": forms.Select(attrs={"class": "form-select"}),
+            "start_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "end_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "reason": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+            "document": forms.ClearableFileInput(attrs={"class": "form-control"}),
+        }
         labels = {
             "student": "Aluno",
             "start_date": "Início",
             "end_date": "Término",
             "reason": "Motivo",
             "document": "Documento (opcional)",
-        }
-        widgets = {
-            "start_date": forms.DateInput(attrs={"type": "date"}),
-            "end_date": forms.DateInput(attrs={"type": "date"}),
-            "reason": forms.Textarea(attrs={"rows": 2}),
         }

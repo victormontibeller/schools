@@ -4,6 +4,9 @@ import pytest
 
 from students.tasks import import_students_csv
 
+# Schema usado nos testes SQLite (schema_context é no-op fora de PostgreSQL).
+_TEST_SCHEMA = "public"
+
 
 @pytest.mark.django_db
 class TestImportStudentsCsv:
@@ -20,7 +23,7 @@ class TestImportStudentsCsv:
                 ["Bruno", "Souza", "2011-05-10", "IMP-002", "M", ""],
             ]
         )
-        result = import_students_csv.apply(args=[csv_content, str(user.pk)]).get()
+        result = import_students_csv.apply(args=[_TEST_SCHEMA, csv_content, str(user.pk)]).get()
 
         assert result["created"] == 2
         assert result["errors"] == []
@@ -39,7 +42,7 @@ class TestImportStudentsCsv:
             ["Bruno2", "Souza", "2011-05-10", "IMP-1", "M", ""],  # duplicate
         ]
         csv_content = self._csv(rows)
-        result = import_students_csv.apply(args=[csv_content, str(user.pk)]).get()
+        result = import_students_csv.apply(args=[_TEST_SCHEMA, csv_content, str(user.pk)]).get()
 
         # Linhas válidas: 1 + 3 → 2 criados; linha 4 falha (duplicate).
         # Linha 2 (vazia) falha por ValidationError.
@@ -50,13 +53,13 @@ class TestImportStudentsCsv:
         import uuid
 
         result = import_students_csv.apply(
-            args=["coluna,foo\nAna,Silva\n", str(uuid.uuid4())]
+            args=[_TEST_SCHEMA, "coluna,foo\nAna,Silva\n", str(uuid.uuid4())]
         ).get()
         assert result["created"] == 0
         assert "Usuário executor" in result["errors"][0]["message"]
 
     def test_empty_csv(self, user):
         csv_content = self.HEADER  # só o cabeçalho, sem rows
-        result = import_students_csv.apply(args=[csv_content, str(user.pk)]).get()
+        result = import_students_csv.apply(args=[_TEST_SCHEMA, csv_content, str(user.pk)]).get()
         assert result["created"] == 0
         assert result["errors"] == []

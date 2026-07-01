@@ -1,11 +1,12 @@
 """Smoke test de escrita: POSTs de criação via Django test client."""
+
 from django.template.context import BaseContext
 
 
 def _patched_bctx_copy(self):
     cls = type(self)
     new = object.__new__(cls)
-    for slot in (getattr(cls, "__slots__", ()) or ()):
+    for slot in getattr(cls, "__slots__", ()) or ():
         if hasattr(self, slot):
             try:
                 setattr(new, slot, getattr(self, slot))
@@ -36,7 +37,7 @@ HOST = {"HTTP_HOST": "localhost"}
 
 def err(resp):
     m = re.findall(r"Exception Value:.*?</", resp.content.decode("utf-8", "ignore"), re.S)
-    return (m[0][:300] if m else resp.content[:300].decode("utf-8", "ignore"))
+    return m[0][:300] if m else resp.content[:300].decode("utf-8", "ignore")
 
 
 def show(label, resp):
@@ -45,7 +46,11 @@ def show(label, resp):
     print(f"{label}: {resp.status_code} {('-> ' + loc) if loc else ''}{extra}")
 
 
-c.post(reverse("login"), {"email": "admin@demo.com", "password": "Senha123", "remember_me": True}, **HOST)
+c.post(
+    reverse("login"),
+    {"email": "admin@demo.com", "password": "Senha123", "remember_me": True},
+    **HOST,
+)
 
 from activities.models import Activity
 from classes.models import Class
@@ -87,7 +92,12 @@ show(
 )
 
 # 3. Matricular 2º aluno na turma
-show("POST class_enroll", c.post(reverse("class_enroll", kwargs={"class_id": cls.pk}), {"student_id": str(stu2.pk)}, **HOST))
+show(
+    "POST class_enroll",
+    c.post(
+        reverse("class_enroll", kwargs={"class_id": cls.pk}), {"student_id": str(stu2.pk)}, **HOST
+    ),
+)
 
 # 4. Criar atividade
 show(

@@ -1,37 +1,7 @@
-{% extends "base.html" %}
-{% block title %}{{ title }} — School Manager{% endblock %}
+{% extends "form_base.html" %}
 
-{% block content %}
-<div class="page-header">
-    <div class="page-header-left d-flex align-items-center">
-        <div class="page-header-title"><h5 class="m-b-10">{{ title }}</h5></div>
-        <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
-            <li class="breadcrumb-item"><a href="{% url 'rooms_list' %}">Salas</a></li>
-            <li class="breadcrumb-item">{{ title }}</li>
-        </ul>
-    </div>
-</div>
-
-<div class="main-content">
-    <div class="card" style="max-width: 640px;">
-        <div class="card-header"><h6 class="card-title mb-0">{{ title }}</h6></div>
-        <div class="card-body">
-            <form method="post">
-                {% csrf_token %}
-                {% for field in form %}
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">{{ field.label }}</label>
-                    {{ field }}
-                    {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors.0 }}</div>{% endif %}
-                </div>
-                {% endfor %}
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary">Salvar</button>
-                    <a href="{% url 'rooms_list' %}" class="btn btn-outline-secondary">Cancelar</a>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'rooms_list' %}">Salas</a></li>
 {% endblock %}
+
+{% block cancel_url %}{% url 'rooms_list' %}{% endblock %}

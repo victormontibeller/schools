@@ -119,7 +119,7 @@ Implementar o sistema de gerenciamento de usuários, autenticação e o módulo 
 - 17/17 testes passando
 
 **Pendente:**
-- Rate limiting no login (requer Redis — Sprint 00)
-- `django-axes` para bloqueio de brute force
+- ~~Rate limiting no login~~ *(concluído via django-axes já configurado em `core/settings.py` §174-180 — bloqueio após 5 tentativas, integração testada em `accounts/tests/test_login_e2e.py`)*
+- ~~`django-axes` para bloqueio de brute force~~ *(configs `AXES_FAILURE_LIMIT=5`, `AXES_COOLOFF_TIME=1h`)*
 - Formulário HTMX de criação/edição de usuário
-- Testes de integração de login/logout via client HTTP
+- ~~Testes de integração de login/logout via client HTTP~~ *(ver `accounts/tests/test_login_e2e.py`)*

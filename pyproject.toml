@@ -29,6 +29,7 @@ exclude = ["migrations", ".git", ".venv", "build"]
 "*/tests/*" = ["N802", "S101", "ANN"]
 "*/conftest.py" = ["N802", "ANN"]
 "*/migrations/*" = ["ALL"]
+"scripts/*" = ["T20", "E402", "E501"]
 
 [tool.coverage.run]
 source = ["base", "core", "accounts", "audit", "teachers", "students", "guardians", "classes", "rooms", "agenda", "activities", "academic_calendar", "attendance", "notifications", "dashboard"]

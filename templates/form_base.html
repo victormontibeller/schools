@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} — School Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title"><h5 class="m-b-10">{{ title }}</h5></div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            {% block breadcrumb %}{% endblock %}
+            <li class="breadcrumb-item">{{ title }}</li>
+        </ul>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="card">
+        <div class="card-header"><h6 class="card-title mb-0">{{ title }}</h6></div>
+        <div class="card-body">
+            <form method="post" {% block form_enctype %}{% endblock %}>
+                {% csrf_token %}
+                <div class="row row-cols-1 row-cols-lg-2 g-1">
+                    {% for field in form %}
+                        {% include "partials/form_field.html" with field=field %}
+                    {% endfor %}
+                </div>
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger py-2">{{ form.non_field_errors.0 }}</div>
+                {% endif %}
+                <div class="d-flex gap-2 mt-2">
+                    <button type="submit" class="btn btn-primary">{% block submit_label %}Salvar{% endblock %}</button>
+                    <a href="{% block cancel_url %}{% url 'dashboard' %}{% endblock %}" class="btn btn-outline-secondary">Cancelar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

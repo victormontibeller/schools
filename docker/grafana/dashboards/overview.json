@@ -1,0 +1,48 @@
+{
+  "annotations": { "list": [] },
+  "title": "Schools — Visão Geral",
+  "uid": "schools-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "15s",
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Requisições HTTP/s",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        { "expr": "sum(rate(django_http_requests_total[1m]))", "legendFormat": "req/s" }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Erros 5xx (total)",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        { "expr": "sum(django_http_responses_total{status=~\"5..\"})", "legendFormat": "5xx" }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "graph",
+      "title": "Latência por endpoint",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(django_http_requests_latency_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(django_http_requests_latency_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p50"
+        }
+      ]
+    }
+  ]
+}

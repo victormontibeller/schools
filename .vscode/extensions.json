@@ -1,0 +1,16 @@
+{
+    "recommendations": [
+        "ms-python.python",
+        "ms-python.debugpy",
+        "ms-python.pylance",
+        "ms-python.black-formatter",
+        "charliermarsh.ruff",
+        "batisteo.vscode-django",
+        "ms-azuretools.vscode-docker",
+        "esbenp.prettier-vscode",
+        "monosans.djlint",
+        "redhat.vscode-yaml",
+        "github.copilot",
+        "github.copilot-chat"
+    ]
+}

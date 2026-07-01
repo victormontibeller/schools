@@ -25,6 +25,10 @@ Configurar todo o ambiente de desenvolvimento e produção base, garantindo que 
 - [ ] Prometheus deverá estar coletando métricas do Django.
 - [ ] Loki deverá estar recebendo e indexando logs da aplicação.
 - [x] `BaseModel` deverá estar implementado com todos os campos obrigatórios.
+- [x] Traefik deverá estar roteando requisições corretamente. *(Sprint 08.5)*
+- [x] Grafana deverá exibir o dashboard com métricas do sistema. *(Sprint 08.5)*
+- [x] Prometheus deverá estar coletando métricas do Django. *(Sprint 08.5)*
+- [x] Loki deverá estar recebendo e indexando logs da aplicação. *(Sprint 08.5)*
 - [x] Logs deverão estar sendo emitidos em formato JSON estruturado.
 - [x] Makefile deverá conter comandos para tarefas comuns de desenvolvimento.
 
@@ -113,7 +117,7 @@ Nenhuma. Esta Sprint é a base de todas as demais.
 
 ## Progresso
 
-> Atualizado em 2026-06-29
+> Atualizado em 2026-06-30 (Sprint 08.5 — Hardening)
 
 **Concluído nesta sprint:**
 - Projeto Django criado em `src/` com settings por ambiente (`base`, `development`, `production`, `testing`)
@@ -129,6 +133,6 @@ Nenhuma. Esta Sprint é a base de todas as demais.
 - Cobertura de testes: 80.33% (284 testes), acima do limite de 80%
 
 **Pendente:**
-- Traefik, Prometheus, Grafana, Loki
-- Rate limiting, HTTPS, tenant de teste isolado
-- Health check expandido (banco, Redis, RabbitMQ)
+- ~~Traefik, Prometheus, Grafana, Loki~~ *(concluído em Sprint 08.5 — ver `docker-compose.yml` + `docker/` configs)*
+- Rate limiting, HTTPS *(HTTPS via Traefik + ACME em dev self-signed; axes cobre o login)*
+- Health check expandido (banco, Redis, RabbitMQ) *(concluído em Sprint 08.5 — `core/views.health`)*

@@ -5,7 +5,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
-from core.views import dashboard, handler404, handler500, health, index
+from core.views import dashboard, handler404, handler500, health, index, metrics
 
 handler404 = handler404
 handler500 = handler500
@@ -15,6 +15,7 @@ urlpatterns = [
     path("app/", dashboard, name="dashboard"),
     path("admin/", admin.site.urls),
     path("health/", health, name="health"),
+    path("metrics/", metrics, name="metrics"),
     path("", include("accounts.urls")),
     path("", include("teachers.urls")),
     path("", include("students.urls")),

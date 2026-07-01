@@ -155,9 +155,12 @@ def _handle_calendar_event_created(event: DomainEvent) -> None:
     msg = cal_event.description or f"Evento em {cal_event.start_date}."
 
     if audience == "ALL":
+        from django.db import connection
+
         from notifications.tasks import notify_audience_all_task
 
         notify_audience_all_task.delay(
+            connection.schema_name,
             title=title,
             message=msg,
             correlation_id=event.correlation_id,

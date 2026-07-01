@@ -7,10 +7,12 @@ Pré-requisitos (já executados pelo setup):
 
 Uso: `python manage.py shell < scripts/seed_demo.py`
 """
+
 import datetime as dt
 
-from core.models import CustomUser, School
 from django_tenants.utils import tenant_context
+
+from core.models import CustomUser, School
 
 school = School.objects.get(schema_name="demo")
 print(f"Tenant: {school.schema_name} | {school.name}")
@@ -146,4 +148,6 @@ with tenant_context(school):
         },
     )
 
-    print("Seed concluído: disciplina, professor, 2 alunos, 2 salas, 6 horários, 1 turma, 1 matrícula, 1 atividade.")
+    print(
+        "Seed concluído: disciplina, professor, 2 alunos, 2 salas, 6 horários, 1 turma, 1 matrícula, 1 atividade."
+    )

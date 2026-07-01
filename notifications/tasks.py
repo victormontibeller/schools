@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 
 from celery import shared_task
+from django_tenants.utils import schema_context
 
 logger = logging.getLogger(__name__)
 
@@ -29,108 +30,113 @@ def _get_transport(channel_name: str):
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def send_email_task(self, user_id, template_id, context: dict | None = None):
+def send_email_task(self, tenant_schema: str, user_id, template_id, context: dict | None = None):
     """Envia e-mail individual renderizando template com contexto."""
-    from core.models import CustomUser
-    from notifications.models import MessageTemplate
+    with schema_context(tenant_schema):
+        from core.models import CustomUser
+        from notifications.models import MessageTemplate
 
-    user = _fetch_or_log(CustomUser, user_id, "Usuario")
-    if user is None:
-        return
-    template = _fetch_or_log(MessageTemplate, template_id, "Template de email")
-    if template is None:
-        return
+        user = _fetch_or_log(CustomUser, user_id, "Usuario")
+        if user is None:
+            return
+        template = _fetch_or_log(MessageTemplate, template_id, "Template de email")
+        if template is None:
+            return
 
-    transport = _get_transport("EMAIL")
-    result = transport.send_individual(user, template, context)
-    if result == 0:
-        raise self.retry()
+        transport = _get_transport("EMAIL")
+        result = transport.send_individual(user, template, context)
+        if result == 0:
+            raise self.retry()
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def send_whatsapp_task(self, phone: str, template_id, context: dict | None = None):
+def send_whatsapp_task(self, tenant_schema: str, phone: str, template_id, context: dict | None = None):
     """Envia WhatsApp individual renderizando template (stub)."""
-    from notifications.models import MessageTemplate
+    with schema_context(tenant_schema):
+        from notifications.models import MessageTemplate
 
-    template = _fetch_or_log(MessageTemplate, template_id, "Template de WhatsApp")
-    if template is None:
-        return
+        template = _fetch_or_log(MessageTemplate, template_id, "Template de WhatsApp")
+        if template is None:
+            return
 
-    transport = _get_transport("WHATSAPP")
-    transport.channel.send(recipient_address=phone, subject="", body="")
+        transport = _get_transport("WHATSAPP")
+        transport.channel.send(recipient_address=phone, subject="", body="")
 
-    # Log via transport mesmo para stub.
-    from notifications.models import MessageLog
+        # Log via transport mesmo para stub.
+        from notifications.models import MessageLog
 
-    MessageLog.objects.create(
-        channel=MessageLog.Channel.WHATSAPP,
-        recipient_address=phone,
-        status=MessageLog.Status.FAILED,
-        error_message="Provedor WhatsApp nao configurado (stub).",
-    )
+        MessageLog.objects.create(
+            channel=MessageLog.Channel.WHATSAPP,
+            recipient_address=phone,
+            status=MessageLog.Status.FAILED,
+            error_message="Provedor WhatsApp nao configurado (stub).",
+        )
 
 
 # ── Envio em lote para comunicado ────────────────────────────────────────────
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=120)
-def send_announcement_email_task(self, announcement_id):
+def send_announcement_email_task(self, tenant_schema: str, announcement_id):
     """Envia comunicado por e-mail em lote para a audiencia."""
-    from notifications.models import Announcement
+    with schema_context(tenant_schema):
+        from notifications.models import Announcement
 
-    announcement = _fetch_or_log(Announcement, announcement_id, "Comunicado")
-    if announcement is None:
-        return
+        announcement = _fetch_or_log(Announcement, announcement_id, "Comunicado")
+        if announcement is None:
+            return
 
-    transport = _get_transport("EMAIL")
-    success, failed = transport.send_announcement_batch(announcement)
-    if failed > 0 and success == 0:
-        raise self.retry()
+        transport = _get_transport("EMAIL")
+        success, failed = transport.send_announcement_batch(announcement)
+        if failed > 0 and success == 0:
+            raise self.retry()
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=120)
-def send_announcement_whatsapp_task(self, announcement_id):
+def send_announcement_whatsapp_task(self, tenant_schema: str, announcement_id):
     """Envia comunicado por WhatsApp em lote (stub)."""
-    from notifications.models import Announcement
+    with schema_context(tenant_schema):
+        from notifications.models import Announcement
 
-    announcement = _fetch_or_log(Announcement, announcement_id, "Comunicado")
-    if announcement is None:
-        return
+        announcement = _fetch_or_log(Announcement, announcement_id, "Comunicado")
+        if announcement is None:
+            return
 
-    transport = _get_transport("WHATSAPP")
-    transport.send_announcement_batch(announcement)
+        transport = _get_transport("WHATSAPP")
+        transport.send_announcement_batch(announcement)
 
 
 # ── Notificacao em lote para audiencia ALL ───────────────────────────────────
 
 
 @shared_task(bind=True, max_retries=2, default_retry_delay=300)
-def notify_audience_all_task(self, title: str, message: str, correlation_id: str = ""):
-    """Cria notificacoes in-app em lote para todos os usuarios ativos."""
-    from core.models import CustomUser
-    from notifications.models import Notification
+def notify_audience_all_task(self, tenant_schema: str, title: str, message: str, correlation_id: str = ""):
+    """Cria notificacoes in-app em lote para todos os usuarios ativos do tenant."""
+    with schema_context(tenant_schema):
+        from core.models import CustomUser
+        from notifications.models import Notification
 
-    chunk_size = 500
-    total = 0
-    user_ids = list(CustomUser.objects.filter(is_active=True).values_list("pk", flat=True))
+        chunk_size = 500
+        total = 0
+        user_ids = list(CustomUser.objects.filter(is_active=True).values_list("pk", flat=True))
 
-    for i in range(0, len(user_ids), chunk_size):
-        chunk = user_ids[i : i + chunk_size]
-        notifications = [
-            Notification(
-                recipient_id=uid,
-                type=Notification.Type.INFO,
-                title=title,
-                message=message,
-                source="calendar",
-                correlation_id=correlation_id,
-            )
-            for uid in chunk
-        ]
-        Notification.objects.bulk_create(notifications, batch_size=chunk_size)
-        total += len(chunk)
+        for i in range(0, len(user_ids), chunk_size):
+            chunk = user_ids[i : i + chunk_size]
+            notifications = [
+                Notification(
+                    recipient_id=uid,
+                    type=Notification.Type.INFO,
+                    title=title,
+                    message=message,
+                    source="calendar",
+                    correlation_id=correlation_id,
+                )
+                for uid in chunk
+            ]
+            Notification.objects.bulk_create(notifications, batch_size=chunk_size)
+            total += len(chunk)
 
-    logger.info("Notificacoes em lote: total=%d correlation_id=%s", total, correlation_id)
+        logger.info("Notificacoes em lote: total=%d correlation_id=%s", total, correlation_id)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────

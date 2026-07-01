@@ -19,6 +19,7 @@ class TestSubjectForm:
         assert "name" in form.errors
 
 
+@pytest.mark.django_db
 class TestTeacherForm:
     def test_valid(self):
         form = TeacherForm(

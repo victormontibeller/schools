@@ -39,6 +39,12 @@ BASE_APPS = [
     "accounts",
 ]
 
+# Observabilidade via django-prometheus exposta em /metrics/ (Sprint 08.5).
+# Em ambiente de testes unitários, mantemos fora para não interferir no SQLite
+# in-memory e no roteamento de castas do django_tenants.
+if not TESTING:
+    BASE_APPS.append("django_prometheus")
+
 # Apps que rodam por schema de tenant (dados por escola)
 TENANT_SPECIFIC_APPS = [
     "audit",
@@ -71,6 +77,7 @@ TENANT_DOMAIN_MODEL = "core.Domain"
 
 # ── Middleware ─────────────────────────────────────────────────────────────────
 MIDDLEWARE = [
+    *([] if TESTING else ["django_prometheus.middleware.PrometheusBeforeMiddleware"]),
     *([] if TESTING else ["django_tenants.middleware.main.TenantMainMiddleware"]),
     "axes.middleware.AxesMiddleware",
     "core.middleware.CorrelationIdMiddleware",
@@ -82,6 +89,8 @@ MIDDLEWARE = [
     "core.middleware.AuditContextMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "core.middleware.ExceptionHandlerMiddleware",
+    *([] if TESTING else ["django_prometheus.middleware.PrometheusAfterMiddleware"]),
 ]
 
 if DEBUG and not TESTING:

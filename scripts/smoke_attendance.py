@@ -1,11 +1,12 @@
 """Smoke test do módulo de frequência."""
+
 from django.template.context import BaseContext
 
 
 def _patched_bctx_copy(self):
     cls = type(self)
     new = object.__new__(cls)
-    for slot in (getattr(cls, "__slots__", ()) or ()):
+    for slot in getattr(cls, "__slots__", ()) or ():
         if hasattr(self, slot):
             try:
                 setattr(new, slot, getattr(self, slot))
@@ -35,7 +36,7 @@ H = {"HTTP_HOST": "localhost"}
 
 def err(resp):
     m = re.findall(r"Exception Value:.*?</", resp.content.decode("utf-8", "ignore"), re.S)
-    return (m[0][:300] if m else resp.content[:300].decode("utf-8", "ignore"))
+    return m[0][:300] if m else resp.content[:300].decode("utf-8", "ignore")
 
 
 def show(label, resp):
@@ -43,9 +44,11 @@ def show(label, resp):
     print(f"{label}: {resp.status_code}{extra}")
 
 
-c.post(reverse("login"), {"email": "admin@demo.com", "password": "Senha123", "remember_me": True}, **H)
+c.post(
+    reverse("login"), {"email": "admin@demo.com", "password": "Senha123", "remember_me": True}, **H
+)
 
-from attendance.models import AttendanceEntry, AttendanceRecord, AttendanceJustification
+from attendance.models import AttendanceEntry, AttendanceJustification, AttendanceRecord
 from classes.models import Class
 from students.models import Student
 
@@ -60,7 +63,10 @@ stu_ids = list(AttendanceEntry.objects.filter(record=rec).values_list("student_i
 data = {f"status_{s}": "PRESENT" for s in stu_ids}
 if len(stu_ids) >= 2:
     data[f"status_{stu_ids[1]}"] = "ABSENT"
-show("record_fill POST", c.post(reverse("attendance_record_fill", kwargs={"record_id": rec.pk}), data, **H))
+show(
+    "record_fill POST",
+    c.post(reverse("attendance_record_fill", kwargs={"record_id": rec.pk}), data, **H),
+)
 
 cls = Class.objects.first()
 show("class_summary", c.get(reverse("class_attendance_summary", kwargs={"class_id": cls.pk}), **H))

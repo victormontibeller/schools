@@ -36,4 +36,18 @@ accounts/       App de gestão de usuários
 audit/          App de auditoria
 templates/      Templates base e auth
 design_system/  Assets Duralux (Bootstrap)
+docker/         Configs de Traefik, Prometheus, Grafana e Loki
 ```
+
+## Observabilidade
+
+`make up` sobe a stack completa: PostgreSQL, Redis, RabbitMQ, Celery (worker + beat),
+Traefik (HTTPS + Let's Encrypt) e a stack de observabilidade.
+
+| Serviço     | URL                                | Uso                                    |
+|-------------|------------------------------------|----------------------------------------|
+| App         | https://localhost                  | Aplicação                              |
+| Prometheus  | http://localhost:9090              | Coleta de métricas                     |
+| Grafana     | http://localhost:3000 (admin/admin) | Dashboards técnicos e de aplicação     |
+| Loki        | interno                            | Logs JSON indexados (via Promtail)     |
+| /metrics/   | https://localhost/metrics/ (basic-auth) | Endpoint Prometheus do Django       |

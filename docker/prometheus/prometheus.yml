@@ -1,0 +1,22 @@
+# Configuração do Prometheus para scraping do Django e do Celery.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: "schools-monitor"
+
+scrape_configs:
+  - job_name: "django"
+    metrics_path: "/metrics"
+    scheme: "http"
+    static_configs:
+      - targets: ["app:8000"]
+        labels:
+          service: "school-manager"
+          env: "development"
+
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+rule_files: []  # adicionar alertas em Sprint 09 (docs/23_SPRINT_09.md)

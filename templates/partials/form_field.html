@@ -1,0 +1,25 @@
+{% load widget_utils %}{% with wt=field.field.widget|widget_type %}
+<div class="col-12
+    {% if field.field.widget.input_type == 'checkbox' %} d-flex align-items-center gap-2 mb-2
+    {% elif wt == 'TextareaInput' or wt == 'SelectMultiple' or wt == 'CheckboxSelectMultiple'
+       or wt == 'ClearableFileInput' or field.field.widget.input_type == 'file' %} col-12
+    {% else %} col-lg-6{% endif %}">
+    {% if field.field.widget.input_type == 'checkbox' %}
+        <div class="form-check form-switch">
+            {{ field }}
+            <label class="form-check-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        </div>
+        {% if field.help_text %}<div class="form-text small d-block">{{ field.help_text }}</div>{% endif %}
+        {% if field.errors %}<div class="text-danger small">{{ field.errors.0 }}</div>{% endif %}
+    {% else %}
+        <div class="mb-3">
+            <label class="form-label fw-semibold" for="{{ field.id_for_label }}">
+                {{ field.label }}
+                {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+            </label>
+            {{ field }}
+            {% if field.help_text %}<div class="form-text small">{{ field.help_text }}</div>{% endif %}
+            {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors.0 }}</div>{% endif %}
+        </div>
+    {% endif %}
+</div>{% endwith %}

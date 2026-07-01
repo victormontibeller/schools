@@ -11,6 +11,14 @@ from base import context
 
 logger = logging.getLogger(__name__)
 
+
+def _is_testing() -> bool:
+    """Retorna True quando rodando sob pytest (settings.TESTING)."""
+    from django.conf import settings
+
+    return bool(getattr(settings, "TESTING", False))
+
+
 # ── Textos da landing page (mantidos fora das views para legibilidade) ────────
 _LANDING_FEATURES = [
     {
@@ -133,12 +141,75 @@ _LANDING_FAQS = [
 
 
 def health(request: HttpRequest) -> HttpResponse:
-    """Endpoint de health check retornando JSON com status ok."""
+    """Endpoint de health check que verifica conectividade com banco, Redis e RabbitMQ.
+
+    Em modo de testes (SQLite in-memory + Django cache dummy), as checagens de
+    Redis/RabbitMQ são puladas para manter o health autônomo.
+    """
+    checks: dict[str, str] = {}
+    overall = "ok"
+    status_code = 200
+
+    # Banco de dados
+    try:
+        from django.db import connection
+
+        connection.ensure_connection()
+        checks["db"] = "ok"
+    except Exception as exc:  # noqa: BLE001
+        checks["db"] = f"error: {exc}"
+        overall = "degraded"
+        status_code = 503
+
+    # Redis — opcional (apenas se o backend de cache for Redis)
+    try:
+        from django.core.cache import cache
+
+        cache.set("health:probe", "1", timeout=5)
+        checks["redis"] = "ok" if cache.get("health:probe") == "1" else "stale"
+    except Exception as exc:  # noqa: BLE001
+        checks["redis"] = f"error: {exc}"
+        overall = "degraded"
+        status_code = 503
+
+    # RabbitMQ — opcional: tentativa curta; em testes, ignoramos para não
+    #  introduzir latência de connect no broker inexistente.
+    if _is_testing():
+        checks["rabbitmq"] = "skipped"
+    else:
+        try:
+            from core.celery import app as celery_app  # noqa: PLC0415
+
+            conn = celery_app.connection_for_read(timeout=1)
+            conn.ensure_connection(max_retries=0)
+            conn.close()
+            checks["rabbitmq"] = "ok"
+        except Exception:  # noqa: BLE001
+            checks["rabbitmq"] = "skipped"
+
+    body = {"status": overall, "checks": checks}
     return HttpResponse(
-        content=json.dumps({"status": "ok"}),
+        content=json.dumps(body, ensure_ascii=False),
         content_type="application/json",
-        status=200,
+        status=status_code,
     )
+
+
+def metrics(request: HttpRequest) -> HttpResponse:
+    """Exposição de métricas Prometheus.
+
+    Em produção, deve ser protegido por Traefik/basic-auth ou `staff_member_required`.
+    Aqui deixamos o django_prometheus responder; em DEBUG, qualquer cliente pode
+    acessar; fora de DEBUG, exigimos `is_staff`.
+    """
+    from django.conf import settings
+
+    if not getattr(settings, "DEBUG", False) and not request.user.is_staff:
+        return HttpResponse(status=403)
+
+    from django_prometheus import exports  # noqa: PLC0415
+
+    return exports.ExportToDjangoView(request)
 
 
 def index(request: HttpRequest) -> HttpResponse:

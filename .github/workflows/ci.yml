@@ -24,10 +24,10 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Run ruff (linting)
-        run: ruff check base core accounts audit teachers students guardians classes rooms agenda activities academic_calendar attendance notifications dashboard
+        run: ruff check base core accounts audit teachers students guardians classes rooms agenda activities academic_calendar attendance notifications dashboard scripts
 
       - name: Run black (format check)
-        run: black --check base core accounts audit teachers students guardians classes rooms agenda activities academic_calendar attendance notifications dashboard
+        run: black --check base core accounts audit teachers students guardians classes rooms agenda activities academic_calendar attendance notifications dashboard scripts
 
   test:
     name: Tests (SQLite)

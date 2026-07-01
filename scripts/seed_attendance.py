@@ -1,8 +1,10 @@
 """Seed de frequência: uma chamada com ambos os alunos da turma 6º A."""
+
 import datetime as dt
 
-from core.models import School
 from django_tenants.utils import tenant_context
+
+from core.models import School
 
 school = School.objects.get(schema_name="demo")
 
@@ -31,7 +33,11 @@ with tenant_context(school):
     print("Registro aberto:", record)
 
     # Marca: primeiro aluno presente, segundo ausente (justificado por while).
-    students = list(Enrollment.objects.filter(class_obj=cls, status=Enrollment.Status.ACTIVE).select_related("student").order_by("student__first_name"))
+    students = list(
+        Enrollment.objects.filter(class_obj=cls, status=Enrollment.Status.ACTIVE)
+        .select_related("student")
+        .order_by("student__first_name")
+    )
     if len(students) >= 2:
         entries_data = {
             str(students[0].student_id): {"status": "PRESENT", "justification": ""},

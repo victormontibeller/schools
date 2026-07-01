@@ -59,6 +59,9 @@ class TeacherService(BaseService):
             created_by=self.user,
             updated_by=self.user,
         )
+        subjects = data.get("subjects")
+        if subjects:
+            teacher.subjects.set(subjects)
         self._record_audit("INSERT", teacher)
         self._log("Professor criado", teacher_id=str(teacher.pk))
         return teacher

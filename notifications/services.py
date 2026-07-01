@@ -209,14 +209,18 @@ class AnnouncementService(BaseService):
 
         # Dispara tasks Celery para cada canal habilitado.
         if announcement.send_email:
+            from django.db import connection
+
             from notifications.tasks import send_announcement_email_task
 
-            send_announcement_email_task.delay(str(announcement.pk))
+            send_announcement_email_task.delay(connection.schema_name, str(announcement.pk))
 
         if announcement.send_whatsapp:
+            from django.db import connection
+
             from notifications.tasks import send_announcement_whatsapp_task
 
-            send_announcement_whatsapp_task.delay(str(announcement.pk))
+            send_announcement_whatsapp_task.delay(connection.schema_name, str(announcement.pk))
 
         self._log("Comunicado enviado", announcement_id=str(announcement.pk))
         return announcement

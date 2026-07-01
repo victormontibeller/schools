@@ -1,0 +1,42 @@
+# Configuração dinâmica do Traefik para produção: headers de segurança
+# e rate limiting por IP. Em dev, o TLS usa cert self-signed (ver README).
+http:
+  middlewares:
+    security-headers:
+      headers:
+        frameDeny: true
+        browserXssFilter: true
+        contentTypeNosniff: true
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        referrerPolicy: "no-referrer-when-downgrade"
+    rate-limit-auth:
+      rateLimit:
+        average: 10
+        burst: 20
+        period: 1m
+    # Protege o endpoint /metrics/ com basic auth ( credencial em .env )
+    metrics-auth:
+      basicAuth:
+        users:
+          - "${METRICS_BASIC_AUTH:-metrics:$apr1$xyz$placeholderReplaceMe}"
+
+  routers:
+    metrics:
+      rule: "Host(`localhost`) && Path(`/metrics`)"
+      entrypoints:
+        - websecure
+      middlewares:
+        - security-headers
+        - metrics-auth
+      service: schools
+      tls: {}
+
+tls:
+  options:
+    default:
+      minVersion: Version12
+      cipherSuites:
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
