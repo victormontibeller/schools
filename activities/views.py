@@ -3,7 +3,7 @@
 import logging
 
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 
 from activities.forms import ActivityForm, ScoreForm
 from activities.selectors import ActivitySelector
@@ -18,12 +18,26 @@ def activities_list(request):
     """Lista atividades paginadas; filtra por turma quando ?class_obj=."""
     page = int(request.GET.get("page", 1))
     class_obj_filter = request.GET.get("class_obj", "").strip()
+    search = request.GET.get("q", "").strip()
     filters = {}
     if class_obj_filter:
         filters["class_obj_id"] = class_obj_filter
+    if search:
+        filters["title__icontains"] = search
 
     result = ActivitySelector().list_activities(filters=filters, page=page)
-    return render(request, "activities/activities_list.html", {"result": result})
+    ctx = {
+        "result": result,
+        "q": search,
+        "class_obj_filter": class_obj_filter,
+        "breadcrumb_items": [
+            {"label": "Home", "url": "dashboard"},
+            {"label": "Atividades", "url": None},
+        ],
+    }
+    if request.headers.get("HX-Request"):
+        return render(request, "activities/partials/activities_table.html", ctx)
+    return render(request, "activities/activities_list.html", ctx)
 
 
 @login_required
@@ -62,9 +76,8 @@ def activity_create(request):
 def activity_detail(request, pk):
     """Exibe atividade e lista de entregas/notas."""
     from activities.forms import ScoreForm
-    from activities.models import Activity
 
-    activity = get_object_or_404(Activity, pk=pk)
+    activity = ActivitySelector().get_by_id(pk)
     submissions = ActivitySelector().list_submissions(activity.pk)
     return render(
         request,

@@ -8,13 +8,16 @@ import logging
 from typing import Any
 
 from celery import shared_task
-from django_tenants.utils import schema_context
+
+from base.context import tenant_schema_context
 
 logger = logging.getLogger(__name__)
 
 
 @shared_task(bind=True, name="students.import_students_csv")
-def import_students_csv(self, tenant_schema: str, csv_content: str, created_by_id: str) -> dict[str, Any]:
+def import_students_csv(
+    self, tenant_schema: str, csv_content: str, created_by_id: str
+) -> dict[str, Any]:
     """
     Importa alunos a partir de conteúdo CSV.
 
@@ -22,14 +25,17 @@ def import_students_csv(self, tenant_schema: str, csv_content: str, created_by_i
                        gender (opcional), blood_type (opcional)
     Retorna: {"created": N, "errors": [{"row": N, "message": "..."}]}
     """
-    with schema_context(tenant_schema):
+    with tenant_schema_context(tenant_schema):
         from core.models import CustomUser
         from students.services import StudentService
 
         try:
             user = CustomUser.all_objects.get(pk=created_by_id)
         except CustomUser.DoesNotExist:
-            return {"created": 0, "errors": [{"row": 0, "message": "Usuário executor não encontrado."}]}
+            return {
+                "created": 0,
+                "errors": [{"row": 0, "message": "Usuário executor não encontrado."}],
+            }
 
         service = StudentService(user=user)
         created = 0

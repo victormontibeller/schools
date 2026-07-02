@@ -448,6 +448,16 @@ messages.error(request, exc.message)              # → alert-danger
 - **Sempre** `{% block title %}` preenchido
 - **Sempre** `{% empty %}` em tabelas para estado vazio
 - **Sempre** paginação preserva query string (`q`, filtros)
+- Edição inline usa HTMX com `hx-target` no card e `hx-swap="outerHTML"`
+- Relações do domínio, como disciplinas, são editadas em card próprio
+- **Listagens:** primeira coluna identifica o registro e aponta para detalhe/perfil quando existir;
+  sem detalhe, aponta para a tela operacional principal
+- **Listagens:** não criar coluna “Ações” apenas para repetir “Ver” ou “Editar”
+- **Listagens:** usar `table-responsive`, `table table-hover mb-0` e paginação HTMX padrão
+- **Perfis de pessoa** agrupam identidade, dados pessoais, documentos e contato em um único card
+- **Separar apenas** endereços e relações do domínio (disciplinas, responsáveis, alunos vinculados)
+- **Ação Editar** de perfis fica no `page-header-right`
+- **Valores ausentes** em perfis são exibidos como `—`
 - **Sem JS complexo** — usar HTMX
 
 ---

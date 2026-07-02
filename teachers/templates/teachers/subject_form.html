@@ -1,0 +1,9 @@
+{% extends "form_base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'subjects_list' %}">Disciplinas</a></li>
+{% endblock %}
+
+{% block cancel_url %}{% url 'subjects_list' %}{% endblock %}

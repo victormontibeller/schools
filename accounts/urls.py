@@ -14,6 +14,7 @@ urlpatterns = [
     path("profile/", views.profile_view, name="profile"),
     path("profile/change-password/", views.change_password_view, name="change_password"),
     path("users/", views.users_list_view, name="users_list"),
+    path("users/<uuid:pk>/", views.user_detail_view, name="user_detail"),
     # Recuperação de senha — views nativas (Sprint 02 §55).
     path(
         "password-reset/",

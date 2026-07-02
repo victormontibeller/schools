@@ -4,10 +4,10 @@
             <tr>
                 <th>Responsável</th>
                 <th>Parentesco</th>
+                <th>CPF</th>
                 <th>Telefone</th>
                 <th>WhatsApp</th>
                 <th>Alunos</th>
-                <th></th>
             </tr>
         </thead>
         <tbody>
@@ -18,19 +18,17 @@
                         <div class="avatar-text avatar-sm bg-soft-purple text-purple">
                             {{ guardian.full_name|first|upper }}
                         </div>
-                        <span class="fw-semibold">{{ guardian.full_name }}</span>
+                        <a href="{% url 'guardian_detail' guardian.pk %}" class="fw-semibold">
+                            {{ guardian.full_name }}
+                        </a>
                     </div>
                 </td>
                 <td><span class="badge bg-soft-info text-info">{{ guardian.get_relationship_type_display }}</span></td>
+                <td class="text-muted">{{ guardian.cpf|default:"—" }}</td>
                 <td class="text-muted">{{ guardian.phone|default:"—" }}</td>
                 <td class="text-muted">{{ guardian.phone_whatsapp|default:"—" }}</td>
                 <td>
                     <span class="badge bg-soft-secondary text-secondary">{{ guardian.students.count }}</span>
-                </td>
-                <td>
-                    <a href="{% url 'guardian_detail' guardian.pk %}" class="btn btn-sm btn-outline-primary">
-                        <i class="feather-eye"></i>
-                    </a>
                 </td>
             </tr>
             {% empty %}

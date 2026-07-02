@@ -1,0 +1,15 @@
+{% load static %}
+
+{# partial reutilizavel para exibir endereco formatado #}
+<div class="address-display">
+    {% if address.recipient %}
+    <div class="mb-1"><strong>{{ address.recipient }}</strong></div>
+    {% endif %}
+    <div class="mb-1">
+        {{ address.street }}, {{ address.number }}
+        {% if address.complement %} — {{ address.complement }}{% endif %}
+    </div>
+    <div class="mb-1">{{ address.district }}</div>
+    <div class="mb-1">{{ address.city }} / {{ address.state }}</div>
+    <div>CEP: {{ address.postal_code }}</div>
+</div>

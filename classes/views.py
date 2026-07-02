@@ -3,7 +3,7 @@
 import logging
 
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 from classes.forms import ClassForm
@@ -24,17 +24,17 @@ def classes_list(request):
 
     result = ClassSelector().list_classes(filters=filters, page=page)
 
+    ctx = {
+        "result": result,
+        "q": search,
+        "breadcrumb_items": [
+            {"label": "Home", "url": "dashboard"},
+            {"label": "Turmas", "url": None},
+        ],
+    }
     if request.headers.get("HX-Request"):
-        return render(
-            request,
-            "classes/partials/classes_table.html",
-            {"result": result, "q": search},
-        )
-    return render(
-        request,
-        "classes/classes_list.html",
-        {"result": result, "q": search},
-    )
+        return render(request, "classes/partials/classes_table.html", ctx)
+    return render(request, "classes/classes_list.html", ctx)
 
 
 @login_required
@@ -59,9 +59,7 @@ def class_create(request):
 @login_required
 def class_detail(request, pk):
     """Exibe detalhes da turma e lista alunos matriculados."""
-    from classes.models import Class
-
-    cls = get_object_or_404(Class, pk=pk)
+    cls = ClassSelector().get_by_id(pk)
     enrollments = ClassSelector().get_class_students(cls.pk)
     return render(
         request,

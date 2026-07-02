@@ -59,6 +59,7 @@ TENANT_SPECIFIC_APPS = [
     "attendance",
     "notifications",
     "dashboard",
+    "addresses",
 ]
 
 if TESTING:

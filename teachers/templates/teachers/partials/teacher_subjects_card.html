@@ -1,0 +1,28 @@
+<div class="card mb-3" id="teacher-subjects-card">
+    <div class="card-header d-flex align-items-center justify-content-between gap-2">
+        <h6 class="card-title mb-0">Disciplinas</h6>
+        <button type="button"
+                class="btn btn-sm btn-outline-primary"
+                hx-get="{% url 'teacher_edit' teacher.pk %}?component=subjects"
+                hx-target="#teacher-subjects-card"
+                hx-swap="outerHTML">
+            <i class="feather-book-open me-1"></i> Vincular
+        </button>
+    </div>
+    <div class="card-body">
+        {% if saved %}
+        <div class="alert alert-success py-2" role="alert">Disciplinas atualizadas com sucesso.</div>
+        {% endif %}
+        {% for subject in subjects %}
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 {% if not forloop.last %}mb-3 pb-3 border-bottom{% endif %}">
+            <div>
+                <span class="fw-semibold">{{ subject.name }}</span>
+                <span class="text-muted ms-2 small">({{ subject.code }})</span>
+            </div>
+            <span class="badge bg-soft-info text-info">{{ subject.workload }}h/ano</span>
+        </div>
+        {% empty %}
+        <p class="text-muted mb-0">Nenhuma disciplina atribuída.</p>
+        {% endfor %}
+    </div>
+</div>

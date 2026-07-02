@@ -2,15 +2,12 @@
 
 from django import forms
 
+from base.validators import UF_CHOICES
 from students.models import Student
 
 
 class GuardianForm(forms.Form):
-    """Formulário de criação de responsável a partir de usuário existente.
-
-    O `user_id` preenche o `CustomUser` que passará a ter perfil de
-    responsável. Os demais campos espelham o modelo `Guardian`.
-    """
+    """Formulário de criação de responsável a partir de usuário existente."""
 
     user_id = forms.UUIDField(
         label="Usuário",
@@ -20,17 +17,45 @@ class GuardianForm(forms.Form):
         label="Parentesco",
         widget=forms.Select(attrs={"class": "form-select"}),
     )
+    birth_date = forms.DateField(
+        required=False,
+        label="Data de Nascimento",
+        widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+    )
+    gender = forms.ChoiceField(
+        required=False,
+        label="Gênero",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    nationality = forms.CharField(
+        max_length=100,
+        required=False,
+        initial="Brasileiro(a)",
+        label="Nacionalidade",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
     cpf = forms.CharField(
         max_length=14,
         required=False,
         label="CPF",
-        widget=forms.TextInput(attrs={"class": "form-control"}),
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "000.000.000-00"}),
     )
-    rg = forms.CharField(
+    rg_number = forms.CharField(
         max_length=20,
         required=False,
-        label="RG",
+        label="RG — Número",
         widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    rg_issuer = forms.CharField(
+        max_length=50,
+        required=False,
+        label="RG — Órgão Emissor",
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "SSP"}),
+    )
+    rg_state = forms.ChoiceField(
+        required=False,
+        label="RG — UF",
+        widget=forms.Select(attrs={"class": "form-select"}),
     )
     phone = forms.CharField(
         max_length=20,
@@ -44,6 +69,12 @@ class GuardianForm(forms.Form):
         label="WhatsApp",
         widget=forms.TextInput(attrs={"class": "form-control"}),
     )
+    phone_mobile = forms.CharField(
+        max_length=20,
+        required=False,
+        label="Celular",
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "(00) 00000-0000"}),
+    )
 
     def __init__(self, *args, **kwargs):
         """Popula choices de parentesco e o queryset lazy de usuários."""
@@ -55,6 +86,8 @@ class GuardianForm(forms.Form):
         self.fields["user_id"].widget.choices = CustomUser.objects.filter(
             is_active=True
         ).values_list("pk", "email")
+        self.fields["gender"].choices = [("", "---------")] + list(Guardian.Gender.choices)
+        self.fields["rg_state"].choices = [("", "---------")] + list(UF_CHOICES)
 
 
 class StudentGuardianForm(forms.Form):
@@ -83,3 +116,77 @@ class StudentGuardianForm(forms.Form):
         label="Autorizado a Buscar",
         widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
     )
+
+
+class GuardianEditForm(forms.Form):
+    """Formulario de edicao de responsavel."""
+
+    relationship_type = forms.ChoiceField(
+        label="Parentesco",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    birth_date = forms.DateField(
+        required=False,
+        label="Data de Nascimento",
+        widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+    )
+    gender = forms.ChoiceField(
+        required=False,
+        label="Genero",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    nationality = forms.CharField(
+        max_length=100,
+        required=False,
+        label="Nacionalidade",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    cpf = forms.CharField(
+        max_length=14,
+        required=False,
+        label="CPF",
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "000.000.000-00"}),
+    )
+    rg_number = forms.CharField(
+        max_length=20,
+        required=False,
+        label="RG — Numero",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    rg_issuer = forms.CharField(
+        max_length=50,
+        required=False,
+        label="RG — Orgao Emissor",
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "SSP"}),
+    )
+    rg_state = forms.ChoiceField(
+        required=False,
+        label="RG — UF",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    phone = forms.CharField(
+        max_length=20,
+        required=False,
+        label="Telefone",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    phone_whatsapp = forms.CharField(
+        max_length=20,
+        required=False,
+        label="WhatsApp",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    phone_mobile = forms.CharField(
+        max_length=20,
+        required=False,
+        label="Celular",
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "(00) 00000-0000"}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from guardians.models import Guardian
+
+        self.fields["relationship_type"].choices = Guardian.Relationship.choices
+        self.fields["gender"].choices = [("", "---------")] + list(Guardian.Gender.choices)
+        self.fields["rg_state"].choices = [("", "---------")] + list(UF_CHOICES)

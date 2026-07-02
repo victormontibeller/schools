@@ -9,7 +9,8 @@ from __future__ import annotations
 import logging
 
 from celery import shared_task
-from django_tenants.utils import schema_context
+
+from base.context import tenant_schema_context
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ def _get_transport(channel_name: str):
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def send_email_task(self, tenant_schema: str, user_id, template_id, context: dict | None = None):
     """Envia e-mail individual renderizando template com contexto."""
-    with schema_context(tenant_schema):
+    with tenant_schema_context(tenant_schema):
         from core.models import CustomUser
         from notifications.models import MessageTemplate
 
@@ -50,9 +51,11 @@ def send_email_task(self, tenant_schema: str, user_id, template_id, context: dic
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def send_whatsapp_task(self, tenant_schema: str, phone: str, template_id, context: dict | None = None):
+def send_whatsapp_task(
+    self, tenant_schema: str, phone: str, template_id, context: dict | None = None
+):
     """Envia WhatsApp individual renderizando template (stub)."""
-    with schema_context(tenant_schema):
+    with tenant_schema_context(tenant_schema):
         from notifications.models import MessageTemplate
 
         template = _fetch_or_log(MessageTemplate, template_id, "Template de WhatsApp")
@@ -64,8 +67,9 @@ def send_whatsapp_task(self, tenant_schema: str, phone: str, template_id, contex
 
         # Log via transport mesmo para stub.
         from notifications.models import MessageLog
+        from notifications.services import AnnouncementService
 
-        MessageLog.objects.create(
+        AnnouncementService().log_delivery(
             channel=MessageLog.Channel.WHATSAPP,
             recipient_address=phone,
             status=MessageLog.Status.FAILED,
@@ -79,7 +83,7 @@ def send_whatsapp_task(self, tenant_schema: str, phone: str, template_id, contex
 @shared_task(bind=True, max_retries=3, default_retry_delay=120)
 def send_announcement_email_task(self, tenant_schema: str, announcement_id):
     """Envia comunicado por e-mail em lote para a audiencia."""
-    with schema_context(tenant_schema):
+    with tenant_schema_context(tenant_schema):
         from notifications.models import Announcement
 
         announcement = _fetch_or_log(Announcement, announcement_id, "Comunicado")
@@ -95,7 +99,7 @@ def send_announcement_email_task(self, tenant_schema: str, announcement_id):
 @shared_task(bind=True, max_retries=3, default_retry_delay=120)
 def send_announcement_whatsapp_task(self, tenant_schema: str, announcement_id):
     """Envia comunicado por WhatsApp em lote (stub)."""
-    with schema_context(tenant_schema):
+    with tenant_schema_context(tenant_schema):
         from notifications.models import Announcement
 
         announcement = _fetch_or_log(Announcement, announcement_id, "Comunicado")
@@ -110,11 +114,13 @@ def send_announcement_whatsapp_task(self, tenant_schema: str, announcement_id):
 
 
 @shared_task(bind=True, max_retries=2, default_retry_delay=300)
-def notify_audience_all_task(self, tenant_schema: str, title: str, message: str, correlation_id: str = ""):
+def notify_audience_all_task(
+    self, tenant_schema: str, title: str, message: str, correlation_id: str = ""
+):
     """Cria notificacoes in-app em lote para todos os usuarios ativos do tenant."""
-    with schema_context(tenant_schema):
+    with tenant_schema_context(tenant_schema):
         from core.models import CustomUser
-        from notifications.models import Notification
+        from notifications.services import NotificationService
 
         chunk_size = 500
         total = 0
@@ -122,19 +128,15 @@ def notify_audience_all_task(self, tenant_schema: str, title: str, message: str,
 
         for i in range(0, len(user_ids), chunk_size):
             chunk = user_ids[i : i + chunk_size]
-            notifications = [
-                Notification(
-                    recipient_id=uid,
-                    type=Notification.Type.INFO,
-                    title=title,
-                    message=message,
-                    source="calendar",
-                    correlation_id=correlation_id,
-                )
-                for uid in chunk
-            ]
-            Notification.objects.bulk_create(notifications, batch_size=chunk_size)
-            total += len(chunk)
+            total += NotificationService().create_notifications_bulk(
+                chunk,
+                {
+                    "title": title,
+                    "message": message,
+                    "source": "calendar",
+                    "correlation_id": correlation_id,
+                },
+            )
 
         logger.info("Notificacoes em lote: total=%d correlation_id=%s", total, correlation_id)
 

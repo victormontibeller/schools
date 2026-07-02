@@ -1,4 +1,5 @@
-<table class="table table-hover align-middle">
+<div class="table-responsive">
+<table class="table table-hover mb-0">
     <thead>
         <tr>
             <th>Nome</th>
@@ -7,13 +8,12 @@
             <th>Ano</th>
             <th>Vagas</th>
             <th>Professor Resp.</th>
-            <th>Ações</th>
         </tr>
     </thead>
     <tbody>
         {% for c in result.items %}
         <tr>
-            <td>{{ c.name }}</td>
+            <td><a href="{% url 'class_detail' c.pk %}" class="fw-semibold">{{ c.name }}</a></td>
             <td>{{ c.grade }}</td>
             <td>{{ c.get_shift_display }}</td>
             <td>{{ c.academic_year }}</td>
@@ -23,30 +23,34 @@
                 </span>
             </td>
             <td>{{ c.class_teacher|default:"—" }}</td>
-            <td><a href="{% url 'class_detail' c.pk %}" class="btn btn-sm btn-outline-secondary">Ver</a></td>
         </tr>
         {% empty %}
-        <tr><td colspan="7" class="text-center text-muted py-4">Nenhuma turma encontrada.</td></tr>
+        <tr><td colspan="6" class="text-center text-muted py-4">Nenhuma turma encontrada.</td></tr>
         {% endfor %}
     </tbody>
 </table>
+</div>
 
-{% if result.has_previous or result.has_next %}
-<nav class="d-flex justify-content-between align-items-center mt-3">
-    <div class="text-muted small">
-        Página {{ result.page }} de {{ result.total_pages }} · {{ result.total }} turmas
-    </div>
-    <div class="btn-group">
+{% if result.total_pages > 1 %}
+<div class="d-flex justify-content-center py-3">
+    <nav>
+        <ul class="pagination pagination-sm mb-0">
         {% if result.has_previous %}
-        <a class="btn btn-outline-secondary btn-sm"
-           hx-get="/classes/?page={{ result.page|add:'-1' }}{% if q %}&q={{ q }}{% endif %}"
-           hx-target="#classes-table-container">Anterior</a>
+        <li class="page-item">
+            <a class="page-link" hx-get="?page={{ result.page|add:'-1' }}{% if q %}&q={{ q }}{% endif %}"
+               hx-target="#classes-table" hx-swap="innerHTML" aria-label="Página anterior">«</a>
+        </li>
         {% endif %}
+        <li class="page-item active">
+            <span class="page-link">{{ result.page }} / {{ result.total_pages }}</span>
+        </li>
         {% if result.has_next %}
-        <a class="btn btn-outline-secondary btn-sm"
-           hx-get="/classes/?page={{ result.page|add:'1' }}{% if q %}&q={{ q }}{% endif %}"
-           hx-target="#classes-table-container">Próxima</a>
+        <li class="page-item">
+            <a class="page-link" hx-get="?page={{ result.page|add:'1' }}{% if q %}&q={{ q }}{% endif %}"
+               hx-target="#classes-table" hx-swap="innerHTML" aria-label="Próxima página">»</a>
+        </li>
         {% endif %}
-    </div>
-</nav>
+        </ul>
+    </nav>
+</div>
 {% endif %}

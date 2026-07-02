@@ -4,7 +4,7 @@ import datetime as dt
 import logging
 
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 
 from academic_calendar.forms import AcademicYearForm, EventForm, HolidayForm
 from academic_calendar.selectors import AcademicYearSelector, CalendarSelector, HolidaySelector
@@ -61,9 +61,7 @@ def event_create(request):
 @login_required
 def event_detail(request, pk):
     """Exibe detalhes de um evento e permite cancelá-lo."""
-    from academic_calendar.models import CalendarEvent
-
-    event = get_object_or_404(CalendarEvent, pk=pk)
+    event = CalendarSelector().get_by_id(pk)
     return render(request, "academic_calendar/event_detail.html", {"event": event})
 
 

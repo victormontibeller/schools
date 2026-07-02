@@ -4,12 +4,14 @@ import logging
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 
 from attendance.forms import AttendanceRecordForm, JustificationForm
 from attendance.selectors import AttendanceSelector, JustificationSelector
 from attendance.services import AttendanceService
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+from classes.selectors import ClassSelector
+from students.selectors import StudentSelector
 
 logger = logging.getLogger(__name__)
 
@@ -82,9 +84,7 @@ def attendance_record_fill(request, record_id):
 @login_required
 def class_attendance_summary(request, class_id):
     """Resumo de frequência por aluno de uma turma (com alunos em risco)."""
-    from classes.models import Class
-
-    cls = get_object_or_404(Class, pk=class_id)
+    cls = ClassSelector().get_by_id(class_id)
     summary = AttendanceSelector().get_class_attendance_summary(cls.pk)
     return render(
         request,
@@ -96,9 +96,7 @@ def class_attendance_summary(request, class_id):
 @login_required
 def student_attendance(request, student_id, class_id=None):
     """Histórico de frequência de um aluno."""
-    from students.models import Student
-
-    student = get_object_or_404(Student, pk=student_id)
+    student = StudentSelector().get_by_id(student_id)
     entries = AttendanceSelector().get_student_attendance(student_id, class_id=class_id)
     rate = None
     if class_id:
@@ -113,7 +111,6 @@ def student_attendance(request, student_id, class_id=None):
 @login_required
 def students_at_risk(request):
     """Tela de alunos em risco (abaixo de 75%), filtro por turma."""
-    from classes.models import Class
     from classes.selectors import ClassSelector
 
     classes = ClassSelector().list_ordered()
@@ -121,7 +118,7 @@ def students_at_risk(request):
     at_risk: list = []
     cls = None
     if selected:
-        cls = get_object_or_404(Class, pk=selected)
+        cls = ClassSelector().get_by_id(selected)
         at_risk = AttendanceSelector().get_students_at_risk(cls.pk)
     return render(
         request,

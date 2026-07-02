@@ -47,8 +47,30 @@ class School(TenantMixin, BaseModel):
 
     name = models.CharField(max_length=200, verbose_name="Nome da Escola")
     cnpj = models.CharField(max_length=18, unique=True, null=True, blank=True)
+    legal_name = models.CharField(
+        max_length=255, blank=True, default="", verbose_name="Razao Social"
+    )
+    trade_name = models.CharField(
+        max_length=255, blank=True, default="", verbose_name="Nome Fantasia"
+    )
+    state_registration = models.CharField(
+        max_length=20, blank=True, default="", verbose_name="Inscricao Estadual"
+    )
+    municipal_registration = models.CharField(
+        max_length=20, blank=True, default="", verbose_name="Inscricao Municipal"
+    )
     phone = models.CharField(max_length=20, blank=True, default="")
     email = models.EmailField(blank=True, default="")
+    contact_full_name = models.CharField(
+        max_length=255, blank=True, default="", verbose_name="Nome do Responsavel"
+    )
+    contact_role = models.CharField(
+        max_length=150, blank=True, default="", verbose_name="Cargo do Responsavel"
+    )
+    contact_phone = models.CharField(
+        max_length=20, blank=True, default="", verbose_name="Telefone do Responsavel"
+    )
+    contact_email = models.EmailField(blank=True, default="", verbose_name="E-mail do Responsavel")
     address = models.JSONField(default=dict, blank=True)
     logo = models.ImageField(upload_to="schools/logos/", null=True, blank=True)
     settings = models.JSONField(default=dict, blank=True)

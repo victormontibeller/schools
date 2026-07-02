@@ -7,7 +7,7 @@ import logging
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError
 from notifications.selectors import AnnouncementSelector, NotificationSelector
@@ -30,9 +30,7 @@ def notification_list(request) -> HttpResponse:
 @login_required
 def notification_mark_read(request, pk) -> HttpResponse:
     """Marca uma notificacao como lida e redireciona para a lista."""
-    notification = get_object_or_404(
-        NotificationSelector().get_all_for_user(request.user.pk), pk=pk
-    )
+    notification = NotificationSelector().get_by_id(pk)
     from notifications.services import NotificationService
 
     try:
@@ -56,7 +54,7 @@ def notification_mark_all_read(request) -> HttpResponse:
 def unread_count(request) -> HttpResponse:
     """Retorna contador de nao lidas (para HTMX polling)."""
     count = NotificationSelector().get_unread_for_user(request.user.pk).count()
-    return HttpResponse(str(count))
+    return HttpResponse(str(count) if count else "")
 
 
 @login_required

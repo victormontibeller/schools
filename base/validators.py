@@ -1,23 +1,133 @@
-"""BaseValidator: validação de entrada com acúmulo de erros."""
+"""Validadores reutilizaveis: CPF, CEP, UF e formatos brasileiros."""
 
-from base.exceptions import ValidationError
+import re
+
+from django.core.exceptions import ValidationError as DjangoValidationError
+
+UF_CHOICES = [
+    ("AC", "Acre"),
+    ("AL", "Alagoas"),
+    ("AP", "Amapa"),
+    ("AM", "Amazonas"),
+    ("BA", "Bahia"),
+    ("CE", "Ceara"),
+    ("DF", "Distrito Federal"),
+    ("ES", "Espirito Santo"),
+    ("GO", "Goias"),
+    ("MA", "Maranhao"),
+    ("MT", "Mato Grosso"),
+    ("MS", "Mato Grosso do Sul"),
+    ("MG", "Minas Gerais"),
+    ("PA", "Para"),
+    ("PB", "Paraiba"),
+    ("PR", "Parana"),
+    ("PE", "Pernambuco"),
+    ("PI", "Piaui"),
+    ("RJ", "Rio de Janeiro"),
+    ("RN", "Rio Grande do Norte"),
+    ("RS", "Rio Grande do Sul"),
+    ("RO", "Rondonia"),
+    ("RR", "Roraima"),
+    ("SC", "Santa Catarina"),
+    ("SP", "Sao Paulo"),
+    ("SE", "Sergipe"),
+    ("TO", "Tocantins"),
+]
+
+UF_CODES = frozenset(uf for uf, _ in UF_CHOICES)
 
 
-class BaseValidator:
-    """Base para validadores que acumulam erros antes de disparar exceção."""
+def validate_cpf(value: str) -> str:
+    """Valida formato e digitos verificadores de CPF.
 
-    def __init__(self) -> None:
-        self._errors: dict[str, list[str]] = {}
+    Returns:
+        CPF apenas com digitos (11 caracteres).
+    """
+    if not value:
+        return value
 
-    def add_error(self, field: str, message: str) -> None:
-        """Acumula uma mensagem de erro para o campo informado."""
-        self._errors.setdefault(field, []).append(message)
+    cpf = re.sub(r"[^0-9]", "", value)
 
-    def raise_if_errors(self) -> None:
-        """Lança `ValidationError` caso existam erros acumulados."""
-        if self._errors:
-            raise ValidationError(errors=self._errors)
+    if len(cpf) != 11:
+        raise DjangoValidationError("CPF deve conter 11 digitos.")
 
-    def validate(self, data: dict) -> None:
-        """Valida os dados informados; subclasses devem implementar."""
-        raise NotImplementedError
+    if cpf == cpf[0] * 11:
+        raise DjangoValidationError("CPF invalido (todos os digitos iguais).")
+
+    total = sum(int(cpf[i]) * (10 - i) for i in range(9))
+    remainder = (total * 10) % 11
+    if remainder == 10:
+        remainder = 0
+    if remainder != int(cpf[9]):
+        raise DjangoValidationError("CPF invalido (primeiro digito verificador).")
+
+    total = sum(int(cpf[i]) * (11 - i) for i in range(10))
+    remainder = (total * 10) % 11
+    if remainder == 10:
+        remainder = 0
+    if remainder != int(cpf[10]):
+        raise DjangoValidationError("CPF invalido (segundo digito verificador).")
+
+    return cpf
+
+
+def validate_uf(value: str) -> str:
+    """Valida que o valor corresponde a uma UF brasileira valida.
+
+    Returns:
+        UF em maiusculas (2 caracteres).
+    """
+    if not value:
+        return value
+    uf = value.strip().upper()
+    if uf not in UF_CODES:
+        raise DjangoValidationError(f"UF invalida: '{value}'. Use a sigla de 2 letras.")
+    return uf
+
+
+def validate_cep(value: str) -> str:
+    """Valida formato de CEP (8 digitos).
+
+    Returns:
+        CEP apenas com digitos (8 caracteres).
+    """
+    if not value:
+        return value
+    cep = re.sub(r"[^0-9]", "", value)
+    if len(cep) != 8:
+        raise DjangoValidationError("CEP deve conter 8 digitos.")
+    return cep
+
+
+def validate_cnpj(value: str) -> str:
+    """Valida formato e digitos verificadores de CNPJ.
+
+    Returns:
+        CNPJ apenas com digitos (14 caracteres).
+    """
+    if not value:
+        return value
+
+    cnpj = re.sub(r"[^0-9]", "", value)
+
+    if len(cnpj) != 14:
+        raise DjangoValidationError("CNPJ deve conter 14 digitos.")
+
+    if cnpj == cnpj[0] * 14:
+        raise DjangoValidationError("CNPJ invalido (todos os digitos iguais).")
+
+    pesos1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+    total = sum(int(cnpj[i]) * pesos1[i] for i in range(12))
+    resto = total % 11
+    dv1 = 0 if resto < 2 else 11 - resto
+    if dv1 != int(cnpj[12]):
+        raise DjangoValidationError("CNPJ invalido (primeiro digito verificador).")
+
+    pesos2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+    total = sum(int(cnpj[i]) * pesos2[i] for i in range(13))
+    resto = total % 11
+    dv2 = 0 if resto < 2 else 11 - resto
+    if dv2 != int(cnpj[13]):
+        raise DjangoValidationError("CNPJ invalido (segundo digito verificador).")
+
+    return cnpj

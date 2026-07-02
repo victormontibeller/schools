@@ -75,13 +75,13 @@ test-tenant:
 # ============================================================
 .PHONY: lint
 lint:
-	ruff check base core accounts audit teachers students guardians classes rooms agenda activities academic_calendar attendance notifications dashboard scripts
-	black --check base core accounts audit teachers students guardians classes rooms agenda activities academic_calendar attendance notifications dashboard scripts
+	ruff check base core accounts audit teachers students guardians classes rooms agenda activities academic_calendar attendance notifications dashboard addresses scripts
+	black --check base core accounts audit teachers students guardians classes rooms agenda activities academic_calendar attendance notifications dashboard addresses scripts
 
 .PHONY: format
 format:
-	ruff check base core accounts audit teachers students guardians classes rooms agenda activities academic_calendar attendance notifications dashboard scripts --fix
-	black base core accounts audit teachers students guardians classes rooms agenda activities academic_calendar attendance notifications dashboard scripts
+	ruff check base core accounts audit teachers students guardians classes rooms agenda activities academic_calendar attendance notifications dashboard addresses scripts --fix
+	black base core accounts audit teachers students guardians classes rooms agenda activities academic_calendar attendance notifications dashboard addresses scripts
 
 # ============================================================
 # Celery

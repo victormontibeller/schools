@@ -126,8 +126,9 @@ class MessageTransport:
     def _log_result(self, result: ChannelResult, user=None, announcement=None) -> None:
         """Cria MessageLog a partir de um ChannelResult."""
         from notifications.models import MessageLog
+        from notifications.services import AnnouncementService
 
-        MessageLog.objects.create(
+        AnnouncementService().log_delivery(
             announcement=announcement,
             recipient=user,
             channel=self.channel.channel_name,
@@ -136,20 +137,16 @@ class MessageTransport:
             error_message=result.error_message,
         )
         if result.success:
-            logger.debug("%s enviado para %s", self.channel.channel_name, result.recipient_address)
+            logger.debug("Mensagem enviada pelo canal %s", self.channel.channel_name)
         else:
-            logger.warning(
-                "Falha %s para %s: %s",
-                self.channel.channel_name,
-                result.recipient_address,
-                result.error_message,
-            )
+            logger.warning("Falha no envio pelo canal %s", self.channel.channel_name)
 
     def _log_failure(self, user=None, announcement=None, error_message: str = "") -> None:
         """Cria MessageLog para falha pre-envio (ex: endereco ausente)."""
         from notifications.models import MessageLog
+        from notifications.services import AnnouncementService
 
-        MessageLog.objects.create(
+        AnnouncementService().log_delivery(
             announcement=announcement,
             recipient=user,
             channel=self.channel.channel_name,

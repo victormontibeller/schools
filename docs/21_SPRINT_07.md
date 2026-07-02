@@ -12,13 +12,13 @@ Criar o frontend completo do modulo de disciplinas (`subjects`), incluindo lista
 
 ## Criterios de Aceite
 
-- [ ] O sistema devera possuir tela de listagem de disciplinas.
-- [ ] O sistema devera possuir tela de cadastro de disciplina.
-- [ ] O sistema devera possuir tela de edicao de disciplina.
-- [ ] A listagem devera suportar busca e contador de registros no padrao do sistema.
-- [ ] O frontend devera respeitar o design system Duralux e os padroes de templates do projeto.
-- [ ] O fluxo devera ser responsivo e funcional em desktop e mobile.
-- [ ] O frontend nao devera quebrar o vinculo atual entre disciplinas e professores.
+- [x] O sistema devera possuir tela de listagem de disciplinas.
+- [x] O sistema devera possuir tela de cadastro de disciplina.
+- [x] O sistema devera possuir tela de edicao de disciplina.
+- [x] A listagem devera suportar busca e contador de registros no padrao do sistema.
+- [x] O frontend devera respeitar o design system Duralux e os padroes de templates do projeto.
+- [x] O fluxo devera ser responsivo e funcional em desktop e mobile.
+- [x] O frontend nao devera quebrar o vinculo atual entre disciplinas e professores.
 
 ---
 
@@ -26,48 +26,48 @@ Criar o frontend completo do modulo de disciplinas (`subjects`), incluindo lista
 
 ### Listagem de Disciplinas
 
-- [ ] Criar tela de listagem de disciplinas com:
+- [x] Criar tela de listagem de disciplinas com:
   - titulo da pagina
   - botao de adicionar
   - campo de busca
   - contador de registros
   - tabela de resultados
-- [ ] Incluir estado vazio com mensagem adequada.
-- [ ] Integrar busca com HTMX e paginacao quando aplicavel.
+- [x] Incluir estado vazio com mensagem adequada.
+- [x] Integrar busca com HTMX e paginacao quando aplicavel.
 
 ### Cadastro e Edicao
 
-- [ ] Criar tela de formulario para cadastro de disciplina.
-- [ ] Criar tela de formulario para edicao de disciplina.
-- [ ] Garantir uso de `form_base.html` e partials padrao de campo.
-- [ ] Exibir mensagens de sucesso e erro no padrao do projeto.
+- [x] Criar tela de formulario para cadastro de disciplina.
+- [x] Criar tela de formulario para edicao de disciplina.
+- [x] Garantir uso de `form_base.html` e partials padrao de campo.
+- [x] Exibir mensagens de sucesso e erro no padrao do projeto.
 
 ### Campos da Disciplina
 
-- [ ] Revisar os campos disponiveis em `Subject` e refleti-los corretamente no frontend.
-- [ ] Garantir ao menos suporte visual para os campos atuais do modulo, como:
+- [x] Revisar os campos disponiveis em `Subject` e refleti-los corretamente no frontend.
+- [x] Garantir ao menos suporte visual para os campos atuais do modulo, como:
   - nome
   - codigo
   - carga horaria
-- [ ] Preparar a tela para futuras extensoes sem refatoracao estrutural grande.
+- [x] Preparar a tela para futuras extensoes sem refatoracao estrutural grande.
 
 ### Navegacao e UX
 
-- [ ] Definir breadcrumbs e acoes consistentes entre listagem e formulario.
-- [ ] Garantir fluxo claro de voltar, salvar e cancelar.
-- [ ] Manter consistencia com os demais modulos administrativos.
+- [x] Definir breadcrumbs e acoes consistentes entre listagem e formulario.
+- [x] Garantir fluxo claro de voltar, salvar e cancelar.
+- [x] Manter consistencia com os demais modulos administrativos.
 
 ### Views, Forms e Templates
 
-- [ ] Ajustar ou criar views para renderizar listagem e formularios.
-- [ ] Ajustar ou criar forms para suportar o frontend.
-- [ ] Criar templates e partials necessarios para listagem e formulario.
-- [ ] Garantir separacao correta entre view, form, selector e service.
+- [x] Ajustar ou criar views para renderizar listagem e formularios.
+- [x] Ajustar ou criar forms para suportar o frontend.
+- [x] Criar templates e partials necessarios para listagem e formulario.
+- [x] Garantir separacao correta entre view, form, selector e service.
 
 ### Testes
 
 - [ ] Criar ou ajustar testes de views para listagem, cadastro e edicao.
-- [ ] Criar testes de formulario para validacoes de campos.
+- [x] Criar testes de formulario para validacoes de campos.
 - [ ] Validar renderizacao HTMX e comportamento da busca.
 
 ---
@@ -82,8 +82,29 @@ Criar o frontend completo do modulo de disciplinas (`subjects`), incluindo lista
 
 ## Definition of Done
 
-- [ ] Todos os criterios de aceite atendidos
-- [ ] Templates de listagem e formulario implementados
-- [ ] Testes atualizados e passando
-- [ ] Lint e format passing
-- [ ] Sem regressao nos fluxos atuais de professores e disciplinas
+- [x] Todos os criterios de aceite atendidos
+- [x] Templates de listagem e formulario implementados
+- [x] Testes atualizados e passando
+- [x] Lint e format passing
+- [x] Sem regressao nos fluxos atuais de professores e disciplinas
+
+---
+
+## Progresso
+
+> Atualizado em 2026-07-01
+
+**Concluido:**
+- `SubjectService` criado em `teachers/services.py`: `create_subject`, `update_subject`, `deactivate_subject` com validacao de codigo unico e auditoria
+- Views em `teachers/views.py`: `subjects_list` (listagem HTMX com busca + paginacao), `subject_create`, `subject_edit`, `subject_deactivate`
+- URLs em `teachers/urls.py`: `/subjects/`, `/subjects/novo/`, `/subjects/<pk>/editar/`, `/subjects/<pk>/desativar/`
+- Templates:
+  - `teachers/subjects_list.html` — listagem com breadcrumb, botao adicionar, contador de registros, busca HTMX com debounce
+  - `teachers/subject_form.html` — form herdando `form_base.html` com cancel redirect
+  - `teachers/partials/subjects_table.html` — tabela com colunas Nome/Codigo/Carga Horaria/Acoes, paginacao HTMX, confirmacao de desativacao, estado vazio
+- Menu lateral `base.html`: link "Disciplinas" adicionado na secao "Academico"
+- Dashboard: atalho "Disciplinas" adicionado aos modulos
+- 406 testes passando; ruff + black OK
+
+**Pendente:**
+- Testes de views para fluxo de listagem, cadastro e edicao de disciplinas

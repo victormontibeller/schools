@@ -1,0 +1,51 @@
+{% load static %}
+{# cabecalho padrao de listagem: breadcrumb + titulo + contador + busca + botao adicionar #}
+{# contexto: list_title, breadcrumb_items, create_url, create_label, search_url, search_target, search_value, total_count #}
+
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title">
+            <h5 class="m-b-10">{{ list_title }}</h5>
+        </div>
+        {% if breadcrumb_items %}
+        <ul class="breadcrumb">
+            {% for item in breadcrumb_items %}
+                {% if item.url and not forloop.last %}
+                <li class="breadcrumb-item"><a href="{% url item.url %}">{{ item.label }}</a></li>
+                {% else %}
+                <li class="breadcrumb-item active">{{ item.label }}</li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+    <div class="page-header-right ms-auto">
+        <div class="d-flex align-items-center gap-2">
+            {% if total_count != None %}
+            <span class="badge bg-soft-secondary text-secondary">
+                {{ total_count }} {{ count_label|default:"registros" }}
+            </span>
+            {% endif %}
+            {% if create_url %}
+            <a href="{% url create_url %}" class="btn btn-primary btn-sm">
+                <i class="feather-plus me-1"></i> {{ create_label|default:"Novo(a)" }}
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="card">
+        {% if search_url %}
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="card-title mb-0">Lista de {{ list_title }}</h6>
+            <input type="text" name="q" value="{{ search_value|default:'' }}"
+                   class="form-control form-control-sm w-auto"
+                   placeholder="Buscar..."
+                   hx-get="{% url search_url %}"
+                   hx-target="{{ search_target }}"
+                   hx-trigger="keyup changed delay:300ms, search">
+        </div>
+        {% endif %}
+        <div class="card-body p-0" id="{% if search_target %}{{ search_target|cut:'#' }}{% endif %}">

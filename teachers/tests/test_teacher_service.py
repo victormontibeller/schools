@@ -133,3 +133,40 @@ class TestAssignSubject:
         TeacherService(user=user).assign_subject(teacher.pk, subject.pk)
         with pytest.raises(BusinessRuleViolationError):
             TeacherService(user=user).assign_subject(teacher.pk, subject.pk)
+
+    def test_set_subjects_replaces_current_links(self, user):
+        target = _make_user("syncsubj@test.com")
+        teacher = TeacherService(user=user).create_teacher(
+            {"user_id": target.pk, "registration_number": "MAT-SYNC"}
+        )
+        first = Subject.objects.create(
+            name="Matemática", code="MAT-SYNC", created_by=user, updated_by=user
+        )
+        second = Subject.objects.create(
+            name="História", code="HIS-SYNC", created_by=user, updated_by=user
+        )
+        teacher.subjects.add(first)
+
+        TeacherService(user=user).set_subjects(teacher.pk, [second])
+
+        assert list(teacher.subjects.values_list("pk", flat=True)) == [second.pk]
+
+
+@pytest.mark.django_db
+class TestSubjectServiceUpdate:
+    def test_update_subject_name(self, user):
+        from teachers.models import Subject
+        from teachers.services import SubjectService
+
+        s = Subject.objects.create(name="Original", code="ORG", created_by=user, updated_by=user)
+        result = SubjectService(user=user).update_subject(s.pk, {"name": "Novo Nome"})
+        assert result.name == "Novo Nome"
+
+    def test_update_subject_code_duplicate(self, user):
+        from teachers.models import Subject
+        from teachers.services import SubjectService
+
+        s1 = Subject.objects.create(name="A", code="AAA", created_by=user, updated_by=user)
+        Subject.objects.create(name="B", code="BBB", created_by=user, updated_by=user)
+        with pytest.raises(ValidationError):
+            SubjectService(user=user).update_subject(s1.pk, {"code": "BBB"})

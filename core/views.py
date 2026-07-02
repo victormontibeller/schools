@@ -239,7 +239,9 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     from academic_calendar.selectors import CalendarSelector
 
     modules = [
+        {"name": "Empresa", "url": "school_detail", "icon": "feather-briefcase"},
         {"name": "Professores", "url": "teachers_list", "icon": "feather-book-open"},
+        {"name": "Disciplinas", "url": "subjects_list", "icon": "feather-book"},
         {"name": "Alunos", "url": "students_list", "icon": "feather-user-check"},
         {"name": "Responsáveis", "url": "guardians_list", "icon": "feather-heart"},
         {"name": "Turmas", "url": "classes_list", "icon": "feather-layers"},
@@ -252,6 +254,95 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     ]
     upcoming = CalendarSelector().get_upcoming_events(days=7)[:5]
     return render(request, "dashboard.html", {"modules": modules, "upcoming": upcoming})
+
+
+# ── Tela da Empresa ──────────────────────────────────────────────────────────
+
+
+@login_required
+def school_detail(request: HttpRequest) -> HttpResponse:
+    """Exibe os dados institucionais da empresa do tenant ativo."""
+    from django.contrib import messages
+
+    from addresses.selectors import AddressSelector
+    from core.selectors import SchoolSelector
+
+    school = SchoolSelector().get_current_school()
+    if not school:
+        messages.error(request, "Escola nao encontrada no tenant ativo.")
+        return redirect("dashboard")
+
+    addresses = AddressSelector().get_by_entity("school", school.pk)
+    return render(
+        request,
+        "core/school_detail.html",
+        {"school": school, "addresses": addresses},
+    )
+
+
+@login_required
+def school_edit(request: HttpRequest) -> HttpResponse:
+    """Tela de edicao dos dados da empresa (escola)."""
+    from django.contrib import messages
+
+    from addresses.selectors import AddressSelector
+    from base.exceptions import BusinessRuleViolationError, ValidationError
+    from core.forms import SchoolEditForm
+    from core.selectors import SchoolSelector
+    from core.services import SchoolService
+
+    school = SchoolSelector().get_current_school()
+    if not school:
+        messages.error(request, "Escola nao encontrada no tenant ativo.")
+        return redirect("dashboard")
+
+    addresses = AddressSelector().get_by_entity("school", school.pk)
+
+    if request.method == "POST":
+        form = SchoolEditForm(request.POST, request.FILES)
+        if form.is_valid():
+            try:
+                service = SchoolService(user=request.user)
+                data = form.cleaned_data.copy()
+
+                # Tratar logo separadamente
+                logo = data.pop("logo", None)
+                service.update_school(school.pk, data)
+
+                if logo:
+                    service.update_logo(school.pk, logo)
+
+                messages.success(request, "Dados da empresa atualizados com sucesso.")
+                return redirect("school_detail")
+            except ValidationError as exc:
+                for field, errors in exc.errors.items():
+                    form.add_error(field, errors)
+            except BusinessRuleViolationError as exc:
+                messages.error(request, exc.message)
+    else:
+        initial = {
+            "name": school.name,
+            "legal_name": school.legal_name,
+            "trade_name": school.trade_name,
+            "cnpj": school.cnpj or "",
+            "state_registration": school.state_registration,
+            "municipal_registration": school.municipal_registration,
+            "phone": school.phone,
+            "email": school.email,
+            "contact_full_name": school.contact_full_name,
+            "contact_role": school.contact_role,
+            "contact_phone": school.contact_phone,
+            "contact_email": school.contact_email,
+            "academic_year_start": school.academic_year_start,
+            "academic_year_end": school.academic_year_end,
+        }
+        form = SchoolEditForm(initial=initial)
+
+    return render(
+        request,
+        "core/school_edit.html",
+        {"form": form, "school": school, "addresses": addresses},
+    )
 
 
 # ── Error handlers ───────────────────────────────────────────────────────────

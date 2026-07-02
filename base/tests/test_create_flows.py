@@ -73,7 +73,6 @@ class TestGuardianCreate:
 
     def test_post_creates_guardian_with_contact_info(self, logged, user):
         """POST válido cria responsável com cpf/telefone/etc."""
-        # Distinct email para evitar conflito com o user (que usa outro)
         from core.models import CustomUser
 
         other = CustomUser.objects.create_user(
@@ -85,14 +84,16 @@ class TestGuardianCreate:
         data = {
             "user_id": str(other.pk),
             "relationship_type": "MAE",
-            "cpf": "123.456.789-00",
-            "rg": "MG-12.345",
+            "cpf": "52998224725",
+            "rg_number": "MG-12.345",
+            "rg_issuer": "SSP",
+            "rg_state": "MG",
             "phone": "+55 31 98888-7777",
             "phone_whatsapp": "+55 31 98888-7777",
         }
         resp = logged.post("/guardians/novo/", data, follow=False)
         assert resp.status_code == 302
-        assert Guardian.objects.filter(cpf="123.456.789-00").exists()
+        assert Guardian.objects.filter(cpf="52998224725").exists()
 
     def test_post_blank_relationship_rerenders_form(self, logged, user):
         """Parentesco obrigatório — vazio re-renderiza com erro."""

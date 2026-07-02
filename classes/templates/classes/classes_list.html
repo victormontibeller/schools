@@ -1,40 +1,10 @@
 {% extends "base.html" %}
+{% load static %}
+
 {% block title %}Turmas — School Manager{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div class="page-header-left d-flex align-items-center">
-        <div class="page-header-title"><h5 class="m-b-10">Turmas</h5></div>
-        <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
-            <li class="breadcrumb-item">Turmas</li>
-        </ul>
-    </div>
-</div>
-
-<div class="main-content">
-    <div class="card">
-        <div class="card-header">
-            <div class="d-flex justify-content-between align-items-center">
-                <h6 class="card-title mb-0">Turmas Cadastradas</h6>
-                <a href="{% url 'class_create' %}" class="btn btn-primary btn-sm">Nova Turma</a>
-            </div>
-            <div class="mb-3 mt-2 d-flex gap-2">
-                <input
-                    type="search"
-                    name="q"
-                    value="{{ q|default:'' }}"
-                    class="form-control"
-                    placeholder="Buscar por nome..."
-                    hx-get="/classes/"
-                    hx-target="#classes-table-container"
-                    hx-trigger="keyup changed delay:300ms, search"
-                >
-            </div>
-        </div>
-        <div class="card-body" id="classes-table-container">
-            {% include "classes/partials/classes_table.html" %}
-        </div>
-    </div>
-</div>
+{% include "partials/list_header.html" with list_title="Turmas" breadcrumb_items=breadcrumb_items create_url="class_create" create_label="Nova Turma" search_url="classes_list" search_target="#classes-table" search_value=q total_count=result.total %}
+{% include "classes/partials/classes_table.html" %}
+{% include "partials/list_footer.html" %}
 {% endblock %}

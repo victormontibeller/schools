@@ -17,7 +17,9 @@ def update_school_dashboard_cache(tenant_schema: str) -> None:
         from dashboard.services import DashboardService
 
         DashboardService().get_school_dashboard_data()
-        logger.info("Cache do dashboard escolar atualizado.", extra={"tenant_schema": tenant_schema})
+        logger.info(
+            "Cache do dashboard escolar atualizado.", extra={"tenant_schema": tenant_schema}
+        )
 
 
 @shared_task

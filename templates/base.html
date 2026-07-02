@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
     <link rel="stylesheet" href="{% static 'css/vendors.min.css' %}">
     <link rel="stylesheet" href="{% static 'css/theme.min.css' %}">
+    <link rel="stylesheet" href="{% static 'css/school-manager.css' %}">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -16,7 +17,8 @@
         <div class="navbar-wrapper">
             <div class="m-header">
                 <a href="{% url 'index' %}" class="b-brand">
-                    <span class="fw-bold text-white fs-5">School Manager</span>
+                    <span class="logo-lg fw-bold text-white fs-5">School Manager</span>
+                    <span class="logo-sm fw-bold text-white">SM</span>
                 </a>
             </div>
             <div class="navbar-content">
@@ -33,6 +35,12 @@
                         <a href="{% url 'teachers_list' %}" class="nxl-link">
                             <span class="nxl-micon"><i class="feather-book-open"></i></span>
                             <span class="nxl-mtext">Professores</span>
+                        </a>
+                    </li>
+                    <li class="nxl-item">
+                        <a href="{% url 'subjects_list' %}" class="nxl-link">
+                            <span class="nxl-micon"><i class="feather-book"></i></span>
+                            <span class="nxl-mtext">Disciplinas</span>
                         </a>
                     </li>
                     <li class="nxl-item">
@@ -98,6 +106,12 @@
                     </li>
                     <li class="nxl-item nxl-caption"><label>Administração</label></li>
                     <li class="nxl-item">
+                        <a href="{% url 'school_detail' %}" class="nxl-link">
+                            <span class="nxl-micon"><i class="feather-briefcase"></i></span>
+                            <span class="nxl-mtext">Empresa</span>
+                        </a>
+                    </li>
+                    <li class="nxl-item">
                         <a href="{% url 'users_list' %}" class="nxl-link">
                             <span class="nxl-micon"><i class="feather-users"></i></span>
                             <span class="nxl-mtext">Usuários</span>
@@ -133,27 +147,37 @@
                 </div>
             </div>
             <div class="header-right ms-auto">
-                <div class="d-flex align-items-center gap-3">
-                    <a href="{% url 'notification_list' %}" class="position-relative text-decoration-none"
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{% url 'notification_list' %}"
+                       class="header-action-button position-relative"
+                       aria-label="Notificações"
                        title="Notificações">
-                        <i class="feather-bell fs-5"></i>
+                        <i class="feather-bell"></i>
                         <span id="unread-badge"
                               hx-get="{% url 'unread_count' %}"
-                              hx-trigger="every 30s"
-                              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-                              style="display: none;">0</span>
+                              hx-trigger="load, every 30s"
+                              class="header-notification-badge position-absolute badge rounded-pill bg-danger"></span>
                     </a>
                     <div class="dropdown">
-                        <a href="#" class="arrow-none d-flex align-items-center gap-2"
-                           data-bs-toggle="dropdown" data-bs-offset="0,10">
+                        <a href="#"
+                           class="header-user-button arrow-none d-flex align-items-center gap-2"
+                           data-bs-toggle="dropdown"
+                           data-bs-offset="0,10"
+                           aria-expanded="false">
                             <div class="avatar-text avatar-sm bg-soft-primary text-primary">
                                 {{ request.user.get_short_name|first|upper }}
                             </div>
-                            <div class="d-none d-sm-block">
-                                <span class="fw-bold">{{ request.user.get_full_name }}</span>
+                            <div class="header-user-copy d-none d-md-block text-start">
+                                <span class="header-user-name d-block">{{ request.user.get_full_name }}</span>
+                                <small class="header-user-role d-block">{{ request.user.role|default:"Usuário" }}</small>
                             </div>
+                            <i class="feather-chevron-down header-user-chevron"></i>
                         </a>
-                        <div class="dropdown-menu dropdown-menu-end">
+                        <div class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                            <div class="px-3 py-2 border-bottom">
+                                <span class="fw-semibold d-block">{{ request.user.get_full_name }}</span>
+                                <small class="text-muted">{{ request.user.email }}</small>
+                            </div>
                             <a href="{% url 'profile' %}" class="dropdown-item">
                                 <i class="feather-user me-2"></i> Meu Perfil
                             </a>

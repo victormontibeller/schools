@@ -5,7 +5,16 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
-from core.views import dashboard, handler404, handler500, health, index, metrics
+from core.views import (
+    dashboard,
+    handler404,
+    handler500,
+    health,
+    index,
+    metrics,
+    school_detail,
+    school_edit,
+)
 
 handler404 = handler404
 handler500 = handler500
@@ -13,6 +22,8 @@ handler500 = handler500
 urlpatterns = [
     path("", index, name="index"),
     path("app/", dashboard, name="dashboard"),
+    path("app/empresa/", school_detail, name="school_detail"),
+    path("app/empresa/editar/", school_edit, name="school_edit"),
     path("admin/", admin.site.urls),
     path("health/", health, name="health"),
     path("metrics/", metrics, name="metrics"),
@@ -28,6 +39,7 @@ urlpatterns = [
     path("", include("attendance.urls")),
     path("", include("notifications.urls")),
     path("", include("dashboard.urls")),
+    path("", include("addresses.urls")),
 ]
 
 if settings.DEBUG:

@@ -1,49 +1,53 @@
-<table class="table table-hover align-middle">
+<div class="table-responsive">
+<table class="table table-hover mb-0">
     <thead>
         <tr>
-            <th>Código</th>
             <th>Nome</th>
+            <th>Código</th>
             <th>Tipo</th>
             <th>Capacidade</th>
             <th>Prédio/Andar</th>
-            <th>Ações</th>
         </tr>
     </thead>
     <tbody>
         {% for room in result.items %}
         <tr>
-            <td>{{ room.code }}</td>
-            <td>{{ room.name }}</td>
+            <td><a href="{% url 'room_detail' room.pk %}" class="fw-semibold">{{ room.name }}</a></td>
+            <td><span class="badge bg-soft-secondary text-secondary">{{ room.code }}</span></td>
             <td>{{ room.get_type_display }}</td>
             <td>{{ room.capacity }}</td>
             <td>
                 {% if room.building %}{{ room.building }}{% endif %}
                 {% if room.floor %}<span class="text-muted">· {{ room.floor }}</span>{% endif %}
             </td>
-            <td><a href="{% url 'room_detail' room.pk %}" class="btn btn-sm btn-outline-secondary">Ver</a></td>
         </tr>
         {% empty %}
-        <tr><td colspan="6" class="text-center text-muted py-4">Nenhuma sala encontrada.</td></tr>
+        <tr><td colspan="5" class="text-center text-muted py-4">Nenhuma sala encontrada.</td></tr>
         {% endfor %}
     </tbody>
 </table>
+</div>
 
-{% if result.has_previous or result.has_next %}
-<nav class="d-flex justify-content-between align-items-center mt-3">
-    <div class="text-muted small">
-        Página {{ result.page }} de {{ result.total_pages }} · {{ result.total }} salas
-    </div>
-    <div class="btn-group">
+{% if result.total_pages > 1 %}
+<div class="d-flex justify-content-center py-3">
+    <nav>
+        <ul class="pagination pagination-sm mb-0">
         {% if result.has_previous %}
-        <a class="btn btn-outline-secondary btn-sm"
-           hx-get="/rooms/?page={{ result.page|add:'-1' }}{% if q %}&q={{ q }}{% endif %}"
-           hx-target="#rooms-table-container">Anterior</a>
+        <li class="page-item">
+            <a class="page-link" hx-get="?page={{ result.page|add:'-1' }}{% if q %}&q={{ q }}{% endif %}"
+               hx-target="#rooms-table" hx-swap="innerHTML" aria-label="Página anterior">«</a>
+        </li>
         {% endif %}
+        <li class="page-item active">
+            <span class="page-link">{{ result.page }} / {{ result.total_pages }}</span>
+        </li>
         {% if result.has_next %}
-        <a class="btn btn-outline-secondary btn-sm"
-           hx-get="/rooms/?page={{ result.page|add:'1' }}{% if q %}&q={{ q }}{% endif %}"
-           hx-target="#rooms-table-container">Próxima</a>
+        <li class="page-item">
+            <a class="page-link" hx-get="?page={{ result.page|add:'1' }}{% if q %}&q={{ q }}{% endif %}"
+               hx-target="#rooms-table" hx-swap="innerHTML" aria-label="Próxima página">»</a>
+        </li>
         {% endif %}
-    </div>
-</nav>
+        </ul>
+    </nav>
+</div>
 {% endif %}

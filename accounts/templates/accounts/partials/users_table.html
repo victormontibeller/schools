@@ -17,7 +17,9 @@
                         <div class="avatar-text avatar-sm bg-soft-primary text-primary">
                             {{ user.get_short_name|first|upper }}
                         </div>
-                        <span class="fw-semibold">{{ user.get_full_name }}</span>
+                        <a href="{% url 'user_detail' user.pk %}" class="fw-semibold">
+                            {{ user.get_full_name }}
+                        </a>
                     </div>
                 </td>
                 <td class="text-muted">{{ user.email }}</td>

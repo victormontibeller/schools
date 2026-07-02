@@ -1,29 +1,10 @@
 {% extends "base.html" %}
+{% load static %}
+
 {% block title %}Salas — School Manager{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div class="page-header-left d-flex align-items-center">
-        <div class="page-header-title"><h5 class="m-b-10">Salas</h5></div>
-        <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
-            <li class="breadcrumb-item">Salas</li>
-        </ul>
-    </div>
-</div>
-
-<div class="main-content">
-    <div class="card">
-        <div class="card-header">
-            <div class="d-flex justify-content-between align-items-center">
-                <h6 class="card-title mb-0">Salas Cadastradas</h6>
-                <a href="{% url 'room_create' %}" class="btn btn-primary btn-sm">Nova Sala</a>
-            </div>
-            {% include "rooms/partials/_search.html" %}
-        </div>
-        <div class="card-body" id="rooms-table-container">
-            {% include "rooms/partials/rooms_table.html" %}
-        </div>
-    </div>
-</div>
+{% include "partials/list_header.html" with list_title="Salas" breadcrumb_items=breadcrumb_items create_url="room_create" create_label="Nova Sala" search_url="rooms_list" search_target="#rooms-table" search_value=q total_count=result.total %}
+{% include "rooms/partials/rooms_table.html" %}
+{% include "partials/list_footer.html" %}
 {% endblock %}

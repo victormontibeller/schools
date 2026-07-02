@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Disciplinas — School Manager{% endblock %}
+
+{% block content %}
+{% include "partials/list_header.html" with list_title="Disciplinas" breadcrumb_items=breadcrumb_items create_url="subject_create" create_label="Nova Disciplina" search_url="subjects_list" search_target="#subjects-table" search_value=q total_count=result.total %}
+{% include "teachers/partials/subjects_table.html" %}
+{% include "partials/list_footer.html" %}
+{% endblock %}

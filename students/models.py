@@ -4,6 +4,7 @@ from django.conf import settings
 from django.db import models
 
 from base.models import BaseModel
+from base.validators import UF_CHOICES
 
 
 class Student(BaseModel):
@@ -53,11 +54,30 @@ class Student(BaseModel):
     photo = models.ImageField(
         upload_to="students/photos/", null=True, blank=True, verbose_name="Foto"
     )
+    nationality = models.CharField(
+        max_length=100, blank=True, default="Brasileiro(a)", verbose_name="Nacionalidade"
+    )
+    cpf = models.CharField(
+        max_length=14, blank=True, null=True, unique=True, default=None, verbose_name="CPF"
+    )
+    rg_number = models.CharField(max_length=20, blank=True, default="", verbose_name="RG — Número")
+    rg_issuer = models.CharField(
+        max_length=50, blank=True, default="", verbose_name="RG — Órgão Emissor"
+    )
+    rg_state = models.CharField(
+        max_length=2, choices=UF_CHOICES, blank=True, default="", verbose_name="RG — UF"
+    )
+    phone_mobile = models.CharField(max_length=20, blank=True, default="", verbose_name="Celular")
+    email = models.EmailField(blank=True, default="", verbose_name="E-mail do Aluno")
 
     class Meta:
         ordering = ["first_name", "last_name"]
         verbose_name = "Aluno"
         verbose_name_plural = "Alunos"
+        indexes = [
+            models.Index(fields=["cpf"]),
+            models.Index(fields=["enrollment_number"]),
+        ]
 
     def __str__(self) -> str:
         return f"{self.first_name} {self.last_name} ({self.enrollment_number})"

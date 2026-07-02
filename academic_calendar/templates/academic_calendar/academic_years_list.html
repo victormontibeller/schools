@@ -25,16 +25,14 @@
                         {% for field, errs in errors.items %}{% for e in errs %}<div>{{ e }}</div>{% endfor %}{% endfor %}
                     </div>
                     {% endif %}
-                    <form method="post" action="{% url 'academic_year_create' %}">
+                    <form method="post" action="{% url 'academic_year_create' %}" novalidate>
                         {% csrf_token %}
-                        {% for field in form %}
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">{{ field.label }}</label>
-                            {{ field }}
-                            {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors.0 }}</div>{% endif %}
+                        <div class="row g-3">
+                            {% for field in form %}
+                                {% include "partials/form_field.html" with field=field full_width=True %}
+                            {% endfor %}
                         </div>
-                        {% endfor %}
-                        <button type="submit" class="btn btn-primary">Salvar</button>
+                        <button type="submit" class="btn btn-primary mt-4">Salvar</button>
                     </form>
                 </div>
             </div>

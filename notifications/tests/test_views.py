@@ -72,6 +72,12 @@ class TestNotificationViews:
         assert response.status_code == 200
         assert response.content.decode() == "1"
 
+    def test_unread_count_is_empty_when_zero(self, client, user):
+        client.force_login(user)
+        response = client.get(reverse("unread_count"))
+        assert response.status_code == 200
+        assert response.content == b""
+
 
 @pytest.mark.django_db
 class TestAnnouncementViews:

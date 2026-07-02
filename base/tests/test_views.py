@@ -81,6 +81,9 @@ class TestTeacherViews:
         resp = force_login_client.get(f"/teachers/{t.pk}/")
         assert resp.status_code == 200
         assert b"Matem\xc3\xa1tica" in resp.content
+        assert b"Informa\xc3\xa7\xc3\xb5es do Professor" in resp.content
+        assert b"Dados Pessoais" not in resp.content
+        assert b">Contato<" not in resp.content
 
     def test_teacher_detail_returns_404_for_unknown(self, force_login_client):
         import uuid
@@ -187,6 +190,9 @@ class TestStudentViews:
         resp = force_login_client.get(f"/students/{s.pk}/")
         assert resp.status_code == 200
         assert b"R" in resp.content
+        assert b"Informa\xc3\xa7\xc3\xb5es do Aluno" in resp.content
+        assert b">Documentos<" not in resp.content
+        assert b">Contato<" not in resp.content
 
     def test_student_profile_404_when_unknown(self, force_login_client):
         import uuid
@@ -234,8 +240,80 @@ class TestGuardianViews:
         resp = force_login_client.get(f"/guardians/{g.pk}/")
         assert resp.status_code == 200
         assert b"DET-001" in resp.content
+        assert b"Informa\xc3\xa7\xc3\xb5es do Respons\xc3\xa1vel" in resp.content
+        assert b"Dados Pessoais" not in resp.content
+        assert b">Contato<" not in resp.content
 
     def test_guardian_detail_404_when_unknown(self, force_login_client):
         import uuid
 
         assert force_login_client.get(f"/guardians/{uuid.uuid4()}/").status_code == 404
+
+    def test_guardian_edit_get_renders_form(self, force_login_client):
+        from core.models import CustomUser
+        from guardians.models import Guardian
+
+        u = CustomUser.objects.create_user(
+            email="ge@test.com", password="Senha123", first_name="GE", last_name="Test"
+        )
+        g = Guardian.objects.create(user=u, relationship_type="PAI")
+        resp = force_login_client.get(f"/guardians/{g.pk}/editar/")
+        assert resp.status_code == 200
+
+    def test_guardian_edit_post_updates_and_redirects(self, force_login_client):
+        from core.models import CustomUser
+        from guardians.models import Guardian
+
+        u = CustomUser.objects.create_user(
+            email="ge2@test.com", password="Senha123", first_name="GE2", last_name="Test"
+        )
+        g = Guardian.objects.create(user=u, relationship_type="PAI", phone="111")
+        resp = force_login_client.post(
+            f"/guardians/{g.pk}/editar/",
+            {"relationship_type": "MAE", "phone": "999"},
+        )
+        assert resp.status_code == 302
+        g.refresh_from_db()
+        assert g.relationship_type == "MAE"
+        assert g.phone == "999"
+
+    def test_teacher_edit_get_redirects_to_profile(self, force_login_client, user):
+        from teachers.models import Teacher
+
+        t = Teacher.objects.create(
+            user=user, registration_number="EDT001", created_by=user, updated_by=user
+        )
+        resp = force_login_client.get(f"/teachers/{t.pk}/editar/")
+        assert resp.status_code == 302
+        assert resp["Location"] == f"/teachers/{t.pk}/"
+
+    def test_teacher_edit_post_updates(self, force_login_client, user):
+        from teachers.models import Teacher
+
+        t = Teacher.objects.create(
+            user=user, registration_number="EDT002", created_by=user, updated_by=user
+        )
+        resp = force_login_client.post(
+            f"/teachers/{t.pk}/editar/",
+            {
+                "registration_number": "EDT002",
+                "hire_date": "2025-06-15",
+                "phone_mobile": "11999999999",
+            },
+        )
+        assert resp.status_code == 302
+        t.refresh_from_db()
+        assert str(t.hire_date) == "2025-06-15"
+        assert t.phone_mobile == "11999999999"
+
+    def test_student_edit_get_renders_form(self, force_login_client):
+        from students.models import Student
+
+        s = Student.objects.create(
+            first_name="Edit",
+            last_name="Test",
+            birth_date="2010-01-01",
+            enrollment_number="EDT-STU",
+        )
+        resp = force_login_client.get(f"/students/{s.pk}/editar/")
+        assert resp.status_code == 200

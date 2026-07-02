@@ -1,7 +1,7 @@
 """Views HTMX para salas físicas."""
 
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 
 from base.exceptions import ValidationError
 from rooms.forms import RoomForm
@@ -20,9 +20,17 @@ def rooms_list(request):
 
     result = RoomSelector().list_rooms(filters=filters, page=page)
 
+    ctx = {
+        "result": result,
+        "q": search,
+        "breadcrumb_items": [
+            {"label": "Home", "url": "dashboard"},
+            {"label": "Salas", "url": None},
+        ],
+    }
     if request.headers.get("HX-Request"):
-        return render(request, "rooms/partials/rooms_table.html", {"result": result, "q": search})
-    return render(request, "rooms/rooms_list.html", {"result": result, "q": search})
+        return render(request, "rooms/partials/rooms_table.html", ctx)
+    return render(request, "rooms/rooms_list.html", ctx)
 
 
 @login_required
@@ -43,7 +51,5 @@ def room_create(request):
 @login_required
 def room_detail(request, pk):
     """Exibe detalhes de uma sala."""
-    from rooms.models import Room
-
-    room = get_object_or_404(Room, pk=pk)
+    room = RoomSelector().get_by_id(pk)
     return render(request, "rooms/room_detail.html", {"room": room})

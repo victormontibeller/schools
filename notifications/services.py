@@ -114,12 +114,50 @@ class NotificationService(BaseService):
         """
         from notifications.models import Notification
 
-        now = timezone.now()
-        count = Notification.objects.filter(recipient_id=user_id, read_at__isnull=True).update(
-            read_at=now
+        notifications = list(
+            Notification.objects.filter(recipient_id=user_id, read_at__isnull=True)
         )
+        if not notifications:
+            return 0
+
+        now = timezone.now()
+        Notification.objects.filter(pk__in=[item.pk for item in notifications]).update(read_at=now)
+        for notification in notifications:
+            notification.read_at = now
+            self._record_audit("UPDATE", notification, old_values={"read_at": None})
+
+        count = len(notifications)
         self._log("Notificacoes marcadas como lidas", user_id=str(user_id), count=count)
         return count
+
+    def create_notifications_bulk(self, recipient_ids: list, data: dict) -> int:
+        """Cria notificacoes em lote mantendo autoria, auditoria e log estruturado."""
+        from notifications.models import Notification
+
+        self.validate_required(data, ["title", "message"])
+        notifications = [
+            Notification(
+                recipient_id=recipient_id,
+                type=data.get("type", Notification.Type.INFO),
+                title=data["title"].strip(),
+                message=data["message"].strip(),
+                source=data.get("source", ""),
+                action_url=data.get("action_url", ""),
+                correlation_id=data.get("correlation_id", context.correlation_id.get()),
+                created_by=self.user,
+                updated_by=self.user,
+            )
+            for recipient_id in recipient_ids
+        ]
+        if not notifications:
+            return 0
+
+        Notification.objects.bulk_create(notifications, batch_size=500)
+        for notification in notifications:
+            self._record_audit("INSERT", notification)
+
+        self._log("Notificacoes criadas em lote", count=len(notifications))
+        return len(notifications)
 
     def get_unread_count(self, user_id) -> int:
         """Retorna o total de notificacoes nao lidas para o usuario."""
@@ -301,5 +339,12 @@ class AnnouncementService(BaseService):
             error_message=error_message,
             created_by=self.user,
             updated_by=self.user,
+        )
+        self._record_audit("INSERT", log_entry)
+        self._log(
+            "Entrega de mensagem registrada",
+            message_log_id=str(log_entry.pk),
+            channel=channel,
+            status=log_entry.status,
         )
         return log_entry

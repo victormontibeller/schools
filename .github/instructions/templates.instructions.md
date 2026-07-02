@@ -42,6 +42,48 @@ base.html                          ← layout raiz (nav, header, messages, block
 
 ---
 
+## Perfil de Pessoa — Agrupamento Obrigatório
+
+Telas de detalhe de pessoas (`Teacher`, `Student`, `Guardian` e futuras entidades pessoais)
+devem agrupar identidade, dados pessoais, documentos e contato em **um único card**:
+
+```
+row g-3
+├── col-xl-5: Informações da Pessoa
+│   ├── avatar + nome + identificador principal
+│   └── dl com nascimento, gênero, documentos e contatos
+└── col-xl-7: relações do domínio
+    ├── card de disciplinas/responsáveis/alunos vinculados
+    └── card de endereços
+```
+
+Regras:
+
+- **Nunca** separar “Dados Pessoais”, “Documentos” e “Contato” em cards diferentes.
+- Endereços ficam sempre em card próprio, usando `addresses/partials/address_table.html`.
+- Relações relevantes ficam em card próprio: disciplinas, responsáveis ou alunos vinculados.
+- Campos sem valor devem aparecer como `—`, evitando saltos e layouts diferentes por cadastro.
+- Quando a edição for inline com HTMX, a ação “Editar” fica no cabeçalho do próprio card e
+  substitui somente esse componente; em telas com formulário dedicado, fica no `page-header-right`.
+- Relações do domínio, como disciplinas, são gerenciadas no próprio card e nunca misturadas
+  ao formulário de informações pessoais.
+- Usar `row g-3 align-items-start`, `col-12 col-xl-5` e `col-12 col-xl-7`.
+- Em telas pequenas, os cards devem empilhar sem overflow horizontal.
+
+---
+
+## Contrato de Tabelas de Listagem
+
+- A primeira coluna identifica o registro e é sempre o link principal da linha.
+- Para entidades com tela de detalhe ou perfil, a primeira coluna aponta para essa tela.
+- Sem tela de detalhe, usar a tela operacional principal (edição, chamada ou lançamento).
+- Evitar coluna “Ações” contendo apenas “Ver” ou “Editar”; mantê-la somente para ações adicionais.
+- Envolver toda tabela com `<div class="table-responsive">`.
+- Usar `table table-hover mb-0` e paginação HTMX centralizada.
+- Preservar todos os filtros na paginação.
+
+---
+
 ## Criando uma Tela de Listagem
 
 ```html
@@ -108,7 +150,11 @@ base.html                          ← layout raiz (nav, header, messages, block
     <tbody>
         {% for teacher in result.items %}
         <tr>
-            <td>{{ teacher.user.get_full_name }}</td>
+            <td>
+                <a href="{% url 'teacher_detail' teacher.pk %}" class="fw-semibold">
+                    {{ teacher.user.get_full_name }}
+                </a>
+            </td>
             <td>{{ teacher.registration_number }}</td>
             <td>
                 {% if teacher.is_active %}
@@ -242,6 +288,7 @@ Para layouts customizados com campos específicos:
 | Auto-refresh | `hx-trigger="every 60s" hx-swap="outerHTML"` |
 | Carregar ao abrir | `hx-trigger="load" hx-target="#container" hx-swap="innerHTML"` |
 | Navegar sem reload | `hx-get="..." hx-target="#container" hx-push-url="true"` |
+| Editar card inline | `hx-get=".../editar/" hx-target="#card-id" hx-swap="outerHTML"` |
 
 **Sempre** preserve query params (`q`, filtros) nos links de paginação.
 

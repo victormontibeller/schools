@@ -2,6 +2,7 @@
 
 from django import forms
 
+from base.validators import UF_CHOICES
 from teachers.models import Subject
 
 
@@ -27,12 +28,7 @@ def _user_choices_queryset():
 
 
 class TeacherForm(forms.Form):
-    """Formulário de criação de professor a partir de usuário existente.
-
-    O campo `subjects` (ManyToMany) permite já atribuir disciplinas no
-    momento do cadastro — caso contrário, o vínculo pode ser feito
-    posteriormente pela tela de detalhe do professor.
-    """
+    """Formulário de criação de professor a partir de usuário existente."""
 
     user_id = forms.UUIDField(
         label="Usuário",
@@ -48,6 +44,52 @@ class TeacherForm(forms.Form):
         label="Data de Admissão",
         widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
     )
+    birth_date = forms.DateField(
+        required=False,
+        label="Data de Nascimento",
+        widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+    )
+    gender = forms.ChoiceField(
+        required=False,
+        label="Gênero",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    nationality = forms.CharField(
+        max_length=100,
+        required=False,
+        initial="Brasileiro(a)",
+        label="Nacionalidade",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    cpf = forms.CharField(
+        max_length=14,
+        required=False,
+        label="CPF",
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "000.000.000-00"}),
+    )
+    rg_number = forms.CharField(
+        max_length=20,
+        required=False,
+        label="RG — Número",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    rg_issuer = forms.CharField(
+        max_length=50,
+        required=False,
+        label="RG — Órgão Emissor",
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "SSP"}),
+    )
+    rg_state = forms.ChoiceField(
+        required=False,
+        label="RG — UF",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    phone_mobile = forms.CharField(
+        max_length=20,
+        required=False,
+        label="Celular",
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "(00) 00000-0000"}),
+    )
     subjects = forms.ModelMultipleChoiceField(
         queryset=Subject.objects.all(),
         required=False,
@@ -57,6 +99,95 @@ class TeacherForm(forms.Form):
     )
 
     def __init__(self, *args, **kwargs):
-        """Atribui o queryset lazy ao widget, sem forçar acesso ao banco."""
+        """Atribui choices lazy para Select widgets."""
         super().__init__(*args, **kwargs)
         self.fields["user_id"].widget.choices = _user_choices_queryset()
+        from teachers.models import Teacher
+
+        self.fields["gender"].choices = [("", "---------")] + list(Teacher.Gender.choices)
+        self.fields["rg_state"].choices = [("", "---------")] + list(UF_CHOICES)
+
+
+class TeacherEditForm(forms.Form):
+    """Formulario de edicao de professor (dados do perfil, nao do usuario)."""
+
+    registration_number = forms.CharField(
+        max_length=30,
+        label="Matricula",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    hire_date = forms.DateField(
+        required=False,
+        label="Data de Admissao",
+        widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+    )
+    birth_date = forms.DateField(
+        required=False,
+        label="Data de Nascimento",
+        widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+    )
+    gender = forms.ChoiceField(
+        required=False,
+        label="Genero",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    nationality = forms.CharField(
+        max_length=100,
+        required=False,
+        label="Nacionalidade",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    cpf = forms.CharField(
+        max_length=14,
+        required=False,
+        label="CPF",
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "000.000.000-00"}),
+    )
+    rg_number = forms.CharField(
+        max_length=20,
+        required=False,
+        label="RG — Numero",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    rg_issuer = forms.CharField(
+        max_length=50,
+        required=False,
+        label="RG — Orgao Emissor",
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "SSP"}),
+    )
+    rg_state = forms.ChoiceField(
+        required=False,
+        label="RG — UF",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    phone_mobile = forms.CharField(
+        max_length=20,
+        required=False,
+        label="Celular",
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "(00) 00000-0000"}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from teachers.models import Teacher
+
+        self.fields["gender"].choices = [("", "---------")] + list(Teacher.Gender.choices)
+        self.fields["rg_state"].choices = [("", "---------")] + list(UF_CHOICES)
+
+
+class TeacherSubjectsForm(forms.Form):
+    """Formulário de vínculo entre professor e disciplinas."""
+
+    subjects = forms.ModelMultipleChoiceField(
+        queryset=Subject.objects.none(),
+        required=False,
+        label="Disciplinas ministradas",
+        widget=forms.SelectMultiple(attrs={"class": "form-select", "size": "8"}),
+        help_text="Selecione todas as disciplinas ministradas pelo professor.",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from teachers.models import Subject
+
+        self.fields["subjects"].queryset = Subject.objects.all()

@@ -14,46 +14,97 @@
             <li class="breadcrumb-item">{{ guardian.full_name }}</li>
         </ul>
     </div>
+    <div class="page-header-right ms-auto">
+        <a href="{% url 'guardian_edit' guardian.pk %}" class="btn btn-primary btn-sm">
+            <i class="feather-edit-2 me-1"></i> Editar
+        </a>
+    </div>
 </div>
 
 <div class="main-content">
-    <div class="row">
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body text-center">
-                    <div class="avatar-text avatar-xl bg-soft-purple text-purple mb-3 mx-auto" style="width:64px;height:64px;font-size:1.5rem">
-                        {{ guardian.full_name|first|upper }}
+    <div class="row g-3 align-items-start">
+        <div class="col-12 col-xl-5">
+            <div class="card mb-0">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">Informações do Responsável</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex flex-column flex-sm-row align-items-center text-center text-sm-start gap-3 pb-4 mb-4 border-bottom">
+                        <div class="avatar-text avatar-xl bg-soft-purple text-purple flex-shrink-0"
+                             style="width:72px;height:72px;font-size:1.75rem">
+                            {{ guardian.full_name|first|upper }}
+                        </div>
+                        <div class="min-w-0">
+                            <h5 class="mb-1">{{ guardian.full_name }}</h5>
+                            <p class="text-muted mb-2 text-break">{{ guardian.user.email }}</p>
+                            <span class="badge bg-soft-info text-info">
+                                {{ guardian.get_relationship_type_display }}
+                            </span>
+                        </div>
                     </div>
-                    <h5 class="mb-1">{{ guardian.full_name }}</h5>
-                    <span class="badge bg-soft-info text-info mb-2">{{ guardian.get_relationship_type_display }}</span>
-                    <div class="text-muted small">
-                        {% if guardian.phone %}<p class="mb-1">Tel: {{ guardian.phone }}</p>{% endif %}
-                        {% if guardian.phone_whatsapp %}<p class="mb-1">WhatsApp: {{ guardian.phone_whatsapp }}</p>{% endif %}
-                        {% if guardian.cpf %}<p class="mb-0">CPF: {{ guardian.cpf }}</p>{% endif %}
-                    </div>
+
+                    <dl class="row gy-3 mb-0">
+                        <dt class="col-sm-5 text-muted fw-medium">Data de nascimento</dt>
+                        <dd class="col-sm-7 mb-0">
+                            {% if guardian.birth_date %}{{ guardian.birth_date|date:"d/m/Y" }}{% else %}—{% endif %}
+                        </dd>
+
+                        <dt class="col-sm-5 text-muted fw-medium">Gênero</dt>
+                        <dd class="col-sm-7 mb-0">{{ guardian.get_gender_display|default:"—" }}</dd>
+
+                        <dt class="col-sm-5 text-muted fw-medium">Nacionalidade</dt>
+                        <dd class="col-sm-7 mb-0">{{ guardian.nationality|default:"—" }}</dd>
+
+                        <dt class="col-sm-5 text-muted fw-medium">CPF</dt>
+                        <dd class="col-sm-7 mb-0">{{ guardian.cpf|default:"—" }}</dd>
+
+                        <dt class="col-sm-5 text-muted fw-medium">RG</dt>
+                        <dd class="col-sm-7 mb-0">
+                            {% if guardian.rg_number %}
+                                {{ guardian.rg_number }}
+                                {% if guardian.rg_issuer %} · {{ guardian.rg_issuer }}{% endif %}
+                                {% if guardian.rg_state %} / {{ guardian.rg_state }}{% endif %}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-5 text-muted fw-medium">Telefone</dt>
+                        <dd class="col-sm-7 mb-0">{{ guardian.phone|default:"—" }}</dd>
+
+                        <dt class="col-sm-5 text-muted fw-medium">WhatsApp</dt>
+                        <dd class="col-sm-7 mb-0">{{ guardian.phone_whatsapp|default:"—" }}</dd>
+
+                        <dt class="col-sm-5 text-muted fw-medium">Celular</dt>
+                        <dd class="col-sm-7 mb-0">{{ guardian.phone_mobile|default:"—" }}</dd>
+                    </dl>
                 </div>
             </div>
         </div>
-        <div class="col-md-8">
-            <div class="card">
+
+        <div class="col-12 col-xl-7">
+            <div class="card mb-3">
                 <div class="card-header">
                     <h6 class="card-title mb-0">Alunos Vinculados</h6>
                 </div>
                 <div class="card-body">
                     {% for link in students %}
-                    <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 {% if not forloop.last %}mb-3 pb-3 border-bottom{% endif %}">
                         <div>
                             <a href="{% url 'student_profile' link.student.pk %}" class="fw-semibold">
                                 {{ link.student.get_full_name }}
                             </a>
                             <span class="text-muted ms-2 small">{{ link.student.enrollment_number }}</span>
                         </div>
-                        <div>
+                        <div class="d-flex flex-wrap gap-1">
                             {% if link.is_primary %}
                             <span class="badge bg-soft-success text-success">Principal</span>
                             {% endif %}
+                            {% if link.has_custody %}
+                            <span class="badge bg-soft-warning text-warning">Guarda legal</span>
+                            {% endif %}
                             {% if link.can_pickup %}
-                            <span class="badge bg-soft-info text-info ms-1">Autorizado a buscar</span>
+                            <span class="badge bg-soft-info text-info">Autorizado a buscar</span>
                             {% endif %}
                         </div>
                     </div>
@@ -62,6 +113,8 @@
                     {% endfor %}
                 </div>
             </div>
+
+            {% include "addresses/partials/address_table.html" with addresses=addresses entity_type="guardian" entity_id=guardian.pk %}
         </div>
     </div>
 </div>

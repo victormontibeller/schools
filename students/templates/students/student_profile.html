@@ -14,49 +14,105 @@
             <li class="breadcrumb-item">{{ student.get_full_name }}</li>
         </ul>
     </div>
+    <div class="page-header-right ms-auto">
+        <a href="{% url 'student_edit' student.pk %}" class="btn btn-primary btn-sm">
+            <i class="feather-edit-2 me-1"></i> Editar
+        </a>
+    </div>
 </div>
 
 <div class="main-content">
-    <div class="row">
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body text-center">
-                    {% if student.photo %}
-                    <img src="{{ student.photo.url }}" class="rounded-circle mb-3" width="80" height="80" alt="">
-                    {% else %}
-                    <div class="avatar-text avatar-xl bg-soft-warning text-warning mb-3 mx-auto" style="width:64px;height:64px;font-size:1.5rem">
-                        {{ student.first_name|first|upper }}
-                    </div>
-                    {% endif %}
-                    <h5 class="mb-1">{{ student.get_full_name }}</h5>
-                    <span class="badge bg-soft-secondary text-secondary mb-2">Mat. {{ student.enrollment_number }}</span>
-                    <div class="text-muted small">
-                        <p class="mb-1">Nascimento: {{ student.birth_date|date:"d/m/Y" }}</p>
-                        <p class="mb-1">Gênero: {{ student.get_gender_display }}</p>
-                        {% if student.blood_type %}
-                        <p class="mb-0">Tipo Sanguíneo: <span class="badge bg-soft-danger text-danger">{{ student.blood_type }}</span></p>
+    <div class="row g-3 align-items-start">
+        <div class="col-12 col-xl-5">
+            <div class="card mb-0">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">Informações do Aluno</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex flex-column flex-sm-row align-items-center text-center text-sm-start gap-3 pb-4 mb-4 border-bottom">
+                        {% if student.photo %}
+                        <img src="{{ student.photo.url }}"
+                             class="rounded-circle flex-shrink-0"
+                             width="72"
+                             height="72"
+                             alt="Foto de {{ student.get_full_name }}">
+                        {% else %}
+                        <div class="avatar-text avatar-xl bg-soft-warning text-warning flex-shrink-0"
+                             style="width:72px;height:72px;font-size:1.75rem">
+                            {{ student.first_name|first|upper }}
+                        </div>
                         {% endif %}
+                        <div class="min-w-0">
+                            <h5 class="mb-1">{{ student.get_full_name }}</h5>
+                            <p class="text-muted mb-2 text-break">{{ student.email|default:"E-mail não informado" }}</p>
+                            <span class="badge bg-soft-secondary text-secondary">
+                                Mat. {{ student.enrollment_number }}
+                            </span>
+                        </div>
                     </div>
+
+                    <dl class="row gy-3 mb-0">
+                        <dt class="col-sm-5 text-muted fw-medium">Data de nascimento</dt>
+                        <dd class="col-sm-7 mb-0">{{ student.birth_date|date:"d/m/Y" }}</dd>
+
+                        <dt class="col-sm-5 text-muted fw-medium">Gênero</dt>
+                        <dd class="col-sm-7 mb-0">{{ student.get_gender_display|default:"—" }}</dd>
+
+                        <dt class="col-sm-5 text-muted fw-medium">Tipo sanguíneo</dt>
+                        <dd class="col-sm-7 mb-0">
+                            {% if student.blood_type %}
+                                <span class="badge bg-soft-danger text-danger">{{ student.blood_type }}</span>
+                            {% else %}
+                                —
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-5 text-muted fw-medium">Nacionalidade</dt>
+                        <dd class="col-sm-7 mb-0">{{ student.nationality|default:"—" }}</dd>
+
+                        <dt class="col-sm-5 text-muted fw-medium">CPF</dt>
+                        <dd class="col-sm-7 mb-0">{{ student.cpf|default:"—" }}</dd>
+
+                        <dt class="col-sm-5 text-muted fw-medium">RG</dt>
+                        <dd class="col-sm-7 mb-0">
+                            {% if student.rg_number %}
+                                {{ student.rg_number }}
+                                {% if student.rg_issuer %} · {{ student.rg_issuer }}{% endif %}
+                                {% if student.rg_state %} / {{ student.rg_state }}{% endif %}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-5 text-muted fw-medium">Celular</dt>
+                        <dd class="col-sm-7 mb-0">{{ student.phone_mobile|default:"—" }}</dd>
+
+                        <dt class="col-sm-5 text-muted fw-medium">Necessidades especiais</dt>
+                        <dd class="col-sm-7 mb-0 text-break">{{ student.special_needs|default:"—" }}</dd>
+                    </dl>
                 </div>
             </div>
         </div>
-        <div class="col-md-8">
-            <div class="card">
+
+        <div class="col-12 col-xl-7">
+            <div class="card mb-3">
                 <div class="card-header">
                     <h6 class="card-title mb-0">Responsáveis</h6>
                 </div>
                 <div class="card-body">
                     {% for link in guardians %}
-                    <div class="d-flex align-items-center justify-content-between mb-3 pb-3 border-bottom">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 {% if not forloop.last %}mb-3 pb-3 border-bottom{% endif %}">
                         <div>
                             <span class="fw-semibold">{{ link.guardian.full_name }}</span>
-                            <span class="badge bg-soft-info text-info ms-2">{{ link.guardian.get_relationship_type_display }}</span>
+                            <span class="badge bg-soft-info text-info ms-2">
+                                {{ link.guardian.get_relationship_type_display }}
+                            </span>
                             {% if link.is_primary %}
                             <span class="badge bg-soft-success text-success ms-1">Principal</span>
                             {% endif %}
                         </div>
                         <div class="text-muted small">
-                            {% if link.guardian.phone %}{{ link.guardian.phone }}{% endif %}
+                            {{ link.guardian.phone_mobile|default:link.guardian.phone|default:"—" }}
                         </div>
                     </div>
                     {% empty %}
@@ -64,6 +120,8 @@
                     {% endfor %}
                 </div>
             </div>
+
+            {% include "addresses/partials/address_table.html" with addresses=addresses entity_type="student" entity_id=student.pk %}
         </div>
     </div>
 </div>

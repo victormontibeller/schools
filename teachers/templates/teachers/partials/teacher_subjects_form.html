@@ -1,0 +1,29 @@
+<div class="card mb-3" id="teacher-subjects-card">
+    <form hx-post="{% url 'teacher_edit' teacher.pk %}?component=subjects"
+          hx-target="#teacher-subjects-card"
+          hx-swap="outerHTML">
+        {% csrf_token %}
+        <div class="card-header">
+            <h6 class="card-title mb-0">Vincular Disciplinas</h6>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                {% for field in form %}
+                    {% include "partials/form_field.html" with field=field full_width=True %}
+                {% endfor %}
+            </div>
+        </div>
+        <div class="card-footer d-flex justify-content-end gap-2">
+            <button type="button"
+                    class="btn btn-outline-secondary"
+                    hx-get="{% url 'teacher_detail' teacher.pk %}?component=subjects"
+                    hx-target="#teacher-subjects-card"
+                    hx-swap="outerHTML">
+                Cancelar
+            </button>
+            <button type="submit" class="btn btn-primary">
+                <i class="feather-check me-1"></i> Salvar vínculos
+            </button>
+        </div>
+    </form>
+</div>

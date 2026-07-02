@@ -1,5 +1,7 @@
 """Testes de funcoes utilitarias e tasks."""
 
+import logging
+
 import pytest
 
 from notifications.transport import render_template
@@ -178,3 +180,29 @@ class TestTransport:
         transport = MessageTransport(EmailChannel())
         result = transport.send_individual(recipient, template, {"nome": "Joao"})
         assert result == 1
+
+    def test_transport_logs_do_not_expose_recipient_address(self, user, caplog):
+        from core.models import CustomUser
+        from notifications.channels.email import EmailChannel
+        from notifications.models import MessageTemplate
+        from notifications.transport import MessageTransport
+
+        address = "private-recipient@example.com"
+        recipient = CustomUser.objects.create_user(
+            email=address,
+            password="Senha123",
+            first_name="Private",
+            last_name="Recipient",
+        )
+        template = MessageTemplate.objects.create(
+            name="Private",
+            channel=MessageTemplate.Channel.EMAIL,
+            body="Mensagem",
+            created_by=user,
+            updated_by=user,
+        )
+
+        with caplog.at_level(logging.DEBUG):
+            MessageTransport(EmailChannel()).send_individual(recipient, template)
+
+        assert address not in caplog.text

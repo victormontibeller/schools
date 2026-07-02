@@ -80,6 +80,7 @@ class BaseService:
             raise BusinessRuleViolationError(f"{entity_label} ja esta desativado(a).")
         instance.soft_delete(user=self.user)
         self._record_audit("DELETE", instance)
+        self._log("entidade_desativada", entity_type=entity_label, entity_id=str(instance.pk))
         return instance
 
     # ── Logging e auditoria ─────────────────────────────────────────────────

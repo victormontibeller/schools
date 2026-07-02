@@ -40,6 +40,34 @@ templates/
 
 ---
 
+## Perfil de Pessoa
+
+Perfis de professor, aluno, responsável e futuras entidades pessoais seguem uma estrutura única:
+
+- Um card **Informações da Pessoa** reúne avatar, nome, identificador, dados pessoais,
+  documentos e contato.
+- Um card separado apresenta relações do domínio, como disciplinas, responsáveis ou alunos.
+- Endereços ficam em card próprio por meio de `addresses/partials/address_table.html`.
+- Dados pessoais, documentos e contato nunca devem ser fragmentados em cards diferentes.
+- Valores ausentes são exibidos como `—`.
+- Edições inline ficam no cabeçalho do próprio card e substituem somente aquele componente.
+- Relações como disciplinas são vinculadas no card próprio, separadas dos dados pessoais.
+- Layout desktop: `col-xl-5` para a pessoa e `col-xl-7` para relações/endereço.
+- Layout mobile: cards empilhados, sem overflow horizontal.
+
+Usuários administrativos seguem o mesmo agrupamento: identidade, contato, perfil de acesso,
+status e data de ingresso ficam em um único card. A listagem abre essa ficha, não uma edição.
+
+## Perfil da Empresa
+
+- A rota principal de Empresa exibe primeiro a ficha institucional.
+- Nome, documentos, contato institucional e responsável ficam no card
+  **Informações da Empresa**.
+- Endereços permanecem em card separado.
+- O formulário é acessado pelo botão **Editar** no cabeçalho da ficha.
+
+---
+
 ## Padrões de HTMX
 
 ```html
@@ -70,6 +98,26 @@ templates/
      hx-target="#container"
      hx-swap="innerHTML">
 ```
+
+---
+
+## Tabelas de Listagem
+
+- A primeira coluna é a identificação e o link principal do registro.
+- Para pessoas e demais entidades com tela de detalhe, o link aponta para a ficha completa.
+- Sem tela de detalhe, o link aponta para a tela operacional principal, como edição ou lançamento.
+- Coluna de ações não deve existir apenas para repetir “Ver” ou “Editar”.
+- Ações secundárias, como desativar, permanecem na última coluna.
+- Todas as tabelas usam `table-responsive`, `table table-hover mb-0` e paginação HTMX uniforme.
+- Busca, contador, botão de criação e card seguem `partials/list_header.html`.
+
+---
+
+## Cabeçalho da Aplicação
+
+- Notificações usam botão compacto com foco/hover e contador oculto quando zerado.
+- O usuário usa um controle com avatar, nome, perfil e indicador do menu.
+- Em telas pequenas, textos secundários são ocultados sem reduzir a área clicável.
 
 ---
 

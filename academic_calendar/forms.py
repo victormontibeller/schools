@@ -38,6 +38,7 @@ class EventForm(forms.ModelForm):
             "start_time",
             "end_time",
             "type",
+            "recurrence",
             "audience",
             "class_obj",
             "academic_year",
@@ -51,6 +52,13 @@ class EventForm(forms.ModelForm):
             "start_time": forms.TimeInput(attrs={"type": "time", "class": "form-control"}),
             "end_time": forms.TimeInput(attrs={"type": "time", "class": "form-control"}),
             "type": forms.Select(attrs={"class": "form-select"}),
+            "recurrence": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 3,
+                    "placeholder": '{"frequency": "weekly", "interval": 1}',
+                }
+            ),
             "audience": forms.Select(attrs={"class": "form-select"}),
             "class_obj": forms.Select(attrs={"class": "form-select"}),
             "academic_year": forms.Select(attrs={"class": "form-select"}),
@@ -64,10 +72,14 @@ class EventForm(forms.ModelForm):
             "start_time": "Hora de início (opcional)",
             "end_time": "Hora de término (opcional)",
             "type": "Tipo",
+            "recurrence": "Recorrência (JSON)",
             "audience": "Público-alvo",
             "class_obj": "Turma",
             "academic_year": "Ano Letivo",
             "is_public": "Público para responsáveis/alunos",
+        }
+        help_texts = {
+            "recurrence": 'Opcional. Ex.: {"frequency": "weekly", "interval": 1}.',
         }
 
 

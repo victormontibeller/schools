@@ -5,6 +5,7 @@
                 <th>Professor</th>
                 <th>E-mail</th>
                 <th>Matrícula</th>
+                <th>CPF</th>
                 <th>Disciplinas</th>
                 <th>Admissão</th>
             </tr>
@@ -17,11 +18,14 @@
                         <div class="avatar-text avatar-sm bg-soft-success text-success">
                             {{ teacher.full_name|first|upper }}
                         </div>
-                        <a href="{% url 'teacher_detail' teacher.pk %}" class="fw-semibold">{{ teacher.full_name }}</a>
+                        <a href="{% url 'teacher_detail' teacher.pk %}" class="fw-semibold">
+                            {{ teacher.full_name }}
+                        </a>
                     </div>
                 </td>
                 <td class="text-muted">{{ teacher.email }}</td>
                 <td><span class="badge bg-soft-secondary text-secondary">{{ teacher.registration_number }}</span></td>
+                <td class="text-muted">{{ teacher.cpf|default:"—" }}</td>
                 <td>
                     {% for s in teacher.subjects.all %}
                         <span class="badge bg-soft-info text-info me-1">{{ s.code }}</span>
@@ -33,7 +37,7 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="5" class="text-center text-muted py-4">Nenhum professor encontrado.</td>
+                <td colspan="6" class="text-center text-muted py-4">Nenhum professor encontrado.</td>
             </tr>
             {% endfor %}
         </tbody>

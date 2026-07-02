@@ -1,12 +1,14 @@
 """Views HTMX para grade horária."""
 
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 
 from agenda.forms import ScheduleForm, TimeSlotForm
 from agenda.selectors import ScheduleSelector, TimeSlotSelector
 from agenda.services import ScheduleService
 from base.exceptions import ValidationError
+from classes.selectors import ClassSelector
+from teachers.selectors import TeacherSelector
 
 
 @login_required
@@ -43,9 +45,7 @@ def time_slot_create(request):
 @login_required
 def schedule_weekly(request, class_id):
     """Exibe a grade horária semanal de uma turma em formato tabela."""
-    from classes.models import Class
-
-    class_obj = get_object_or_404(Class, pk=class_id)
+    class_obj = ClassSelector().get_by_id(class_id)
     schedules = ScheduleSelector().get_weekly_schedule(class_obj.pk)
     by_day = ScheduleSelector.group_by_day_of_week(schedules)
 
@@ -59,9 +59,7 @@ def schedule_weekly(request, class_id):
 @login_required
 def teacher_schedule(request, teacher_id):
     """Exibe a grade horária de um professor."""
-    from teachers.models import Teacher
-
-    teacher = get_object_or_404(Teacher, pk=teacher_id)
+    teacher = TeacherSelector().get_by_id(teacher_id)
     schedules = ScheduleSelector().get_teacher_schedule(teacher_id)
     by_day = ScheduleSelector.group_by_day_of_week(schedules)
 

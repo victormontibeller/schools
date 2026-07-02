@@ -6,32 +6,39 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/manage.py",
-            "args": ["runserver"],
+            "args": [
+                "runserver"
+            ],
             "django": true,
             "justMyCode": true,
             "cwd": "${workspaceFolder}",
-            "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe"
+            "python": "${workspaceFolder}/.venv/bin/python"
         },
         {
             "name": "Django: Shell",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/manage.py",
-            "args": ["shell"],
+            "args": [
+                "shell"
+            ],
             "django": true,
             "justMyCode": true,
             "cwd": "${workspaceFolder}",
-            "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe"
+            "python": "${workspaceFolder}/.venv/bin/python"
         },
         {
             "name": "Pytest",
             "type": "debugpy",
             "request": "launch",
             "module": "pytest",
-            "args": ["--tb=short", "-v"],
+            "args": [
+                "--tb=short",
+                "-v"
+            ],
             "justMyCode": true,
             "cwd": "${workspaceFolder}",
-            "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe"
+            "python": "${workspaceFolder}/.venv/bin/python"
         },
         {
             "name": "Open Landing Page",

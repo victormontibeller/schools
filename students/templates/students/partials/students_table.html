@@ -4,10 +4,10 @@
             <tr>
                 <th>Aluno</th>
                 <th>Matrícula</th>
+                <th>CPF</th>
                 <th>Nascimento</th>
                 <th>Gênero</th>
                 <th>Tipo Sang.</th>
-                <th></th>
             </tr>
         </thead>
         <tbody>
@@ -22,10 +22,13 @@
                             {{ student.first_name|first|upper }}
                         </div>
                         {% endif %}
-                        <span class="fw-semibold">{{ student.get_full_name }}</span>
+                        <a href="{% url 'student_profile' student.pk %}" class="fw-semibold">
+                            {{ student.get_full_name }}
+                        </a>
                     </div>
                 </td>
                 <td><span class="badge bg-soft-secondary text-secondary">{{ student.enrollment_number }}</span></td>
+                <td class="text-muted">{{ student.cpf|default:"—" }}</td>
                 <td class="text-muted">{{ student.birth_date|date:"d/m/Y" }}</td>
                 <td class="text-muted">{{ student.get_gender_display }}</td>
                 <td>
@@ -34,11 +37,6 @@
                     {% else %}
                         <span class="text-muted">—</span>
                     {% endif %}
-                </td>
-                <td>
-                    <a href="{% url 'student_profile' student.pk %}" class="btn btn-sm btn-outline-primary">
-                        <i class="feather-eye"></i>
-                    </a>
                 </td>
             </tr>
             {% empty %}

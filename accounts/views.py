@@ -80,3 +80,10 @@ def users_list_view(request):
     if request.headers.get("HX-Request"):
         return render(request, "accounts/partials/users_table.html", {"result": result})
     return render(request, "accounts/users_list.html", {"result": result})
+
+
+@login_required
+def user_detail_view(request, pk):
+    """Exibe a ficha completa de um usuário."""
+    user_obj = AccountSelector().get_by_id(pk)
+    return render(request, "accounts/user_detail.html", {"user_obj": user_obj})

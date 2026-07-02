@@ -87,7 +87,7 @@ class TestLinkStudent:
         with pytest.raises(BusinessRuleViolationError):
             GuardianService(user=user).link_student(g.pk, student.pk)
 
-    def test_only_one_primary(self, user):
+    def test_multiple_primaries_allowed(self, user):
         g1_user = _make_user("g1p@test.com")
         g2_user = _make_user("g2p@test.com")
         g1 = GuardianService(user=user).create_guardian(
@@ -99,7 +99,7 @@ class TestLinkStudent:
         student = _make_student(user, "PRM001")
         GuardianService(user=user).link_student(g1.pk, student.pk, {"is_primary": True})
         GuardianService(user=user).link_student(g2.pk, student.pk, {"is_primary": True})
-        assert StudentGuardian.objects.filter(student=student, is_primary=True).count() == 1
+        assert StudentGuardian.objects.filter(student=student, is_primary=True).count() == 2
 
     def test_unlink_student(self, user):
         g_user = _make_user("g_ul@test.com")

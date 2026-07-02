@@ -40,10 +40,7 @@ class WhatsAppChannel(BaseChannel):
         #   from twilio.rest import Client
         #   client = Client(account_sid, auth_token)
         #   client.messages.create(body=body, from_=from_number, to=recipient_address)
-        logger.warning(
-            "WhatsApp stub: envio para %s simulado (provedor pendente).",
-            recipient_address,
-        )
+        logger.warning("WhatsApp stub: envio simulado (provedor pendente).")
 
         return ChannelResult(
             success=False,
