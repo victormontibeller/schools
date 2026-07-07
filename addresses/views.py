@@ -150,6 +150,48 @@ def address_city_options(request: HttpRequest) -> HttpResponse:
     return render(request, "addresses/partials/city_field.html", {"field": form["city"]})
 
 
+@login_required
+def address_postal_code_lookup(request: HttpRequest) -> HttpResponse:
+    """Busca dados do CEP e devolve os campos do formulario preenchidos."""
+    from addresses.forms import AddressForm
+    from addresses.services import AddressService
+
+    current_data = {
+        field: (request.GET.get(field) or "").strip()
+        for field in [
+            "recipient",
+            "street",
+            "number",
+            "postal_code",
+            "complement",
+            "district",
+            "state",
+            "city",
+        ]
+    }
+    form = AddressForm(initial=current_data)
+
+    if current_data["postal_code"]:
+        try:
+            postal_code_data = AddressService(user=request.user).lookup_postal_code(
+                current_data["postal_code"]
+            )
+            merged_data = {**current_data, **postal_code_data}
+            if current_data["complement"]:
+                merged_data["complement"] = current_data["complement"]
+            form = AddressForm(initial=merged_data)
+        except ValidationError as exc:
+            form.cleaned_data = {}
+            for field, errors in exc.errors.items():
+                form.add_error(field, errors)
+
+    return render(
+        request,
+        "addresses/partials/address_form_fields.html",
+        {"form": form},
+    )
+
+
 def _redirect_back(
     entity_type: str | None, entity_id: str | None, request: HttpRequest
 ) -> HttpResponseRedirect:

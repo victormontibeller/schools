@@ -44,6 +44,19 @@ def test_address_form_disables_city_field_when_state_is_missing():
 
 
 @pytest.mark.django_db
+def test_address_form_configures_postal_code_lookup_with_htmx():
+    from addresses.forms import AddressForm
+
+    form = AddressForm()
+    attrs = form.fields["postal_code"].widget.attrs
+
+    assert attrs["hx-get"] == "/addresses/postal-code-lookup/"
+    assert attrs["hx-target"] == "#address-form-fields"
+    assert attrs["hx-swap"] == "outerHTML"
+    assert attrs["hx-include"] == "closest form"
+
+
+@pytest.mark.django_db
 def test_address_form_clears_invalid_city_from_instance(user):
     from addresses.forms import AddressForm
     from addresses.models import Address

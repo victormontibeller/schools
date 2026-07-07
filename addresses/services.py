@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import TYPE_CHECKING
+from urllib.error import HTTPError, URLError
+from urllib.request import urlopen
 
 if TYPE_CHECKING:
     from addresses.models import Address
@@ -27,6 +30,56 @@ class _AddressRepo(BaseRepository):
 
 class AddressService(BaseService):
     """Servico de regras de negocio para enderecos."""
+
+    def lookup_postal_code(self, postal_code: str) -> dict[str, str]:
+        """Consulta um CEP em provedor externo e normaliza o retorno."""
+        from base.validators import validate_cep
+        from locations.models import City
+
+        try:
+            cleaned_postal_code = validate_cep(postal_code)
+        except Exception as exc:
+            raise ValidationError(errors={"postal_code": [str(exc)]}) from exc
+
+        endpoint = f"https://viacep.com.br/ws/{cleaned_postal_code}/json/"
+
+        try:
+            with urlopen(endpoint, timeout=5) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except (HTTPError, URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+            logger.warning("postal_code_lookup_failed", extra={"postal_code": cleaned_postal_code})
+            raise ValidationError(
+                errors={"postal_code": ["Nao foi possivel consultar o CEP no momento."]}
+            ) from exc
+
+        if payload.get("erro"):
+            raise ValidationError(errors={"postal_code": ["CEP nao encontrado."]})
+
+        state = str(payload.get("uf", "")).strip().upper()
+        city = str(payload.get("localidade", "")).strip()
+        if not state or not city:
+            raise ValidationError(
+                errors={"postal_code": ["CEP sem dados suficientes para preencher."]}
+            )
+
+        if not City.objects.filter(state__code=state, name=city).exists():
+            raise ValidationError(
+                errors={"postal_code": ["CEP retornou um municipio nao cadastrado no sistema."]}
+            )
+
+        return {
+            "postal_code": self._format_postal_code(cleaned_postal_code),
+            "street": str(payload.get("logradouro", "")).strip(),
+            "district": str(payload.get("bairro", "")).strip(),
+            "complement": str(payload.get("complemento", "")).strip(),
+            "state": state,
+            "city": city,
+        }
+
+    @staticmethod
+    def _format_postal_code(postal_code: str) -> str:
+        """Formata CEP com hifen para exibicao."""
+        return f"{postal_code[:5]}-{postal_code[5:]}"
 
     def _validate_address_data(self, data: dict) -> dict:
         """Valida e normaliza dados de endereco."""

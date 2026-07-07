@@ -85,12 +85,60 @@ VALID_ADDRESS_DATA = {
 }
 
 
+class _DummyViaCepResponse:
+    def __init__(self, payload: bytes):
+        self.payload = payload
+
+    def read(self) -> bytes:
+        return self.payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+
 @pytest.mark.django_db
 def test_create_address_for_school_succeeds(service, school):
     result = service.create_address_for_school(school.pk, VALID_ADDRESS_DATA)
     assert result.pk is not None
     assert result.street == "Rua Exemplo"
     assert result.state == "SP"
+
+
+@pytest.mark.django_db
+def test_lookup_postal_code_succeeds(service, monkeypatch):
+    payload = (
+        b'{"cep":"01001-000","logradouro":"Praca da Se","complemento":"lado impar",'
+        b'"bairro":"Se","localidade":"S\\u00e3o Paulo","uf":"SP"}'
+    )
+
+    monkeypatch.setattr(
+        "addresses.services.urlopen",
+        lambda *_args, **_kwargs: _DummyViaCepResponse(payload),
+    )
+
+    result = service.lookup_postal_code("01001000")
+
+    assert result["postal_code"] == "01001-000"
+    assert result["street"] == "Praca da Se"
+    assert result["district"] == "Se"
+    assert result["state"] == "SP"
+    assert result["city"] == "S\u00e3o Paulo"
+
+
+@pytest.mark.django_db
+def test_lookup_postal_code_fails_when_not_found(service, monkeypatch):
+    monkeypatch.setattr(
+        "addresses.services.urlopen",
+        lambda *_args, **_kwargs: _DummyViaCepResponse(b'{"erro": true}'),
+    )
+
+    with pytest.raises(ValidationError) as exc_info:
+        service.lookup_postal_code("99999999")
+
+    assert "postal_code" in exc_info.value.errors
 
 
 @pytest.mark.django_db

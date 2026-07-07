@@ -2,6 +2,7 @@
 
 import pytest
 
+from base.exceptions import ValidationError
 from core.models import School
 
 
@@ -134,3 +135,58 @@ class TestAddressViews:
         assert "Campinas" in content
         assert "São Paulo" in content
         assert "Niterói" not in content
+
+    def test_address_postal_code_lookup_prefills_form_fields(
+        self,
+        force_login_client,
+        monkeypatch,
+    ):
+        monkeypatch.setattr(
+            "addresses.services.AddressService.lookup_postal_code",
+            lambda self, postal_code: {
+                "postal_code": "01001-000",
+                "street": "Praça da Sé",
+                "district": "Sé",
+                "complement": "lado ímpar",
+                "state": "SP",
+                "city": "São Paulo",
+            },
+        )
+
+        response = force_login_client.get(
+            "/addresses/postal-code-lookup/",
+            {
+                "postal_code": "01001000",
+                "recipient": "Secretaria",
+                "number": "100",
+            },
+        )
+
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert 'id="address-form-fields"' in content
+        assert 'value="Praça da Sé"' in content
+        assert 'value="Sé"' in content
+        assert 'value="01001-000"' in content
+        assert 'value="100"' in content
+        assert 'value="São Paulo"' in content
+
+    def test_address_postal_code_lookup_renders_field_error_when_service_fails(
+        self,
+        force_login_client,
+        monkeypatch,
+    ):
+        monkeypatch.setattr(
+            "addresses.services.AddressService.lookup_postal_code",
+            lambda self, postal_code: (_ for _ in ()).throw(
+                ValidationError(errors={"postal_code": ["CEP nao encontrado."]})
+            ),
+        )
+
+        response = force_login_client.get(
+            "/addresses/postal-code-lookup/",
+            {"postal_code": "99999999"},
+        )
+
+        assert response.status_code == 200
+        assert b"CEP nao encontrado." in response.content

@@ -51,6 +51,15 @@ class AddressForm(forms.ModelForm):
                 "hx-include": "#id_city",
             }
         )
+        self.fields["postal_code"].widget.attrs.update(
+            {
+                "hx-get": reverse("addresses:postal_code_lookup"),
+                "hx-target": "#address-form-fields",
+                "hx-swap": "outerHTML",
+                "hx-trigger": "change delay:400ms, blur",
+                "hx-include": "closest form",
+            }
+        )
 
         city_choices = [("", "Selecione um municipio")] + [
             (city.name, city.name) for city in CitySelector().list_by_state_code(selected_state)
