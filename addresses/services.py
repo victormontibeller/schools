@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import logging
 from typing import TYPE_CHECKING
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
@@ -14,8 +13,6 @@ if TYPE_CHECKING:
 from base.exceptions import ObjectNotFoundError, ValidationError
 from base.repositories import BaseRepository
 from base.services import BaseService
-
-logger = logging.getLogger(__name__)
 
 
 class _AddressRepo(BaseRepository):
@@ -47,7 +44,6 @@ class AddressService(BaseService):
             with urlopen(endpoint, timeout=5) as response:
                 payload = json.loads(response.read().decode("utf-8"))
         except (HTTPError, URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
-            logger.warning("postal_code_lookup_failed", extra={"postal_code": cleaned_postal_code})
             raise ValidationError(
                 errors={"postal_code": ["Nao foi possivel consultar o CEP no momento."]}
             ) from exc

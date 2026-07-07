@@ -170,23 +170,7 @@ class TeacherService(BaseService):
             "avatar": teacher.user.avatar.name if teacher.user.avatar else "",
         }
 
-        self.validate_required(
-            data,
-            [
-                "first_name",
-                "last_name",
-                "registration_number",
-                "hire_date",
-                "birth_date",
-                "gender",
-                "nationality",
-                "cpf",
-                "rg_number",
-                "rg_issuer",
-                "rg_state",
-                "phone_mobile",
-            ],
-        )
+        self.validate_required(data, ["registration_number"])
 
         allowed = {
             "hire_date",
@@ -217,11 +201,11 @@ class TeacherService(BaseService):
         if "rg_state" in data:
             self._validate_rg_state(data)
 
-        user_updates = {
-            "first_name": data["first_name"].strip(),
-            "last_name": data["last_name"].strip(),
-            "updated_by": self.user,
-        }
+        user_updates = {"updated_by": self.user}
+        if data.get("first_name"):
+            user_updates["first_name"] = data["first_name"].strip()
+        if data.get("last_name"):
+            user_updates["last_name"] = data["last_name"].strip()
         avatar = data.get("avatar")
         if avatar:
             user_updates["avatar"] = avatar

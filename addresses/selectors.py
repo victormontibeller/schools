@@ -45,6 +45,21 @@ class AddressSelector(BaseSelector):
         addresses = self.get_by_entity(entity_type, entity_id)
         return addresses[0] if addresses else None
 
+    def get_entity_context(self, address: Address) -> tuple[str, str]:
+        """Retorna o tipo e o ID da entidade dona do endereco."""
+        link_checks = [
+            ("school", SchoolAddress, "school_id"),
+            ("business_unit", BusinessUnitAddress, "business_unit_id"),
+            ("teacher", TeacherAddress, "teacher_id"),
+            ("student", StudentAddress, "student_id"),
+            ("guardian", GuardianAddress, "guardian_id"),
+        ]
+        for entity_type, link_model, field_name in link_checks:
+            link = link_model.objects.filter(address=address).values(field_name).first()
+            if link:
+                return entity_type, str(link[field_name])
+        return "school", ""
+
     def list_by_city(self, city: str, page: int = 1) -> PageResult[Address]:
         """Lista enderecos filtrados por municipio."""
         return self.list(filters={"city__icontains": city}, order_by="city", page=page)

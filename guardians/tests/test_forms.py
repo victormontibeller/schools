@@ -6,10 +6,10 @@ from guardians.forms import GuardianEditForm
 
 
 @pytest.mark.django_db
-def test_guardian_edit_requires_all_profile_fields_except_avatar():
+def test_guardian_edit_requires_relationship_type_only():
     form = GuardianEditForm(data={})
 
     assert not form.is_valid()
-    for field_name in form.fields:
-        if field_name != "avatar":
-            assert field_name in form.errors
+    assert "relationship_type" in form.errors
+    for field_name in set(form.fields) - {"relationship_type"}:
+        assert field_name not in form.errors

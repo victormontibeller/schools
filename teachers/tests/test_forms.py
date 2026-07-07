@@ -64,14 +64,14 @@ class TestTeacherForm:
 
 @pytest.mark.django_db
 class TestTeacherEditForm:
-    def test_requires_all_profile_fields(self):
+    def test_requires_registration_number_only_for_partial_profile_update(self):
         form = TeacherEditForm(data={})
 
         assert not form.is_valid()
+        assert "registration_number" in form.errors
         for field_name in [
             "first_name",
             "last_name",
-            "registration_number",
             "hire_date",
             "birth_date",
             "gender",
@@ -82,7 +82,7 @@ class TestTeacherEditForm:
             "rg_state",
             "phone_mobile",
         ]:
-            assert field_name in form.errors
+            assert field_name not in form.errors
 
     def test_valid_with_complete_payload(self):
         form = TeacherEditForm(

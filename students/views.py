@@ -83,7 +83,8 @@ def student_edit(request, pk):
         form = StudentEditForm(request.POST, request.FILES, instance=student)
         if form.is_valid():
             try:
-                student = StudentService(user=request.user).update_student(pk, form.cleaned_data)
+                data = _submitted_form_data(form.cleaned_data, request)
+                student = StudentService(user=request.user).update_student(pk, data)
                 if request.headers.get("HX-Request"):
                     return render(
                         request,
@@ -129,3 +130,9 @@ def student_profile(request, pk):
         "students/student_profile.html",
         {"student": student, "guardians": guardians, "addresses": addresses},
     )
+
+
+def _submitted_form_data(cleaned_data: dict, request) -> dict:
+    """Retorna apenas campos enviados para preservar updates parciais."""
+    submitted = set(request.POST) | set(request.FILES)
+    return {key: value for key, value in cleaned_data.items() if key in submitted}

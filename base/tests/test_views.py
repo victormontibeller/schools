@@ -249,7 +249,7 @@ class TestGuardianViews:
 
         assert force_login_client.get(f"/guardians/{uuid.uuid4()}/").status_code == 404
 
-    def test_guardian_edit_get_renders_form(self, force_login_client):
+    def test_guardian_edit_get_redirects_to_profile(self, force_login_client):
         from core.models import CustomUser
         from guardians.models import Guardian
 
@@ -258,7 +258,8 @@ class TestGuardianViews:
         )
         g = Guardian.objects.create(user=u, relationship_type="PAI")
         resp = force_login_client.get(f"/guardians/{g.pk}/editar/")
-        assert resp.status_code == 200
+        assert resp.status_code == 302
+        assert resp["Location"] == f"/guardians/{g.pk}/"
 
     def test_guardian_edit_post_updates_and_redirects(self, force_login_client):
         from core.models import CustomUser
@@ -306,7 +307,7 @@ class TestGuardianViews:
         assert str(t.hire_date) == "2025-06-15"
         assert t.phone_mobile == "11999999999"
 
-    def test_student_edit_get_renders_form(self, force_login_client):
+    def test_student_edit_get_redirects_to_profile(self, force_login_client):
         from students.models import Student
 
         s = Student.objects.create(
@@ -316,4 +317,5 @@ class TestGuardianViews:
             enrollment_number="EDT-STU",
         )
         resp = force_login_client.get(f"/students/{s.pk}/editar/")
-        assert resp.status_code == 200
+        assert resp.status_code == 302
+        assert resp["Location"] == f"/students/{s.pk}/"

@@ -117,7 +117,8 @@ def teacher_edit(request, pk):
         form = TeacherEditForm(request.POST, request.FILES)
         if form.is_valid():
             try:
-                teacher = TeacherService(user=request.user).update_teacher(pk, form.cleaned_data)
+                data = _submitted_form_data(form.cleaned_data, request)
+                teacher = TeacherService(user=request.user).update_teacher(pk, data)
                 if request.headers.get("HX-Request"):
                     return render(
                         request,
@@ -193,6 +194,12 @@ def _teacher_subjects_response(request, teacher):
         "teachers/partials/teacher_subjects_form.html",
         {"form": form, "teacher": teacher},
     )
+
+
+def _submitted_form_data(cleaned_data: dict, request) -> dict:
+    """Retorna apenas campos enviados para preservar updates parciais."""
+    submitted = set(request.POST) | set(request.FILES)
+    return {key: value for key, value in cleaned_data.items() if key in submitted}
 
 
 # ── Subjects (Disciplinas) ───────────────────────────────────────────────────

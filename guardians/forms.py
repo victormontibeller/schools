@@ -88,8 +88,6 @@ class GuardianForm(forms.Form):
         ).values_list("pk", "email")
         self.fields["gender"].choices = [("", "---------")] + list(Guardian.Gender.choices)
         self.fields["rg_state"].choices = StateSelector().list_choices(include_blank=True)
-        for field in self.fields.values():
-            field.required = True
 
 
 class StudentGuardianForm(forms.Form):
@@ -125,11 +123,13 @@ class GuardianEditForm(forms.Form):
 
     first_name = forms.CharField(
         max_length=150,
+        required=False,
         label="Nome",
         widget=forms.TextInput(attrs={"class": "form-control"}),
     )
     last_name = forms.CharField(
         max_length=150,
+        required=False,
         label="Sobrenome",
         widget=forms.TextInput(attrs={"class": "form-control"}),
     )
@@ -208,6 +208,3 @@ class GuardianEditForm(forms.Form):
         self.fields["relationship_type"].choices = Guardian.Relationship.choices
         self.fields["gender"].choices = [("", "---------")] + list(Guardian.Gender.choices)
         self.fields["rg_state"].choices = StateSelector().list_choices(include_blank=True)
-        for name, field in self.fields.items():
-            if name != "avatar":
-                field.required = True

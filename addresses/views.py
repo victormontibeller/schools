@@ -82,8 +82,9 @@ def address_edit(request: HttpRequest, address_id) -> HttpResponse:
     from addresses.selectors import AddressSelector
     from addresses.services import AddressService
 
-    address = AddressSelector().get_by_id(address_id)
-    entity_type, entity_id = _get_address_entity_context(address)
+    selector = AddressSelector()
+    address = selector.get_by_id(address_id)
+    entity_type, entity_id = selector.get_entity_context(address)
 
     if request.method == "POST":
         form = AddressForm(request.POST, instance=address)
@@ -223,27 +224,3 @@ def _render_address_card(
             "saved": saved,
         },
     )
-
-
-def _get_address_entity_context(address) -> tuple[str, str]:
-    """Descobre a entidade dona do endereco a partir dos vinculos."""
-    from addresses.models import (
-        BusinessUnitAddress,
-        GuardianAddress,
-        SchoolAddress,
-        StudentAddress,
-        TeacherAddress,
-    )
-
-    link_checks = [
-        ("school", SchoolAddress, "school_id"),
-        ("business_unit", BusinessUnitAddress, "business_unit_id"),
-        ("teacher", TeacherAddress, "teacher_id"),
-        ("student", StudentAddress, "student_id"),
-        ("guardian", GuardianAddress, "guardian_id"),
-    ]
-    for entity_type, link_model, field_name in link_checks:
-        link = link_model.objects.filter(address=address).values(field_name).first()
-        if link:
-            return entity_type, str(link[field_name])
-    return "school", ""

@@ -118,11 +118,13 @@ class TeacherEditForm(forms.Form):
 
     first_name = forms.CharField(
         max_length=150,
+        required=False,
         label="Nome",
         widget=forms.TextInput(attrs={"class": "form-control", "data_grid": "col-12 col-md-6"}),
     )
     last_name = forms.CharField(
         max_length=150,
+        required=False,
         label="Sobrenome",
         widget=forms.TextInput(attrs={"class": "form-control", "data_grid": "col-12 col-md-6"}),
     )
@@ -137,28 +139,33 @@ class TeacherEditForm(forms.Form):
         widget=forms.TextInput(attrs={"class": "form-control", "data_grid": "col-12 col-lg-6"}),
     )
     hire_date = forms.DateField(
+        required=False,
         label="Data de Admissao",
         widget=forms.DateInput(
             attrs={"type": "date", "class": "form-control", "data_grid": "col-12 col-md-6"}
         ),
     )
     birth_date = forms.DateField(
+        required=False,
         label="Data de Nascimento",
         widget=forms.DateInput(
             attrs={"type": "date", "class": "form-control", "data_grid": "col-12 col-md-6"}
         ),
     )
     gender = forms.ChoiceField(
+        required=False,
         label="Genero",
         widget=forms.Select(attrs={"class": "form-select", "data_grid": "col-12 col-md-6"}),
     )
     nationality = forms.CharField(
         max_length=100,
+        required=False,
         label="Nacionalidade",
         widget=forms.TextInput(attrs={"class": "form-control", "data_grid": "col-12 col-md-6"}),
     )
     cpf = forms.CharField(
         max_length=14,
+        required=False,
         label="CPF",
         widget=forms.TextInput(
             attrs={
@@ -170,22 +177,26 @@ class TeacherEditForm(forms.Form):
     )
     rg_number = forms.CharField(
         max_length=20,
+        required=False,
         label="RG — Numero",
         widget=forms.TextInput(attrs={"class": "form-control", "data_grid": "col-12 col-md-4"}),
     )
     rg_issuer = forms.CharField(
         max_length=50,
+        required=False,
         label="RG — Orgao Emissor",
         widget=forms.TextInput(
             attrs={"class": "form-control", "placeholder": "SSP", "data_grid": "col-12 col-md-4"}
         ),
     )
     rg_state = forms.ChoiceField(
+        required=False,
         label="RG — UF",
         widget=forms.Select(attrs={"class": "form-select", "data_grid": "col-12 col-md-4"}),
     )
     phone_mobile = forms.CharField(
         max_length=20,
+        required=False,
         label="Celular",
         widget=forms.TextInput(
             attrs={
@@ -202,7 +213,7 @@ class TeacherEditForm(forms.Form):
         from teachers.models import Teacher
 
         self.fields["gender"].choices = list(Teacher.Gender.choices)
-        self.fields["rg_state"].choices = StateSelector().list_choices()
+        self.fields["rg_state"].choices = StateSelector().list_choices(include_blank=True)
 
 
 class TeacherSubjectsForm(forms.Form):

@@ -88,7 +88,8 @@ def guardian_edit(request, pk):
         form = GuardianEditForm(request.POST, request.FILES)
         if form.is_valid():
             try:
-                guardian = GuardianService(user=request.user).update_guardian(pk, form.cleaned_data)
+                data = _submitted_form_data(form.cleaned_data, request)
+                guardian = GuardianService(user=request.user).update_guardian(pk, data)
                 if request.headers.get("HX-Request"):
                     return render(
                         request,
@@ -148,3 +149,9 @@ def guardian_create(request):
     return render(
         request, "guardians/guardian_form.html", {"form": form, "title": "Novo Responsável"}
     )
+
+
+def _submitted_form_data(cleaned_data: dict, request) -> dict:
+    """Retorna apenas campos enviados para preservar updates parciais."""
+    submitted = set(request.POST) | set(request.FILES)
+    return {key: value for key, value in cleaned_data.items() if key in submitted}

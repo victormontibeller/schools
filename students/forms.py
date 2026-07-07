@@ -82,9 +82,6 @@ class StudentForm(forms.ModelForm):
         from locations.selectors import StateSelector
 
         self.fields["rg_state"].choices = StateSelector().list_choices(include_blank=True)
-        for name, field in self.fields.items():
-            if name != "photo":
-                field.required = True
 
     def clean_special_needs(self) -> dict:
         """Converte o texto JSON digitado em dict, validando o formato."""

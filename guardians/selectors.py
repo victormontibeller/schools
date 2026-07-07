@@ -16,10 +16,12 @@ class GuardianSelector(BaseSelector):
         return Guardian
 
     def list_guardians(
-        self, search="", order_by="user__first_name", page=1, page_size=20
+        self, search="", filters=None, order_by="user__first_name", page=1, page_size=20
     ) -> PageResult:
         """Lista responsáveis com busca por nome e paginação."""
         qs = self.model_class.objects.select_related("user").prefetch_related("students__student")
+        if filters:
+            qs = qs.filter(**filters)
         if search:
             qs = qs.filter(
                 Q(user__first_name__icontains=search)
