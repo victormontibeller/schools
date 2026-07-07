@@ -78,6 +78,28 @@ class TestNotificationViews:
         assert response.status_code == 200
         assert response.content == b""
 
+    def test_list_returns_header_partial_for_htmx(self, client, user):
+        Notification.objects.create(
+            recipient=user,
+            type=Notification.Type.INFO,
+            title="Cabeçalho",
+            message="Mensagem do popup",
+            created_by=user,
+            updated_by=user,
+        )
+        client.force_login(user)
+
+        response = client.get(
+            reverse("notification_list"),
+            {"context": "header"},
+            HTTP_HX_REQUEST="true",
+        )
+
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "Notificações" in content
+        assert "Mensagem do popup" in content
+
 
 @pytest.mark.django_db
 class TestAnnouncementViews:

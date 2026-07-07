@@ -18,7 +18,9 @@
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="card-title mb-0">Schedule Semanal</h6>
-            <a href="{% url 'schedule_create' class_obj.pk %}" class="btn btn-primary btn-sm">Novo Item</a>
+            <a href="{% url 'schedule_create' class_obj.pk %}" class="btn btn-primary btn-sm">
+                <i class="feather-plus me-1"></i> NOVO
+            </a>
         </div>
         <div class="card-body">
             <p class="text-muted small">Itens ativos da grade horária da turma:</p>

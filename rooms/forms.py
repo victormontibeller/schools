@@ -42,6 +42,11 @@ class RoomForm(forms.ModelForm):
             "resources": 'Objeto JSON. Ex.: {"projetor": true, "ar_condicionado": true}.',
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.required = True
+
     def clean_resources(self) -> dict:
         """Converte o texto JSON em dict, validando o formato."""
         value = self.cleaned_data.get("resources")

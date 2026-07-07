@@ -83,6 +83,7 @@ class StudentService(BaseService):
             "rg_state",
             "phone_mobile",
             "email",
+            "photo",
         }
         updates = {k: v for k, v in data.items() if k in allowed}
 

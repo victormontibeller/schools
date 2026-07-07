@@ -65,6 +65,7 @@ class RoomService(BaseService):
         updates["updated_by"] = self.user
         room = repo.update(room, **updates)
         self._record_audit("UPDATE", room, old_values=old)
+        self._log("Sala atualizada", room_id=str(room.pk))
         return room
 
     def deactivate_room(self, room_id):

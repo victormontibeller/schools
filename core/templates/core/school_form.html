@@ -1,0 +1,11 @@
+{% extends "form_base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'school_settings_detail' %}">Escola</a></li>
+{% endblock %}
+
+{% block form_enctype %}enctype="multipart/form-data"{% endblock %}
+
+{% block cancel_url %}{% url 'school_settings_detail' %}{% endblock %}

@@ -1,0 +1,48 @@
+<div class="header-notification-panel">
+    <div class="header-notification-panel-head">
+        <div>
+            <h6 class="mb-1">Notificações</h6>
+            <p class="text-muted small mb-0">
+                {% if unread_count %}
+                    {{ unread_count }} pendente{{ unread_count|pluralize }}
+                {% else %}
+                    Tudo em dia
+                {% endif %}
+            </p>
+        </div>
+        {% if unread_count %}
+        <form hx-post="{% url 'notification_mark_all_read' %}"
+              hx-target="#header-notifications-panel"
+              hx-swap="innerHTML">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-outline-secondary" type="submit">Ler todas</button>
+        </form>
+        {% endif %}
+    </div>
+    <div class="header-notification-list">
+        {% for notification in notifications %}
+        <div class="header-notification-item {% if not notification.read_at %}is-unread{% endif %}">
+            <div class="d-flex justify-content-between align-items-start gap-3">
+                <div class="min-w-0">
+                    <div class="fw-semibold text-truncate">{{ notification.title }}</div>
+                    <p class="text-muted small mb-1">{{ notification.message|truncatechars:110 }}</p>
+                    <small class="text-muted">{{ notification.created_at|date:"d/m/Y H:i" }}</small>
+                </div>
+                {% if not notification.read_at %}
+                <form hx-post="{% url 'notification_mark_read' notification.pk %}"
+                      hx-target="#header-notifications-panel"
+                      hx-swap="innerHTML">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-link text-decoration-none px-0">Ler</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="text-center text-muted py-4">Nenhuma notificação.</div>
+        {% endfor %}
+    </div>
+    <div class="header-notification-panel-foot">
+        <a href="{% url 'notification_list' %}" class="btn btn-primary btn-sm w-100">Ver todas</a>
+    </div>
+</div>

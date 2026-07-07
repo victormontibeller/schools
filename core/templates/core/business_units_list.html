@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block title %}Empresas — School Manager{% endblock %}
+
+{% block content %}
+{% include "partials/list_header.html" with list_title="Empresas" breadcrumb_items=breadcrumb_items create_url="business_unit_create" search_target="#business-units-table" total_count=result.total %}
+{% include "core/partials/business_units_table.html" %}
+{% include "partials/list_footer.html" %}
+{% endblock %}

@@ -5,23 +5,51 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
 from base.exceptions import BusinessRuleViolationError, ValidationError
+from base.listing import build_querystring, build_sorting, resolve_listing_state
 from teachers.forms import SubjectForm, TeacherEditForm, TeacherForm, TeacherSubjectsForm
 from teachers.selectors import SubjectSelector, TeacherSelector
 from teachers.services import SubjectService, TeacherService
+
+TEACHER_SORTS = {
+    "name": "user__first_name",
+    "-name": "-user__first_name",
+    "email": "user__email",
+    "-email": "-user__email",
+    "registration_number": "registration_number",
+    "-registration_number": "-registration_number",
+    "hire_date": "hire_date",
+    "-hire_date": "-hire_date",
+}
 
 
 @login_required
 def teachers_list(request):
     """Lista professores paginados, com busca por nome e suporte a HTMX."""
     page = int(request.GET.get("page", 1))
-    search = request.GET.get("q", "").strip()
-    filters = {}
-    if search:
-        filters["user__first_name__icontains"] = search
-    result = TeacherSelector().list_teachers(filters=filters, page=page)
+    state = resolve_listing_state(
+        request,
+        scope="teachers_list",
+        allowed_sorts=set(TEACHER_SORTS),
+        default_sort="name",
+    )
+    search = state["q"]
+    sort = state["sort"]
+    result = TeacherSelector().list_teachers(
+        search=search,
+        order_by=TEACHER_SORTS[sort],
+        page=page,
+    )
     ctx = {
         "result": result,
         "q": search,
+        "sort": sort,
+        "sorting": build_sorting(
+            current_sort=sort,
+            search=search,
+            sortable_fields=["name", "email", "registration_number", "hire_date"],
+        ),
+        "list_query": build_querystring({"q": search, "sort": sort}),
+        "clear_query": build_querystring({"q": "", "sort": "name"}, include_blank=True),
         "breadcrumb_items": [
             {"label": "Home", "url": "dashboard"},
             {"label": "Professores", "url": None},
@@ -86,7 +114,7 @@ def teacher_edit(request, pk):
         return _teacher_subjects_response(request, teacher)
 
     if request.method == "POST":
-        form = TeacherEditForm(request.POST)
+        form = TeacherEditForm(request.POST, request.FILES)
         if form.is_valid():
             try:
                 teacher = TeacherService(user=request.user).update_teacher(pk, form.cleaned_data)
@@ -107,6 +135,8 @@ def teacher_edit(request, pk):
     else:
         form = TeacherEditForm(
             initial={
+                "first_name": teacher.user.first_name,
+                "last_name": teacher.user.last_name,
                 "registration_number": teacher.registration_number,
                 "hire_date": teacher.hire_date,
                 "birth_date": teacher.birth_date,
@@ -211,12 +241,24 @@ def subject_create(request):
 
 @login_required
 def subject_edit(request, pk):
-    """Processa o formulário de edição de disciplina."""
+    """Edita a disciplina na própria linha da listagem quando solicitado por HTMX."""
     subject = SubjectSelector().get_by_id(pk)
+    if request.headers.get("HX-Request") and request.GET.get("cancel"):
+        return render(
+            request,
+            "teachers/partials/subject_row.html",
+            {"subject": subject},
+        )
     form = SubjectForm(request.POST or None, instance=subject)
     if request.method == "POST" and form.is_valid():
         try:
-            SubjectService(user=request.user).update_subject(pk, form.cleaned_data)
+            subject = SubjectService(user=request.user).update_subject(pk, form.cleaned_data)
+            if request.headers.get("HX-Request"):
+                return render(
+                    request,
+                    "teachers/partials/subject_row.html",
+                    {"subject": subject, "saved": True},
+                )
             messages.success(request, "Disciplina atualizada.")
             return redirect("subjects_list")
         except ValidationError as exc:
@@ -225,6 +267,12 @@ def subject_edit(request, pk):
                     form.add_error(field if field != "__all__" else None, error)
         except BusinessRuleViolationError as exc:
             messages.error(request, exc.message)
+    if request.headers.get("HX-Request"):
+        return render(
+            request,
+            "teachers/partials/subject_row_form.html",
+            {"form": form, "subject": subject},
+        )
     return render(
         request,
         "teachers/subject_form.html",

@@ -14,35 +14,19 @@
 </div>
 
 <div class="main-content">
-    <div class="d-flex gap-2 mb-3">
-        <a href="{% url 'schedule_weekly' class_obj.pk %}" class="btn btn-outline-primary btn-sm">Grade Horária</a>
-        <a href="{% url 'activities_list' %}?class_obj={{ class_obj.pk }}" class="btn btn-outline-primary btn-sm">Atividades</a>
-    </div>
-
-    <div class="card mb-3">
-        <div class="card-body">
-            <dl class="row mb-0">
-                <dt class="col-sm-3">Série</dt><dd class="col-sm-9">{{ class_obj.grade }}</dd>
-                <dt class="col-sm-3">Turno</dt><dd class="col-sm-9">{{ class_obj.get_shift_display }}</dd>
-                <dt class="col-sm-3">Ano Letivo</dt><dd class="col-sm-9">{{ class_obj.academic_year }}</dd>
-                <dt class="col-sm-3">Vagas</dt>
-                <dd class="col-sm-9">
-                    {{ class_obj.enrollment_count }}/{{ class_obj.max_students }}
-                    {% if class_obj.has_open_seats %}<span class="badge bg-success ms-2">Vagas abertas</span>{% else %}<span class="badge bg-danger ms-2">Lotada</span>{% endif %}
-                </dd>
-                <dt class="col-sm-3">Professor Resp.</dt><dd class="col-sm-9">{{ class_obj.class_teacher|default:"—" }}</dd>
-            </dl>
+    <div class="row g-3 align-items-start">
+        <div class="col-12 col-xl-5">
+            {% include "classes/partials/class_information_card.html" %}
         </div>
-    </div>
-
-    <div class="card">
+        <div class="col-12 col-xl-7">
+    <div class="card mb-0 sm-detail-card sm-detail-table-card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="card-title mb-0">Alunos Matriculados</h6>
             <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#enroll-form">Matricular Aluno</button>
         </div>
-        <div class="card-body">
+        <div class="card-body p-0">
             <div class="collapse mb-3" id="enroll-form">
-                <form method="post" action="{% url 'class_enroll' class_obj.pk %}" class="row g-2">
+                <form method="post" action="{% url 'class_enroll' class_obj.pk %}" class="row g-2 p-3">
                     {% csrf_token %}
                     <div class="col-auto">
                         <input type="text" name="student_id" class="form-control" placeholder="UUID do aluno" required>
@@ -53,8 +37,9 @@
                 </form>
             </div>
 
-            <table class="table table-hover">
-                <thead><tr><th>Aluno</th><th>Matrícula</th><th>Data</th></tr></thead>
+            <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light"><tr><th>Aluno</th><th>Matrícula</th><th>Data</th></tr></thead>
                 <tbody>
                     {% for e in enrollments %}
                     <tr>
@@ -67,6 +52,9 @@
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
+        </div>
+    </div>
         </div>
     </div>
 </div>

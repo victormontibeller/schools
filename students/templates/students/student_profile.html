@@ -14,94 +14,22 @@
             <li class="breadcrumb-item">{{ student.get_full_name }}</li>
         </ul>
     </div>
-    <div class="page-header-right ms-auto">
-        <a href="{% url 'student_edit' student.pk %}" class="btn btn-primary btn-sm">
-            <i class="feather-edit-2 me-1"></i> Editar
-        </a>
-    </div>
 </div>
 
 <div class="main-content">
     <div class="row g-3 align-items-start">
-        <div class="col-12 col-xl-5">
-            <div class="card mb-0">
-                <div class="card-header">
-                    <h6 class="card-title mb-0">Informações do Aluno</h6>
-                </div>
-                <div class="card-body">
-                    <div class="d-flex flex-column flex-sm-row align-items-center text-center text-sm-start gap-3 pb-4 mb-4 border-bottom">
-                        {% if student.photo %}
-                        <img src="{{ student.photo.url }}"
-                             class="rounded-circle flex-shrink-0"
-                             width="72"
-                             height="72"
-                             alt="Foto de {{ student.get_full_name }}">
-                        {% else %}
-                        <div class="avatar-text avatar-xl bg-soft-warning text-warning flex-shrink-0"
-                             style="width:72px;height:72px;font-size:1.75rem">
-                            {{ student.first_name|first|upper }}
-                        </div>
-                        {% endif %}
-                        <div class="min-w-0">
-                            <h5 class="mb-1">{{ student.get_full_name }}</h5>
-                            <p class="text-muted mb-2 text-break">{{ student.email|default:"E-mail não informado" }}</p>
-                            <span class="badge bg-soft-secondary text-secondary">
-                                Mat. {{ student.enrollment_number }}
-                            </span>
-                        </div>
-                    </div>
-
-                    <dl class="row gy-3 mb-0">
-                        <dt class="col-sm-5 text-muted fw-medium">Data de nascimento</dt>
-                        <dd class="col-sm-7 mb-0">{{ student.birth_date|date:"d/m/Y" }}</dd>
-
-                        <dt class="col-sm-5 text-muted fw-medium">Gênero</dt>
-                        <dd class="col-sm-7 mb-0">{{ student.get_gender_display|default:"—" }}</dd>
-
-                        <dt class="col-sm-5 text-muted fw-medium">Tipo sanguíneo</dt>
-                        <dd class="col-sm-7 mb-0">
-                            {% if student.blood_type %}
-                                <span class="badge bg-soft-danger text-danger">{{ student.blood_type }}</span>
-                            {% else %}
-                                —
-                            {% endif %}
-                        </dd>
-
-                        <dt class="col-sm-5 text-muted fw-medium">Nacionalidade</dt>
-                        <dd class="col-sm-7 mb-0">{{ student.nationality|default:"—" }}</dd>
-
-                        <dt class="col-sm-5 text-muted fw-medium">CPF</dt>
-                        <dd class="col-sm-7 mb-0">{{ student.cpf|default:"—" }}</dd>
-
-                        <dt class="col-sm-5 text-muted fw-medium">RG</dt>
-                        <dd class="col-sm-7 mb-0">
-                            {% if student.rg_number %}
-                                {{ student.rg_number }}
-                                {% if student.rg_issuer %} · {{ student.rg_issuer }}{% endif %}
-                                {% if student.rg_state %} / {{ student.rg_state }}{% endif %}
-                            {% else %}
-                                —
-                            {% endif %}
-                        </dd>
-
-                        <dt class="col-sm-5 text-muted fw-medium">Celular</dt>
-                        <dd class="col-sm-7 mb-0">{{ student.phone_mobile|default:"—" }}</dd>
-
-                        <dt class="col-sm-5 text-muted fw-medium">Necessidades especiais</dt>
-                        <dd class="col-sm-7 mb-0 text-break">{{ student.special_needs|default:"—" }}</dd>
-                    </dl>
-                </div>
-            </div>
+        <div class="col-12 col-xl-6">
+            {% include "students/partials/student_information_card.html" %}
         </div>
 
-        <div class="col-12 col-xl-7">
-            <div class="card mb-3">
+        <div class="col-12 col-xl-6">
+            <div class="card mb-3 sm-profile-card">
                 <div class="card-header">
                     <h6 class="card-title mb-0">Responsáveis</h6>
                 </div>
-                <div class="card-body">
+                <div class="card-body sm-selection-card-body">
                     {% for link in guardians %}
-                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 {% if not forloop.last %}mb-3 pb-3 border-bottom{% endif %}">
+                    <div class="sm-detail-list-item d-flex flex-wrap align-items-center justify-content-between gap-2 {% if not forloop.last %}mb-3{% endif %}">
                         <div>
                             <span class="fw-semibold">{{ link.guardian.full_name }}</span>
                             <span class="badge bg-soft-info text-info ms-2">

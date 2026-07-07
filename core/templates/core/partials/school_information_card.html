@@ -1,0 +1,20 @@
+<div class="card mb-0 sm-profile-card" id="school-information-card">
+    <div class="card-header d-flex align-items-center justify-content-between gap-2">
+        <h6 class="card-title mb-0">Informações da Escola</h6>
+        <button type="button" class="btn btn-sm btn-outline-primary"
+                hx-get="{% url 'school_edit' %}"
+                hx-target="#school-information-card" hx-swap="outerHTML">
+            <i class="feather-edit-2 me-1"></i> Editar
+        </button>
+    </div>
+    <div class="card-body sm-profile-card-body">
+        {% if saved %}<div class="alert alert-success py-2">Informações atualizadas com sucesso.</div>{% endif %}
+        <div class="sm-profile-hero text-center mb-4">
+            {% if school.logo %}<img src="{{ school.logo.url }}" class="img-thumbnail" style="max-width:180px" alt="Logotipo de {{ school.name }}">
+            {% else %}<div class="avatar-text avatar-xl bg-soft-primary text-primary mx-auto">{{ school.name|first|upper }}</div>{% endif %}
+            <h4 class="fw-bold mt-3 mb-1">{{ school.name }}</h4>
+            <p class="text-muted mb-0">{{ school.trade_name|default:"—" }}</p>
+        </div>
+        {% include "core/partials/organization_definition.html" with organization=school %}
+    </div>
+</div>

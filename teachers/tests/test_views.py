@@ -1,6 +1,7 @@
 """Testes de integracao das views de disciplinas."""
 
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 from core.models import CustomUser
 from teachers.models import Subject
@@ -97,21 +98,47 @@ class TestTeacherInlineEditing:
         )
 
         assert response.status_code == 200
-        assert b"Editar Informa" in response.content
+        assert b"Informa" in response.content
+        assert b"sm-profile-avatar-edit" in response.content
         assert b"<html" not in response.content
 
     def test_edit_post_updates_and_returns_card_for_htmx(self, force_login_client, user):
         teacher = self._make_teacher(user)
+        avatar = SimpleUploadedFile(
+            "inline-avatar.gif",
+            (
+                b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00"
+                b"\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00"
+                b"\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"
+            ),
+            content_type="image/gif",
+        )
 
         response = force_login_client.post(
             f"/teachers/{teacher.pk}/editar/",
-            {"registration_number": "INLINE-002"},
+            {
+                "first_name": "Ana",
+                "last_name": "Pereira",
+                "registration_number": "INLINE-002",
+                "hire_date": "2025-01-15",
+                "birth_date": "1990-05-20",
+                "gender": "F",
+                "nationality": "Brasileira",
+                "cpf": "390.533.447-05",
+                "rg_number": "1234567",
+                "rg_issuer": "SSP",
+                "rg_state": "SP",
+                "phone_mobile": "(11) 99999-0000",
+                "avatar": avatar,
+            },
             HTTP_HX_REQUEST="true",
         )
 
         assert response.status_code == 200
         teacher.refresh_from_db()
+        teacher.user.refresh_from_db()
         assert teacher.registration_number == "INLINE-002"
+        assert teacher.user.first_name == "Ana"
         assert b"atualizadas com sucesso" in response.content
 
     def test_subjects_post_replaces_links_and_returns_card(self, force_login_client, user):
@@ -142,5 +169,22 @@ class TestTeacherInlineEditing:
         )
 
         assert response.status_code == 200
-        assert b"Vincular Disciplinas" in response.content
+        assert b"Disciplinas" in response.content
         assert b"<select" in response.content
+
+    def test_subject_edit_get_returns_inline_row(self, force_login_client, user):
+        subject = Subject.objects.create(
+            name="História",
+            code="INLINE-ROW",
+            created_by=user,
+            updated_by=user,
+        )
+
+        response = force_login_client.get(
+            f"/subjects/{subject.pk}/editar/",
+            HTTP_HX_REQUEST="true",
+        )
+
+        assert response.status_code == 200
+        assert b"Cancelar" in response.content
+        assert b"<html" not in response.content

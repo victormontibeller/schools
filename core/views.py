@@ -6,6 +6,7 @@ import logging
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 
 from base import context
 
@@ -119,8 +120,8 @@ _LANDING_FAQS = [
     {
         "q": "Meus dados ficam separados dos de outras escolas?",
         "a": (
-            "Sim. Cada escola roda em um schema PostgreSQL isolado — nenhuma "
-            "informação crossinga tenants, por projeto."
+            "Sim. Cada escola utiliza um schema PostgreSQL isolado — as informações "
+            "de uma instituição não se misturam com as de outra."
         ),
     },
     {
@@ -233,13 +234,86 @@ def index(request: HttpRequest) -> HttpResponse:
     )
 
 
+def _detect_dashboard_role(user) -> str:
+    """Determina o perfil operacional para a home interna."""
+    if hasattr(user, "teacher_profile"):
+        return "TEACHER"
+    if hasattr(user, "guardian_profile"):
+        return "GUARDIAN"
+    if user.role_id and user.role:
+        return user.role.name
+    if user.is_staff:
+        return "ADMIN"
+    return "COORDINATOR"
+
+
+def _dashboard_quick_actions(role_name: str) -> list[dict[str, str]]:
+    """Retorna atalhos prioritarios conforme o perfil do usuario."""
+    quick_actions_map = {
+        "ADMIN": [
+            {"label": "Novo aluno", "url": "student_create", "icon": "feather-user-plus"},
+            {"label": "Novo professor", "url": "teacher_create", "icon": "feather-user-check"},
+            {"label": "Nova turma", "url": "class_create", "icon": "feather-layers"},
+            {"label": "Usuários", "url": "users_list", "icon": "feather-users"},
+        ],
+        "COORDINATOR": [
+            {"label": "Novo aluno", "url": "student_create", "icon": "feather-user-plus"},
+            {"label": "Novo professor", "url": "teacher_create", "icon": "feather-user-check"},
+            {"label": "Nova turma", "url": "class_create", "icon": "feather-layers"},
+            {"label": "Calendário", "url": "calendar_month", "icon": "feather-calendar"},
+        ],
+        "TEACHER": [
+            {"label": "Minhas disciplinas", "url": "teachers_list", "icon": "feather-book-open"},
+            {"label": "Atividades", "url": "activities_list", "icon": "feather-edit-3"},
+            {
+                "label": "Lançar frequência",
+                "url": "attendance_records_list",
+                "icon": "feather-check-circle",
+            },
+            {"label": "Agenda", "url": "time_slots_list", "icon": "feather-clock"},
+        ],
+        "GUARDIAN": [
+            {"label": "Dados do aluno", "url": "students_list", "icon": "feather-user"},
+            {"label": "Calendário", "url": "calendar_month", "icon": "feather-calendar"},
+            {"label": "Comunicados", "url": "announcement_list", "icon": "feather-bell"},
+            {"label": "Meu perfil", "url": "profile", "icon": "feather-settings"},
+        ],
+    }
+    return quick_actions_map.get(role_name, quick_actions_map["COORDINATOR"])
+
+
+def _dashboard_module_groups(role_name: str) -> tuple[list[str], str]:
+    """Define o foco operacional da home sem esconder os demais modulos."""
+    module_map = {
+        "ADMIN": (["Empresa", "Escola", "Usuários", "Alunos"], "Visão administrativa"),
+        "COORDINATOR": (["Alunos", "Professores", "Turmas", "Calendário"], "Operação acadêmica"),
+        "TEACHER": (["Professores", "Disciplinas", "Atividades", "Frequência"], "Rotina docente"),
+        "GUARDIAN": (["Alunos", "Calendário", "Atividades", "Responsáveis"], "Acompanhamento"),
+    }
+    return module_map.get(role_name, module_map["COORDINATOR"])
+
+
+def _dashboard_role_label(user, role_name: str) -> str:
+    """Retorna o rotulo amigavel do perfil exibido na home."""
+    if user.role_id and user.role:
+        return str(user.role)
+    labels = {
+        "ADMIN": "Administrador",
+        "COORDINATOR": "Coordenador",
+        "TEACHER": "Professor",
+        "GUARDIAN": "Responsável",
+    }
+    return labels.get(role_name, "Usuário")
+
+
 @login_required
 def dashboard(request: HttpRequest) -> HttpResponse:
     """Exibe o dashboard com atalhos para os módulos principais e próximos eventos."""
     from academic_calendar.selectors import CalendarSelector
 
     modules = [
-        {"name": "Empresa", "url": "school_detail", "icon": "feather-briefcase"},
+        {"name": "Empresa", "url": "business_unit_list", "icon": "feather-briefcase"},
+        {"name": "Escola", "url": "school_settings_detail", "icon": "feather-settings"},
         {"name": "Professores", "url": "teachers_list", "icon": "feather-book-open"},
         {"name": "Disciplinas", "url": "subjects_list", "icon": "feather-book"},
         {"name": "Alunos", "url": "students_list", "icon": "feather-user-check"},
@@ -252,11 +326,178 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         {"name": "Calendário", "url": "calendar_month", "icon": "feather-calendar"},
         {"name": "Usuários", "url": "users_list", "icon": "feather-users"},
     ]
+    role_name = _detect_dashboard_role(request.user)
+    highlighted_names, role_summary = _dashboard_module_groups(role_name)
+    featured_modules = [module for module in modules if module["name"] in highlighted_names]
+    other_modules = [module for module in modules if module["name"] not in highlighted_names]
     upcoming = CalendarSelector().get_upcoming_events(days=7)[:5]
-    return render(request, "dashboard.html", {"modules": modules, "upcoming": upcoming})
+    return render(
+        request,
+        "dashboard.html",
+        {
+            "modules": modules,
+            "featured_modules": featured_modules,
+            "other_modules": other_modules,
+            "quick_actions": _dashboard_quick_actions(role_name),
+            "role_summary": role_summary,
+            "role_name": _dashboard_role_label(request.user, role_name),
+            "upcoming": upcoming,
+        },
+    )
 
 
 # ── Tela da Empresa ──────────────────────────────────────────────────────────
+
+
+@login_required
+def business_unit_list(request: HttpRequest) -> HttpResponse:
+    """Lista empresas (unidades de negocio) do tenant ativo."""
+    from core.selectors import BusinessUnitSelector
+
+    page = int(request.GET.get("page", 1))
+    result = BusinessUnitSelector().list_business_units(page=page)
+    ctx = {
+        "result": result,
+        "breadcrumb_items": [
+            {"label": "Home", "url": "dashboard"},
+            {"label": "Empresas", "url": None},
+        ],
+    }
+    if request.headers.get("HX-Request"):
+        return render(request, "core/partials/business_units_table.html", ctx)
+    return render(request, "core/business_units_list.html", ctx)
+
+
+@login_required
+def business_unit_detail(request: HttpRequest, pk) -> HttpResponse:
+    """Exibe a ficha completa de uma unidade de negocio."""
+    from addresses.selectors import AddressSelector
+    from core.selectors import BusinessUnitSelector
+
+    business_unit = BusinessUnitSelector().get_by_id(pk)
+    addresses = AddressSelector().get_by_entity("business_unit", business_unit.pk)
+    if request.headers.get("HX-Request") and request.GET.get("component") == "information":
+        return render(
+            request,
+            "core/partials/business_unit_information_card.html",
+            {"business_unit": business_unit},
+        )
+    return render(
+        request,
+        "core/business_unit_detail.html",
+        {"business_unit": business_unit, "addresses": addresses},
+    )
+
+
+@login_required
+def business_unit_create(request: HttpRequest) -> HttpResponse:
+    """Processa o formulario de criacao de empresa."""
+    from django.contrib import messages
+
+    from base.exceptions import BusinessRuleViolationError, ValidationError
+    from core.forms import BusinessUnitForm
+    from core.services import BusinessUnitService
+
+    form = BusinessUnitForm(request.POST or None, request.FILES or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            data = form.cleaned_data.copy()
+            logo = data.pop("logo", None)
+            business_unit = BusinessUnitService(user=request.user).create_business_unit(data)
+            if logo:
+                BusinessUnitService(user=request.user).update_business_unit_logo(
+                    business_unit.pk, logo
+                )
+            messages.success(request, "Empresa criada com sucesso.")
+            return redirect("business_unit_detail", pk=business_unit.pk)
+        except ValidationError as exc:
+            for field, errors in exc.errors.items():
+                for error in errors:
+                    form.add_error(field if field != "__all__" else None, error)
+        except BusinessRuleViolationError as exc:
+            messages.error(request, exc.message)
+
+    return render(
+        request,
+        "core/business_unit_form.html",
+        {"form": form, "title": "Nova Empresa"},
+    )
+
+
+@login_required
+def business_unit_edit(request: HttpRequest, pk) -> HttpResponse:
+    """Processa o formulario de edicao de empresa."""
+    from django.contrib import messages
+
+    from base.exceptions import BusinessRuleViolationError, ValidationError
+    from core.forms import BusinessUnitForm
+    from core.selectors import BusinessUnitSelector
+    from core.services import BusinessUnitService
+
+    business_unit = BusinessUnitSelector().get_by_id(pk)
+
+    if request.method == "POST":
+        form = BusinessUnitForm(request.POST, request.FILES)
+        if form.is_valid():
+            try:
+                data = form.cleaned_data.copy()
+                logo = data.pop("logo", None)
+                BusinessUnitService(user=request.user).update_business_unit(pk, data)
+                if logo:
+                    BusinessUnitService(user=request.user).update_business_unit_logo(pk, logo)
+                business_unit = BusinessUnitSelector().get_by_id(pk)
+                if request.headers.get("HX-Request"):
+                    return render(
+                        request,
+                        "core/partials/business_unit_information_card.html",
+                        {"business_unit": business_unit, "saved": True},
+                    )
+                messages.success(request, "Empresa atualizada com sucesso.")
+                return redirect("business_unit_detail", pk=pk)
+            except ValidationError as exc:
+                for field, errors in exc.errors.items():
+                    for error in errors:
+                        form.add_error(field if field != "__all__" else None, error)
+            except BusinessRuleViolationError as exc:
+                messages.error(request, exc.message)
+    else:
+        form = BusinessUnitForm(
+            initial={
+                "name": business_unit.name,
+                "legal_name": business_unit.legal_name,
+                "trade_name": business_unit.trade_name,
+                "cnpj": business_unit.cnpj or "",
+                "state_registration": business_unit.state_registration,
+                "municipal_registration": business_unit.municipal_registration,
+                "phone": business_unit.phone,
+                "email": business_unit.email,
+                "contact_full_name": business_unit.contact_full_name,
+                "contact_role": business_unit.contact_role,
+                "contact_phone": business_unit.contact_phone,
+                "contact_email": business_unit.contact_email,
+                "academic_year_start": business_unit.academic_year_start,
+                "academic_year_end": business_unit.academic_year_end,
+            }
+        )
+
+    if not request.headers.get("HX-Request"):
+        return render(
+            request,
+            "core/business_unit_form.html",
+            {"form": form, "title": "Editar Empresa", "instance": business_unit},
+        )
+    return render(
+        request,
+        "partials/information_form_card.html",
+        {
+            "form": form,
+            "component_id": "business-unit-information-card",
+            "component_title": "Informações da Empresa",
+            "edit_url": request.path,
+            "cancel_url": f"{request.path_info.removesuffix('editar/')}?component=information",
+            "multipart": True,
+        },
+    )
 
 
 @login_required
@@ -270,9 +511,15 @@ def school_detail(request: HttpRequest) -> HttpResponse:
     school = SchoolSelector().get_current_school()
     if not school:
         messages.error(request, "Escola nao encontrada no tenant ativo.")
-        return redirect("dashboard")
+        return redirect("business_unit_list")
 
     addresses = AddressSelector().get_by_entity("school", school.pk)
+    if request.headers.get("HX-Request") and request.GET.get("component") == "information":
+        return render(
+            request,
+            "core/partials/school_information_card.html",
+            {"school": school},
+        )
     return render(
         request,
         "core/school_detail.html",
@@ -285,7 +532,6 @@ def school_edit(request: HttpRequest) -> HttpResponse:
     """Tela de edicao dos dados da empresa (escola)."""
     from django.contrib import messages
 
-    from addresses.selectors import AddressSelector
     from base.exceptions import BusinessRuleViolationError, ValidationError
     from core.forms import SchoolEditForm
     from core.selectors import SchoolSelector
@@ -294,9 +540,7 @@ def school_edit(request: HttpRequest) -> HttpResponse:
     school = SchoolSelector().get_current_school()
     if not school:
         messages.error(request, "Escola nao encontrada no tenant ativo.")
-        return redirect("dashboard")
-
-    addresses = AddressSelector().get_by_entity("school", school.pk)
+        return redirect("business_unit_list")
 
     if request.method == "POST":
         form = SchoolEditForm(request.POST, request.FILES)
@@ -312,8 +556,15 @@ def school_edit(request: HttpRequest) -> HttpResponse:
                 if logo:
                     service.update_logo(school.pk, logo)
 
-                messages.success(request, "Dados da empresa atualizados com sucesso.")
-                return redirect("school_detail")
+                school = SchoolSelector().get_current_school()
+                if request.headers.get("HX-Request"):
+                    return render(
+                        request,
+                        "core/partials/school_information_card.html",
+                        {"school": school, "saved": True},
+                    )
+                messages.success(request, "Configurações da escola atualizadas com sucesso.")
+                return redirect("school_settings_detail")
             except ValidationError as exc:
                 for field, errors in exc.errors.items():
                     form.add_error(field, errors)
@@ -338,10 +589,28 @@ def school_edit(request: HttpRequest) -> HttpResponse:
         }
         form = SchoolEditForm(initial=initial)
 
+    if not request.headers.get("HX-Request"):
+        return render(
+            request,
+            "core/school_form.html",
+            {
+                "form": form,
+                "school": school,
+                "title": "Editar Escola",
+                "instance": school,
+            },
+        )
     return render(
         request,
-        "core/school_edit.html",
-        {"form": form, "school": school, "addresses": addresses},
+        "partials/information_form_card.html",
+        {
+            "form": form,
+            "component_id": "school-information-card",
+            "component_title": "Informações da Escola",
+            "edit_url": request.path,
+            "cancel_url": f"{reverse('school_settings_detail')}?component=information",
+            "multipart": True,
+        },
     )
 
 

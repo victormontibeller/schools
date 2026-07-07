@@ -54,14 +54,19 @@ class AccountService(BaseService):
         old = {"email": user.email, "first_name": user.first_name}
         allowed = {"first_name", "last_name", "phone", "is_active"}
         updates = {k: v for k, v in data.items() if k in allowed}
-        if role_id := data.get("role_id"):
-            try:
-                updates["role"] = Role.objects.get(pk=role_id)
-            except Role.DoesNotExist:
-                raise ObjectNotFoundError("Role", str(role_id)) from None
+        if "role_id" in data:
+            role_id = data["role_id"]
+            if role_id:
+                try:
+                    updates["role"] = Role.objects.get(pk=role_id)
+                except Role.DoesNotExist:
+                    raise ObjectNotFoundError("Role", str(role_id)) from None
+            else:
+                updates["role"] = None
         updates["updated_by"] = self.user
         user = UserRepo().update(user, **updates)
         self._record_audit("UPDATE", user, old_values=old)
+        self._log("Usuário atualizado", user_id=str(user.pk))
         return user
 
     def deactivate_user(self, user_id):

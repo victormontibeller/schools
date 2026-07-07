@@ -1,6 +1,13 @@
 """AddressSelector: consultas somente-leitura de enderecos."""
 
-from addresses.models import Address, GuardianAddress, SchoolAddress, StudentAddress, TeacherAddress
+from addresses.models import (
+    Address,
+    BusinessUnitAddress,
+    GuardianAddress,
+    SchoolAddress,
+    StudentAddress,
+    TeacherAddress,
+)
 from base.selectors import BaseSelector, PageResult
 
 
@@ -13,11 +20,12 @@ class AddressSelector(BaseSelector):
         """Retorna lista de enderecos vinculados a uma entidade.
 
         Args:
-            entity_type: 'school', 'teacher', 'student' ou 'guardian'.
+            entity_type: 'school', 'business_unit', 'teacher', 'student' ou 'guardian'.
             entity_id: PK da entidade.
         """
         link_models = {
             "school": (SchoolAddress, "school"),
+            "business_unit": (BusinessUnitAddress, "business_unit"),
             "teacher": (TeacherAddress, "teacher"),
             "student": (StudentAddress, "student"),
             "guardian": (GuardianAddress, "guardian"),

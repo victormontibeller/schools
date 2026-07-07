@@ -4,6 +4,7 @@ from django.contrib import admin
 
 from addresses.models import (
     Address,
+    BusinessUnitAddress,
     GuardianAddress,
     SchoolAddress,
     StudentAddress,
@@ -28,6 +29,12 @@ class SchoolAddressAdmin(admin.ModelAdmin):
 @admin.register(TeacherAddress)
 class TeacherAddressAdmin(admin.ModelAdmin):
     list_display = ("teacher", "address", "is_primary", "is_active")
+    list_filter = ("is_active",)
+
+
+@admin.register(BusinessUnitAddress)
+class BusinessUnitAddressAdmin(admin.ModelAdmin):
+    list_display = ("business_unit", "address", "is_primary", "is_active")
     list_filter = ("is_active",)
 
 

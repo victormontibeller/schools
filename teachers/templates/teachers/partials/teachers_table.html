@@ -2,12 +2,48 @@
     <table class="table table-hover mb-0">
         <thead>
             <tr>
-                <th>Professor</th>
-                <th>E-mail</th>
-                <th>Matrícula</th>
+                <th aria-sort="{{ sorting.name.aria_sort }}">
+                    <a href="?{{ sorting.name.query }}"
+                       class="sm-sort-link{% if sorting.name.active %} is-active{% endif %}"
+                       hx-get="?{{ sorting.name.query }}"
+                       hx-target="#teachers-table"
+                       hx-swap="innerHTML">
+                        Professor
+                        {% if sorting.name.direction == "asc" %}<span class="sm-sort-indicator">↑</span>{% elif sorting.name.direction == "desc" %}<span class="sm-sort-indicator">↓</span>{% endif %}
+                    </a>
+                </th>
+                <th aria-sort="{{ sorting.email.aria_sort }}">
+                    <a href="?{{ sorting.email.query }}"
+                       class="sm-sort-link{% if sorting.email.active %} is-active{% endif %}"
+                       hx-get="?{{ sorting.email.query }}"
+                       hx-target="#teachers-table"
+                       hx-swap="innerHTML">
+                        E-mail
+                        {% if sorting.email.direction == "asc" %}<span class="sm-sort-indicator">↑</span>{% elif sorting.email.direction == "desc" %}<span class="sm-sort-indicator">↓</span>{% endif %}
+                    </a>
+                </th>
+                <th aria-sort="{{ sorting.registration_number.aria_sort }}">
+                    <a href="?{{ sorting.registration_number.query }}"
+                       class="sm-sort-link{% if sorting.registration_number.active %} is-active{% endif %}"
+                       hx-get="?{{ sorting.registration_number.query }}"
+                       hx-target="#teachers-table"
+                       hx-swap="innerHTML">
+                        Matrícula
+                        {% if sorting.registration_number.direction == "asc" %}<span class="sm-sort-indicator">↑</span>{% elif sorting.registration_number.direction == "desc" %}<span class="sm-sort-indicator">↓</span>{% endif %}
+                    </a>
+                </th>
                 <th>CPF</th>
                 <th>Disciplinas</th>
-                <th>Admissão</th>
+                <th aria-sort="{{ sorting.hire_date.aria_sort }}">
+                    <a href="?{{ sorting.hire_date.query }}"
+                       class="sm-sort-link{% if sorting.hire_date.active %} is-active{% endif %}"
+                       hx-get="?{{ sorting.hire_date.query }}"
+                       hx-target="#teachers-table"
+                       hx-swap="innerHTML">
+                        Admissão
+                        {% if sorting.hire_date.direction == "asc" %}<span class="sm-sort-indicator">↑</span>{% elif sorting.hire_date.direction == "desc" %}<span class="sm-sort-indicator">↓</span>{% endif %}
+                    </a>
+                </th>
             </tr>
         </thead>
         <tbody>
@@ -50,7 +86,7 @@
         <ul class="pagination pagination-sm mb-0">
             {% if result.has_previous %}
             <li class="page-item">
-                <a class="page-link" hx-get="?page={{ result.page|add:'-1' }}&q={{ q }}"
+                <a class="page-link" hx-get="?page={{ result.page|add:'-1' }}{% if list_query %}&{{ list_query }}{% endif %}"
                    hx-target="#teachers-table" hx-swap="innerHTML">«</a>
             </li>
             {% endif %}
@@ -59,7 +95,7 @@
             </li>
             {% if result.has_next %}
             <li class="page-item">
-                <a class="page-link" hx-get="?page={{ result.page|add:'1' }}&q={{ q }}"
+                <a class="page-link" hx-get="?page={{ result.page|add:'1' }}{% if list_query %}&{{ list_query }}{% endif %}"
                    hx-target="#teachers-table" hx-swap="innerHTML">»</a>
             </li>
             {% endif %}

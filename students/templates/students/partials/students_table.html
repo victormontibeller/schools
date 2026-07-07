@@ -2,10 +2,37 @@
     <table class="table table-hover mb-0">
         <thead>
             <tr>
-                <th>Aluno</th>
-                <th>Matrícula</th>
+                <th aria-sort="{{ sorting.name.aria_sort }}">
+                    <a href="?{{ sorting.name.query }}"
+                       class="sm-sort-link{% if sorting.name.active %} is-active{% endif %}"
+                       hx-get="?{{ sorting.name.query }}"
+                       hx-target="#students-table"
+                       hx-swap="innerHTML">
+                        Aluno
+                        {% if sorting.name.direction == "asc" %}<span class="sm-sort-indicator">↑</span>{% elif sorting.name.direction == "desc" %}<span class="sm-sort-indicator">↓</span>{% endif %}
+                    </a>
+                </th>
+                <th aria-sort="{{ sorting.enrollment_number.aria_sort }}">
+                    <a href="?{{ sorting.enrollment_number.query }}"
+                       class="sm-sort-link{% if sorting.enrollment_number.active %} is-active{% endif %}"
+                       hx-get="?{{ sorting.enrollment_number.query }}"
+                       hx-target="#students-table"
+                       hx-swap="innerHTML">
+                        Matrícula
+                        {% if sorting.enrollment_number.direction == "asc" %}<span class="sm-sort-indicator">↑</span>{% elif sorting.enrollment_number.direction == "desc" %}<span class="sm-sort-indicator">↓</span>{% endif %}
+                    </a>
+                </th>
                 <th>CPF</th>
-                <th>Nascimento</th>
+                <th aria-sort="{{ sorting.birth_date.aria_sort }}">
+                    <a href="?{{ sorting.birth_date.query }}"
+                       class="sm-sort-link{% if sorting.birth_date.active %} is-active{% endif %}"
+                       hx-get="?{{ sorting.birth_date.query }}"
+                       hx-target="#students-table"
+                       hx-swap="innerHTML">
+                        Nascimento
+                        {% if sorting.birth_date.direction == "asc" %}<span class="sm-sort-indicator">↑</span>{% elif sorting.birth_date.direction == "desc" %}<span class="sm-sort-indicator">↓</span>{% endif %}
+                    </a>
+                </th>
                 <th>Gênero</th>
                 <th>Tipo Sang.</th>
             </tr>
@@ -54,7 +81,7 @@
         <ul class="pagination pagination-sm mb-0">
             {% if result.has_previous %}
             <li class="page-item">
-                <a class="page-link" hx-get="?page={{ result.page|add:'-1' }}&q={{ q }}"
+                <a class="page-link" hx-get="?page={{ result.page|add:'-1' }}{% if list_query %}&{{ list_query }}{% endif %}"
                    hx-target="#students-table" hx-swap="innerHTML">«</a>
             </li>
             {% endif %}
@@ -63,7 +90,7 @@
             </li>
             {% if result.has_next %}
             <li class="page-item">
-                <a class="page-link" hx-get="?page={{ result.page|add:'1' }}&q={{ q }}"
+                <a class="page-link" hx-get="?page={{ result.page|add:'1' }}{% if list_query %}&{{ list_query }}{% endif %}"
                    hx-target="#students-table" hx-swap="innerHTML">»</a>
             </li>
             {% endif %}

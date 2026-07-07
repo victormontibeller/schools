@@ -18,6 +18,9 @@ logger = logging.getLogger(__name__)
 @login_required
 def notification_list(request) -> HttpResponse:
     """Lista as notificacoes do usuario logado."""
+    if request.headers.get("HX-Request") and request.GET.get("context") == "header":
+        return _render_header_notifications(request)
+
     unread_count = NotificationSelector().get_unread_for_user(request.user.pk).count()
     notifications = NotificationSelector().get_all_for_user(request.user.pk)[:50]
     return render(
@@ -38,6 +41,8 @@ def notification_mark_read(request, pk) -> HttpResponse:
     except (ObjectNotFoundError, BusinessRuleViolationError) as exc:
         logger.warning("Erro ao marcar notificacao: %s", exc, extra={"pk": str(pk)})
         messages.error(request, str(exc))
+    if request.headers.get("HX-Request"):
+        return _render_header_notifications(request)
     return redirect("notification_list")
 
 
@@ -47,6 +52,8 @@ def notification_mark_all_read(request) -> HttpResponse:
     from notifications.services import NotificationService
 
     NotificationService(user=request.user).mark_all_as_read(request.user.pk)
+    if request.headers.get("HX-Request"):
+        return _render_header_notifications(request)
     return redirect("notification_list")
 
 
@@ -55,6 +62,17 @@ def unread_count(request) -> HttpResponse:
     """Retorna contador de nao lidas (para HTMX polling)."""
     count = NotificationSelector().get_unread_for_user(request.user.pk).count()
     return HttpResponse(str(count) if count else "")
+
+
+def _render_header_notifications(request) -> HttpResponse:
+    """Renderiza o popup de notificacoes do cabecalho."""
+    unread_count = NotificationSelector().get_unread_for_user(request.user.pk).count()
+    notifications = NotificationSelector().get_all_for_user(request.user.pk)[:8]
+    return render(
+        request,
+        "notifications/partials/header_notifications.html",
+        {"notifications": notifications, "unread_count": unread_count},
+    )
 
 
 @login_required

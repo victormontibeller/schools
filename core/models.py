@@ -89,6 +89,53 @@ class School(TenantMixin, BaseModel):
         return self.name or self.schema_name
 
 
+class BusinessUnit(BaseModel):
+    """Unidade de negocio pertencente ao tenant ativo."""
+
+    name = models.CharField(max_length=200, verbose_name="Nome da Empresa")
+    cnpj = models.CharField(max_length=18, unique=True, null=True, blank=True)
+    legal_name = models.CharField(
+        max_length=255, blank=True, default="", verbose_name="Razao Social"
+    )
+    trade_name = models.CharField(
+        max_length=255, blank=True, default="", verbose_name="Nome Fantasia"
+    )
+    state_registration = models.CharField(
+        max_length=20, blank=True, default="", verbose_name="Inscricao Estadual"
+    )
+    municipal_registration = models.CharField(
+        max_length=20, blank=True, default="", verbose_name="Inscricao Municipal"
+    )
+    phone = models.CharField(max_length=20, blank=True, default="")
+    email = models.EmailField(blank=True, default="")
+    contact_full_name = models.CharField(
+        max_length=255, blank=True, default="", verbose_name="Nome do Responsavel"
+    )
+    contact_role = models.CharField(
+        max_length=150, blank=True, default="", verbose_name="Cargo do Responsavel"
+    )
+    contact_phone = models.CharField(
+        max_length=20, blank=True, default="", verbose_name="Telefone do Responsavel"
+    )
+    contact_email = models.EmailField(blank=True, default="", verbose_name="E-mail do Responsavel")
+    logo = models.ImageField(upload_to="business_units/logos/", null=True, blank=True)
+    academic_year_start = models.DateField(null=True, blank=True)
+    academic_year_end = models.DateField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Empresa"
+        verbose_name_plural = "Empresas"
+        ordering = ["name"]
+        indexes = [
+            models.Index(fields=["name"]),
+            models.Index(fields=["cnpj"]),
+        ]
+
+    def __str__(self) -> str:
+        """Representação legível da unidade."""
+        return self.name
+
+
 class Domain(DomainMixin):
     """Domínio HTTP associado a uma escola."""
 

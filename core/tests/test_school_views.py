@@ -32,7 +32,7 @@ class TestSchoolDetail:
     def test_get_no_school_redirects_to_dashboard(self, force_login_client):
         resp = force_login_client.get("/app/empresa/")
         assert resp.status_code == 302
-        assert "/app/" in resp["Location"]
+        assert "/app/empresas/" in resp["Location"]
 
 
 @pytest.mark.django_db
@@ -45,7 +45,7 @@ class TestSchoolEdit:
     def test_get_no_school_redirects_to_dashboard(self, force_login_client):
         resp = force_login_client.get("/app/empresa/editar/")
         assert resp.status_code == 302
-        assert "/app/" in resp["Location"]
+        assert "/app/empresas/" in resp["Location"]
 
     def test_post_updates_and_redirects(self, force_login_client, school):
         resp = force_login_client.post(
@@ -57,7 +57,7 @@ class TestSchoolEdit:
             },
         )
         assert resp.status_code == 302
-        assert resp["Location"] == "/app/empresa/"
+        assert resp["Location"] == "/app/escola/"
         school.refresh_from_db()
         assert school.name == "Escola Atualizada"
         assert school.phone == "1133445566"
@@ -65,3 +65,13 @@ class TestSchoolEdit:
     def test_post_missing_name_rerenders_form(self, force_login_client, school):
         resp = force_login_client.post("/app/empresa/editar/", data={"name": ""})
         assert resp.status_code == 200
+
+    def test_get_returns_component_for_htmx(self, force_login_client, school):
+        resp = force_login_client.get(
+            "/app/empresa/editar/",
+            HTTP_HX_REQUEST="true",
+        )
+
+        assert resp.status_code == 200
+        assert b"Cancelar" in resp.content
+        assert b"<html" not in resp.content

@@ -40,6 +40,7 @@ class TestValidateCPF:
             validate_cpf(cpf)
 
 
+@pytest.mark.django_db
 class TestValidateUF:
     def test_valid_uf(self):
         assert validate_uf("SP") == "SP"

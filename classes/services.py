@@ -98,6 +98,7 @@ class ClassService(BaseService):
         updates["updated_by"] = self.user
         cls = repo.update(cls, **updates)
         self._record_audit("UPDATE", cls, old_values=old)
+        self._log("Turma atualizada", class_id=str(cls.pk))
         return cls
 
     def deactivate_class(self, class_id):

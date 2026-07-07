@@ -1,6 +1,9 @@
 """Testes do TeacherService."""
 
+import datetime as dt
+
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 from core.models import CustomUser
@@ -116,11 +119,41 @@ class TestAssignSubject:
         teacher = TeacherService(user=user).create_teacher(
             {"user_id": target.pk, "registration_number": "MAT-UP"}
         )
-        updated = TeacherService(user=user).update_teacher(
-            teacher.pk, {"hire_date": "2025-01-15", "registration_number": "MAT-UP2"}
+        avatar = SimpleUploadedFile(
+            "avatar.gif",
+            (
+                b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00"
+                b"\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00"
+                b"\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"
+            ),
+            content_type="image/gif",
         )
-        assert updated.hire_date == "2025-01-15"
+        updated = TeacherService(user=user).update_teacher(
+            teacher.pk,
+            {
+                "first_name": "Marina",
+                "last_name": "Oliveira",
+                "registration_number": "MAT-UP2",
+                "hire_date": dt.date(2025, 1, 15),
+                "birth_date": dt.date(1992, 4, 10),
+                "gender": "F",
+                "nationality": "Brasileira",
+                "cpf": "390.533.447-05",
+                "rg_number": "1234567",
+                "rg_issuer": "SSP",
+                "rg_state": "SP",
+                "phone_mobile": "(11) 99999-0000",
+                "avatar": avatar,
+            },
+        )
+        updated.refresh_from_db()
+        updated.user.refresh_from_db()
+        assert updated.hire_date == dt.date(2025, 1, 15)
         assert updated.registration_number == "MAT-UP2"
+        assert updated.user.first_name == "Marina"
+        assert updated.user.last_name == "Oliveira"
+        assert updated.user.avatar.name.endswith(".gif")
+        assert "avatar" in updated.user.avatar.name
 
     def test_duplicate_assignment(self, user):
         target = _make_user("subj2@test.com")

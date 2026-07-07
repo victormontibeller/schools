@@ -60,7 +60,9 @@ status e data de ingresso ficam em um único card. A listagem abre essa ficha, n
 
 ## Perfil da Empresa
 
-- A rota principal de Empresa exibe primeiro a ficha institucional.
+- Empresas representam unidades de negócio dentro do tenant ativo; não devem
+  reutilizar a entidade `School`, que continua sendo o tenant.
+- A rota principal de Empresa exibe primeiro a listagem das unidades disponíveis.
 - Nome, documentos, contato institucional e responsável ficam no card
   **Informações da Empresa**.
 - Endereços permanecem em card separado.
@@ -103,6 +105,7 @@ status e data de ingresso ficam em um único card. A listagem abre essa ficha, n
 
 ## Tabelas de Listagem
 
+- Botões de cadastro usam apenas `+ NOVO`; o título da página já informa o domínio.
 - A primeira coluna é a identificação e o link principal do registro.
 - Para pessoas e demais entidades com tela de detalhe, o link aponta para a ficha completa.
 - Sem tela de detalhe, o link aponta para a tela operacional principal, como edição ou lançamento.

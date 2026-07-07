@@ -2,7 +2,6 @@
 
 from django import forms
 
-from base.validators import UF_CHOICES
 from students.models import Student
 
 
@@ -81,13 +80,16 @@ class GuardianForm(forms.Form):
         super().__init__(*args, **kwargs)
         from core.models import CustomUser
         from guardians.models import Guardian
+        from locations.selectors import StateSelector
 
         self.fields["relationship_type"].choices = Guardian.Relationship.choices
         self.fields["user_id"].widget.choices = CustomUser.objects.filter(
             is_active=True
         ).values_list("pk", "email")
         self.fields["gender"].choices = [("", "---------")] + list(Guardian.Gender.choices)
-        self.fields["rg_state"].choices = [("", "---------")] + list(UF_CHOICES)
+        self.fields["rg_state"].choices = StateSelector().list_choices(include_blank=True)
+        for field in self.fields.values():
+            field.required = True
 
 
 class StudentGuardianForm(forms.Form):
@@ -121,6 +123,21 @@ class StudentGuardianForm(forms.Form):
 class GuardianEditForm(forms.Form):
     """Formulario de edicao de responsavel."""
 
+    first_name = forms.CharField(
+        max_length=150,
+        label="Nome",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    last_name = forms.CharField(
+        max_length=150,
+        label="Sobrenome",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    avatar = forms.ImageField(
+        required=False,
+        label="Foto do Responsável",
+        widget=forms.ClearableFileInput(attrs={"class": "sm-profile-avatar-input"}),
+    )
     relationship_type = forms.ChoiceField(
         label="Parentesco",
         widget=forms.Select(attrs={"class": "form-select"}),
@@ -186,7 +203,11 @@ class GuardianEditForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from guardians.models import Guardian
+        from locations.selectors import StateSelector
 
         self.fields["relationship_type"].choices = Guardian.Relationship.choices
         self.fields["gender"].choices = [("", "---------")] + list(Guardian.Gender.choices)
-        self.fields["rg_state"].choices = [("", "---------")] + list(UF_CHOICES)
+        self.fields["rg_state"].choices = StateSelector().list_choices(include_blank=True)
+        for name, field in self.fields.items():
+            if name != "avatar":
+                field.required = True

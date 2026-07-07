@@ -14,82 +14,22 @@
             <li class="breadcrumb-item">{{ guardian.full_name }}</li>
         </ul>
     </div>
-    <div class="page-header-right ms-auto">
-        <a href="{% url 'guardian_edit' guardian.pk %}" class="btn btn-primary btn-sm">
-            <i class="feather-edit-2 me-1"></i> Editar
-        </a>
-    </div>
 </div>
 
 <div class="main-content">
     <div class="row g-3 align-items-start">
-        <div class="col-12 col-xl-5">
-            <div class="card mb-0">
-                <div class="card-header">
-                    <h6 class="card-title mb-0">Informações do Responsável</h6>
-                </div>
-                <div class="card-body">
-                    <div class="d-flex flex-column flex-sm-row align-items-center text-center text-sm-start gap-3 pb-4 mb-4 border-bottom">
-                        <div class="avatar-text avatar-xl bg-soft-purple text-purple flex-shrink-0"
-                             style="width:72px;height:72px;font-size:1.75rem">
-                            {{ guardian.full_name|first|upper }}
-                        </div>
-                        <div class="min-w-0">
-                            <h5 class="mb-1">{{ guardian.full_name }}</h5>
-                            <p class="text-muted mb-2 text-break">{{ guardian.user.email }}</p>
-                            <span class="badge bg-soft-info text-info">
-                                {{ guardian.get_relationship_type_display }}
-                            </span>
-                        </div>
-                    </div>
-
-                    <dl class="row gy-3 mb-0">
-                        <dt class="col-sm-5 text-muted fw-medium">Data de nascimento</dt>
-                        <dd class="col-sm-7 mb-0">
-                            {% if guardian.birth_date %}{{ guardian.birth_date|date:"d/m/Y" }}{% else %}—{% endif %}
-                        </dd>
-
-                        <dt class="col-sm-5 text-muted fw-medium">Gênero</dt>
-                        <dd class="col-sm-7 mb-0">{{ guardian.get_gender_display|default:"—" }}</dd>
-
-                        <dt class="col-sm-5 text-muted fw-medium">Nacionalidade</dt>
-                        <dd class="col-sm-7 mb-0">{{ guardian.nationality|default:"—" }}</dd>
-
-                        <dt class="col-sm-5 text-muted fw-medium">CPF</dt>
-                        <dd class="col-sm-7 mb-0">{{ guardian.cpf|default:"—" }}</dd>
-
-                        <dt class="col-sm-5 text-muted fw-medium">RG</dt>
-                        <dd class="col-sm-7 mb-0">
-                            {% if guardian.rg_number %}
-                                {{ guardian.rg_number }}
-                                {% if guardian.rg_issuer %} · {{ guardian.rg_issuer }}{% endif %}
-                                {% if guardian.rg_state %} / {{ guardian.rg_state }}{% endif %}
-                            {% else %}
-                                —
-                            {% endif %}
-                        </dd>
-
-                        <dt class="col-sm-5 text-muted fw-medium">Telefone</dt>
-                        <dd class="col-sm-7 mb-0">{{ guardian.phone|default:"—" }}</dd>
-
-                        <dt class="col-sm-5 text-muted fw-medium">WhatsApp</dt>
-                        <dd class="col-sm-7 mb-0">{{ guardian.phone_whatsapp|default:"—" }}</dd>
-
-                        <dt class="col-sm-5 text-muted fw-medium">Celular</dt>
-                        <dd class="col-sm-7 mb-0">{{ guardian.phone_mobile|default:"—" }}</dd>
-                    </dl>
-                </div>
-            </div>
+        <div class="col-12 col-xl-6">
+            {% include "guardians/partials/guardian_information_card.html" %}
         </div>
 
-        <div class="col-12 col-xl-7">
-            <div class="card mb-3">
+        <div class="col-12 col-xl-6">
+            <div class="card mb-0 sm-profile-card">
                 <div class="card-header">
                     <h6 class="card-title mb-0">Alunos Vinculados</h6>
                 </div>
-                <div class="card-body">
+                <div class="card-body sm-selection-card-body">
                     {% for link in students %}
-                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 {% if not forloop.last %}mb-3 pb-3 border-bottom{% endif %}">
+                    <div class="sm-detail-list-item d-flex flex-wrap align-items-center justify-content-between gap-2 {% if not forloop.last %}mb-3{% endif %}">
                         <div>
                             <a href="{% url 'student_profile' link.student.pk %}" class="fw-semibold">
                                 {{ link.student.get_full_name }}

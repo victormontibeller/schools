@@ -77,6 +77,30 @@ class GuardianService(BaseService):
         guardian = repo.get_by_id(guardian_id)
 
         old = {"relationship_type": guardian.relationship_type, "cpf": guardian.cpf}
+        user_old = {
+            "first_name": guardian.user.first_name,
+            "last_name": guardian.user.last_name,
+            "avatar": guardian.user.avatar.name if guardian.user.avatar else "",
+        }
+
+        self.validate_required(
+            data,
+            [
+                "first_name",
+                "last_name",
+                "relationship_type",
+                "birth_date",
+                "gender",
+                "nationality",
+                "cpf",
+                "rg_number",
+                "rg_issuer",
+                "rg_state",
+                "phone",
+                "phone_whatsapp",
+                "phone_mobile",
+            ],
+        )
 
         allowed = {
             "relationship_type",
@@ -99,8 +123,21 @@ class GuardianService(BaseService):
         if "rg_state" in data:
             self._validate_rg_state(data)
 
+        user_updates = {
+            "first_name": data["first_name"].strip(),
+            "last_name": data["last_name"].strip(),
+            "updated_by": self.user,
+        }
+        avatar = data.get("avatar")
+        if avatar:
+            user_updates["avatar"] = avatar
+        for field, value in user_updates.items():
+            setattr(guardian.user, field, value)
+        guardian.user.save(update_fields=[*user_updates.keys(), "updated_at"])
+
         updates["updated_by"] = self.user
         guardian = repo.update(guardian, **updates)
+        self._record_audit("UPDATE", guardian.user, old_values=user_old)
         self._record_audit("UPDATE", guardian, old_values=old)
         self._log("Responsavel atualizado", guardian_id=str(guardian.pk))
         return guardian

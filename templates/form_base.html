@@ -16,9 +16,17 @@
 
 <div class="main-content">
     <div class="card">
-        <div class="card-header"><h6 class="card-title mb-0">{{ title }}</h6></div>
+        <div class="card-header d-flex align-items-center justify-content-between gap-2">
+            <h6 class="card-title mb-0">{{ title }}</h6>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <a href="{% block cancel_url %}{% url 'dashboard' %}{% endblock %}" class="btn btn-sm btn-outline-secondary" data-cancel-button>Cancelar</a>
+                <button type="submit" class="btn btn-sm btn-primary" form="primary-form" data-submit-button>
+                    <span data-submit-label>{% block submit_label %}Salvar{% endblock %}</span>
+                </button>
+            </div>
+        </div>
         <div class="card-body">
-            <form method="post" {% block form_enctype %}{% endblock %} novalidate>
+            <form id="primary-form" method="post" {% block form_enctype %}{% endblock %} novalidate data-submit-once-form>
                 {% csrf_token %}
                 {% if form.non_field_errors %}
                     <div class="alert alert-danger mb-4" role="alert">
@@ -30,12 +38,33 @@
                         {% include "partials/form_field.html" with field=field %}
                     {% endfor %}
                 </div>
-                <div class="d-flex flex-wrap gap-2 mt-4 pt-3 border-top">
-                    <button type="submit" class="btn btn-primary">{% block submit_label %}Salvar{% endblock %}</button>
-                    <a href="{% block cancel_url %}{% url 'dashboard' %}{% endblock %}" class="btn btn-outline-secondary">Cancelar</a>
-                </div>
             </form>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll("[data-submit-once-form]").forEach(function (form) {
+        form.addEventListener("submit", function () {
+            var submitButton = form.querySelector("[data-submit-button]");
+            if (!submitButton || submitButton.disabled) {
+                return;
+            }
+
+            submitButton.disabled = true;
+            submitButton.setAttribute("aria-busy", "true");
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Salvando...';
+
+            var cancelButton = form.querySelector("[data-cancel-button]");
+            if (cancelButton) {
+                cancelButton.classList.add("disabled");
+                cancelButton.setAttribute("aria-disabled", "true");
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

@@ -15,52 +15,6 @@
 </div>
 
 <div class="main-content">
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <div>
-                <h6 class="card-title mb-0">{{ record.subject }} · {{ record.teacher }}</h6>
-                <small class="text-muted">{{ record.date|date:"d/m/Y" }} · Aula {{ record.lesson_number }}</small>
-            </div>
-        </div>
-        <div class="card-body">
-            <p class="text-muted small mb-3">Marque a presença de cada aluno. Use <b>Justificado</b> com motivo para faltas amparadas por atestado.</p>
-
-            <form method="post">
-                {% csrf_token %}
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead><tr><th>Aluno</th><th style="width:60%">Presença</th></tr></thead>
-                        <tbody>
-                            {% for e in entries %}
-                            <tr>
-                                <td>{{ e.student.get_full_name }} <small class="text-muted">({{ e.student.enrollment_number }})</small></td>
-                                <td>
-                                    <div class="btn-group btn-group-sm" role="group" aria-label="status_{{ e.student_id }}">
-                                        <input type="radio" class="btn-check" name="status_{{ e.student_id }}" id="present_{{ e.student_id }}" value="PRESENT" autocomplete="off" {% if e.status == 'PRESENT' %}checked{% endif %}>
-                                        <label class="btn btn-outline-success" for="present_{{ e.student_id }}">Presente</label>
-
-                                        <input type="radio" class="btn-check" name="status_{{ e.student_id }}" id="absent_{{ e.student_id }}" value="ABSENT" autocomplete="off" {% if e.status == 'ABSENT' %}checked{% endif %}>
-                                        <label class="btn btn-outline-danger" for="absent_{{ e.student_id }}">Ausente</label>
-
-                                        <input type="radio" class="btn-check" name="status_{{ e.student_id }}" id="just_{{ e.student_id }}" value="JUSTIFIED" autocomplete="off" {% if e.status == 'JUSTIFIED' %}checked{% endif %}>
-                                        <label class="btn btn-outline-warning text-dark" for="just_{{ e.student_id }}">Justificado</label>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr><td colspan="2" class="text-center text-muted py-4">Nenhum aluno matriculado nesta turma.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% if entries %}
-                <div class="d-flex gap-2 mt-3">
-                    <button type="submit" class="btn btn-primary">Registrar chamada</button>
-                    <a href="{% url 'attendance_records_list' %}" class="btn btn-outline-secondary">Cancelar</a>
-                </div>
-                {% endif %}
-            </form>
-        </div>
-    </div>
+    {% include "attendance/partials/attendance_fill_card.html" %}
 </div>
 {% endblock %}

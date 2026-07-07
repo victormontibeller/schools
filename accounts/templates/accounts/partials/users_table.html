@@ -2,11 +2,38 @@
     <table class="table table-hover mb-0">
         <thead>
             <tr>
-                <th>Usuário</th>
-                <th>E-mail</th>
+                <th aria-sort="{{ sorting.name.aria_sort }}">
+                    <a href="?{{ sorting.name.query }}"
+                       class="sm-sort-link{% if sorting.name.active %} is-active{% endif %}"
+                       hx-get="?{{ sorting.name.query }}"
+                       hx-target="#users-table"
+                       hx-swap="innerHTML">
+                        Usuário
+                        {% if sorting.name.direction == "asc" %}<span class="sm-sort-indicator">↑</span>{% elif sorting.name.direction == "desc" %}<span class="sm-sort-indicator">↓</span>{% endif %}
+                    </a>
+                </th>
+                <th aria-sort="{{ sorting.email.aria_sort }}">
+                    <a href="?{{ sorting.email.query }}"
+                       class="sm-sort-link{% if sorting.email.active %} is-active{% endif %}"
+                       hx-get="?{{ sorting.email.query }}"
+                       hx-target="#users-table"
+                       hx-swap="innerHTML">
+                        E-mail
+                        {% if sorting.email.direction == "asc" %}<span class="sm-sort-indicator">↑</span>{% elif sorting.email.direction == "desc" %}<span class="sm-sort-indicator">↓</span>{% endif %}
+                    </a>
+                </th>
                 <th>Perfil</th>
                 <th>Status</th>
-                <th>Criado em</th>
+                <th aria-sort="{{ sorting.created_at.aria_sort }}">
+                    <a href="?{{ sorting.created_at.query }}"
+                       class="sm-sort-link{% if sorting.created_at.active %} is-active{% endif %}"
+                       hx-get="?{{ sorting.created_at.query }}"
+                       hx-target="#users-table"
+                       hx-swap="innerHTML">
+                        Criado em
+                        {% if sorting.created_at.direction == "asc" %}<span class="sm-sort-indicator">↑</span>{% elif sorting.created_at.direction == "desc" %}<span class="sm-sort-indicator">↓</span>{% endif %}
+                    </a>
+                </th>
             </tr>
         </thead>
         <tbody>
@@ -54,7 +81,7 @@
         <ul class="pagination pagination-sm mb-0">
             {% if result.has_previous %}
                 <li class="page-item">
-                    <a class="page-link" hx-get="?page={{ result.page|add:'-1' }}"
+                    <a class="page-link" hx-get="?page={{ result.page|add:'-1' }}{% if list_query %}&{{ list_query }}{% endif %}"
                        hx-target="#users-table" hx-swap="innerHTML">«</a>
                 </li>
             {% endif %}
@@ -63,7 +90,7 @@
             </li>
             {% if result.has_next %}
                 <li class="page-item">
-                    <a class="page-link" hx-get="?page={{ result.page|add:'1' }}"
+                    <a class="page-link" hx-get="?page={{ result.page|add:'1' }}{% if list_query %}&{{ list_query }}{% endif %}"
                        hx-target="#users-table" hx-swap="innerHTML">»</a>
                 </li>
             {% endif %}

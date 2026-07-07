@@ -2,23 +2,49 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
 from base.exceptions import ValidationError
-from students.forms import StudentForm
+from base.listing import build_querystring, build_sorting, resolve_listing_state
+from students.forms import StudentEditForm, StudentForm
 from students.selectors import StudentSelector
 from students.services import StudentService
+
+STUDENT_SORTS = {
+    "name": "first_name",
+    "-name": "-first_name",
+    "enrollment_number": "enrollment_number",
+    "-enrollment_number": "-enrollment_number",
+    "birth_date": "birth_date",
+    "-birth_date": "-birth_date",
+}
 
 
 @login_required
 def students_list(request):
     """Lista alunos paginados, com busca por nome e suporte a HTMX."""
     page = int(request.GET.get("page", 1))
-    search = request.GET.get("q", "").strip()
-    filters = {}
-    if search:
-        filters["first_name__icontains"] = search
-    result = StudentSelector().list_students(filters=filters, page=page)
+    state = resolve_listing_state(
+        request,
+        scope="students_list",
+        allowed_sorts=set(STUDENT_SORTS),
+        default_sort="name",
+    )
+    search = state["q"]
+    sort = state["sort"]
+    result = StudentSelector().list_students(
+        search=search,
+        order_by=STUDENT_SORTS[sort],
+        page=page,
+    )
     ctx = {
         "result": result,
         "q": search,
+        "sort": sort,
+        "sorting": build_sorting(
+            current_sort=sort,
+            search=search,
+            sortable_fields=["name", "enrollment_number", "birth_date"],
+        ),
+        "list_query": build_querystring({"q": search, "sort": sort}),
+        "clear_query": build_querystring({"q": "", "sort": "name"}, include_blank=True),
         "breadcrumb_items": [
             {"label": "Home", "url": "dashboard"},
             {"label": "Alunos", "url": None},
@@ -46,7 +72,7 @@ def student_create(request):
 
 @login_required
 def student_edit(request, pk):
-    """Processa o formulário de edição de aluno."""
+    """Edita as informações do aluno dentro do card de perfil."""
     from django.contrib import messages
 
     from base.exceptions import BusinessRuleViolationError
@@ -54,10 +80,16 @@ def student_edit(request, pk):
     student = StudentSelector().get_by_id(pk)
 
     if request.method == "POST":
-        form = StudentForm(request.POST, request.FILES, instance=student)
+        form = StudentEditForm(request.POST, request.FILES, instance=student)
         if form.is_valid():
             try:
-                StudentService(user=request.user).update_student(pk, form.cleaned_data)
+                student = StudentService(user=request.user).update_student(pk, form.cleaned_data)
+                if request.headers.get("HX-Request"):
+                    return render(
+                        request,
+                        "students/partials/student_information_card.html",
+                        {"student": student, "saved": True},
+                    )
                 messages.success(request, "Aluno atualizado.")
                 return redirect("student_profile", pk=pk)
             except ValidationError as exc:
@@ -67,12 +99,14 @@ def student_edit(request, pk):
             except BusinessRuleViolationError as exc:
                 messages.error(request, exc.message)
     else:
-        form = StudentForm(instance=student)
+        form = StudentEditForm(instance=student)
 
+    if not request.headers.get("HX-Request"):
+        return redirect("student_profile", pk=pk)
     return render(
         request,
-        "students/student_form.html",
-        {"form": form, "title": "Editar Aluno", "instance": student},
+        "students/partials/student_information_form.html",
+        {"form": form, "student": student},
     )
 
 
@@ -84,6 +118,12 @@ def student_profile(request, pk):
     student = StudentSelector().get_by_id(pk)
     guardians = StudentSelector().get_student_guardians(student.pk)
     addresses = AddressSelector().get_by_entity("student", student.pk)
+    if request.headers.get("HX-Request") and request.GET.get("component") == "information":
+        return render(
+            request,
+            "students/partials/student_information_card.html",
+            {"student": student},
+        )
     return render(
         request,
         "students/student_profile.html",

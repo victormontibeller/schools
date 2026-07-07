@@ -4,38 +4,6 @@ import re
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 
-UF_CHOICES = [
-    ("AC", "Acre"),
-    ("AL", "Alagoas"),
-    ("AP", "Amapa"),
-    ("AM", "Amazonas"),
-    ("BA", "Bahia"),
-    ("CE", "Ceara"),
-    ("DF", "Distrito Federal"),
-    ("ES", "Espirito Santo"),
-    ("GO", "Goias"),
-    ("MA", "Maranhao"),
-    ("MT", "Mato Grosso"),
-    ("MS", "Mato Grosso do Sul"),
-    ("MG", "Minas Gerais"),
-    ("PA", "Para"),
-    ("PB", "Paraiba"),
-    ("PR", "Parana"),
-    ("PE", "Pernambuco"),
-    ("PI", "Piaui"),
-    ("RJ", "Rio de Janeiro"),
-    ("RN", "Rio Grande do Norte"),
-    ("RS", "Rio Grande do Sul"),
-    ("RO", "Rondonia"),
-    ("RR", "Roraima"),
-    ("SC", "Santa Catarina"),
-    ("SP", "Sao Paulo"),
-    ("SE", "Sergipe"),
-    ("TO", "Tocantins"),
-]
-
-UF_CODES = frozenset(uf for uf, _ in UF_CHOICES)
-
 
 def validate_cpf(value: str) -> str:
     """Valida formato e digitos verificadores de CPF.
@@ -77,10 +45,12 @@ def validate_uf(value: str) -> str:
     Returns:
         UF em maiusculas (2 caracteres).
     """
+    from locations.models import State
+
     if not value:
         return value
     uf = value.strip().upper()
-    if uf not in UF_CODES:
+    if not State.objects.filter(code=uf).exists():
         raise DjangoValidationError(f"UF invalida: '{value}'. Use a sigla de 2 letras.")
     return uf
 

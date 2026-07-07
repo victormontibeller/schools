@@ -152,7 +152,41 @@ class TeacherService(BaseService):
         """Atualiza dados do professor e registra auditoria com valores antigos."""
         repo = _TeacherRepo()
         teacher = repo.get_by_id(teacher_id)
-        old = {"registration_number": teacher.registration_number}
+        old = {
+            "registration_number": teacher.registration_number,
+            "hire_date": teacher.hire_date,
+            "birth_date": teacher.birth_date,
+            "gender": teacher.gender,
+            "nationality": teacher.nationality,
+            "cpf": teacher.cpf,
+            "rg_number": teacher.rg_number,
+            "rg_issuer": teacher.rg_issuer,
+            "rg_state": teacher.rg_state,
+            "phone_mobile": teacher.phone_mobile,
+        }
+        user_old = {
+            "first_name": teacher.user.first_name,
+            "last_name": teacher.user.last_name,
+            "avatar": teacher.user.avatar.name if teacher.user.avatar else "",
+        }
+
+        self.validate_required(
+            data,
+            [
+                "first_name",
+                "last_name",
+                "registration_number",
+                "hire_date",
+                "birth_date",
+                "gender",
+                "nationality",
+                "cpf",
+                "rg_number",
+                "rg_issuer",
+                "rg_state",
+                "phone_mobile",
+            ],
+        )
 
         allowed = {
             "hire_date",
@@ -183,8 +217,22 @@ class TeacherService(BaseService):
         if "rg_state" in data:
             self._validate_rg_state(data)
 
+        user_updates = {
+            "first_name": data["first_name"].strip(),
+            "last_name": data["last_name"].strip(),
+            "updated_by": self.user,
+        }
+        avatar = data.get("avatar")
+        if avatar:
+            user_updates["avatar"] = avatar
+
+        for field, value in user_updates.items():
+            setattr(teacher.user, field, value)
+        teacher.user.save(update_fields=[*user_updates.keys(), "updated_at"])
+
         updates["updated_by"] = self.user
         teacher = repo.update(teacher, **updates)
+        self._record_audit("UPDATE", teacher.user, old_values=user_old)
         self._record_audit("UPDATE", teacher, old_values=old)
         self._log("Professor atualizado", teacher_id=str(teacher.pk))
         return teacher

@@ -1,0 +1,33 @@
+<div class="card mb-0 sm-detail-card" id="{{ component_id }}">
+    <form hx-post="{{ edit_url }}"
+          hx-target="#{{ component_id }}"
+          hx-swap="outerHTML"
+          {% if multipart %}hx-encoding="multipart/form-data" enctype="multipart/form-data"{% endif %}>
+        {% csrf_token %}
+        <div class="card-header d-flex align-items-center justify-content-between gap-2">
+            <h6 class="card-title mb-0">{{ component_title }}</h6>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button"
+                        class="btn btn-sm btn-outline-secondary"
+                        hx-get="{{ cancel_url }}"
+                        hx-target="#{{ component_id }}"
+                        hx-swap="outerHTML">
+                    Cancelar
+                </button>
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="feather-check me-1"></i> Salvar
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
+            <div class="row g-3">
+                {% for field in form %}
+                {% include "partials/form_field.html" with field=field %}
+                {% endfor %}
+            </div>
+        </div>
+    </form>
+</div>

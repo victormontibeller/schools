@@ -77,6 +77,15 @@ class StudentForm(forms.ModelForm):
             "special_needs": 'Objeto JSON. Ex.: {"medica": ["asma"], "acessibilidade": []}.',
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from locations.selectors import StateSelector
+
+        self.fields["rg_state"].choices = StateSelector().list_choices(include_blank=True)
+        for name, field in self.fields.items():
+            if name != "photo":
+                field.required = True
+
     def clean_special_needs(self) -> dict:
         """Converte o texto JSON digitado em dict, validando o formato."""
         value = self.cleaned_data.get("special_needs")
@@ -95,3 +104,30 @@ class StudentForm(forms.ModelForm):
                 raise DjangoValidationError("Necessidades Especiais deve ser um objeto JSON.")
             return parsed
         return value
+
+
+class StudentEditForm(StudentForm):
+    """Formulário de edição das informações exibidas no perfil do aluno."""
+
+    class Meta(StudentForm.Meta):
+        fields = [
+            "enrollment_number",
+            "first_name",
+            "last_name",
+            "birth_date",
+            "gender",
+            "blood_type",
+            "nationality",
+            "cpf",
+            "rg_number",
+            "rg_issuer",
+            "rg_state",
+            "phone_mobile",
+            "email",
+            "special_needs",
+            "photo",
+        ]
+        widgets = {
+            **StudentForm.Meta.widgets,
+            "photo": forms.ClearableFileInput(attrs={"class": "sm-profile-avatar-input"}),
+        }

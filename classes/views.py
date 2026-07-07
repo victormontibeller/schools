@@ -60,11 +60,54 @@ def class_create(request):
 def class_detail(request, pk):
     """Exibe detalhes da turma e lista alunos matriculados."""
     cls = ClassSelector().get_by_id(pk)
+    if request.headers.get("HX-Request") and request.GET.get("component") == "information":
+        return render(
+            request,
+            "classes/partials/class_information_card.html",
+            {"class_obj": cls},
+        )
     enrollments = ClassSelector().get_class_students(cls.pk)
     return render(
         request,
         "classes/class_detail.html",
         {"class_obj": cls, "enrollments": enrollments},
+    )
+
+
+@login_required
+def class_edit(request, pk):
+    """Edita a turma substituindo apenas o card de informações."""
+    cls = ClassSelector().get_by_id(pk)
+    form = ClassForm(request.POST or None, instance=cls)
+    if request.method == "POST" and form.is_valid():
+        try:
+            data = form.cleaned_data.copy()
+            teacher = data.pop("class_teacher", None)
+            data["class_teacher_id"] = teacher.pk if teacher else None
+            cls = ClassService(user=request.user).update_class(pk, data)
+            if request.headers.get("HX-Request"):
+                return render(
+                    request,
+                    "classes/partials/class_information_card.html",
+                    {"class_obj": cls, "saved": True},
+                )
+            return redirect("class_detail", pk=pk)
+        except ValidationError as exc:
+            for field, errors in exc.errors.items():
+                for error in errors:
+                    form.add_error(field if field != "__all__" else None, error)
+    if not request.headers.get("HX-Request"):
+        return redirect("class_detail", pk=pk)
+    return render(
+        request,
+        "partials/information_form_card.html",
+        {
+            "form": form,
+            "component_id": "class-information-card",
+            "component_title": "Informações da Turma",
+            "edit_url": request.path,
+            "cancel_url": f"{request.path_info.removesuffix('editar/')}?component=information",
+        },
     )
 
 

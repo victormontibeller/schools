@@ -3,7 +3,6 @@
 from django.db import models
 
 from base.models import BaseModel
-from base.validators import UF_CHOICES
 
 
 class Address(BaseModel):
@@ -20,7 +19,7 @@ class Address(BaseModel):
     district = models.CharField(max_length=150, verbose_name="Bairro")
     postal_code = models.CharField(max_length=9, verbose_name="CEP")
     city = models.CharField(max_length=150, verbose_name="Municipio")
-    state = models.CharField(max_length=2, choices=UF_CHOICES, verbose_name="Estado")
+    state = models.CharField(max_length=2, verbose_name="Estado")
 
     class Meta:
         verbose_name = "Endereco"
@@ -61,6 +60,32 @@ class SchoolAddress(BaseModel):
 
     def __str__(self) -> str:
         return f"{self.school} — {self.address}"
+
+
+class BusinessUnitAddress(BaseModel):
+    """Vinculo entre BusinessUnit e Address."""
+
+    business_unit = models.ForeignKey(
+        "core.BusinessUnit",
+        on_delete=models.CASCADE,
+        related_name="address_links",
+        verbose_name="Empresa",
+    )
+    address = models.ForeignKey(
+        Address,
+        on_delete=models.CASCADE,
+        related_name="business_unit_links",
+        verbose_name="Endereco",
+    )
+    is_primary = models.BooleanField(default=True, verbose_name="Principal")
+
+    class Meta:
+        verbose_name = "Endereco da Empresa"
+        verbose_name_plural = "Enderecos da Empresa"
+        unique_together = [("business_unit", "address")]
+
+    def __str__(self) -> str:
+        return f"{self.business_unit} — {self.address}"
 
 
 class TeacherAddress(BaseModel):

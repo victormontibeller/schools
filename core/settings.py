@@ -37,6 +37,7 @@ BASE_APPS = [
     "django.contrib.admin",
     "core",
     "accounts",
+    "locations",
 ]
 
 # Observabilidade via django-prometheus exposta em /metrics/ (Sprint 08.5).
@@ -121,6 +122,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "core.context_processors.current_school",
             ],
         },
     },

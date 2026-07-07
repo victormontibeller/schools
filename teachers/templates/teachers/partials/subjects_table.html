@@ -10,26 +10,7 @@
         </thead>
         <tbody>
             {% for subject in result.items %}
-            <tr>
-                <td>
-                    <a href="{% url 'subject_edit' subject.pk %}" class="fw-semibold">
-                        {{ subject.name }}
-                    </a>
-                </td>
-                <td><span class="badge bg-soft-info text-info">{{ subject.code }}</span></td>
-                <td>{{ subject.workload }}h/ano</td>
-                <td class="text-end">
-                    <button type="button"
-                            hx-post="{% url 'subject_deactivate' subject.pk %}"
-                            hx-confirm="Desativar {{ subject.name }}?"
-                            hx-target="#subjects-table"
-                            hx-swap="innerHTML"
-                            class="btn btn-sm btn-outline-danger"
-                            aria-label="Desativar disciplina">
-                        <i class="feather-trash-2"></i>
-                    </button>
-                </td>
-            </tr>
+            {% include "teachers/partials/subject_row.html" %}
             {% empty %}
             <tr>
                 <td colspan="4" class="text-center text-muted py-4">Nenhuma disciplina encontrada.</td>

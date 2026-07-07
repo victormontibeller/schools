@@ -1,0 +1,1 @@
+"""App compartilhado de localizacoes."""

@@ -1,0 +1,23 @@
+<div class="card mb-0 sm-detail-card" id="activity-information-card">
+    <div class="card-header d-flex align-items-center justify-content-between gap-2">
+        <h6 class="card-title mb-0">Informações da Atividade</h6>
+        <button type="button" class="btn btn-sm btn-outline-primary"
+                hx-get="{% url 'activity_edit' activity.pk %}"
+                hx-target="#activity-information-card" hx-swap="outerHTML">
+            <i class="feather-edit-2 me-1"></i> Editar
+        </button>
+    </div>
+    <div class="card-body">
+        {% if saved %}<div class="alert alert-success py-2">Informações atualizadas com sucesso.</div>{% endif %}
+        <dl class="row mb-0 sm-detail-definition">
+            <dt class="col-sm-3">Turma</dt><dd class="col-sm-9">{{ activity.class_obj|default:"—" }}</dd>
+            <dt class="col-sm-3">Disciplina</dt><dd class="col-sm-9">{{ activity.subject|default:"—" }}</dd>
+            <dt class="col-sm-3">Professor</dt><dd class="col-sm-9">{{ activity.teacher|default:"—" }}</dd>
+            <dt class="col-sm-3">Tipo</dt><dd class="col-sm-9">{{ activity.get_type_display|default:"—" }}</dd>
+            <dt class="col-sm-3">Entrega</dt><dd class="col-sm-9">{{ activity.due_date|date:"d/m/Y"|default:"—" }}</dd>
+            <dt class="col-sm-3">Nota Máxima</dt><dd class="col-sm-9">{{ activity.max_score|default:"—" }}</dd>
+            <dt class="col-sm-3">Peso</dt><dd class="col-sm-9">{{ activity.weight|default:"—" }}</dd>
+            <dt class="col-sm-3">Descrição</dt><dd class="col-sm-9">{{ activity.description|default:"—" }}</dd>
+        </dl>
+    </div>
+</div>

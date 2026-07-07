@@ -4,7 +4,6 @@ from django.conf import settings
 from django.db import models
 
 from base.models import BaseModel
-from base.validators import UF_CHOICES
 
 
 class Guardian(BaseModel):
@@ -49,9 +48,7 @@ class Guardian(BaseModel):
     rg_issuer = models.CharField(
         max_length=50, blank=True, default="", verbose_name="RG — Órgão Emissor"
     )
-    rg_state = models.CharField(
-        max_length=2, choices=UF_CHOICES, blank=True, default="", verbose_name="RG — UF"
-    )
+    rg_state = models.CharField(max_length=2, blank=True, default="", verbose_name="RG — UF")
     phone = models.CharField(max_length=20, blank=True, default="", verbose_name="Telefone")
     phone_whatsapp = models.CharField(
         max_length=20, blank=True, default="", verbose_name="WhatsApp"

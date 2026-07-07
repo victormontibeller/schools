@@ -12,11 +12,11 @@ Melhorar a experiencia de uso da plataforma para secretaria, coordenacao e docen
 
 ## Criterios de Aceite
 
-- [ ] Fluxos de cadastro e edicao deverao ter menos friccao e validacao visual consistente.
-- [ ] Listagens principais deverao suportar busca, filtro e paginacao HTMX com estado preservado.
+- [x] Fluxos de cadastro e edicao deverao ter menos friccao e validacao visual consistente.
+- [x] Listagens principais deverao suportar busca, filtro e paginacao HTMX com estado preservado.
 - [ ] Tempo medio de acao para tarefas administrativas comuns devera reduzir em pelo menos 30%.
-- [ ] Componentes de formulario deverao seguir padrao unico em todo o sistema.
-- [ ] Tela inicial devera apresentar atalhos operacionais por perfil.
+- [x] Componentes de formulario deverao seguir padrao unico em todo o sistema.
+- [x] Tela inicial devera apresentar atalhos operacionais por perfil.
 
 ---
 
@@ -25,19 +25,19 @@ Melhorar a experiencia de uso da plataforma para secretaria, coordenacao e docen
 ### Formularios e Layout
 
 - [ ] Revisar templates de formulario para consistencia de labels, ajuda e erros.
-- [ ] Padronizar estados de carregamento e desabilitacao de botoes em submits.
-- [ ] Revisar componentes reutilizaveis em templates/partials.
+- [x] Padronizar estados de carregamento e desabilitacao de botoes em submits.
+- [x] Revisar componentes reutilizaveis em templates/partials.
 
 ### Listagens e Operacao
 
-- [ ] Implementar filtros salvos por usuario em modulos prioritarios.
-- [ ] Adicionar ordenacao de colunas nas tabelas principais.
+- [x] Implementar filtros salvos por usuario em modulos prioritarios.
+- [x] Adicionar ordenacao de colunas nas tabelas principais.
 - [ ] Incluir acoes em lote para operacoes repetitivas (ativar, desativar, exportar).
 
 ### Performance Percebida
 
 - [ ] Aplicar lazy load em blocos secundarios.
-- [ ] Reduzir consultas redundantes em telas de maior uso.
+- [x] Reduzir consultas redundantes em telas de maior uso.
 - [ ] Ajustar polling HTMX para intervalos adequados por contexto.
 
 ### Acessibilidade Basica
@@ -57,6 +57,29 @@ Melhorar a experiencia de uso da plataforma para secretaria, coordenacao e docen
 ## Definition of Done
 
 - [ ] Criterios de aceite validados
-- [ ] Testes de views e templates atualizados
+- [x] Testes de views e templates atualizados
 - [ ] Fluxos alvo homologados com usuarios internos
 - [ ] Regressao visual controlada nas telas alteradas
+
+---
+
+## Progresso Implementado
+
+### Entregas desta iteracao
+
+- Home interna reorganizada com atalhos operacionais por perfil e modulos em foco.
+- Formularios base com estado de envio, desabilitacao de submit e feedback visual de salvamento.
+- Listagens de alunos, responsaveis, professores e usuarios com:
+  - busca HTMX com estado salvo por usuario em sessao;
+  - ordenacao por colunas principais;
+  - paginacao preservando contexto de busca e ordenacao;
+  - cabecalho compartilhado padronizado.
+- Campo de busca com acao de limpar embutida no proprio input.
+- Selectors ajustados com `select_related` e `prefetch_related` nas listagens prioritarias para reduzir consultas redundantes.
+
+### Validacao tecnica realizada
+
+- `ruff check` verde nos arquivos alterados.
+- `black --check` verde nos arquivos alterados.
+- `manage.py check` sem issues.
+- Testes de views cobrindo dashboard e listagens prioritarias atualizados e passando.

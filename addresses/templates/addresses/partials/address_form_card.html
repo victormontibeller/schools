@@ -1,0 +1,28 @@
+<div class="card mb-3 sm-profile-card" id="addresses-card">
+    <form hx-post="{% if address %}{% url 'addresses:address_edit' address.pk %}{% else %}{% url 'addresses:address_create' entity_type=entity_type entity_id=entity_id %}{% endif %}"
+          hx-target="#addresses-card"
+          hx-swap="outerHTML">
+        {% csrf_token %}
+        <div class="card-header d-flex align-items-center justify-content-between gap-2">
+            <h6 class="card-title mb-0">{{ title }}</h6>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button"
+                        class="btn btn-sm btn-outline-secondary"
+                        hx-get="{% url 'addresses:address_card' entity_type=entity_type entity_id=entity_id %}"
+                        hx-target="#addresses-card"
+                        hx-swap="outerHTML">
+                    Cancelar
+                </button>
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="feather-check me-1"></i> Salvar
+                </button>
+            </div>
+        </div>
+        <div class="card-body sm-selection-card-body sm-address-form-body">
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
+            {% include "addresses/partials/address_form_fields.html" with form=form %}
+        </div>
+    </form>
+</div>

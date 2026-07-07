@@ -1,4 +1,4 @@
-{% load static %}
+{% load static ui_helpers %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -13,7 +13,7 @@
 </head>
 <body>
     <!--! [Start] Navigation -->
-    <nav class="nxl-navigation">
+    <nav class="nxl-navigation sm-fixed-sidebar">
         <div class="navbar-wrapper">
             <div class="m-header">
                 <a href="{% url 'index' %}" class="b-brand">
@@ -23,108 +23,108 @@
             </div>
             <div class="navbar-content">
                 <ul class="nxl-navbar">
-                    <li class="nxl-item nxl-caption"><label>Principal</label></li>
+                    <li class="nxl-item nxl-caption"><label>Dashboard</label></li>
                     <li class="nxl-item">
-                        <a href="{% url 'school_dashboard' %}" class="nxl-link">
+                        <a href="{% url 'school_dashboard' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-airplay"></i></span>
                             <span class="nxl-mtext">Painel</span>
                         </a>
                     </li>
+                    {% if request.user.is_staff %}
+                    <li class="nxl-item">
+                        <a href="{% url 'executive_dashboard' %}" class="nxl-link sm-menu-link">
+                            <span class="nxl-micon"><i class="feather-bar-chart-2"></i></span>
+                            <span class="nxl-mtext">Executivo</span>
+                        </a>
+                    </li>
+                    {% endif %}
                     <li class="nxl-item nxl-caption"><label>Acadêmico</label></li>
                     <li class="nxl-item">
-                        <a href="{% url 'teachers_list' %}" class="nxl-link">
+                        <a href="{% url 'teachers_list' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-book-open"></i></span>
                             <span class="nxl-mtext">Professores</span>
                         </a>
                     </li>
                     <li class="nxl-item">
-                        <a href="{% url 'subjects_list' %}" class="nxl-link">
+                        <a href="{% url 'subjects_list' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-book"></i></span>
                             <span class="nxl-mtext">Disciplinas</span>
                         </a>
                     </li>
                     <li class="nxl-item">
-                        <a href="{% url 'students_list' %}" class="nxl-link">
+                        <a href="{% url 'students_list' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-user-check"></i></span>
                             <span class="nxl-mtext">Alunos</span>
                         </a>
                     </li>
                     <li class="nxl-item">
-                        <a href="{% url 'guardians_list' %}" class="nxl-link">
+                        <a href="{% url 'guardians_list' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-heart"></i></span>
                             <span class="nxl-mtext">Responsáveis</span>
                         </a>
                     </li>
                     <li class="nxl-item">
-                        <a href="{% url 'classes_list' %}" class="nxl-link">
+                        <a href="{% url 'classes_list' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-layers"></i></span>
                             <span class="nxl-mtext">Turmas</span>
                         </a>
                     </li>
                     <li class="nxl-item">
-                        <a href="{% url 'rooms_list' %}" class="nxl-link">
+                        <a href="{% url 'rooms_list' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-home"></i></span>
                             <span class="nxl-mtext">Salas</span>
                         </a>
                     </li>
+                    <li class="nxl-item nxl-caption"><label>Coordenação</label></li>
                     <li class="nxl-item">
-                        <a href="{% url 'activities_list' %}" class="nxl-link">
+                        <a href="{% url 'activities_list' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-edit-3"></i></span>
                             <span class="nxl-mtext">Atividades</span>
                         </a>
                     </li>
                     <li class="nxl-item">
-                        <a href="{% url 'attendance_records_list' %}" class="nxl-link">
+                        <a href="{% url 'attendance_records_list' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-check-circle"></i></span>
                             <span class="nxl-mtext">Frequência</span>
                         </a>
                     </li>
                     <li class="nxl-item">
-                        <a href="{% url 'time_slots_list' %}" class="nxl-link">
+                        <a href="{% url 'time_slots_list' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-clock"></i></span>
                             <span class="nxl-mtext">Horários</span>
                         </a>
                     </li>
                     <li class="nxl-item">
-                        <a href="{% url 'calendar_month' %}" class="nxl-link">
+                        <a href="{% url 'calendar_month' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-calendar"></i></span>
                             <span class="nxl-mtext">Calendário</span>
                         </a>
                     </li>
-                    <li class="nxl-item nxl-caption"><label>Comunicação</label></li>
                     <li class="nxl-item">
-                        <a href="{% url 'notification_list' %}" class="nxl-link">
-                            <span class="nxl-micon"><i class="feather-bell"></i></span>
-                            <span class="nxl-mtext">Notificações</span>
-                        </a>
-                    </li>
-                    <li class="nxl-item">
-                        <a href="{% url 'announcement_list' %}" class="nxl-link">
+                        <a href="{% url 'announcement_list' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-message-square"></i></span>
                             <span class="nxl-mtext">Comunicados</span>
                         </a>
                     </li>
                     <li class="nxl-item nxl-caption"><label>Administração</label></li>
                     <li class="nxl-item">
-                        <a href="{% url 'school_detail' %}" class="nxl-link">
+                        <a href="{% url 'business_unit_list' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-briefcase"></i></span>
-                            <span class="nxl-mtext">Empresa</span>
+                            <span class="nxl-mtext">Empresas</span>
                         </a>
                     </li>
                     <li class="nxl-item">
-                        <a href="{% url 'users_list' %}" class="nxl-link">
+                        <a href="{% url 'school_settings_detail' %}" class="nxl-link sm-menu-link">
+                            <span class="nxl-micon"><i class="feather-settings"></i></span>
+                            <span class="nxl-mtext">Escola</span>
+                        </a>
+                    </li>
+                    <li class="nxl-item">
+                        <a href="{% url 'users_list' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-users"></i></span>
                             <span class="nxl-mtext">Usuários</span>
                         </a>
                     </li>
-                    {% if request.user.is_staff %}
-                    <li class="nxl-item">
-                        <a href="{% url 'executive_dashboard' %}" class="nxl-link">
-                            <span class="nxl-micon"><i class="feather-bar-chart-2"></i></span>
-                            <span class="nxl-mtext">Dashboard Executivo</span>
-                        </a>
-                    </li>
-                    {% endif %}
                 </ul>
             </div>
         </div>
@@ -140,36 +140,71 @@
                         <div class="hamburger-box"><div class="hamburger-inner"></div></div>
                     </div>
                 </div>
-                <div class="nxl-navigation-toggle">
-                    <a href="javascript:void(0)" id="menu-mini-button">
-                        <i class="feather-align-left"></i>
-                    </a>
-                </div>
             </div>
-            <div class="header-right ms-auto">
+            <div class="header-center mx-auto d-none d-lg-flex align-items-center justify-content-center">
+                {% if current_school %}
+                <a href="{% url 'school_settings_detail' %}"
+                   class="header-school-brand d-inline-flex align-items-center gap-3 text-decoration-none">
+                    {% if current_school.logo %}
+                    <img src="{{ current_school.logo.url }}"
+                         alt="Logotipo de {{ current_school.name }}"
+                         class="header-school-logo">
+                    {% else %}
+                    <div class="avatar-text avatar-sm bg-soft-primary text-primary header-school-fallback">
+                        {{ current_school.name|first|upper }}
+                    </div>
+                    {% endif %}
+                    <div class="header-school-copy text-start">
+                        <span class="d-block">{{ current_school.name }}</span>
+                    </div>
+                </a>
+                {% endif %}
+            </div>
+            <div class="header-right ms-auto d-flex align-items-center">
                 <div class="d-flex align-items-center gap-2">
-                    <a href="{% url 'notification_list' %}"
-                       class="header-action-button position-relative"
-                       aria-label="Notificações"
-                       title="Notificações">
-                        <i class="feather-bell"></i>
-                        <span id="unread-badge"
-                              hx-get="{% url 'unread_count' %}"
-                              hx-trigger="load, every 30s"
-                              class="header-notification-badge position-absolute badge rounded-pill bg-danger"></span>
-                    </a>
+                    <div class="dropdown header-notification-dropdown">
+                        <button type="button"
+                                class="header-action-button position-relative border-0 header-notification-trigger"
+                                aria-label="Notificações"
+                                data-bs-toggle="dropdown"
+                                data-bs-offset="0,12"
+                                data-bs-auto-close="outside"
+                                hx-get="{% url 'notification_list' %}?context=header"
+                                hx-target="#header-notifications-panel"
+                                hx-swap="innerHTML">
+                            <i class="feather-bell"></i>
+                            <span id="unread-badge"
+                                  hx-get="{% url 'unread_count' %}"
+                                  hx-trigger="load, every 30s"
+                                  class="header-notification-badge position-absolute badge rounded-pill bg-danger"></span>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end p-0 border-0 shadow header-notification-menu">
+                            <div id="header-notifications-panel"
+                                 hx-get="{% url 'notification_list' %}?context=header"
+                                 hx-trigger="load"
+                                 hx-swap="innerHTML">
+                                <div class="p-4 text-center text-muted">Carregando notificações...</div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="dropdown">
                         <a href="#"
                            class="header-user-button arrow-none d-flex align-items-center gap-2"
                            data-bs-toggle="dropdown"
                            data-bs-offset="0,10"
                            aria-expanded="false">
+                            {% if request.user.avatar %}
+                            <img src="{{ request.user.avatar.url }}"
+                                 alt="{{ request.user.get_full_name }}"
+                                 class="header-user-avatar">
+                            {% else %}
                             <div class="avatar-text avatar-sm bg-soft-primary text-primary">
                                 {{ request.user.get_short_name|first|upper }}
                             </div>
+                            {% endif %}
                             <div class="header-user-copy d-none d-md-block text-start">
                                 <span class="header-user-name d-block">{{ request.user.get_full_name }}</span>
-                                <small class="header-user-role d-block">{{ request.user.role|default:"Usuário" }}</small>
+                                <small class="header-user-role d-block">{{ request.user|user_role_label }}</small>
                             </div>
                             <i class="feather-chevron-down header-user-chevron"></i>
                         </a>
@@ -214,6 +249,52 @@
     <script src="{% static 'js/vendors.min.js' %}"></script>
     <script src="{% static 'js/common-init.min.js' %}"></script>
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll(".sm-menu-link").forEach(function (link) {
+            link.addEventListener("click", function () {
+                link.classList.add("is-pressed");
+                window.setTimeout(function () {
+                    link.classList.remove("is-pressed");
+                }, 220);
+            });
+        });
+
+        document.querySelectorAll(".header-notification-dropdown").forEach(function (dropdownElement) {
+            var trigger = dropdownElement.querySelector(".header-notification-trigger");
+            if (!trigger || !window.bootstrap || !window.bootstrap.Dropdown) {
+                return;
+            }
+
+            var dropdown = window.bootstrap.Dropdown.getOrCreateInstance(trigger);
+            var closeTimer = null;
+
+            function clearCloseTimer() {
+                if (closeTimer) {
+                    window.clearTimeout(closeTimer);
+                    closeTimer = null;
+                }
+            }
+
+            function openDropdown() {
+                clearCloseTimer();
+                dropdown.show();
+            }
+
+            function scheduleClose() {
+                clearCloseTimer();
+                closeTimer = window.setTimeout(function () {
+                    dropdown.hide();
+                }, 140);
+            }
+
+            dropdownElement.addEventListener("mouseenter", openDropdown);
+            dropdownElement.addEventListener("mouseleave", scheduleClose);
+            trigger.addEventListener("focus", openDropdown);
+            trigger.addEventListener("blur", scheduleClose);
+        });
+    });
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

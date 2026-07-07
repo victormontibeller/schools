@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Empresa — School Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title">
+            <h5 class="m-b-10">Empresa</h5>
+        </div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'business_unit_list' %}">Empresas</a></li>
+            <li class="breadcrumb-item active">Empresa</li>
+        </ul>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="row g-3 align-items-start">
+        <div class="col-12 col-xl-6">
+            {% include "core/partials/business_unit_information_card.html" %}
+        </div>
+        <div class="col-12 col-xl-6 sm-detail-side">
+            {% include "addresses/partials/address_table.html" with addresses=addresses entity_type="business_unit" entity_id=business_unit.pk %}
+        </div>
+    </div>
+</div>
+{% endblock %}

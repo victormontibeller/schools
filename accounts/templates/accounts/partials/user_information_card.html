@@ -1,0 +1,30 @@
+<div class="card mb-0 sm-profile-card" id="user-information-card">
+    <div class="card-header d-flex align-items-center justify-content-between gap-2">
+        <h6 class="card-title mb-0">Informações da Pessoa</h6>
+        <button type="button" class="btn btn-sm btn-outline-primary"
+                hx-get="{% url 'user_edit' user_obj.pk %}"
+                hx-target="#user-information-card" hx-swap="outerHTML">
+            <i class="feather-edit-2 me-1"></i> Editar
+        </button>
+    </div>
+    <div class="card-body sm-profile-card-body">
+        {% if saved %}<div class="alert alert-success py-2">Informações atualizadas com sucesso.</div>{% endif %}
+        <div class="sm-profile-hero d-flex flex-column flex-sm-row align-items-center text-center text-sm-start gap-3 pb-4 mb-4 border-bottom">
+            {% if user_obj.avatar %}<img src="{{ user_obj.avatar.url }}" class="sm-profile-avatar" alt="Foto de {{ user_obj.get_full_name }}">
+            {% else %}<div class="avatar-text avatar-xl bg-soft-primary text-primary">{{ user_obj.get_short_name|first|upper }}</div>{% endif %}
+            <div class="min-w-0">
+                <h5 class="mb-1">{{ user_obj.get_full_name }}</h5>
+                <p class="text-muted mb-0 text-break">{{ user_obj.email }}</p>
+            </div>
+        </div>
+        <dl class="row mb-0 sm-profile-definition">
+            <dt class="col-sm-4 text-muted">Nome</dt><dd class="col-sm-8">{{ user_obj.get_full_name|default:"—" }}</dd>
+            <dt class="col-sm-4 text-muted">E-mail</dt><dd class="col-sm-8">{{ user_obj.email|default:"—" }}</dd>
+            <dt class="col-sm-4 text-muted">Telefone</dt><dd class="col-sm-8">{{ user_obj.phone|default:"—" }}</dd>
+            <dt class="col-sm-4 text-muted">Perfil</dt><dd class="col-sm-8">{{ user_obj.role|default:"—" }}</dd>
+            <dt class="col-sm-4 text-muted">Status</dt>
+            <dd class="col-sm-8">{% if user_obj.is_active %}<span class="badge bg-soft-success text-success">Ativo</span>{% else %}<span class="badge bg-soft-danger text-danger">Inativo</span>{% endif %}</dd>
+            <dt class="col-sm-4 text-muted">Membro desde</dt><dd class="col-sm-8">{{ user_obj.created_at|date:"d/m/Y"|default:"—" }}</dd>
+        </dl>
+    </div>
+</div>

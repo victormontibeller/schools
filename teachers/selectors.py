@@ -1,5 +1,7 @@
 """TeacherSelector: consultas somente-leitura para professores."""
 
+from django.db.models import Q
+
 from base.selectors import BaseSelector, PageResult
 
 
@@ -13,9 +15,20 @@ class TeacherSelector(BaseSelector):
 
         return Teacher
 
-    def list_teachers(self, filters=None, page=1, page_size=20) -> PageResult:
-        """Lista professores com filtros e paginação."""
-        return self.list(filters=filters, page=page, page_size=page_size)
+    def list_teachers(
+        self, search="", order_by="user__first_name", page=1, page_size=20
+    ) -> PageResult:
+        """Lista professores com busca por nome e paginação."""
+        qs = self.model_class.objects.select_related("user").prefetch_related("subjects")
+        if search:
+            qs = qs.filter(
+                Q(user__first_name__icontains=search)
+                | Q(user__last_name__icontains=search)
+                | Q(registration_number__icontains=search)
+                | Q(cpf__icontains=search)
+            )
+        qs = qs.order_by(order_by, "user__last_name")
+        return self._paginate(qs, page=page, page_size=page_size)
 
     def get_teacher_by_id(self, teacher_id):
         """Retorna o professor pelo id ou lança `ObjectNotFoundError`."""

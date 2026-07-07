@@ -452,6 +452,7 @@ messages.error(request, exc.message)              # → alert-danger
 - Relações do domínio, como disciplinas, são editadas em card próprio
 - **Listagens:** primeira coluna identifica o registro e aponta para detalhe/perfil quando existir;
   sem detalhe, aponta para a tela operacional principal
+- **Botões de cadastro:** usar somente ícone de adição + `NOVO`, sem repetir o domínio
 - **Listagens:** não criar coluna “Ações” apenas para repetir “Ver” ou “Editar”
 - **Listagens:** usar `table-responsive`, `table table-hover mb-0` e paginação HTMX padrão
 - **Perfis de pessoa** agrupam identidade, dados pessoais, documentos e contato em um único card

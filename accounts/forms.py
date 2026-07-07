@@ -40,3 +40,41 @@ class ChangePasswordForm(forms.Form):
         if data.get("new_password") != data.get("confirm_password"):
             self.add_error("confirm_password", "As senhas não coincidem.")
         return data
+
+
+class UserEditForm(forms.Form):
+    """Formulário das informações editáveis no perfil do usuário."""
+
+    first_name = forms.CharField(
+        max_length=150,
+        label="Nome",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    last_name = forms.CharField(
+        max_length=150,
+        label="Sobrenome",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    phone = forms.CharField(
+        max_length=20,
+        required=False,
+        label="Telefone",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    role = forms.ModelChoiceField(
+        queryset=None,
+        required=False,
+        label="Perfil",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    is_active = forms.BooleanField(
+        required=False,
+        label="Ativo",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from core.models import Role
+
+        self.fields["role"].queryset = Role.objects.all()

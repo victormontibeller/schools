@@ -5,6 +5,8 @@
 O sistema deverá utilizar **isolamento por Schema PostgreSQL**.
 
 Cada escola (Tenant) deverá possuir seu próprio Schema PostgreSQL isolado.
+Dentro de um mesmo tenant poderão existir múltiplas unidades de negócio
+ou empresas operacionais, sem criar novos schemas.
 
 A biblioteca **django-tenants** deverá ser utilizada para gerenciar o roteamento entre schemas.
 

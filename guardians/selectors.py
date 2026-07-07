@@ -1,5 +1,7 @@
 """GuardianSelector: consultas somente-leitura para responsáveis."""
 
+from django.db.models import Q
+
 from base.selectors import BaseSelector, PageResult
 
 
@@ -13,9 +15,19 @@ class GuardianSelector(BaseSelector):
 
         return Guardian
 
-    def list_guardians(self, filters=None, page=1, page_size=20) -> PageResult:
-        """Lista responsáveis com filtros e paginação."""
-        return self.list(filters=filters, page=page, page_size=page_size)
+    def list_guardians(
+        self, search="", order_by="user__first_name", page=1, page_size=20
+    ) -> PageResult:
+        """Lista responsáveis com busca por nome e paginação."""
+        qs = self.model_class.objects.select_related("user").prefetch_related("students__student")
+        if search:
+            qs = qs.filter(
+                Q(user__first_name__icontains=search)
+                | Q(user__last_name__icontains=search)
+                | Q(cpf__icontains=search)
+            )
+        qs = qs.order_by(order_by, "user__last_name")
+        return self._paginate(qs, page=page, page_size=page_size)
 
     def get_guardian_students(self, guardian_id):
         """Retorna alunos vinculados ao responsavel, com dados do aluno."""

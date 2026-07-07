@@ -1,0 +1,9 @@
+<div class="row g-1 sm-address-form-grid">
+    {% for field in form %}
+        {% if field.name == "city" %}
+            {% include "addresses/partials/city_field.html" with field=field %}
+        {% else %}
+            {% include "partials/form_field.html" with field=field %}
+        {% endif %}
+    {% endfor %}
+</div>

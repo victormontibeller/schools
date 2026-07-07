@@ -1,0 +1,26 @@
+<div class="card mb-0 sm-detail-card" id="room-information-card">
+    <div class="card-header d-flex align-items-center justify-content-between gap-2">
+        <h6 class="card-title mb-0">Informações da Sala</h6>
+        <button type="button" class="btn btn-sm btn-outline-primary"
+                hx-get="{% url 'room_edit' room.pk %}"
+                hx-target="#room-information-card" hx-swap="outerHTML">
+            <i class="feather-edit-2 me-1"></i> Editar
+        </button>
+    </div>
+    <div class="card-body">
+        {% if saved %}<div class="alert alert-success py-2">Informações atualizadas com sucesso.</div>{% endif %}
+        <dl class="row mb-0 sm-detail-definition">
+            <dt class="col-sm-3">Código</dt><dd class="col-sm-9">{{ room.code|default:"—" }}</dd>
+            <dt class="col-sm-3">Tipo</dt><dd class="col-sm-9">{{ room.get_type_display|default:"—" }}</dd>
+            <dt class="col-sm-3">Capacidade</dt><dd class="col-sm-9">{{ room.capacity }} lugares</dd>
+            <dt class="col-sm-3">Prédio</dt><dd class="col-sm-9">{{ room.building|default:"—" }}</dd>
+            <dt class="col-sm-3">Andar</dt><dd class="col-sm-9">{{ room.floor|default:"—" }}</dd>
+            <dt class="col-sm-3">Recursos</dt>
+            <dd class="col-sm-9">
+                {% if room.resources %}
+                <ul class="mb-0">{% for key, value in room.resources.items %}<li>{{ key }}: {{ value }}</li>{% endfor %}</ul>
+                {% else %}—{% endif %}
+            </dd>
+        </dl>
+    </div>
+</div>

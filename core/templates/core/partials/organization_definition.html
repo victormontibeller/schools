@@ -1,0 +1,14 @@
+<dl class="row mb-0 sm-profile-definition">
+    <dt class="col-sm-5 text-muted">Razão social</dt><dd class="col-sm-7">{{ organization.legal_name|default:"—" }}</dd>
+    <dt class="col-sm-5 text-muted">CNPJ</dt><dd class="col-sm-7">{{ organization.cnpj|default:"—" }}</dd>
+    <dt class="col-sm-5 text-muted">Inscrição estadual</dt><dd class="col-sm-7">{{ organization.state_registration|default:"—" }}</dd>
+    <dt class="col-sm-5 text-muted">Inscrição municipal</dt><dd class="col-sm-7">{{ organization.municipal_registration|default:"—" }}</dd>
+    <dt class="col-sm-5 text-muted">Telefone</dt><dd class="col-sm-7">{{ organization.phone|default:"—" }}</dd>
+    <dt class="col-sm-5 text-muted">E-mail</dt><dd class="col-sm-7">{{ organization.email|default:"—" }}</dd>
+    <dt class="col-sm-5 text-muted">Responsável</dt><dd class="col-sm-7">{{ organization.contact_full_name|default:"—" }}</dd>
+    <dt class="col-sm-5 text-muted">Cargo</dt><dd class="col-sm-7">{{ organization.contact_role|default:"—" }}</dd>
+    <dt class="col-sm-5 text-muted">Telefone do responsável</dt><dd class="col-sm-7">{{ organization.contact_phone|default:"—" }}</dd>
+    <dt class="col-sm-5 text-muted">E-mail do responsável</dt><dd class="col-sm-7">{{ organization.contact_email|default:"—" }}</dd>
+    <dt class="col-sm-5 text-muted">Ano letivo</dt>
+    <dd class="col-sm-7">{{ organization.academic_year_start|date:"d/m/Y"|default:"—" }} a {{ organization.academic_year_end|date:"d/m/Y"|default:"—" }}</dd>
+</dl>

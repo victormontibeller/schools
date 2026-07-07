@@ -64,6 +64,14 @@ class ActivityForm(forms.Form):
     )
 
 
+class ActivityEditForm(ActivityForm):
+    """Formulário dos campos editáveis no card de informações da atividade."""
+
+    class_obj = None
+    subject = None
+    teacher = None
+
+
 class ScoreForm(forms.Form):
     """Formulário para lançar a nota de um aluno numa atividade."""
 

@@ -1,0 +1,27 @@
+<div class="card mb-0 sm-detail-card" id="class-information-card">
+    <div class="card-header d-flex align-items-center justify-content-between gap-2">
+        <h6 class="card-title mb-0">Informações da Turma</h6>
+        <div class="d-flex gap-2">
+            <a href="{% url 'schedule_weekly' class_obj.pk %}" class="btn btn-outline-primary btn-sm">Grade Horária</a>
+            <a href="{% url 'activities_list' %}?class_obj={{ class_obj.pk }}" class="btn btn-outline-primary btn-sm">Atividades</a>
+            <button type="button" class="btn btn-sm btn-outline-primary"
+                    hx-get="{% url 'class_edit' class_obj.pk %}"
+                    hx-target="#class-information-card" hx-swap="outerHTML">
+                <i class="feather-edit-2 me-1"></i> Editar
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if saved %}<div class="alert alert-success py-2">Informações atualizadas com sucesso.</div>{% endif %}
+        <dl class="row mb-0 sm-detail-definition">
+            <dt class="col-sm-3">Série</dt><dd class="col-sm-9">{{ class_obj.grade|default:"—" }}</dd>
+            <dt class="col-sm-3">Turno</dt><dd class="col-sm-9">{{ class_obj.get_shift_display|default:"—" }}</dd>
+            <dt class="col-sm-3">Ano Letivo</dt><dd class="col-sm-9">{{ class_obj.academic_year|default:"—" }}</dd>
+            <dt class="col-sm-3">Vagas</dt>
+            <dd class="col-sm-9">{{ class_obj.enrollment_count }}/{{ class_obj.max_students }}
+                {% if class_obj.has_open_seats %}<span class="badge bg-success ms-2">Vagas abertas</span>{% else %}<span class="badge bg-danger ms-2">Lotada</span>{% endif %}
+            </dd>
+            <dt class="col-sm-3">Professor Resp.</dt><dd class="col-sm-9">{{ class_obj.class_teacher|default:"—" }}</dd>
+        </dl>
+    </div>
+</div>

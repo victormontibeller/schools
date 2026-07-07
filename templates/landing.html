@@ -4,186 +4,307 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>School Manager — Gestão escolar em nuvem para multi-escolas</title>
-    <meta name="description" content="Plataforma SaaS multi-tenant para gestão escolar: turmas, matrículas, grade horária, atividades e notas. Cada escola isolada e segura.">
+    <title>School Manager — Gestão escolar conectada e segura</title>
+    <meta name="description" content="Centralize a operação da sua escola: alunos, professores, turmas, agenda, frequência, avaliações e comunicação em uma plataforma SaaS segura.">
     <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
     <link rel="stylesheet" href="{% static 'css/vendors.min.css' %}">
     <link rel="stylesheet" href="{% static 'css/theme.min.css' %}">
-    <style>
-        body { background: #f6f8fb; }
-        .hero { background: linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%); color: #fff; padding: 6rem 0 5rem; }
-        .hero h1 { font-weight: 800; letter-spacing: -0.03em; }
-        .hero .lead { font-size: 1.25rem; opacity: .92; }
-        .feature-icon { width: 56px; height: 56px; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; }
-        .plan-highlight { transform: translateY(-8px); box-shadow: 0 10px 40px rgba(67,97,238,.25); border-color: #4361ee !important; }
-        .badge-plan { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); }
-        .section { padding: 5rem 0; }
-        .navbar-light-custom { background: #fff; box-shadow: 0 1px 0 rgba(0,0,0,.04); }
-        footer { background: #0f1b3d; color: #c9d2ec; }
-        .stat-num { font-weight: 800; color: #4361ee; }
-    </style>
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
 </head>
 <body>
-    <!-- Nav público -->
-    <nav class="navbar navbar-expand-lg navbar-light-custom sticky-top">
+    <nav class="navbar navbar-expand-lg landing-nav sticky-top">
         <div class="container">
-            <a class="navbar-brand fw-bold" href="{% url 'index' %}">
-                <i class="feather-airplay text-primary me-2"></i>School Manager
+            <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="{% url 'index' %}">
+                <span class="brand-mark"><i class="feather-airplay"></i></span>
+                School Manager
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#public-navigation" aria-controls="public-navigation"
+                    aria-expanded="false" aria-label="Abrir navegação">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="collapse navbar-collapse" id="nav">
-                <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
-                    <li class="nav-item"><a class="nav-link" href="#recursos">Recursos</a></li>
+            <div class="collapse navbar-collapse" id="public-navigation">
+                <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-1">
+                    <li class="nav-item"><a class="nav-link" href="#plataforma">Plataforma</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#como-funciona">Como funciona</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#seguranca">Segurança</a></li>
                     <li class="nav-item"><a class="nav-link" href="#planos">Planos</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#faq">FAQ</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{% url 'login' %}">Entrar</a></li>
-                    <li class="nav-item"><a class="btn btn-primary px-3" href="{% url 'login' %}">Teste grátis</a></li>
+                    <li class="nav-item ms-lg-2">
+                        <a class="btn btn-outline-primary" href="{% url 'login' %}">Entrar</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-primary" href="{% url 'login' %}">Acessar demonstração</a>
+                    </li>
                 </ul>
             </div>
         </div>
     </nav>
 
-    <!-- Hero -->
-    <header class="hero">
-        <div class="container">
-            <div class="row align-items-center g-5">
-                <div class="col-lg-6">
-                    <span class="badge bg-light text-primary mb-3">SaaS multi-tenant · isolamento por schema</span>
-                    <h1 class="display-5 mb-3">A gestão escolar completa, em um só lugar.</h1>
-                    <p class="lead mb-4">Turmas, matrículas, grade horária, atividades e notas — com cada escola isolada e segura. Comece a operar em minutos, não em semanas.</p>
-                    <div class="d-flex flex-wrap gap-3">
-                        <a href="{% url 'login' %}" class="btn btn-light btn-lg fw-semibold">Experimentar demo</a>
-                        <a href="#planos" class="btn btn-outline-light btn-lg">Ver planos</a>
+    <main>
+        <header class="hero-section">
+            <div class="hero-orb hero-orb-one"></div>
+            <div class="hero-orb hero-orb-two"></div>
+            <div class="container position-relative">
+                <div class="row align-items-center g-5">
+                    <div class="col-lg-6">
+                        <span class="eyebrow"><i class="feather-check-circle"></i> Gestão escolar sem silos</span>
+                        <h1>Uma operação escolar mais simples, conectada e confiável.</h1>
+                        <p class="hero-copy">
+                            Secretaria, coordenação e professores trabalham sobre a mesma informação.
+                            Cadastros, rotina acadêmica, frequência e comunicação reunidos em um único ambiente.
+                        </p>
+                        <div class="d-flex flex-wrap gap-3">
+                            <a href="{% url 'login' %}" class="btn btn-light btn-lg px-4 fw-semibold">
+                                Explorar a plataforma <i class="feather-arrow-right ms-2"></i>
+                            </a>
+                            <a href="#plataforma" class="btn btn-hero-outline btn-lg px-4">Conhecer recursos</a>
+                        </div>
+                        <div class="hero-trust">
+                            <span><i class="feather-shield"></i> Dados isolados por escola</span>
+                            <span><i class="feather-cloud"></i> Acesso em nuvem</span>
+                            <span><i class="feather-activity"></i> Auditoria completa</span>
+                        </div>
                     </div>
-                    <div class="d-flex gap-4 mt-4 small">
-                        <div><span class="stat-num fs-4">99,9%</span><br><span class="opacity-75">disponibilidade</span></div>
-                        <div><span class="stat-num fs-4">+200</span><br><span class="opacity-75">escolas ativas</span></div>
-                        <div><span class="stat-num fs-4">14d</span><br><span class="opacity-75">teste grátis</span></div>
-                    </div>
-                </div>
-                <div class="col-lg-6">
-                    <div class="bg-white rounded-4 p-3 shadow-lg">
-                        <img src="https://images.unsplash.com/photo-1503676260728-1c055502d2c3?auto=format&fit=crop&w=900&q=60" alt="Gestão escolar" class="img-fluid rounded-3" loading="lazy">
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <!-- Recursos -->
-    <section class="section" id="recursos">
-        <div class="container">
-            <div class="text-center mb-5">
-                <h2 class="fw-bold">Tudo o que sua escola precisa</h2>
-                <p class="text-muted">Da secretaria à sala de aula —Unified em uma plataforma multi-tenant.</p>
-            </div>
-            <div class="row g-4">
-                {% for f in features %}
-                <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body">
-                            <span class="feature-icon bg-soft-primary text-primary mb-3"><i class="{{ f.icon }}"></i></span>
-                            <h5 class="card-title">{{ f.title }}</h5>
-                            <p class="card-text text-muted">{{ f.desc }}</p>
+                    <div class="col-lg-6">
+                        <div class="product-window">
+                            <div class="product-window-bar">
+                                <div class="window-dots"><span></span><span></span><span></span></div>
+                                <span class="window-title">Visão geral da escola</span>
+                                <span class="window-status"><span></span> Atualizado</span>
+                            </div>
+                            <div class="product-window-body">
+                                <div class="mock-sidebar">
+                                    <div class="mock-logo">SM</div>
+                                    <span class="active"><i class="feather-grid"></i></span>
+                                    <span><i class="feather-users"></i></span>
+                                    <span><i class="feather-calendar"></i></span>
+                                    <span><i class="feather-book-open"></i></span>
+                                    <span><i class="feather-bell"></i></span>
+                                </div>
+                                <div class="mock-content">
+                                    <div class="mock-heading">
+                                        <div><small>Painel acadêmico</small><strong>Bom dia, equipe!</strong></div>
+                                        <span class="mock-avatar">AD</span>
+                                    </div>
+                                    <div class="mock-kpis">
+                                        <div><i class="feather-user-check"></i><span>Alunos ativos</span><strong>1.248</strong><small>+34 neste mês</small></div>
+                                        <div><i class="feather-layers"></i><span>Turmas</span><strong>42</strong><small>3 turnos</small></div>
+                                        <div><i class="feather-check-circle"></i><span>Frequência</span><strong>94,8%</strong><small>média semanal</small></div>
+                                    </div>
+                                    <div class="mock-grid">
+                                        <div class="mock-chart-card">
+                                            <div class="mock-card-title"><strong>Frequência da semana</strong><span>Ver relatório</span></div>
+                                            <div class="mock-chart">
+                                                <span style="height:48%"></span><span style="height:68%"></span>
+                                                <span style="height:58%"></span><span style="height:82%"></span>
+                                                <span style="height:73%"></span><span style="height:88%"></span>
+                                                <span style="height:79%"></span>
+                                            </div>
+                                        </div>
+                                        <div class="mock-agenda-card">
+                                            <strong>Próximos eventos</strong>
+                                            <div><b>08</b><span>Reunião pedagógica<small>14:00</small></span></div>
+                                            <div><b>12</b><span>Conselho de classe<small>09:30</small></span></div>
+                                            <div><b>18</b><span>Feira de ciências<small>Todo o dia</small></span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                {% endfor %}
             </div>
-        </div>
-    </section>
+        </header>
 
-    <!-- Banner de prova social -->
-    <section class="py-4" style="background:#eef2ff;">
-        <div class="container text-center">
-            <p class="text-muted mb-3 text-uppercase small fw-semibold">Parcele, migre e escale com confiança</p>
-            <p class="lead mb-0">"Migramos 4 unidades para o School Manager em uma semana. A secretaria nunca foi tão leve." — <span class="fw-semibold">Mariana Costa, Diretora</span></p>
-        </div>
-    </section>
-
-    <!-- Planos -->
-    <section class="section" id="planos">
-        <div class="container">
-            <div class="text-center mb-5">
-                <h2 class="fw-bold">Planos que cabem no seu tamanho</h2>
-                <p class="text-muted">Escolha o seu e comece hoje. Sem fidelidade, cancele quando quiser.</p>
+        <section class="context-strip">
+            <div class="container">
+                <div class="row g-4 text-center">
+                    <div class="col-md-4"><i class="feather-refresh-cw"></i><strong>Menos retrabalho</strong><span>Uma fonte única de informação</span></div>
+                    <div class="col-md-4"><i class="feather-eye"></i><strong>Mais visibilidade</strong><span>Indicadores para decisões rápidas</span></div>
+                    <div class="col-md-4"><i class="feather-message-circle"></i><strong>Comunicação organizada</strong><span>Escola e famílias mais próximas</span></div>
+                </div>
             </div>
-            <div class="row g-4 justify-content-center">
-                {% for p in plans %}
-                <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 shadow-sm {% if p.highlight %}plan-highlight{% endif %}">
-                        {% if p.highlight %}<span class="badge badge-plan bg-primary text-white">Mais popular</span>{% endif %}
-                        <div class="card-body text-center p-4">
-                            <h5 class="fw-bold">{{ p.name }}</h5>
-                            <div class="my-3">
-                                <span class="h2 fw-bold">{{ p.price }}</span><span class="text-muted">{{ p.period }}</span>
+        </section>
+
+        <section class="section-space" id="plataforma">
+            <div class="container">
+                <div class="section-heading">
+                    <span class="section-kicker">Plataforma completa</span>
+                    <h2>Toda a jornada escolar em um único fluxo</h2>
+                    <p>Os módulos compartilham contexto e eliminam cadastros duplicados entre secretaria, coordenação e sala de aula.</p>
+                </div>
+                <div class="row g-4">
+                    {% for f in features %}
+                    <div class="col-md-6 col-lg-4">
+                        <article class="feature-card h-100">
+                            <span class="feature-icon"><i class="{{ f.icon }}"></i></span>
+                            <h3>{{ f.title }}</h3>
+                            <p>{{ f.desc }}</p>
+                            <span class="feature-link">Integrado à plataforma <i class="feather-arrow-up-right"></i></span>
+                        </article>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <section class="section-space workflow-section" id="como-funciona">
+            <div class="container">
+                <div class="row align-items-center g-5">
+                    <div class="col-lg-5">
+                        <span class="section-kicker">Da implantação à rotina</span>
+                        <h2 class="section-title">Comece organizado e evolua sem trocar de sistema.</h2>
+                        <p class="section-copy">A estrutura acompanha o crescimento da escola, preservando histórico, permissões e rastreabilidade.</p>
+                        <div class="workflow-list">
+                            <div><span>01</span><div><strong>Configure sua escola</strong><p>Dados institucionais, calendário, salas, disciplinas e perfis de acesso.</p></div></div>
+                            <div><span>02</span><div><strong>Organize a comunidade</strong><p>Alunos, responsáveis, professores, turmas e vínculos acadêmicos.</p></div></div>
+                            <div><span>03</span><div><strong>Conduza a operação</strong><p>Grade, frequência, atividades, avaliações, agenda e notificações.</p></div></div>
+                            <div><span>04</span><div><strong>Acompanhe resultados</strong><p>Dashboards e histórico para agir antes que o problema cresça.</p></div></div>
+                        </div>
+                    </div>
+                    <div class="col-lg-7">
+                        <div class="role-panel">
+                            <div class="role-panel-head">
+                                <div><span>Uma plataforma</span><strong>Experiências para cada papel</strong></div>
+                                <i class="feather-users"></i>
                             </div>
-                            <ul class="list-unstyled text-start d-inline-block">
-                                {% for f in p.features %}
-                                <li class="mb-2"><i class="feather-check text-success me-2"></i>{{ f }}</li>
+                            <div class="role-grid">
+                                <div><i class="feather-briefcase"></i><strong>Secretaria</strong><span>Cadastros, matrículas e documentos consistentes.</span></div>
+                                <div><i class="feather-compass"></i><strong>Coordenação</strong><span>Turmas, calendário e acompanhamento acadêmico.</span></div>
+                                <div><i class="feather-book-open"></i><strong>Professores</strong><span>Disciplinas, frequência, atividades e notas.</span></div>
+                                <div><i class="feather-heart"></i><strong>Famílias</strong><span>Comunicação clara e informações centralizadas.</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section-space security-section" id="seguranca">
+            <div class="container">
+                <div class="row align-items-center g-5">
+                    <div class="col-lg-6">
+                        <div class="security-visual">
+                            <span class="security-ring ring-one"></span>
+                            <span class="security-ring ring-two"></span>
+                            <div class="security-core"><i class="feather-shield"></i><strong>School Manager</strong><small>Proteção por arquitetura</small></div>
+                            <span class="security-node node-one"><i class="feather-database"></i> Isolamento</span>
+                            <span class="security-node node-two"><i class="feather-lock"></i> Permissões</span>
+                            <span class="security-node node-three"><i class="feather-file-text"></i> Auditoria</span>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <span class="section-kicker light">Segurança por padrão</span>
+                        <h2 class="section-title text-white">Cada escola no seu espaço. Cada ação rastreável.</h2>
+                        <p class="section-copy text-white-50">A arquitetura multi-tenant separa os dados por schema e aplica controle de acesso, auditoria e exclusão lógica em toda a plataforma.</p>
+                        <div class="security-points">
+                            <div><i class="feather-check"></i><span><strong>Isolamento multi-tenant</strong>Banco segmentado por escola, sem mistura de registros.</span></div>
+                            <div><i class="feather-check"></i><span><strong>Auditoria operacional</strong>Histórico de alterações com contexto e autoria.</span></div>
+                            <div><i class="feather-check"></i><span><strong>Privacidade desde o código</strong>Proteção contra exposição de dados pessoais em logs.</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section-space" id="planos">
+            <div class="container">
+                <div class="section-heading">
+                    <span class="section-kicker">Planos flexíveis</span>
+                    <h2>Uma base sólida para cada fase da escola</h2>
+                    <p>Comece com a operação essencial e avance para uma visão completa da rede.</p>
+                </div>
+                <div class="row g-4 justify-content-center">
+                    {% for p in plans %}
+                    <div class="col-md-6 col-lg-4">
+                        <article class="pricing-card h-100 {% if p.highlight %}featured{% endif %}">
+                            {% if p.highlight %}<span class="popular-badge">Mais escolhido</span>{% endif %}
+                            <span class="plan-name">{{ p.name }}</span>
+                            <div class="plan-price"><strong>{{ p.price }}</strong><span>{{ p.period }}</span></div>
+                            <p class="plan-copy">{% if p.highlight %}Para escolas que querem uma operação acadêmica completa.{% elif forloop.first %}Para organizar a rotina de uma unidade escolar.{% else %}Para grupos com gestão centralizada e escala.{% endif %}</p>
+                            <ul>
+                                {% for item in p.features %}
+                                <li><i class="feather-check"></i>{{ item }}</li>
                                 {% endfor %}
                             </ul>
-                            <a href="{% url 'login' %}" class="btn w-100 mt-3 {% if p.highlight %}btn-primary{% else %}btn-outline-primary{% endif %}">Começar</a>
-                        </div>
+                            <a href="{% url 'login' %}" class="btn {% if p.highlight %}btn-primary{% else %}btn-outline-primary{% endif %} w-100">Conhecer o plano</a>
+                        </article>
                     </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
             </div>
-        </div>
-    </section>
+        </section>
 
-    <!-- FAQ -->
-    <section class="section bg-white" id="faq">
-        <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-lg-8">
-                    <h2 class="fw-bold text-center mb-5">Perguntas frequentes</h2>
-                    <div class="accordion" id="faqAcc">
-                        {% for f in faqs %}
-                        <div class="accordion-item border-0 mb-2 shadow-sm rounded">
-                            <h2 class="accordion-header">
-                                <button class="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#faq{{ forloop.counter }}">
-                                    {{ f.q }}
-                                </button>
-                            </h2>
-                            <div id="faq{{ forloop.counter }}" class="accordion-collapse collapse" data-bs-parent="#faqAcc">
-                                <div class="accordion-body text-muted">{{ f.a }}</div>
+        <section class="section-space faq-section" id="faq">
+            <div class="container">
+                <div class="row g-5">
+                    <div class="col-lg-4">
+                        <span class="section-kicker">Dúvidas frequentes</span>
+                        <h2 class="section-title">O que você precisa saber antes de começar.</h2>
+                        <p class="section-copy">A plataforma foi pensada para reduzir a complexidade técnica da escola, não para criar mais uma.</p>
+                        <a href="{% url 'login' %}" class="text-primary fw-semibold text-decoration-none">Conhecer a demonstração <i class="feather-arrow-right"></i></a>
+                    </div>
+                    <div class="col-lg-8">
+                        <div class="accordion landing-accordion" id="faq-accordion">
+                            {% for f in faqs %}
+                            <div class="accordion-item">
+                                <h3 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                            data-bs-target="#faq-{{ forloop.counter }}" aria-expanded="false">
+                                        {{ f.q }}
+                                    </button>
+                                </h3>
+                                <div id="faq-{{ forloop.counter }}" class="accordion-collapse collapse"
+                                     data-bs-parent="#faq-accordion">
+                                    <div class="accordion-body">{{ f.a }}</div>
+                                </div>
                             </div>
+                            {% endfor %}
                         </div>
-                        {% endfor %}
                     </div>
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <!-- CTA final -->
-    <section class="section" style="background:linear-gradient(135deg,#4361ee,#3a0ca3);color:#fff;">
-        <div class="container text-center">
-            <h2 class="fw-bold mb-3">Pronto para simplificar sua escola?</h2>
-            <p class="lead opacity-90 mb-4">Crie sua conta de teste agora. Em 5 minutos você já estará operando.</p>
-            <a href="{% url 'login' %}" class="btn btn-light btn-lg fw-semibold">Teste grátis por 14 dias</a>
-            <a href="#recursos" class="btn btn-outline-light btn-lg ms-2">Conhecer recursos</a>
-        </div>
-    </section>
-
-    <footer class="py-5">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-5">
-                    <h5 class="fw-bold mb-3"><i class="feather-airplay me-2"></i>School Manager</h5>
-                    <p class="text-muted">Plataforma SaaS multi-tenant para gestão escolar em Django 5.1 + PostgreSQL, com isolamento por schema e auditoria completa.</p>
+        <section class="final-cta">
+            <div class="container">
+                <div class="final-cta-inner">
+                    <div>
+                        <span>Pronto para enxergar sua escola por inteiro?</span>
+                        <h2>Conheça uma gestão que acompanha a rotina de verdade.</h2>
+                    </div>
+                    <a href="{% url 'login' %}" class="btn btn-light btn-lg fw-semibold">
+                        Acessar demonstração <i class="feather-arrow-right ms-2"></i>
+                    </a>
                 </div>
-                <div class="col-lg-2"><h6 class="text-uppercase">Produto</h6><ul class="list-unstyled"><li><a href="#recursos" class="text-reset text-decoration-none">Recursos</a></li><li><a href="#planos" class="text-reset text-decoration-none">Planos</a></li><li><a href="#faq" class="text-reset text-decoration-none">FAQ</a></li></ul></div>
-                <div class="col-lg-2"><h6 class="text-uppercase">Escola</h6><ul class="list-unstyled"><li><a href="{% url 'login' %}" class="text-reset text-decoration-none">Entrar</a></li><li><a href="{% url 'login' %}" class="text-reset text-decoration-none">Teste grátis</a></li></ul></div>
-                <div class="col-lg-3"><h6 class="text-uppercase">Contato</h6><p class="text-muted small mb-1">contato@schoolmanager.dev</p><p class="text-muted small mb-1">(11) 4000-0000</p></div>
             </div>
-            <hr class="border-secondary my-4">
-            <div class="d-flex justify-content-between flex-wrap text-muted small">
+        </section>
+    </main>
+
+    <footer class="landing-footer">
+        <div class="container">
+            <div class="row g-4">
+                <div class="col-lg-5">
+                    <a class="footer-brand" href="{% url 'index' %}"><span class="brand-mark"><i class="feather-airplay"></i></span> School Manager</a>
+                    <p>Gestão escolar conectada, segura e preparada para crescer com sua instituição.</p>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <strong>Plataforma</strong>
+                    <a href="#plataforma">Recursos</a><a href="#como-funciona">Como funciona</a><a href="#seguranca">Segurança</a>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <strong>Começar</strong>
+                    <a href="#planos">Planos</a><a href="#faq">Perguntas</a><a href="{% url 'login' %}">Entrar</a>
+                </div>
+                <div class="col-lg-3">
+                    <strong>Contato</strong>
+                    <a href="mailto:contato@schoolmanager.dev">contato@schoolmanager.dev</a>
+                    <span>Atendimento em horário comercial</span>
+                </div>
+            </div>
+            <div class="footer-bottom">
                 <span>© 2026 School Manager. Todos os direitos reservados.</span>
-                <span>Construído em Django 5.1 · isolamento por schema</span>
+                <span>SaaS multi-tenant para gestão escolar</span>
             </div>
         </div>
     </footer>

@@ -2,9 +2,36 @@
     <table class="table table-hover mb-0">
         <thead>
             <tr>
-                <th>Responsável</th>
-                <th>Parentesco</th>
-                <th>CPF</th>
+                <th aria-sort="{{ sorting.name.aria_sort }}">
+                    <a href="?{{ sorting.name.query }}"
+                       class="sm-sort-link{% if sorting.name.active %} is-active{% endif %}"
+                       hx-get="?{{ sorting.name.query }}"
+                       hx-target="#guardians-table"
+                       hx-swap="innerHTML">
+                        Responsável
+                        {% if sorting.name.direction == "asc" %}<span class="sm-sort-indicator">↑</span>{% elif sorting.name.direction == "desc" %}<span class="sm-sort-indicator">↓</span>{% endif %}
+                    </a>
+                </th>
+                <th aria-sort="{{ sorting.relationship_type.aria_sort }}">
+                    <a href="?{{ sorting.relationship_type.query }}"
+                       class="sm-sort-link{% if sorting.relationship_type.active %} is-active{% endif %}"
+                       hx-get="?{{ sorting.relationship_type.query }}"
+                       hx-target="#guardians-table"
+                       hx-swap="innerHTML">
+                        Parentesco
+                        {% if sorting.relationship_type.direction == "asc" %}<span class="sm-sort-indicator">↑</span>{% elif sorting.relationship_type.direction == "desc" %}<span class="sm-sort-indicator">↓</span>{% endif %}
+                    </a>
+                </th>
+                <th aria-sort="{{ sorting.cpf.aria_sort }}">
+                    <a href="?{{ sorting.cpf.query }}"
+                       class="sm-sort-link{% if sorting.cpf.active %} is-active{% endif %}"
+                       hx-get="?{{ sorting.cpf.query }}"
+                       hx-target="#guardians-table"
+                       hx-swap="innerHTML">
+                        CPF
+                        {% if sorting.cpf.direction == "asc" %}<span class="sm-sort-indicator">↑</span>{% elif sorting.cpf.direction == "desc" %}<span class="sm-sort-indicator">↓</span>{% endif %}
+                    </a>
+                </th>
                 <th>Telefone</th>
                 <th>WhatsApp</th>
                 <th>Alunos</th>
@@ -46,7 +73,7 @@
         <ul class="pagination pagination-sm mb-0">
             {% if result.has_previous %}
             <li class="page-item">
-                <a class="page-link" hx-get="?page={{ result.page|add:'-1' }}&q={{ q }}"
+                <a class="page-link" hx-get="?page={{ result.page|add:'-1' }}{% if list_query %}&{{ list_query }}{% endif %}"
                    hx-target="#guardians-table" hx-swap="innerHTML">«</a>
             </li>
             {% endif %}
@@ -55,7 +82,7 @@
             </li>
             {% if result.has_next %}
             <li class="page-item">
-                <a class="page-link" hx-get="?page={{ result.page|add:'1' }}&q={{ q }}"
+                <a class="page-link" hx-get="?page={{ result.page|add:'1' }}{% if list_query %}&{{ list_query }}{% endif %}"
                    hx-target="#guardians-table" hx-swap="innerHTML">»</a>
             </li>
             {% endif %}

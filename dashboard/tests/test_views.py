@@ -3,6 +3,8 @@
 import pytest
 from django.urls import reverse
 
+from core.models import Role
+
 
 @pytest.mark.django_db
 class TestDashboardViews:
@@ -21,3 +23,18 @@ class TestDashboardViews:
         client.force_login(user)
         response = client.get(reverse("executive_dashboard"))
         assert response.status_code == 302  # redirect to admin login
+
+    def test_home_dashboard_renders_role_based_shortcuts(self, client, user):
+        role = Role.objects.create(name=Role.Name.TEACHER, created_by=user, updated_by=user)
+        user.role = role
+        user.save(update_fields=["role"])
+        client.force_login(user)
+
+        response = client.get(reverse("dashboard"))
+
+        content = response.content.decode()
+        assert response.status_code == 200
+        assert "rotina de rotina docente" in content.lower()
+        assert "Minhas disciplinas" in content
+        assert "Lançar frequência" in content
+        assert "Módulos em foco" in content

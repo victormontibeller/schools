@@ -6,6 +6,10 @@ from django.contrib import admin
 from django.urls import include, path
 
 from core.views import (
+    business_unit_create,
+    business_unit_detail,
+    business_unit_edit,
+    business_unit_list,
     dashboard,
     handler404,
     handler500,
@@ -22,6 +26,12 @@ handler500 = handler500
 urlpatterns = [
     path("", index, name="index"),
     path("app/", dashboard, name="dashboard"),
+    path("app/empresas/", business_unit_list, name="business_unit_list"),
+    path("app/empresas/nova/", business_unit_create, name="business_unit_create"),
+    path("app/empresas/<uuid:pk>/", business_unit_detail, name="business_unit_detail"),
+    path("app/empresas/<uuid:pk>/editar/", business_unit_edit, name="business_unit_edit"),
+    path("app/escola/", school_detail, name="school_settings_detail"),
+    path("app/escola/editar/", school_edit, name="school_settings_edit"),
     path("app/empresa/", school_detail, name="school_detail"),
     path("app/empresa/editar/", school_edit, name="school_edit"),
     path("admin/", admin.site.urls),

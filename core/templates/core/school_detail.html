@@ -1,80 +1,28 @@
 {% extends "base.html" %}
 
-{% block title %}Empresa — School Manager{% endblock %}
+{% block title %}Configurações da Escola — School Manager{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div class="page-header-left d-flex align-items-center">
         <div class="page-header-title">
-            <h5 class="m-b-10">Empresa</h5>
+            <h5 class="m-b-10">Escola</h5>
         </div>
         <ul class="breadcrumb">
             <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
-            <li class="breadcrumb-item active">Empresa</li>
+            <li class="breadcrumb-item active">Escola</li>
         </ul>
-    </div>
-    <div class="page-header-right ms-auto">
-        <a href="{% url 'school_edit' %}" class="btn btn-primary btn-sm">
-            <i class="feather-edit-2 me-1"></i> Editar
-        </a>
     </div>
 </div>
 
 <div class="main-content">
-    <div class="card mb-3">
-        <div class="card-header">
-            <h6 class="card-title mb-0">Informações da Empresa</h6>
+    <div class="row g-3 align-items-start">
+        <div class="col-12 col-xl-6">
+            {% include "core/partials/school_information_card.html" %}
         </div>
-        <div class="card-body">
-            <div class="row g-4 align-items-start">
-                <div class="col-12 col-lg-3 text-center">
-                    {% if school.logo %}
-                        <img src="{{ school.logo.url }}"
-                             class="img-thumbnail"
-                             style="max-width: 180px;"
-                             alt="Logotipo de {{ school.name }}">
-                    {% else %}
-                        <div class="avatar-text avatar-xl bg-soft-primary text-primary mx-auto">
-                            {{ school.name|first|upper }}
-                        </div>
-                    {% endif %}
-                    <h5 class="fw-bold mt-3 mb-1">{{ school.name }}</h5>
-                    <p class="text-muted mb-0">{{ school.trade_name|default:"—" }}</p>
-                </div>
-                <div class="col-12 col-lg-9">
-                    <dl class="row mb-0">
-                        <dt class="col-sm-4 text-muted">Razão social</dt>
-                        <dd class="col-sm-8">{{ school.legal_name|default:"—" }}</dd>
-                        <dt class="col-sm-4 text-muted">CNPJ</dt>
-                        <dd class="col-sm-8">{{ school.cnpj|default:"—" }}</dd>
-                        <dt class="col-sm-4 text-muted">Inscrição estadual</dt>
-                        <dd class="col-sm-8">{{ school.state_registration|default:"—" }}</dd>
-                        <dt class="col-sm-4 text-muted">Inscrição municipal</dt>
-                        <dd class="col-sm-8">{{ school.municipal_registration|default:"—" }}</dd>
-                        <dt class="col-sm-4 text-muted">Telefone</dt>
-                        <dd class="col-sm-8">{{ school.phone|default:"—" }}</dd>
-                        <dt class="col-sm-4 text-muted">E-mail</dt>
-                        <dd class="col-sm-8">{{ school.email|default:"—" }}</dd>
-                        <dt class="col-sm-4 text-muted">Responsável</dt>
-                        <dd class="col-sm-8">{{ school.contact_full_name|default:"—" }}</dd>
-                        <dt class="col-sm-4 text-muted">Cargo</dt>
-                        <dd class="col-sm-8">{{ school.contact_role|default:"—" }}</dd>
-                        <dt class="col-sm-4 text-muted">Contato do responsável</dt>
-                        <dd class="col-sm-8">
-                            {{ school.contact_phone|default:"—" }} ·
-                            {{ school.contact_email|default:"—" }}
-                        </dd>
-                        <dt class="col-sm-4 text-muted">Ano letivo</dt>
-                        <dd class="col-sm-8">
-                            {{ school.academic_year_start|date:"d/m/Y"|default:"—" }} a
-                            {{ school.academic_year_end|date:"d/m/Y"|default:"—" }}
-                        </dd>
-                    </dl>
-                </div>
-            </div>
+        <div class="col-12 col-xl-6 sm-detail-side">
+            {% include "addresses/partials/address_table.html" with addresses=addresses entity_type="school" entity_id=school.pk %}
         </div>
     </div>
-
-    {% include "addresses/partials/address_table.html" with addresses=addresses entity_type="school" entity_id=school.pk %}
 </div>
 {% endblock %}

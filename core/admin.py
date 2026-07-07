@@ -1,9 +1,9 @@
-"""Admin: School, Domain, Role e CustomUser."""
+"""Admin: School, BusinessUnit, Domain, Role e CustomUser."""
 
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from core.models import CustomUser, Domain, Role, School
+from core.models import BusinessUnit, CustomUser, Domain, Role, School
 
 
 @admin.register(School)
@@ -11,6 +11,13 @@ class SchoolAdmin(admin.ModelAdmin):
     list_display = ["name", "schema_name", "email", "created_at"]
     search_fields = ["name", "schema_name", "cnpj"]
     readonly_fields = ["schema_name", "created_at", "updated_at"]
+
+
+@admin.register(BusinessUnit)
+class BusinessUnitAdmin(admin.ModelAdmin):
+    list_display = ["name", "cnpj", "email", "created_at"]
+    search_fields = ["name", "cnpj", "trade_name"]
+    readonly_fields = ["created_at", "updated_at"]
 
 
 @admin.register(Domain)

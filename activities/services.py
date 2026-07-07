@@ -93,6 +93,7 @@ class ActivityService(BaseService):
         updates["updated_by"] = self.user
         activity = repo.update(activity, **updates)
         self._record_audit("UPDATE", activity, old_values=old)
+        self._log("Atividade atualizada", activity_id=str(activity.pk))
         return activity
 
     def record_score(self, activity_id, student_id, score, feedback: str = ""):

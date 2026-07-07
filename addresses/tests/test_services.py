@@ -37,6 +37,17 @@ def teacher(db, user):
 
 
 @pytest.fixture()
+def business_unit(user):
+    from core.models import BusinessUnit
+
+    return BusinessUnit.objects.create(
+        name="Unidade Leste",
+        created_by=user,
+        updated_by=user,
+    )
+
+
+@pytest.fixture()
 def student(user):
     from students.models import Student
 
@@ -69,7 +80,7 @@ VALID_ADDRESS_DATA = {
     "complement": "Apto 45",
     "district": "Centro",
     "postal_code": "01001999",
-    "city": "Sao Paulo",
+    "city": "São Paulo",
     "state": "SP",
 }
 
@@ -114,8 +125,22 @@ def test_create_address_fails_when_invalid_uf(service, school):
 
 
 @pytest.mark.django_db
+def test_create_address_fails_when_city_does_not_belong_to_state(service, school):
+    data = {**VALID_ADDRESS_DATA, "city": "Niterói", "state": "SP"}
+    with pytest.raises(ValidationError) as exc_info:
+        service.create_address_for_school(school.pk, data)
+    assert "city" in exc_info.value.errors
+
+
+@pytest.mark.django_db
 def test_create_address_for_teacher_succeeds(service, teacher):
     result = service.create_address_for_teacher(teacher.pk, VALID_ADDRESS_DATA)
+    assert result.pk is not None
+
+
+@pytest.mark.django_db
+def test_create_address_for_business_unit_succeeds(service, business_unit):
+    result = service.create_address_for_business_unit(business_unit.pk, VALID_ADDRESS_DATA)
     assert result.pk is not None
 
 

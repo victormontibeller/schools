@@ -74,6 +74,7 @@ Regras:
 
 ## Contrato de Tabelas de Listagem
 
+- Botões de cadastro exibem somente o ícone de adição e a legenda `NOVO`, sem repetir o domínio.
 - A primeira coluna identifica o registro e é sempre o link principal da linha.
 - Para entidades com tela de detalhe ou perfil, a primeira coluna aponta para essa tela.
 - Sem tela de detalhe, usar a tela operacional principal (edição, chamada ou lançamento).

@@ -5,7 +5,7 @@ import logging
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
-from activities.forms import ActivityForm, ScoreForm
+from activities.forms import ActivityEditForm, ActivityForm, ScoreForm
 from activities.selectors import ActivitySelector
 from activities.services import ActivityService
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
@@ -78,11 +78,61 @@ def activity_detail(request, pk):
     from activities.forms import ScoreForm
 
     activity = ActivitySelector().get_by_id(pk)
+    if request.headers.get("HX-Request") and request.GET.get("component") == "information":
+        return render(
+            request,
+            "activities/partials/activity_information_card.html",
+            {"activity": activity},
+        )
     submissions = ActivitySelector().list_submissions(activity.pk)
     return render(
         request,
         "activities/activity_detail.html",
         {"activity": activity, "submissions": submissions, "form": ScoreForm()},
+    )
+
+
+@login_required
+def activity_edit(request, pk):
+    """Edita a atividade substituindo apenas o card de informações."""
+    activity = ActivitySelector().get_by_id(pk)
+    form = ActivityEditForm(
+        request.POST or None,
+        initial={
+            "title": activity.title,
+            "description": activity.description,
+            "type": activity.type,
+            "due_date": activity.due_date,
+            "max_score": activity.max_score,
+            "weight": activity.weight,
+        },
+    )
+    if request.method == "POST" and form.is_valid():
+        try:
+            activity = ActivityService(user=request.user).update_activity(pk, form.cleaned_data)
+            if request.headers.get("HX-Request"):
+                return render(
+                    request,
+                    "activities/partials/activity_information_card.html",
+                    {"activity": activity, "saved": True},
+                )
+            return redirect("activity_detail", pk=pk)
+        except ValidationError as exc:
+            for field, errors in exc.errors.items():
+                for error in errors:
+                    form.add_error(field if field != "__all__" else None, error)
+    if not request.headers.get("HX-Request"):
+        return redirect("activity_detail", pk=pk)
+    return render(
+        request,
+        "partials/information_form_card.html",
+        {
+            "form": form,
+            "component_id": "activity-information-card",
+            "component_title": "Informações da Atividade",
+            "edit_url": request.path,
+            "cancel_url": f"{request.path_info.removesuffix('editar/')}?component=information",
+        },
     )
 
 

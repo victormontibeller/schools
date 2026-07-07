@@ -2,7 +2,7 @@
 {% if field.is_hidden %}
     {{ field }}
 {% else %}
-<div class="{% if full_width or field.field.widget.input_type == 'checkbox' or wt == 'TextareaInput' or wt == 'SelectMultiple' or wt == 'CheckboxSelectMultiple' or wt == 'ClearableFileInput' or field.field.widget.input_type == 'file' %}col-12{% else %}col-12 col-lg-6{% endif %}">
+<div class="{% if field.field.widget.attrs.data_grid %}{{ field.field.widget.attrs.data_grid }}{% elif full_width or field.field.widget.input_type == 'checkbox' or wt == 'TextareaInput' or wt == 'SelectMultiple' or wt == 'CheckboxSelectMultiple' or wt == 'ClearableFileInput' or field.field.widget.input_type == 'file' %}col-12{% else %}col-12 col-lg-6{% endif %}">
     {% if field.field.widget.input_type == 'checkbox' %}
         <div class="form-check form-switch py-2">
             {{ field|form_widget }}

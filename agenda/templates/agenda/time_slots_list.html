@@ -14,10 +14,13 @@
 </div>
 
 <div class="main-content">
-    <div class="row g-3">
-        <div class="col-md-5">
-            <div class="card">
-                <div class="card-header"><h6 class="card-title mb-0">Novo Horário</h6></div>
+    <div class="row g-3 sm-detail-layout">
+        <div class="col-12 col-xl-5">
+            <div class="card sm-detail-card">
+                <div class="card-header d-flex align-items-center justify-content-between gap-2">
+                    <h6 class="card-title mb-0">Novo Horário</h6>
+                    <button type="submit" class="btn btn-sm btn-primary" form="time-slot-form">Salvar</button>
+                </div>
                 <div class="card-body">
                     {% if errors %}
                     <div class="alert alert-danger small">
@@ -26,24 +29,24 @@
                         {% endfor %}
                     </div>
                     {% endif %}
-                    <form method="post" action="{% url 'time_slot_create' %}" novalidate>
+                    <form id="time-slot-form" method="post" action="{% url 'time_slot_create' %}" novalidate>
                         {% csrf_token %}
                         <div class="row g-3">
                             {% for field in form %}
                                 {% include "partials/form_field.html" with field=field full_width=True %}
                             {% endfor %}
                         </div>
-                        <button type="submit" class="btn btn-primary mt-4">Salvar</button>
                     </form>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-7">
-            <div class="card">
+        <div class="col-12 col-xl-7">
+            <div class="card sm-detail-card sm-detail-table-card">
                 <div class="card-header"><h6 class="card-title mb-0">Horários Cadastrados</h6></div>
                 <div class="card-body p-0">
-                    <table class="table table-hover align-middle">
+                    <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
                         <thead>
                             <tr><th>Dia</th><th>Nº</th><th>Início</th><th>Fim</th></tr>
                         </thead>
@@ -60,6 +63,7 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </div>
         </div>

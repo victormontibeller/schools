@@ -3,38 +3,7 @@
 {% block title %}Usuários — School Manager{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div class="page-header-left d-flex align-items-center">
-        <div class="page-header-title">
-            <h5 class="m-b-10">Usuários</h5>
-        </div>
-        <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
-            <li class="breadcrumb-item">Usuários</li>
-        </ul>
-    </div>
-    <div class="page-header-right ms-auto">
-        <span class="badge bg-soft-primary text-primary fs-6">{{ result.total }} registros</span>
-    </div>
-</div>
-
-<div class="main-content">
-    <div class="card">
-        <div class="card-header d-flex align-items-center justify-content-between">
-            <h6 class="card-title mb-0">Lista de Usuários</h6>
-        </div>
-        <div class="card-body p-0"
-             id="users-table"
-             hx-get="{% url 'users_list' %}"
-             hx-trigger="load"
-             hx-target="#users-table"
-             hx-swap="innerHTML">
-            {% include "accounts/partials/users_table.html" %}
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block extra_js %}
-<script src="https://unpkg.com/htmx.org@1.9.12"></script>
+{% include "partials/list_header.html" with list_title="Usuários" breadcrumb_items=breadcrumb_items search_url="users_list" search_target="#users-table" search_value=q sort=sort clear_query=clear_query total_count=result.total %}
+{% include "accounts/partials/users_table.html" %}
+{% include "partials/list_footer.html" %}
 {% endblock %}

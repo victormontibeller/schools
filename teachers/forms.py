@@ -2,7 +2,6 @@
 
 from django import forms
 
-from base.validators import UF_CHOICES
 from teachers.models import Subject
 
 
@@ -18,6 +17,11 @@ class SubjectForm(forms.ModelForm):
             "workload": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
         }
         labels = {"name": "Nome", "code": "Código", "workload": "Carga Horária (h/ano)"}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.required = True
 
 
 def _user_choices_queryset():
@@ -102,77 +106,103 @@ class TeacherForm(forms.Form):
         """Atribui choices lazy para Select widgets."""
         super().__init__(*args, **kwargs)
         self.fields["user_id"].widget.choices = _user_choices_queryset()
+        from locations.selectors import StateSelector
         from teachers.models import Teacher
 
         self.fields["gender"].choices = [("", "---------")] + list(Teacher.Gender.choices)
-        self.fields["rg_state"].choices = [("", "---------")] + list(UF_CHOICES)
+        self.fields["rg_state"].choices = StateSelector().list_choices(include_blank=True)
 
 
 class TeacherEditForm(forms.Form):
     """Formulario de edicao de professor (dados do perfil, nao do usuario)."""
 
+    first_name = forms.CharField(
+        max_length=150,
+        label="Nome",
+        widget=forms.TextInput(attrs={"class": "form-control", "data_grid": "col-12 col-md-6"}),
+    )
+    last_name = forms.CharField(
+        max_length=150,
+        label="Sobrenome",
+        widget=forms.TextInput(attrs={"class": "form-control", "data_grid": "col-12 col-md-6"}),
+    )
+    avatar = forms.ImageField(
+        required=False,
+        label="Foto do Professor",
+        widget=forms.ClearableFileInput(attrs={"class": "sm-profile-avatar-input"}),
+    )
     registration_number = forms.CharField(
         max_length=30,
         label="Matricula",
-        widget=forms.TextInput(attrs={"class": "form-control"}),
+        widget=forms.TextInput(attrs={"class": "form-control", "data_grid": "col-12 col-lg-6"}),
     )
     hire_date = forms.DateField(
-        required=False,
         label="Data de Admissao",
-        widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+        widget=forms.DateInput(
+            attrs={"type": "date", "class": "form-control", "data_grid": "col-12 col-md-6"}
+        ),
     )
     birth_date = forms.DateField(
-        required=False,
         label="Data de Nascimento",
-        widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+        widget=forms.DateInput(
+            attrs={"type": "date", "class": "form-control", "data_grid": "col-12 col-md-6"}
+        ),
     )
     gender = forms.ChoiceField(
-        required=False,
         label="Genero",
-        widget=forms.Select(attrs={"class": "form-select"}),
+        widget=forms.Select(attrs={"class": "form-select", "data_grid": "col-12 col-md-6"}),
     )
     nationality = forms.CharField(
         max_length=100,
-        required=False,
         label="Nacionalidade",
-        widget=forms.TextInput(attrs={"class": "form-control"}),
+        widget=forms.TextInput(attrs={"class": "form-control", "data_grid": "col-12 col-md-6"}),
     )
     cpf = forms.CharField(
         max_length=14,
-        required=False,
         label="CPF",
-        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "000.000.000-00"}),
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "000.000.000-00",
+                "data_grid": "col-12 col-md-6",
+            }
+        ),
     )
     rg_number = forms.CharField(
         max_length=20,
-        required=False,
         label="RG — Numero",
-        widget=forms.TextInput(attrs={"class": "form-control"}),
+        widget=forms.TextInput(attrs={"class": "form-control", "data_grid": "col-12 col-md-4"}),
     )
     rg_issuer = forms.CharField(
         max_length=50,
-        required=False,
         label="RG — Orgao Emissor",
-        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "SSP"}),
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "SSP", "data_grid": "col-12 col-md-4"}
+        ),
     )
     rg_state = forms.ChoiceField(
-        required=False,
         label="RG — UF",
-        widget=forms.Select(attrs={"class": "form-select"}),
+        widget=forms.Select(attrs={"class": "form-select", "data_grid": "col-12 col-md-4"}),
     )
     phone_mobile = forms.CharField(
         max_length=20,
-        required=False,
         label="Celular",
-        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "(00) 00000-0000"}),
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "(00) 00000-0000",
+                "data_grid": "col-12 col-md-6",
+            }
+        ),
     )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        from locations.selectors import StateSelector
         from teachers.models import Teacher
 
-        self.fields["gender"].choices = [("", "---------")] + list(Teacher.Gender.choices)
-        self.fields["rg_state"].choices = [("", "---------")] + list(UF_CHOICES)
+        self.fields["gender"].choices = list(Teacher.Gender.choices)
+        self.fields["rg_state"].choices = StateSelector().list_choices()
 
 
 class TeacherSubjectsForm(forms.Form):
@@ -182,7 +212,7 @@ class TeacherSubjectsForm(forms.Form):
         queryset=Subject.objects.none(),
         required=False,
         label="Disciplinas ministradas",
-        widget=forms.SelectMultiple(attrs={"class": "form-select", "size": "8"}),
+        widget=forms.SelectMultiple(attrs={"class": "form-select sm-subjects-select", "size": "6"}),
         help_text="Selecione todas as disciplinas ministradas pelo professor.",
     )
 

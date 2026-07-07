@@ -1,5 +1,7 @@
 """StudentSelector: consultas somente-leitura para alunos."""
 
+from django.db.models import Q
+
 from base.selectors import BaseSelector, PageResult
 
 
@@ -13,9 +15,13 @@ class StudentSelector(BaseSelector):
 
         return Student
 
-    def list_students(self, filters=None, page=1, page_size=20) -> PageResult:
-        """Lista alunos com filtros e paginação."""
-        return self.list(filters=filters, page=page, page_size=page_size)
+    def list_students(self, search="", order_by="first_name", page=1, page_size=20) -> PageResult:
+        """Lista alunos com busca por nome e paginação."""
+        qs = self.model_class.objects.all()
+        if search:
+            qs = qs.filter(Q(first_name__icontains=search) | Q(last_name__icontains=search))
+        qs = qs.order_by(order_by, "last_name")
+        return self._paginate(qs, page=page, page_size=page_size)
 
     def get_student_by_id(self, student_id):
         """Retorna o aluno pelo id ou lança `ObjectNotFoundError`."""

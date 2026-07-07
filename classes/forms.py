@@ -30,6 +30,11 @@ class ClassForm(forms.ModelForm):
             "class_teacher": "Professor Responsável",
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.required = True
+
 
 class EnrollmentForm(forms.Form):
     """Formulário para matricular aluno em turma (via ID)."""

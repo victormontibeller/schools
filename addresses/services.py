@@ -31,16 +31,27 @@ class AddressService(BaseService):
     def _validate_address_data(self, data: dict) -> dict:
         """Valida e normaliza dados de endereco."""
         from base.validators import validate_cep, validate_uf
+        from locations.models import City
 
         self.validate_required(
-            data, ["street", "number", "district", "postal_code", "city", "state"]
+            data,
+            [
+                "recipient",
+                "street",
+                "number",
+                "complement",
+                "district",
+                "postal_code",
+                "city",
+                "state",
+            ],
         )
 
         cleaned = {
-            "recipient": data.get("recipient", ""),
+            "recipient": data["recipient"],
             "street": data["street"],
             "number": data["number"],
-            "complement": data.get("complement", ""),
+            "complement": data["complement"],
             "district": data["district"],
             "city": data["city"],
             "state": data["state"],
@@ -57,6 +68,11 @@ class AddressService(BaseService):
         except Exception as e:
             raise ValidationError(errors={"state": [str(e)]}) from e
 
+        city_name = str(data["city"]).strip()
+        if not City.objects.filter(state__code=cleaned["state"], name=city_name).exists():
+            raise ValidationError(errors={"city": ["Municipio invalido para a UF informada."]})
+        cleaned["city"] = city_name
+
         return cleaned
 
     def _create_address(self, data: dict):
@@ -64,9 +80,6 @@ class AddressService(BaseService):
         from addresses.models import Address
 
         cleaned = self._validate_address_data(data)
-
-        if not cleaned["recipient"]:
-            cleaned["recipient"] = cleaned["street"] + ", " + cleaned["number"]
 
         address = Address.objects.create(
             created_by=self.user,
@@ -108,6 +121,20 @@ class AddressService(BaseService):
 
         address = self._create_address(data)
         self._link_address(SchoolAddress, "school", school, address)
+        return address
+
+    def create_address_for_business_unit(self, business_unit_id, data: dict) -> Address:
+        """Cria endereco e vincula a uma empresa."""
+        from addresses.models import BusinessUnitAddress
+        from core.models import BusinessUnit
+
+        try:
+            business_unit = BusinessUnit.objects.get(pk=business_unit_id)
+        except BusinessUnit.DoesNotExist:
+            raise ObjectNotFoundError("BusinessUnit", str(business_unit_id)) from None
+
+        address = self._create_address(data)
+        self._link_address(BusinessUnitAddress, "business_unit", business_unit, address)
         return address
 
     def create_address_for_teacher(self, teacher_id, data: dict) -> Address:

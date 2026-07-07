@@ -139,10 +139,26 @@ class TestUpdateGuardian:
             {"user_id": g_user.pk, "relationship_type": "MAE"}
         )
         updated = GuardianService(user=user).update_guardian(
-            g.pk, {"relationship_type": "PAI", "phone": "123456789"}
+            g.pk,
+            {
+                "first_name": "Test",
+                "last_name": "Updated",
+                "relationship_type": "PAI",
+                "birth_date": "1980-01-01",
+                "gender": "M",
+                "nationality": "Brasileiro",
+                "cpf": "390.533.447-05",
+                "rg_number": "1234567",
+                "rg_issuer": "SSP",
+                "rg_state": "SP",
+                "phone": "123456789",
+                "phone_whatsapp": "11999999999",
+                "phone_mobile": "11988888888",
+            },
         )
         assert updated.relationship_type == "PAI"
         assert updated.phone == "123456789"
+        assert updated.user.last_name == "Updated"
 
 
 @pytest.mark.django_db
