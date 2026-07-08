@@ -58,6 +58,7 @@ TENANT_SPECIFIC_APPS = [
     "activities",
     "academic_calendar",
     "attendance",
+    "enrollments",
     "notifications",
     "dashboard",
     "addresses",

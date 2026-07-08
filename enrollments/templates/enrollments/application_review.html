@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Revisar {{ application.application_number }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title"><h5 class="m-b-10">Revisar Solicitação</h5></div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'secretary_dashboard' %}">Secretaria</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'application_detail' application.pk %}">{{ application.application_number }}</a></li>
+            <li class="breadcrumb-item active">Revisar</li>
+        </ul>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="row">
+        <div class="col-lg-6 offset-lg-3">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">Decisão — {{ application.application_number }}</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">
+                        <strong>Aluno:</strong> {{ application.student.get_full_name }} |
+                        <strong>Turma:</strong> {{ application.class_obj }} |
+                        <strong>Situação:</strong> {{ application.get_status_display }}
+                    </p>
+
+                    <form method="post" action="{% url 'application_review' application.pk %}"
+                          hx-post="{% url 'application_review' application.pk %}"
+                          hx-target="body" hx-swap="outerHTML">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label class="form-label">Justificativa</label>
+                            <textarea name="reason" class="form-control" rows="2"
+                                      placeholder="Motivo da recusa ou observacoes para correcao..."></textarea>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" name="action" value="approve" class="btn btn-success">
+                                <i class="feather-check me-1"></i> Aprovar
+                            </button>
+                            <button type="submit" name="action" value="reject" class="btn btn-danger">
+                                <i class="feather-x me-1"></i> Recusar
+                            </button>
+                            <button type="submit" name="action" value="request_correction" class="btn btn-warning">
+                                <i class="feather-edit-2 me-1"></i> Solicitar Correção
+                            </button>
+                            <a href="{% url 'application_detail' application.pk %}" class="btn btn-outline-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ application.application_number }} — Secretaria{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title"><h5 class="m-b-10">{{ application.application_number }}</h5></div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'secretary_dashboard' %}">Secretaria</a></li>
+            <li class="breadcrumb-item active">{{ application.application_number }}</li>
+        </ul>
+    </div>
+    <div class="page-header-right ms-auto">
+        <div class="d-flex gap-2">
+            {% if application.status == "UNDER_REVIEW" %}
+            <a href="{% url 'application_review' application.pk %}" class="btn btn-primary btn-sm">
+                <i class="feather-check me-1"></i> Revisar
+            </a>
+            {% endif %}
+            {% if application.status == "APPROVED" %}
+            <form method="post" action="{% url 'application_complete_enrollment' application.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success btn-sm"
+                        hx-post="{% url 'application_complete_enrollment' application.pk %}"
+                        hx-target="body" hx-swap="outerHTML">
+                    <i class="feather-user-plus me-1"></i> Efetivar Matrícula
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="row">
+        <div class="col-xl-5">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">Dados da Solicitação</h6>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5">Protocolo</dt>
+                        <dd class="col-sm-7">{{ application.application_number }}</dd>
+
+                        <dt class="col-sm-5">Aluno</dt>
+                        <dd class="col-sm-7">
+                            <a href="{% url 'student_profile' application.student.pk %}">
+                                {{ application.student.get_full_name }}
+                            </a>
+                        </dd>
+
+                        <dt class="col-sm-5">Matrícula do Aluno</dt>
+                        <dd class="col-sm-7">{{ application.student.enrollment_number }}</dd>
+
+                        <dt class="col-sm-5">Turma</dt>
+                        <dd class="col-sm-7">{{ application.class_obj }}</dd>
+
+                        <dt class="col-sm-5">Ano Letivo</dt>
+                        <dd class="col-sm-7">{{ application.academic_year }}</dd>
+
+                        <dt class="col-sm-5">Tipo</dt>
+                        <dd class="col-sm-7">
+                            <span class="badge bg-secondary">{{ application.get_application_type_display }}</span>
+                        </dd>
+
+                        <dt class="col-sm-5">Situação</dt>
+                        <dd class="col-sm-7">
+                            <span class="badge {% if application.status == 'APPROVED' %}bg-success{% elif application.status == 'REJECTED' %}bg-danger{% elif application.status == 'ENROLLED' %}bg-primary{% elif application.status == 'UNDER_REVIEW' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                {{ application.get_status_display }}
+                            </span>
+                        </dd>
+
+                        <dt class="col-sm-5">Prioridade</dt>
+                        <dd class="col-sm-7">{{ application.priority }}</dd>
+
+                        {% if application.reviewed_by %}
+                        <dt class="col-sm-5">Revisado por</dt>
+                        <dd class="col-sm-7">{{ application.reviewed_by.get_full_name|default:application.reviewed_by.email }}</dd>
+                        {% endif %}
+
+                        {% if application.reviewed_at %}
+                        <dt class="col-sm-5">Data de Revisão</dt>
+                        <dd class="col-sm-7">{{ application.reviewed_at|date:"d/m/Y H:i" }}</dd>
+                        {% endif %}
+
+                        {% if application.previous_class %}
+                        <dt class="col-sm-5">Turma de Origem</dt>
+                        <dd class="col-sm-7">{{ application.previous_class }}</dd>
+                        {% endif %}
+
+                        {% if application.previous_school %}
+                        <dt class="col-sm-5">Escola de Origem</dt>
+                        <dd class="col-sm-7">{{ application.previous_school }}</dd>
+                        {% endif %}
+
+                        {% if application.rejection_reason %}
+                        <dt class="col-sm-5">Motivo da Recusa</dt>
+                        <dd class="col-sm-7 text-danger">{{ application.rejection_reason }}</dd>
+                        {% endif %}
+
+                        {% if application.correction_notes %}
+                        <dt class="col-sm-5">Correções Solicitadas</dt>
+                        <dd class="col-sm-7">{{ application.correction_notes }}</dd>
+                        {% endif %}
+
+                        {% if application.cancellation_reason %}
+                        <dt class="col-sm-5">Motivo de Cancelamento</dt>
+                        <dd class="col-sm-7 text-muted">{{ application.cancellation_reason }}</dd>
+                        {% endif %}
+
+                        {% if application.notes %}
+                        <dt class="col-sm-5">Observações</dt>
+                        <dd class="col-sm-7">{{ application.notes }}</dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-7">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="card-title mb-0">Documentos</h6>
+                    <a href="{% url 'document_add_for_application' application.pk %}" class="btn btn-primary btn-sm">
+                        <i class="feather-plus me-1"></i> Adicionar
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Tipo</th>
+                                    <th>Descrição</th>
+                                    <th>Situação</th>
+                                    <th class="text-end">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for doc in documents %}
+                                <tr>
+                                    <td>{{ doc.get_document_type_display }}</td>
+                                    <td>{{ doc.description|default:"—" }}</td>
+                                    <td>
+                                        <span class="badge {% if doc.status == 'VERIFIED' %}bg-success{% elif doc.status == 'REJECTED' %}bg-danger{% elif doc.status == 'SUBMITTED' %}bg-info{% else %}bg-warning text-dark{% endif %}">
+                                            {{ doc.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="d-flex gap-1 justify-content-end">
+                                            {% if doc.file %}
+                                            <a href="{{ doc.file.url }}" class="btn btn-sm btn-outline-secondary" title="Download">
+                                                <i class="feather-download"></i>
+                                            </a>
+                                            {% endif %}
+                                            {% if doc.status != 'VERIFIED' and doc.status != 'REJECTED' %}
+                                            <form method="post" action="{% url 'document_verify' doc.pk %}" class="d-inline">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-sm btn-outline-success" title="Verificar"
+                                                        hx-post="{% url 'document_verify' doc.pk %}"
+                                                        hx-target="body" hx-swap="outerHTML">
+                                                    <i class="feather-check"></i>
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                            {% if doc.status != 'REJECTED' %}
+                                            <button type="button" class="btn btn-sm btn-outline-danger" title="Recusar"
+                                                    data-bs-toggle="modal" data-bs-target="#reject-doc-{{ doc.pk }}">
+                                                <i class="feather-x"></i>
+                                            </button>
+                                            <div class="modal fade" id="reject-doc-{{ doc.pk }}" tabindex="-1">
+                                                <div class="modal-dialog">
+                                                    <div class="modal-content">
+                                                        <form method="post" action="{% url 'document_reject' doc.pk %}">
+                                                            {% csrf_token %}
+                                                            <div class="modal-header">
+                                                                <h6 class="modal-title">Recusar Documento</h6>
+                                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                            </div>
+                                                            <div class="modal-body">
+                                                                <label class="form-label">Motivo da recusa</label>
+                                                                <textarea name="reason" class="form-control" rows="3"
+                                                                          placeholder="Justificativa..."></textarea>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                                <button type="submit" class="btn btn-danger"
+                                                                        hx-post="{% url 'document_reject' doc.pk %}"
+                                                                        hx-target="body" hx-swap="outerHTML">
+                                                                    Recusar
+                                                                </button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-4">
+                                        Nenhum documento registrado.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="card-title mb-0">Ações</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex gap-2 flex-wrap">
+                        {% if application.status == "UNDER_REVIEW" %}
+                        <form method="post" action="{% url 'application_review' application.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="approve">
+                            <button type="submit" class="btn btn-success btn-sm"
+                                    hx-post="{% url 'application_review' application.pk %}"
+                                    hx-target="body" hx-swap="outerHTML"
+                                    hx-vals='{"action": "approve"}'>
+                                <i class="feather-check me-1"></i> Aprovar
+                            </button>
+                        </form>
+                        <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#reject-app">
+                            <i class="feather-x me-1"></i> Recusar
+                        </button>
+                        <div class="modal fade" id="reject-app" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <form method="post" action="{% url 'application_review' application.pk %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="reject">
+                                        <div class="modal-header">
+                                            <h6 class="modal-title">Recusar Solicitação</h6>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <label class="form-label">Motivo da recusa</label>
+                                            <textarea name="reason" class="form-control" rows="3"
+                                                      placeholder="Justificativa..."></textarea>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                            <button type="submit" class="btn btn-danger"
+                                                    hx-post="{% url 'application_review' application.pk %}"
+                                                    hx-target="body" hx-swap="outerHTML"
+                                                    hx-vals='{"action": "reject"}'>
+                                                Recusar
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#correction-app">
+                            <i class="feather-edit-2 me-1"></i> Solicitar Correção
+                        </button>
+                        <div class="modal fade" id="correction-app" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <form method="post" action="{% url 'application_review' application.pk %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="request_correction">
+                                        <div class="modal-header">
+                                            <h6 class="modal-title">Solicitar Correção</h6>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <label class="form-label">O que precisa ser corrigido?</label>
+                                            <textarea name="reason" class="form-control" rows="3"
+                                                      placeholder="Descreva as correções necessárias..."></textarea>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                            <button type="submit" class="btn btn-warning"
+                                                    hx-post="{% url 'application_review' application.pk %}"
+                                                    hx-target="body" hx-swap="outerHTML"
+                                                    hx-vals='{"action": "request_correction"}'>
+                                                Enviar
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if application.status != "CANCELLED" and application.status != "ENROLLED" and application.status != "REJECTED" %}
+                        <form method="post" action="{% url 'application_cancel' application.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-danger btn-sm"
+                                    hx-post="{% url 'application_cancel' application.pk %}"
+                                    hx-target="body" hx-swap="outerHTML"
+                                    hx-confirm="Confirmar cancelamento da solicitação?">
+                                <i class="feather-trash-2 me-1"></i> Cancelar Solicitação
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
