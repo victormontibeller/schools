@@ -68,7 +68,6 @@ class StudentService(BaseService):
         """Atualiza dados do aluno e registra auditoria com valores antigos."""
         repo = _StudentRepo()
         student = repo.get_by_id(student_id)
-        old = {"first_name": student.first_name, "last_name": student.last_name}
 
         allowed = {
             "first_name",
@@ -85,6 +84,7 @@ class StudentService(BaseService):
             "email",
             "photo",
         }
+        old = self._snapshot(student, [*allowed, "enrollment_number", "cpf"])
         updates = {k: v for k, v in data.items() if k in allowed}
 
         if "enrollment_number" in data:
@@ -96,7 +96,14 @@ class StudentService(BaseService):
             updates["enrollment_number"] = enrollment
 
         if "cpf" in data:
-            cpf_cleaned = self._validate_cpf(data, exclude_id=student_id)
+            from students.models import Student
+
+            cpf_cleaned = self._validate_unique_cpf(
+                data,
+                Student,
+                "CPF já cadastrado para outro aluno.",
+                exclude_id=student_id,
+            )
             updates["cpf"] = cpf_cleaned
 
         if "rg_state" in data:
@@ -131,32 +138,11 @@ class StudentService(BaseService):
 
     def _validate_cpf(self, data: dict, exclude_id=None) -> str | None:
         """Valida CPF: formato e unicidade. Retorna CPF limpo ou None."""
-        from base.validators import validate_cpf
         from students.models import Student
 
-        cpf = data.get("cpf", "")
-        if not cpf:
-            return None
-        try:
-            cpf_clean = validate_cpf(cpf)
-        except Exception as e:
-            raise ValidationError(errors={"cpf": [str(e)]}) from e
-
-        qs = Student.objects.filter(cpf=cpf_clean)
-        if exclude_id:
-            qs = qs.exclude(pk=exclude_id)
-        if qs.exists():
-            raise ValidationError(errors={"cpf": ["CPF já cadastrado para outro aluno."]})
-        return cpf_clean
-
-    def _validate_rg_state(self, data: dict) -> None:
-        """Valida UF do RG."""
-        from base.validators import validate_uf
-
-        rg_state = data.get("rg_state", "")
-        if not rg_state:
-            return
-        try:
-            validate_uf(rg_state)
-        except Exception as e:
-            raise ValidationError(errors={"rg_state": [str(e)]}) from e
+        return self._validate_unique_cpf(
+            data,
+            Student,
+            "CPF já cadastrado para outro aluno.",
+            exclude_id=exclude_id,
+        )

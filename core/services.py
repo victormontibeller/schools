@@ -105,11 +105,12 @@ class BusinessUnitService(BaseService):
         except BusinessUnit.DoesNotExist:
             raise ObjectNotFoundError("BusinessUnit", str(business_unit_id)) from None
 
+        old = self._snapshot(business_unit, ["logo"])
         business_unit.logo = logo_file
         business_unit.updated_by = self.user
         business_unit.save(update_fields=["logo", "updated_by", "updated_at"])
 
-        self._record_audit("UPDATE", business_unit)
+        self._record_audit("UPDATE", business_unit, old_values=old)
         self._log("logo_empresa_atualizado", business_unit_id=str(business_unit.pk))
         return business_unit
 
@@ -234,11 +235,12 @@ class SchoolService(BaseService):
         except School.DoesNotExist:
             raise ObjectNotFoundError("School", str(school_id)) from None
 
+        old = self._snapshot(school, ["logo"])
         school.logo = logo_file
         school.updated_by = self.user
         school.save(update_fields=["logo", "updated_by", "updated_at"])
 
-        self._record_audit("UPDATE", school)
+        self._record_audit("UPDATE", school, old_values=old)
         self._log("Logo da escola atualizado", school_id=str(school.pk))
         return school
 

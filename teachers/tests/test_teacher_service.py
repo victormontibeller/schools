@@ -86,6 +86,8 @@ class TestDeactivateTeacher:
 @pytest.mark.django_db
 class TestAssignSubject:
     def test_success(self, user):
+        from audit.models import AuditLog
+
         target = _make_user("subj@test.com")
         teacher = TeacherService(user=user).create_teacher(
             {"user_id": target.pk, "registration_number": "MAT-S"}
@@ -95,6 +97,13 @@ class TestAssignSubject:
         )
         TeacherService(user=user).assign_subject(teacher.pk, subject.pk)
         assert teacher.subjects.filter(pk=subject.pk).exists()
+        log = AuditLog.objects.filter(
+            operation=AuditLog.Operation.UPDATE,
+            model_name="Teacher",
+            object_id=str(teacher.pk),
+        ).latest("created_at")
+        assert log.old_values == {"subject_ids": []}
+        assert log.new_values == {"subject_ids": [str(subject.pk)]}
 
     def test_deactivate_not_found(self, user):
         import uuid
@@ -168,6 +177,8 @@ class TestAssignSubject:
             TeacherService(user=user).assign_subject(teacher.pk, subject.pk)
 
     def test_set_subjects_replaces_current_links(self, user):
+        from audit.models import AuditLog
+
         target = _make_user("syncsubj@test.com")
         teacher = TeacherService(user=user).create_teacher(
             {"user_id": target.pk, "registration_number": "MAT-SYNC"}
@@ -183,6 +194,13 @@ class TestAssignSubject:
         TeacherService(user=user).set_subjects(teacher.pk, [second])
 
         assert list(teacher.subjects.values_list("pk", flat=True)) == [second.pk]
+        log = AuditLog.objects.filter(
+            operation=AuditLog.Operation.UPDATE,
+            model_name="Teacher",
+            object_id=str(teacher.pk),
+        ).latest("created_at")
+        assert log.old_values == {"subject_ids": [str(first.pk)]}
+        assert log.new_values == {"subject_ids": [str(second.pk)]}
 
 
 @pytest.mark.django_db

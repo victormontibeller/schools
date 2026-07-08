@@ -165,6 +165,7 @@ class AttendanceService(BaseService):
             except AttendanceEntry.DoesNotExist:
                 raise ObjectNotFoundError("AttendanceEntry", student_id) from None
 
+            old = self._snapshot(entry, ["status", "justification"])
             entry.status = status
             if status == AttendanceEntry.Status.JUSTIFIED:
                 entry.justification = (justification or "").strip()
@@ -174,7 +175,7 @@ class AttendanceService(BaseService):
             entry.save(update_fields=["status", "justification", "updated_by", "updated_at"])
             updated += 1
 
-            self._record_audit("UPDATE", entry)
+            self._record_audit("UPDATE", entry, old_values=old)
         self._log("Chamada registrada", record_id=str(record.pk), updated=updated)
         return record
 
@@ -187,7 +188,7 @@ class AttendanceService(BaseService):
         except AttendanceEntry.DoesNotExist as exc:
             raise ObjectNotFoundError("AttendanceEntry", str(entry_id)) from exc
 
-        old = {"status": entry.status}
+        old = self._snapshot(entry, ["status", "justification"])
         entry.status = status
         if status == AttendanceEntry.Status.JUSTIFIED:
             entry.justification = (justification or "").strip()

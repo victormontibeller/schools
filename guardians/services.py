@@ -76,13 +76,6 @@ class GuardianService(BaseService):
         repo = _GuardianRepo()
         guardian = repo.get_by_id(guardian_id)
 
-        old = {"relationship_type": guardian.relationship_type, "cpf": guardian.cpf}
-        user_old = {
-            "first_name": guardian.user.first_name,
-            "last_name": guardian.user.last_name,
-            "avatar": guardian.user.avatar.name if guardian.user.avatar else "",
-        }
-
         self.validate_required(data, ["relationship_type"])
 
         allowed = {
@@ -97,6 +90,8 @@ class GuardianService(BaseService):
             "phone_whatsapp",
             "phone_mobile",
         }
+        old = self._snapshot(guardian, [*allowed, "cpf"])
+        user_old = self._person_user_old_values(guardian.user)
         updates = {k: v for k, v in data.items() if k in allowed}
 
         if "cpf" in data:
@@ -106,14 +101,7 @@ class GuardianService(BaseService):
         if "rg_state" in data:
             self._validate_rg_state(data)
 
-        user_updates = {"updated_by": self.user}
-        if data.get("first_name"):
-            user_updates["first_name"] = data["first_name"].strip()
-        if data.get("last_name"):
-            user_updates["last_name"] = data["last_name"].strip()
-        avatar = data.get("avatar")
-        if avatar:
-            user_updates["avatar"] = avatar
+        user_updates = self._person_user_updates(data)
         for field, value in user_updates.items():
             setattr(guardian.user, field, value)
         guardian.user.save(update_fields=[*user_updates.keys(), "updated_at"])
@@ -182,32 +170,11 @@ class GuardianService(BaseService):
 
     def _validate_cpf(self, data: dict, exclude_id=None) -> str | None:
         """Valida CPF: formato e unicidade. Retorna CPF limpo ou None."""
-        from base.validators import validate_cpf
         from guardians.models import Guardian
 
-        cpf = data.get("cpf", "")
-        if not cpf:
-            return None
-        try:
-            cpf_clean = validate_cpf(cpf)
-        except Exception as e:
-            raise ValidationError(errors={"cpf": [str(e)]}) from e
-
-        qs = Guardian.objects.filter(cpf=cpf_clean)
-        if exclude_id:
-            qs = qs.exclude(pk=exclude_id)
-        if qs.exists():
-            raise ValidationError(errors={"cpf": ["CPF já cadastrado para outro responsável."]})
-        return cpf_clean
-
-    def _validate_rg_state(self, data: dict) -> None:
-        """Valida UF do RG."""
-        from base.validators import validate_uf
-
-        rg_state = data.get("rg_state", "")
-        if not rg_state:
-            return
-        try:
-            validate_uf(rg_state)
-        except Exception as e:
-            raise ValidationError(errors={"rg_state": [str(e)]}) from e
+        return self._validate_unique_cpf(
+            data,
+            Guardian,
+            "CPF já cadastrado para outro responsável.",
+            exclude_id=exclude_id,
+        )

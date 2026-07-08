@@ -192,6 +192,8 @@ class TestRecordAttendance:
         assert entries.get(student=s2).status == AttendanceEntry.Status.PRESENT
 
     def test_with_justification(self, user):
+        from audit.models import AuditLog
+
         cls = _make_class(user)
         subject = _make_subject(user)
         teacher = _make_teacher(user)
@@ -217,6 +219,15 @@ class TestRecordAttendance:
         entry = record.entries.get(student=s1)
         assert entry.status == AttendanceEntry.Status.JUSTIFIED
         assert entry.justification == "Atestado médico"
+        log = AuditLog.objects.filter(
+            operation=AuditLog.Operation.UPDATE,
+            model_name="AttendanceEntry",
+            object_id=str(entry.pk),
+        ).latest("created_at")
+        assert log.old_values == {
+            "status": AttendanceEntry.Status.PRESENT,
+            "justification": "",
+        }
 
     def test_invalid_status(self, user):
         cls = _make_class(user)

@@ -38,6 +38,39 @@ class TestUpdateStudent:
         assert updated.first_name == "Ana"
         assert updated.version == 1
 
+    def test_update_records_old_values_for_audit(self, user):
+        from audit.models import AuditLog
+
+        s = StudentService(user=user).create_student(
+            {
+                **_BASE_DATA,
+                "enrollment_number": "AUD-STU",
+                "cpf": "390.533.447-05",
+                "rg_state": "SP",
+                "email": "student-audit@test.com",
+            }
+        )
+
+        StudentService(user=user).update_student(
+            s.pk,
+            {
+                "first_name": "Ana",
+                "cpf": "529.982.247-25",
+                "rg_state": "RJ",
+                "email": "student-updated@test.com",
+            },
+        )
+
+        log = AuditLog.objects.filter(
+            operation=AuditLog.Operation.UPDATE,
+            model_name="Student",
+            object_id=str(s.pk),
+        ).latest("created_at")
+        assert log.old_values["first_name"] == "Maria"
+        assert log.old_values["cpf"] == "39053344705"
+        assert log.old_values["rg_state"] == "SP"
+        assert log.old_values["email"] == "student-audit@test.com"
+
     def test_duplicate_enrollment_on_update(self, user):
         StudentService(user=user).create_student({**_BASE_DATA, "enrollment_number": "E001"})
         s2 = StudentService(user=user).create_student(

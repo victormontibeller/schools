@@ -63,6 +63,76 @@ class BaseService:
         if errors:
             raise ValidationError(errors=errors)
 
+    @staticmethod
+    def _audit_value(value):
+        """Normaliza valores para armazenamento em `AuditLog.old_values`."""
+        if hasattr(value, "isoformat"):
+            return value.isoformat()
+        if hasattr(value, "name"):
+            return value.name
+        if isinstance(value, int | float | bool | str | type(None) | list | dict):
+            return value
+        return str(value)
+
+    def _snapshot(self, instance, fields: list[str]) -> dict:
+        """Captura valores antigos de campos antes de uma mutação."""
+        return {field: self._audit_value(getattr(instance, field, None)) for field in fields}
+
+    def _validate_unique_cpf(
+        self,
+        data: dict,
+        model_class,
+        duplicate_message: str,
+        exclude_id=None,
+    ) -> str | None:
+        """Valida formato e unicidade de CPF para entidades de pessoa."""
+        from base.exceptions import ValidationError
+        from base.validators import validate_cpf
+
+        cpf = data.get("cpf", "")
+        if not cpf:
+            return None
+        try:
+            cpf_clean = validate_cpf(cpf)
+        except Exception as exc:
+            raise ValidationError(errors={"cpf": [str(exc)]}) from exc
+
+        qs = model_class.objects.filter(cpf=cpf_clean)
+        if exclude_id:
+            qs = qs.exclude(pk=exclude_id)
+        if qs.exists():
+            raise ValidationError(errors={"cpf": [duplicate_message]})
+        return cpf_clean
+
+    def _validate_rg_state(self, data: dict) -> None:
+        """Valida a UF do RG quando informada."""
+        from base.exceptions import ValidationError
+        from base.validators import validate_uf
+
+        rg_state = data.get("rg_state", "")
+        if not rg_state:
+            return
+        try:
+            validate_uf(rg_state)
+        except Exception as exc:
+            raise ValidationError(errors={"rg_state": [str(exc)]}) from exc
+
+    def _person_user_old_values(self, user) -> dict:
+        """Captura campos de usuário editados por perfis de pessoa."""
+        return self._snapshot(user, ["first_name", "last_name", "avatar"])
+
+    def _person_user_updates(self, data: dict) -> dict:
+        """Monta atualizações permitidas para dados básicos do usuário."""
+        updates = {"updated_by": self.user}
+        if data.get("first_name"):
+            updates["first_name"] = data["first_name"].strip()
+        if data.get("last_name"):
+            updates["last_name"] = data["last_name"].strip()
+        avatar = data.get("avatar")
+        if avatar:
+            updates["avatar"] = avatar
+        return updates
+
     def _deactivate(self, model_class, entity_id, entity_label: str):
         """Soft-delete generico para qualquer modelo de dominio.
 

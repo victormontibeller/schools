@@ -152,23 +152,6 @@ class TeacherService(BaseService):
         """Atualiza dados do professor e registra auditoria com valores antigos."""
         repo = _TeacherRepo()
         teacher = repo.get_by_id(teacher_id)
-        old = {
-            "registration_number": teacher.registration_number,
-            "hire_date": teacher.hire_date,
-            "birth_date": teacher.birth_date,
-            "gender": teacher.gender,
-            "nationality": teacher.nationality,
-            "cpf": teacher.cpf,
-            "rg_number": teacher.rg_number,
-            "rg_issuer": teacher.rg_issuer,
-            "rg_state": teacher.rg_state,
-            "phone_mobile": teacher.phone_mobile,
-        }
-        user_old = {
-            "first_name": teacher.user.first_name,
-            "last_name": teacher.user.last_name,
-            "avatar": teacher.user.avatar.name if teacher.user.avatar else "",
-        }
 
         self.validate_required(data, ["registration_number"])
 
@@ -182,6 +165,8 @@ class TeacherService(BaseService):
             "rg_state",
             "phone_mobile",
         }
+        old = self._snapshot(teacher, [*allowed, "registration_number", "cpf"])
+        user_old = self._person_user_old_values(teacher.user)
         updates = {k: v for k, v in data.items() if k in allowed}
 
         if "registration_number" in data:
@@ -201,15 +186,7 @@ class TeacherService(BaseService):
         if "rg_state" in data:
             self._validate_rg_state(data)
 
-        user_updates = {"updated_by": self.user}
-        if data.get("first_name"):
-            user_updates["first_name"] = data["first_name"].strip()
-        if data.get("last_name"):
-            user_updates["last_name"] = data["last_name"].strip()
-        avatar = data.get("avatar")
-        if avatar:
-            user_updates["avatar"] = avatar
-
+        user_updates = self._person_user_updates(data)
         for field, value in user_updates.items():
             setattr(teacher.user, field, value)
         teacher.user.save(update_fields=[*user_updates.keys(), "updated_at"])
@@ -233,8 +210,10 @@ class TeacherService(BaseService):
         subject = _SubjectRepo().get_by_id(subject_id)
         if teacher.subjects.filter(pk=subject_id).exists():
             raise BusinessRuleViolationError("Disciplina já atribuída ao professor.")
+        old = {"subject_ids": [str(pk) for pk in teacher.subjects.values_list("pk", flat=True)]}
         teacher.subjects.add(subject)
-        self._record_audit("UPDATE", teacher)
+        new = {"subject_ids": [str(pk) for pk in teacher.subjects.values_list("pk", flat=True)]}
+        self._record_audit("UPDATE", teacher, old_values=old, new_values=new)
         self._log(
             "Disciplina atribuida ao professor",
             teacher_id=str(teacher.pk),
@@ -246,8 +225,10 @@ class TeacherService(BaseService):
         """Remove a disciplina atribuída ao professor e registra auditoria."""
         teacher = _TeacherRepo().get_by_id(teacher_id)
         _SubjectRepo().get_by_id(subject_id)
+        old = {"subject_ids": [str(pk) for pk in teacher.subjects.values_list("pk", flat=True)]}
         teacher.subjects.remove(subject_id)
-        self._record_audit("UPDATE", teacher)
+        new = {"subject_ids": [str(pk) for pk in teacher.subjects.values_list("pk", flat=True)]}
+        self._record_audit("UPDATE", teacher, old_values=old, new_values=new)
         self._log(
             "Disciplina removida do professor",
             teacher_id=str(teacher.pk),
@@ -258,11 +239,13 @@ class TeacherService(BaseService):
     def set_subjects(self, teacher_id, subjects) -> Teacher:
         """Sincroniza as disciplinas ministradas pelo professor."""
         teacher = _TeacherRepo().get_by_id(teacher_id)
+        old = {"subject_ids": [str(pk) for pk in teacher.subjects.values_list("pk", flat=True)]}
         subject_ids = [subject.pk for subject in subjects]
         teacher.subjects.set(subject_ids)
         teacher.updated_by = self.user
         teacher.save(update_fields=["updated_by", "updated_at"])
-        self._record_audit("UPDATE", teacher)
+        new = {"subject_ids": [str(pk) for pk in teacher.subjects.values_list("pk", flat=True)]}
+        self._record_audit("UPDATE", teacher, old_values=old, new_values=new)
         self._log(
             "Disciplinas do professor atualizadas",
             teacher_id=str(teacher.pk),
@@ -272,32 +255,11 @@ class TeacherService(BaseService):
 
     def _validate_cpf(self, data: dict, exclude_id=None) -> str | None:
         """Valida CPF: formato e unicidade. Retorna CPF limpo ou None."""
-        from base.validators import validate_cpf
         from teachers.models import Teacher
 
-        cpf = data.get("cpf", "")
-        if not cpf:
-            return None
-        try:
-            cpf_clean = validate_cpf(cpf)
-        except Exception as e:
-            raise ValidationError(errors={"cpf": [str(e)]}) from e
-
-        qs = Teacher.objects.filter(cpf=cpf_clean)
-        if exclude_id:
-            qs = qs.exclude(pk=exclude_id)
-        if qs.exists():
-            raise ValidationError(errors={"cpf": ["CPF já cadastrado para outro professor."]})
-        return cpf_clean
-
-    def _validate_rg_state(self, data: dict) -> None:
-        """Valida UF do RG."""
-        from base.validators import validate_uf
-
-        rg_state = data.get("rg_state", "")
-        if not rg_state:
-            return
-        try:
-            validate_uf(rg_state)
-        except Exception as e:
-            raise ValidationError(errors={"rg_state": [str(e)]}) from e
+        return self._validate_unique_cpf(
+            data,
+            Teacher,
+            "CPF já cadastrado para outro professor.",
+            exclude_id=exclude_id,
+        )
