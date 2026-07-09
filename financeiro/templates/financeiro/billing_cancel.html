@@ -1,0 +1,11 @@
+{% extends "form_base.html" %}
+
+{% block title %}Cancelar Cobrança{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'finance_dashboard' %}">Financeiro</a></li>
+<li class="breadcrumb-item"><a href="{% url 'billing_detail' billing.pk %}">{{ billing.description }}</a></li>
+{% endblock %}
+
+{% block cancel_url %}{% url 'billing_detail' billing.pk %}{% endblock %}
+{% block submit_label %}Cancelar{% endblock %}

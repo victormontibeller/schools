@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Cobranças — School Manager{% endblock %}
+
+{% block content %}
+{% include "partials/list_header.html" with list_title="Cobranças" breadcrumb_items=breadcrumb_items create_url="" search_url="billing_list" search_target="#billings-table" search_value=q total_count=result.total %}
+<div class="px-3 pt-3">
+    <ul class="nav nav-tabs">
+        {% for item in tabs %}
+        <li class="nav-item">
+            <a class="nav-link {% if tab == item.id %}active{% endif %}"
+               href="?tab={{ item.id }}{% if q %}&q={{ q }}{% endif %}">{{ item.label }}</a>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% include "financeiro/partials/billings_table.html" %}
+{% include "partials/list_footer.html" %}
+{% endblock %}

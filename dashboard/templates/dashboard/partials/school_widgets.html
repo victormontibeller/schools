@@ -39,6 +39,34 @@
   </div>
 </div>
 
+<!-- KPIs financeiros -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <h6 class="card-title text-muted">Financeiro em aberto</h6>
+        <p class="h4 mb-0">R$ {{ data.financial_kpis.total_aberto|default:"0.00"|floatformat:2 }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <h6 class="card-title text-muted">Financeiro vencido</h6>
+        <p class="h4 mb-0">R$ {{ data.financial_kpis.total_vencido|default:"0.00"|floatformat:2 }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <h6 class="card-title text-muted">Recebido no mês</h6>
+        <p class="h4 mb-0">R$ {{ data.financial_kpis.recebido_mes|default:"0.00"|floatformat:2 }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Frequencia hoje -->
 <div class="row g-3 mb-4">
   <div class="col-md-6">

@@ -1,5 +1,8 @@
 """Fixtures compartilhadas para toda a suíte de testes."""
 
+import asyncio
+import inspect
+
 import pytest
 from django.template.context import BaseContext
 
@@ -35,6 +38,11 @@ def _patched_bctx_copy(self):
 
 
 BaseContext.__copy__ = _patched_bctx_copy
+
+# Django 5.1 ainda usa `asyncio.iscoroutinefunction` em decorators de auth.
+# Em Python novo, essa API emite DeprecationWarning; o alias mantém o
+# comportamento esperado nos testes ate o upgrade do Django.
+asyncio.iscoroutinefunction = inspect.iscoroutinefunction
 
 
 @pytest.fixture()

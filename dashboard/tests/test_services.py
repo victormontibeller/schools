@@ -12,6 +12,7 @@ class TestDashboardService:
         assert "total_students" in data
         assert "total_teachers" in data
         assert "total_classes" in data
+        assert "financial_kpis" in data
         assert data["total_students"] == 0
 
     def test_get_executive_dashboard(self, user):

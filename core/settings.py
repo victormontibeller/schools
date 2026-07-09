@@ -62,6 +62,7 @@ TENANT_SPECIFIC_APPS = [
     "notifications",
     "dashboard",
     "addresses",
+    "financeiro",
 ]
 
 if TESTING:
@@ -243,7 +244,7 @@ LOGGING = {
     "disable_existing_loggers": False,
     "formatters": {
         "json": {
-            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "()": "pythonjsonlogger.json.JsonFormatter",
             "fmt": "%(asctime)s %(levelname)s %(name)s %(message)s",
         },
     },

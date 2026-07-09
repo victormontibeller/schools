@@ -6,6 +6,7 @@ import datetime as dt
 import logging
 
 from django.db.models import Count
+from django.utils import timezone
 
 from base.selectors import BaseSelector
 
@@ -100,6 +101,12 @@ class DashboardSelector(BaseSelector):
             count += len(at_risk)
         return count
 
+    def get_financial_kpis(self) -> dict:
+        """KPIs financeiros operacionais para o dashboard escolar."""
+        from financeiro.selectors import BillingSelector
+
+        return BillingSelector().finance_kpis()
+
     def get_pending_activities(self, days: int = 3) -> list[dict]:
         """Atividades com entrega nos proximos N dias."""
         from activities.models import Activity
@@ -184,7 +191,8 @@ class DashboardSelector(BaseSelector):
 
         from core.models import School
 
-        since = dt.date.today().replace(day=1) - dt.timedelta(days=30 * months)
+        since = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        since -= dt.timedelta(days=30 * months)
         qs = (
             School.objects.filter(created_at__gte=since)
             .annotate(month=TruncMonth("created_at"))

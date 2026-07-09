@@ -1,0 +1,9 @@
+{% extends "form_base.html" %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'finance_dashboard' %}">Financeiro</a></li>
+<li class="breadcrumb-item"><a href="{% url 'billing_list' %}">Cobranças</a></li>
+<li class="breadcrumb-item"><a href="{% url 'billing_detail' billing.pk %}">{{ billing.description }}</a></li>
+{% endblock %}
+
+{% block cancel_url %}{% url 'billing_detail' billing.pk %}{% endblock %}

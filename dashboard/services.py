@@ -19,6 +19,7 @@ CACHE_TTL = {
     "today_attendance": 300,  # 5 min
     "weekly_attendance": 600,  # 10 min
     "students_at_risk": 600,
+    "financial_kpis": 300,
     "pending_activities": 300,
     "upcoming_events": 600,
     "recent_announcements": 300,
@@ -62,6 +63,7 @@ class DashboardService(BaseService):
             "students_at_risk": self._cached(
                 "students_at_risk", selector.get_students_at_risk_count
             ),
+            "financial_kpis": self._cached("financial_kpis", selector.get_financial_kpis),
             "pending_activities": self._cached(
                 "pending_activities", selector.get_pending_activities
             ),

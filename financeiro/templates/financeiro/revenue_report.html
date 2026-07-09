@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Relatório de Receita — School Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title"><h5 class="m-b-10">Relatório de Receita</h5></div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'finance_dashboard' %}">Financeiro</a></li>
+            <li class="breadcrumb-item active">Receita</li>
+        </ul>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                {% for field in form %}
+                    {% include "partials/form_field.html" with field=field %}
+                {% endfor %}
+                <div class="col-lg-3">
+                    <button class="btn btn-primary btn-sm" type="submit">Filtrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-3"><div class="card"><div class="card-body"><span class="text-muted">Período</span><h5 class="mb-0">{{ report.periodo }}</h5></div></div></div>
+        <div class="col-md-3"><div class="card"><div class="card-body"><span class="text-muted">Previsto</span><h5 class="mb-0">R$ {{ report.previsto|floatformat:2 }}</h5></div></div></div>
+        <div class="col-md-3"><div class="card"><div class="card-body"><span class="text-muted">Recebido</span><h5 class="mb-0">R$ {{ report.recebido|floatformat:2 }}</h5></div></div></div>
+        <div class="col-md-3"><div class="card"><div class="card-body"><span class="text-muted">A receber</span><h5 class="mb-0">R$ {{ report.a_receber|floatformat:2 }}</h5></div></div></div>
+    </div>
+</div>
+{% endblock %}
