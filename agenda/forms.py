@@ -26,9 +26,8 @@ class ScheduleForm(forms.Form):
         widget=forms.Select(attrs={"class": "form-select"}),
     )
     room = forms.ModelChoiceField(
-        label="Sala (opcional)",
+        label="Sala",
         queryset=Room.objects.all(),
-        required=False,
         widget=forms.Select(attrs={"class": "form-select"}),
     )
     valid_from = forms.DateField(
@@ -36,8 +35,7 @@ class ScheduleForm(forms.Form):
         widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
     )
     valid_until = forms.DateField(
-        label="Válido até (opcional)",
-        required=False,
+        label="Válido até",
         widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
     )
 

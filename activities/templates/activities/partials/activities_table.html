@@ -2,12 +2,12 @@
     <table class="table table-hover mb-0">
         <thead>
             <tr>
-                <th>Atividade</th>
-                <th>Turma</th>
-                <th>Disciplina</th>
-                <th>Tipo</th>
-                <th>Entrega</th>
-                <th>Nota Máx.</th>
+                <th><a href="?{{ sorting.title.query }}" class="sm-sort-link" hx-get="?{{ sorting.title.query }}" hx-target="#activities-table">Atividade</a></th>
+                <th><a href="?{{ sorting.class_obj.query }}" class="sm-sort-link" hx-get="?{{ sorting.class_obj.query }}" hx-target="#activities-table">Turma</a></th>
+                <th><a href="?{{ sorting.subject.query }}" class="sm-sort-link" hx-get="?{{ sorting.subject.query }}" hx-target="#activities-table">Disciplina</a></th>
+                <th><a href="?{{ sorting.type.query }}" class="sm-sort-link" hx-get="?{{ sorting.type.query }}" hx-target="#activities-table">Tipo</a></th>
+                <th><a href="?{{ sorting.due_date.query }}" class="sm-sort-link" hx-get="?{{ sorting.due_date.query }}" hx-target="#activities-table">Entrega</a></th>
+                <th><a href="?{{ sorting.max_score.query }}" class="sm-sort-link" hx-get="?{{ sorting.max_score.query }}" hx-target="#activities-table">Nota Máx.</a></th>
             </tr>
         </thead>
         <tbody>
@@ -40,7 +40,7 @@
             {% if result.has_previous %}
             <li class="page-item">
                 <a class="page-link"
-                   hx-get="?page={{ result.page|add:'-1' }}{% if q %}&q={{ q }}{% endif %}{% if class_obj_filter %}&class_obj={{ class_obj_filter }}{% endif %}"
+                   hx-get="?page={{ result.page|add:'-1' }}{% if list_query %}&{{ list_query }}{% endif %}"
                    hx-target="#activities-table"
                    hx-swap="innerHTML"
                    aria-label="Página anterior">«</a>
@@ -52,7 +52,7 @@
             {% if result.has_next %}
             <li class="page-item">
                 <a class="page-link"
-                   hx-get="?page={{ result.page|add:'1' }}{% if q %}&q={{ q }}{% endif %}{% if class_obj_filter %}&class_obj={{ class_obj_filter }}{% endif %}"
+                   hx-get="?page={{ result.page|add:'1' }}{% if list_query %}&{{ list_query }}{% endif %}"
                    hx-target="#activities-table"
                    hx-swap="innerHTML"
                    aria-label="Próxima página">»</a>

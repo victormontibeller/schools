@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from core.models import School
+    from tenancy.models import School
 
 from base.exceptions import ObjectNotFoundError, ValidationError
 from base.services import BaseService
@@ -146,7 +146,7 @@ class SchoolService(BaseService):
 
     def create_school(self, data: dict) -> School:
         """Cria uma escola validando CNPJ, nome e registrando auditoria."""
-        from core.models import School
+        from tenancy.models import School
 
         self.validate_required(data, ["name"])
 
@@ -178,7 +178,7 @@ class SchoolService(BaseService):
 
     def update_school(self, school_id, data: dict) -> School:
         """Atualiza dados institucionais e de contato da escola."""
-        from core.models import School
+        from tenancy.models import School
 
         try:
             school = School.objects.get(pk=school_id)
@@ -228,7 +228,7 @@ class SchoolService(BaseService):
 
     def update_logo(self, school_id, logo_file) -> School:
         """Atualiza o logotipo da escola."""
-        from core.models import School
+        from tenancy.models import School
 
         try:
             school = School.objects.get(pk=school_id)
@@ -246,14 +246,14 @@ class SchoolService(BaseService):
 
     def deactivate_school(self, school_id) -> School:
         """Aplica exclusao logica na escola."""
-        from core.models import School
+        from tenancy.models import School
 
         return self._deactivate(School, school_id, "School")
 
     def _validate_cnpj(self, data: dict, exclude_id=None) -> str | None:
         """Valida CNPJ: formato e unicidade. Retorna CNPJ limpo ou None."""
         from base.validators import validate_cnpj
-        from core.models import School
+        from tenancy.models import School
 
         cnpj = data.get("cnpj", "")
         if not cnpj:

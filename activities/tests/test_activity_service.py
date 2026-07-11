@@ -7,7 +7,7 @@ import pytest
 
 from activities.services import ActivityService
 from base.exceptions import ObjectNotFoundError, ValidationError
-from classes.models import Class
+from classes.models import Class, Enrollment
 from core.models import CustomUser
 from students.models import Student
 from teachers.models import Subject, Teacher
@@ -52,12 +52,25 @@ def _make_student(user, enrollment_number="ACT-S001"):
     )
 
 
+def _enroll(user, student, class_obj, status=Enrollment.Status.ACTIVE):
+    return Enrollment.objects.create(
+        student=student,
+        class_obj=class_obj,
+        enrollment_date=dt.date.today(),
+        status=status,
+        created_by=user,
+        updated_by=user,
+    )
+
+
 @pytest.mark.django_db
 class TestCreateActivity:
     def test_success(self, user):
         cls = _make_class(user)
         subject = _make_subject(user)
         teacher = _make_teacher(user)
+        student = _make_student(user)
+        _enroll(user, student, cls)
         activity = ActivityService(user=user).create_activity(
             {
                 "class_obj_id": cls.pk,
@@ -71,6 +84,7 @@ class TestCreateActivity:
         assert activity.pk is not None
         assert activity.title == "Prova 1"
         assert activity.max_score == Decimal("10")
+        assert activity.submissions.filter(student=student, score__isnull=True).exists()
 
     def test_missing_required_fields(self, user):
         with pytest.raises(ValidationError):
@@ -140,6 +154,7 @@ class TestRecordScore:
         subject = _make_subject(user)
         teacher = _make_teacher(user)
         student = _make_student(user)
+        _enroll(user, student, cls)
         activity = ActivityService(user=user).create_activity(
             {
                 "class_obj_id": cls.pk,
@@ -161,6 +176,7 @@ class TestRecordScore:
         subject = _make_subject(user)
         teacher = _make_teacher(user)
         student = _make_student(user, "UPD-S001")
+        _enroll(user, student, cls)
         activity = ActivityService(user=user).create_activity(
             {
                 "class_obj_id": cls.pk,
@@ -180,6 +196,7 @@ class TestRecordScore:
         subject = _make_subject(user)
         teacher = _make_teacher(user)
         student = _make_student(user, "S-OUT")
+        _enroll(user, student, cls)
         activity = ActivityService(user=user).create_activity(
             {
                 "class_obj_id": cls.pk,
@@ -198,6 +215,7 @@ class TestRecordScore:
         subject = _make_subject(user)
         teacher = _make_teacher(user)
         student = _make_student(user, "S-NEG")
+        _enroll(user, student, cls)
         activity = ActivityService(user=user).create_activity(
             {
                 "class_obj_id": cls.pk,
@@ -239,6 +257,8 @@ class TestBatchRecordScores:
         teacher = _make_teacher(user)
         s1 = _make_student(user, "BATCH-001")
         s2 = _make_student(user, "BATCH-002")
+        _enroll(user, s1, cls)
+        _enroll(user, s2, cls)
         activity = ActivityService(user=user).create_activity(
             {
                 "class_obj_id": cls.pk,
@@ -264,6 +284,7 @@ class TestBatchRecordScores:
         subject = _make_subject(user)
         teacher = _make_teacher(user)
         s1 = _make_student(user, "BATCH-E1")
+        _enroll(user, s1, cls)
         activity = ActivityService(user=user).create_activity(
             {
                 "class_obj_id": cls.pk,

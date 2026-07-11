@@ -1,0 +1,46 @@
+<div class="table-responsive">
+    <table class="table table-hover mb-0">
+        <thead>
+            <tr>
+                {% for field, label in sorting.items %}
+                <th aria-sort="{{ label.aria_sort }}">
+                    <a href="?{{ label.query }}" class="sm-sort-link{% if label.active %} is-active{% endif %}"
+                       hx-get="?{{ label.query }}" hx-target="#justifications-table" hx-swap="innerHTML">
+                        {% if field == "student" %}Aluno{% elif field == "start_date" %}Período{% else %}Situação{% endif %}
+                        {% if label.direction == "asc" %}<span class="sm-sort-indicator">↑</span>{% elif label.direction == "desc" %}<span class="sm-sort-indicator">↓</span>{% endif %}
+                    </a>
+                </th>
+                {% endfor %}
+                <th>Motivo</th><th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for justification in result.items %}
+            <tr>
+                <td><a href="{% url 'student_attendance' justification.student.pk %}" class="fw-semibold">{{ justification.student.get_full_name }}</a></td>
+                <td>{{ justification.start_date|date:"d/m/Y" }} → {{ justification.end_date|date:"d/m/Y" }}</td>
+                <td>{% if justification.status == 'PENDING' %}<span class="badge bg-soft-warning text-warning">Pendente</span>{% elif justification.status == 'APPROVED' %}<span class="badge bg-soft-success text-success">Aprovada</span>{% else %}<span class="badge bg-soft-danger text-danger">Rejeitada</span>{% endif %}</td>
+                <td>{{ justification.reason|truncatechars:40 }}</td>
+                <td>
+                    {% if justification.status == 'PENDING' %}
+                    <form method="post" action="{% url 'justification_approve' justification.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-success">Aprovar</button></form>
+                    <form method="post" action="{% url 'justification_reject' justification.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Rejeitar</button></form>
+                    {% else %}{{ justification.approved_by|default:"—" }}{% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-4">Nenhuma justificativa encontrada.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if result.total_pages > 1 %}
+<div class="d-flex justify-content-center py-3">
+    <nav><ul class="pagination pagination-sm mb-0">
+        {% if result.has_previous %}<li class="page-item"><a class="page-link" hx-get="?page={{ result.page|add:'-1' }}&{{ list_query }}" hx-target="#justifications-table" hx-swap="innerHTML" aria-label="Página anterior">«</a></li>{% endif %}
+        <li class="page-item active"><span class="page-link">{{ result.page }} / {{ result.total_pages }}</span></li>
+        {% if result.has_next %}<li class="page-item"><a class="page-link" hx-get="?page={{ result.page|add:'1' }}&{{ list_query }}" hx-target="#justifications-table" hx-swap="innerHTML" aria-label="Próxima página">»</a></li>{% endif %}
+    </ul></nav>
+</div>
+{% endif %}

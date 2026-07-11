@@ -14,6 +14,17 @@ from base.services import BaseService
 
 logger = logging.getLogger(__name__)
 
+TEACHER_REQUIRED_FIELDS = [
+    "registration_number",
+    "hire_date",
+    "birth_date",
+    "gender",
+    "cpf",
+    "rg_number",
+    "phone_mobile",
+]
+TEACHER_EDIT_REQUIRED_FIELDS = ["first_name", "last_name", *TEACHER_REQUIRED_FIELDS]
+
 
 class _SubjectRepo(BaseRepository):
     """Repositorio de acesso a dados de Subject."""
@@ -103,9 +114,8 @@ class TeacherService(BaseService):
         """Cria um professor validando usuário, matrícula única e registra auditoria."""
         from teachers.models import Teacher
 
-        user_id = data.get("user_id")
-        if not user_id:
-            raise ValidationError(errors={"user_id": ["Usuário é obrigatório."]})
+        self.validate_required(data, ["user_id", *TEACHER_REQUIRED_FIELDS])
+        user_id = data["user_id"]
 
         from core.models import CustomUser
 
@@ -117,26 +127,19 @@ class TeacherService(BaseService):
         if Teacher.objects.filter(user=user).exists():
             raise BusinessRuleViolationError("Este usuário já possui perfil de professor.")
 
-        reg = data.get("registration_number", "").strip()
-        if not reg:
-            raise ValidationError(errors={"registration_number": ["Matrícula é obrigatória."]})
+        reg = data["registration_number"].strip()
         if Teacher.objects.filter(registration_number=reg).exists():
             raise ValidationError(errors={"registration_number": ["Matrícula já cadastrada."]})
 
         cpf_cleaned = self._validate_cpf(data)
-        self._validate_rg_state(data)
-
         teacher = Teacher.objects.create(
             user=user,
             registration_number=reg,
             hire_date=data.get("hire_date"),
             birth_date=data.get("birth_date"),
             gender=data.get("gender", Teacher.Gender.NOT_INFORMED),
-            nationality=data.get("nationality", "Brasileiro(a)"),
             cpf=cpf_cleaned,
             rg_number=data.get("rg_number", ""),
-            rg_issuer=data.get("rg_issuer", ""),
-            rg_state=data.get("rg_state", ""),
             phone_mobile=data.get("phone_mobile", ""),
             created_by=self.user,
             updated_by=self.user,
@@ -153,16 +156,13 @@ class TeacherService(BaseService):
         repo = _TeacherRepo()
         teacher = repo.get_by_id(teacher_id)
 
-        self.validate_required(data, ["registration_number"])
+        self.validate_required(data, TEACHER_EDIT_REQUIRED_FIELDS)
 
         allowed = {
             "hire_date",
             "birth_date",
             "gender",
-            "nationality",
             "rg_number",
-            "rg_issuer",
-            "rg_state",
             "phone_mobile",
         }
         old = self._snapshot(teacher, [*allowed, "registration_number", "cpf"])
@@ -182,9 +182,6 @@ class TeacherService(BaseService):
         if "cpf" in data:
             cpf_cleaned = self._validate_cpf(data, exclude_id=teacher_id)
             updates["cpf"] = cpf_cleaned
-
-        if "rg_state" in data:
-            self._validate_rg_state(data)
 
         user_updates = self._person_user_updates(data)
         for field, value in user_updates.items():

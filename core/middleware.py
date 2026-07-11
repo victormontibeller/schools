@@ -6,6 +6,7 @@ import uuid
 from collections.abc import Callable
 
 from django.http import HttpRequest, HttpResponse
+from django.utils.deprecation import MiddlewareMixin
 
 from base import context
 from base.exceptions import (
@@ -25,6 +26,51 @@ class CorrelationIdFilter(logging.Filter):
         """Injeta o correlation_id corrente no record de log."""
         record.correlation_id = context.correlation_id.get() or "-"
         return True
+
+
+class TenantContextMiddleware:
+    """Sincroniza o schema resolvido pelo django-tenants com contextvars."""
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        """Mantém o tenant correto durante todo o ciclo da requisição."""
+        from django.db import connection
+
+        tenant = getattr(request, "tenant", None)
+        schema = getattr(tenant, "schema_name", None) or getattr(
+            connection, "schema_name", "public"
+        )
+        token = context.current_tenant.set(schema)
+        try:
+            return self.get_response(request)
+        finally:
+            context.current_tenant.reset(token)
+
+
+class SecurityHeadersMiddleware:
+    """Aplica CSP e cabeçalhos complementares em todas as respostas."""
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        """Adiciona política restritiva compatível com os assets atuais."""
+        response = self.get_response(request)
+        response.setdefault(
+            "Content-Security-Policy",
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; font-src 'self' data:; "
+            "connect-src 'self'; object-src 'none'; base-uri 'self'; "
+            "form-action 'self'; frame-ancestors 'none'",
+        )
+        response.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        response.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+        return response
 
 
 class CorrelationIdMiddleware:
@@ -62,6 +108,8 @@ class AuditContextMiddleware:
             context.request_ip.set(ip),
             context.user_agent.set(ua),
             context.user_id.set(uid),
+            context.platform_actor_id.set(str(request.session.get("platform_actor_id", ""))),
+            context.support_grant_id.set(str(request.session.get("support_grant_id", ""))),
         )
         try:
             response = self.get_response(request)
@@ -69,12 +117,98 @@ class AuditContextMiddleware:
             context.request_ip.reset(tokens[0])
             context.user_agent.reset(tokens[1])
             context.user_id.reset(tokens[2])
+            context.platform_actor_id.reset(tokens[3])
+            context.support_grant_id.reset(tokens[4])
         return response
 
     @staticmethod
     def _get_ip(request: HttpRequest) -> str:
+        from django.conf import settings
+
         xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
-        return xff.split(",")[0].strip() if xff else request.META.get("REMOTE_ADDR", "")
+        remote = request.META.get("REMOTE_ADDR", "")
+        trusted = set(getattr(settings, "TRUSTED_PROXY_IPS", []))
+        return xff.split(",")[0].strip() if xff and remote in trusted else remote
+
+
+class PermissionPolicyMiddleware(MiddlewareMixin):
+    """Aplica RBAC de módulo antes da execução das views autenticadas."""
+
+    def process_view(self, request, view_func, view_args, view_kwargs):
+        """Bloqueia módulos e ações incompatíveis com o papel corrente."""
+        from django.core.exceptions import PermissionDenied
+
+        from core.permissions import GUARDIAN_VIEW_NAMES, PUBLIC_VIEW_NAMES, can_access_module
+
+        view_name = getattr(request.resolver_match, "url_name", "")
+        if view_name in PUBLIC_VIEW_NAMES or not request.user.is_authenticated:
+            return None
+        if view_name in {
+            "dashboard",
+            "profile",
+            "change_password",
+            "logout",
+            "support_access_end",
+        }:
+            return None
+        app_label = view_func.__module__.split(".", maxsplit=1)[0]
+        if getattr(request.user, "access_mode", "") == "DEMO" and app_label not in {
+            "agenda",
+            "activities",
+            "attendance",
+            "classes",
+            "enrollments",
+            "dashboard",
+        }:
+            raise PermissionDenied("Ação indisponível no ambiente DEMO.")
+        if getattr(getattr(request.user, "role", None), "name", "") == "GUARDIAN":
+            if view_name not in GUARDIAN_VIEW_NAMES:
+                raise PermissionDenied("Sem permissão para esta operação.")
+            from core.access_selectors import ObjectAccessSelector
+
+            student_id = view_kwargs.get("student_id")
+            if view_name == "student_profile":
+                student_id = view_kwargs.get("pk")
+            if student_id and not ObjectAccessSelector.guardian_can_access_student(
+                request.user.pk, student_id
+            ):
+                raise PermissionDenied("Aluno não vinculado a este responsável.")
+            if (
+                view_name == "activity_detail"
+                and not ObjectAccessSelector.guardian_can_access_activity(
+                    request.user.pk, view_kwargs.get("pk")
+                )
+            ):
+                raise PermissionDenied("Atividade fora do escopo do responsável.")
+            return None
+        if getattr(getattr(request.user, "role", None), "name", "") == "TEACHER":
+            from core.access_selectors import ObjectAccessSelector
+
+            class_id = view_kwargs.get("class_id")
+            if class_id and not ObjectAccessSelector.teacher_can_access_class(
+                request.user.pk, class_id
+            ):
+                raise PermissionDenied("Turma fora do escopo do professor.")
+            if view_name in {"activity_detail", "activity_edit", "activity_record_score"}:
+                if not ObjectAccessSelector.teacher_can_access_activity(
+                    request.user.pk, view_kwargs.get("pk")
+                ):
+                    raise PermissionDenied("Atividade fora do escopo do professor.")
+            if (
+                view_name == "attendance_record_fill"
+                and not ObjectAccessSelector.teacher_can_access_attendance(
+                    request.user.pk, view_kwargs.get("record_id")
+                )
+            ):
+                raise PermissionDenied("Chamada fora do escopo do professor.")
+            student_id = view_kwargs.get("student_id")
+            if student_id and not ObjectAccessSelector.teacher_can_access_student(
+                request.user.pk, student_id
+            ):
+                raise PermissionDenied("Aluno fora do escopo do professor.")
+        if not can_access_module(request.user, app_label):
+            raise PermissionDenied("Sem permissão para acessar este módulo.")
+        return None
 
 
 # ── Handler global de exceções HTTP ──────────────────────────────────────────

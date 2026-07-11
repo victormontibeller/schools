@@ -1,5 +1,7 @@
 # Sprint 14 — UX e Produtividade
 
+> **Documento histórico.** Em caso de divergência, prevalecem os documentos normativos em `docs/`.
+
 ## Objetivo
 
 Melhorar a experiencia de uso da plataforma para secretaria, coordenacao e docentes, reduzindo cliques, tempo de resposta percebido e retrabalho em operacoes diarias.

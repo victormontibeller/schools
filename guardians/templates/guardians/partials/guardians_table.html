@@ -32,8 +32,6 @@
                         {% if sorting.cpf.direction == "asc" %}<span class="sm-sort-indicator">↑</span>{% elif sorting.cpf.direction == "desc" %}<span class="sm-sort-indicator">↓</span>{% endif %}
                     </a>
                 </th>
-                <th>Telefone</th>
-                <th>WhatsApp</th>
                 <th>Alunos</th>
             </tr>
         </thead>
@@ -52,15 +50,13 @@
                 </td>
                 <td><span class="badge bg-soft-info text-info">{{ guardian.get_relationship_type_display }}</span></td>
                 <td class="text-muted">{{ guardian.cpf|default:"—" }}</td>
-                <td class="text-muted">{{ guardian.phone|default:"—" }}</td>
-                <td class="text-muted">{{ guardian.phone_whatsapp|default:"—" }}</td>
                 <td>
                     <span class="badge bg-soft-secondary text-secondary">{{ guardian.students.count }}</span>
                 </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="6" class="text-center text-muted py-4">Nenhum responsável encontrado.</td>
+                <td colspan="4" class="text-center text-muted py-4">Nenhum responsável encontrado.</td>
             </tr>
             {% endfor %}
         </tbody>

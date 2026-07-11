@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block title %}Escolas — Administração da Plataforma{% endblock %}
+
+{% block content %}
+{% include "partials/list_header.html" with list_title="Escolas" breadcrumb_items=None create_url="platform_school_create" search_url="platform_school_list" search_target="#platform-schools-table" search_value=q total_count=result.total %}
+{% include "tenancy/partials/platform_schools_table.html" %}
+{% include "partials/list_footer.html" %}
+{% endblock %}

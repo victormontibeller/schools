@@ -1,5 +1,7 @@
 # Sprint 01 — Arquitetura Base
 
+> **Documento histórico.** Em caso de divergência, prevalecem os documentos normativos em `docs/`.
+
 ## Objetivo
 
 Estabelecer os padrões de código e as fundações arquiteturais que todos os módulos deverão seguir. Esta Sprint deverá criar as abstrações reutilizáveis que serão usadas em todas as sprints seguintes.

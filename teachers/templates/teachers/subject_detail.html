@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}{{ subject.name }} — School Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title"><h5 class="m-b-10">Disciplina</h5></div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'subjects_list' %}">Disciplinas</a></li>
+            <li class="breadcrumb-item active">{{ subject.name }}</li>
+        </ul>
+    </div>
+</div>
+<div class="main-content"><div class="row g-3 align-items-start"><div class="col-12 col-xl-5">
+    {% include "teachers/partials/subject_information_card.html" %}
+</div></div></div>
+{% endblock %}

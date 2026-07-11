@@ -3,7 +3,7 @@
 import pytest
 
 from base.exceptions import ValidationError
-from core.models import School
+from tenancy.models import School
 
 
 @pytest.fixture()

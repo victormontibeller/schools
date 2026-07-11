@@ -65,20 +65,38 @@ class ActivityService(BaseService):
         if max_score <= 0:
             raise ValidationError(errors={"max_score": ["Nota máxima deve ser positiva."]})
 
-        activity = Activity.objects.create(
-            class_obj=class_obj,
-            subject=subject,
-            teacher=teacher,
-            title=data["title"].strip(),
-            description=(data.get("description") or "").strip(),
-            type=data.get("type", Activity.Type.HOMEWORK),
-            due_date=data["due_date"],
-            max_score=max_score,
-            weight=Decimal(str(data.get("weight", 1.00))),
-            created_by=self.user,
-            updated_by=self.user,
-        )
-        self._record_audit("INSERT", activity)
+        from activities.models import ActivitySubmission
+        from classes.models import Enrollment
+
+        with transaction.atomic():
+            activity = Activity.objects.create(
+                class_obj=class_obj,
+                subject=subject,
+                teacher=teacher,
+                title=data["title"].strip(),
+                description=(data.get("description") or "").strip(),
+                type=data.get("type", Activity.Type.HOMEWORK),
+                due_date=data["due_date"],
+                max_score=max_score,
+                weight=Decimal(str(data.get("weight", 1.00))),
+                created_by=self.user,
+                updated_by=self.user,
+            )
+            self._record_audit("INSERT", activity)
+            submissions = [
+                ActivitySubmission(
+                    activity=activity,
+                    student_id=student_id,
+                    created_by=self.user,
+                    updated_by=self.user,
+                )
+                for student_id in Enrollment.objects.filter(
+                    class_obj=class_obj, status=Enrollment.Status.ACTIVE
+                ).values_list("student_id", flat=True)
+            ]
+            ActivitySubmission.objects.bulk_create(submissions)
+            for submission in submissions:
+                self._record_audit("INSERT", submission)
         self._log("Atividade criada", activity_id=str(activity.pk))
         return activity
 
@@ -106,6 +124,10 @@ class ActivityService(BaseService):
             student = Student.objects.get(pk=student_id)
         except Student.DoesNotExist:
             raise ObjectNotFoundError("Student", str(student_id)) from None
+        if not ActivitySubmission.objects.filter(activity=activity, student=student).exists():
+            raise ValidationError(
+                errors={"student": ["Aluno não pertence à turma desta atividade."]}
+            )
 
         try:
             score_decimal = Decimal(str(score))
@@ -126,8 +148,8 @@ class ActivityService(BaseService):
                 "updated_by": self.user,
             },
         )
-        # `submitted_at` apenas na primeira gravação
-        if created and submission.submitted_at is None:
+        # Marca a primeira nota, inclusive para entregas pré-carregadas.
+        if submission.submitted_at is None:
             from django.utils import timezone
 
             submission.submitted_at = timezone.now()

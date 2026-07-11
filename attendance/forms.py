@@ -28,6 +28,10 @@ class AttendanceRecordForm(forms.ModelForm):
             "notes": "Observações",
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["notes"].required = True
+
 
 class JustificationForm(forms.ModelForm):
     """Formulário para submissão de justificativa de ausência."""

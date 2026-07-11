@@ -15,3 +15,27 @@ def current_school(request):
     except Exception:
         school = None
     return {"current_school": school}
+
+
+def support_access(request):
+    """Expõe o estado de impersonação para o banner global."""
+    session = getattr(request, "session", {})
+    return {
+        "support_access_active": bool(session.get("support_grant_id")),
+        "support_grant_id": session.get("support_grant_id", ""),
+        "support_expires_at": session.get("support_expires_at", ""),
+    }
+
+
+def accessible_modules(request):
+    """Disponibiliza módulos autorizados para a navegação."""
+    from core.permissions import modules_for_user
+    from core.tenant_routing import is_platform_request
+
+    if not getattr(request, "user", None) or not request.user.is_authenticated:
+        return {"accessible_modules": frozenset(), "is_platform_schema": False}
+    is_platform = is_platform_request(request)
+    return {
+        "accessible_modules": (frozenset() if is_platform else modules_for_user(request.user)),
+        "is_platform_schema": is_platform,
+    }

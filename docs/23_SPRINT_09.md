@@ -1,5 +1,7 @@
 # Sprint 09 — Calendário
 
+> **Documento histórico.** Em caso de divergência, prevalecem os documentos normativos em `docs/`.
+
 ## Objetivo
 
 Implementar o calendário acadêmico da escola, permitindo o registro de eventos, feriados, dias letivos e datas importantes, integrando com a agenda e as notificações.

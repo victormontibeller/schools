@@ -14,7 +14,7 @@ def service(user):
 
 @pytest.fixture()
 def school(user):
-    from core.models import School
+    from tenancy.models import School
 
     return School.objects.create(
         schema_name="testschool",
@@ -201,15 +201,39 @@ def test_create_address_for_teacher_fails_when_teacher_not_found(service):
 
 
 @pytest.mark.django_db
+def test_create_address_for_business_unit_fails_when_not_found(service):
+    import uuid
+
+    with pytest.raises(ObjectNotFoundError):
+        service.create_address_for_business_unit(uuid.uuid4(), VALID_ADDRESS_DATA)
+
+
+@pytest.mark.django_db
 def test_create_address_for_student_succeeds(service, student):
     result = service.create_address_for_student(student.pk, VALID_ADDRESS_DATA)
     assert result.pk is not None
 
 
 @pytest.mark.django_db
+def test_create_address_for_student_fails_when_not_found(service):
+    import uuid
+
+    with pytest.raises(ObjectNotFoundError):
+        service.create_address_for_student(uuid.uuid4(), VALID_ADDRESS_DATA)
+
+
+@pytest.mark.django_db
 def test_create_address_for_guardian_succeeds(service, guardian):
     result = service.create_address_for_guardian(guardian.pk, VALID_ADDRESS_DATA)
     assert result.pk is not None
+
+
+@pytest.mark.django_db
+def test_create_address_for_guardian_fails_when_not_found(service):
+    import uuid
+
+    with pytest.raises(ObjectNotFoundError):
+        service.create_address_for_guardian(uuid.uuid4(), VALID_ADDRESS_DATA)
 
 
 @pytest.mark.django_db

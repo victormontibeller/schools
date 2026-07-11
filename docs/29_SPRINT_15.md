@@ -1,5 +1,7 @@
 # Sprint 15 — Qualidade e Testes
 
+> **Documento histórico.** Em caso de divergência, prevalecem os documentos normativos em `docs/`.
+
 ## Objetivo
 
 Aumentar a confiabilidade da plataforma com foco em testes de regressao, cobertura por modulo, padronizacao de cenarios criticos e reducao de bugs em producao.

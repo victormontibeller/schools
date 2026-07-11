@@ -18,36 +18,12 @@
 
 <div class="main-content">
     <div class="row g-3 align-items-start">
-        <div class="col-12 col-xl-6">
+        <div class="col-12 col-xl-5">
             {% include "students/partials/student_information_card.html" %}
         </div>
 
-        <div class="col-12 col-xl-6">
-            <div class="card mb-3 sm-profile-card">
-                <div class="card-header">
-                    <h6 class="card-title mb-0">Responsáveis</h6>
-                </div>
-                <div class="card-body sm-selection-card-body">
-                    {% for link in guardians %}
-                    <div class="sm-detail-list-item d-flex flex-wrap align-items-center justify-content-between gap-2 {% if not forloop.last %}mb-3{% endif %}">
-                        <div>
-                            <span class="fw-semibold">{{ link.guardian.full_name }}</span>
-                            <span class="badge bg-soft-info text-info ms-2">
-                                {{ link.guardian.get_relationship_type_display }}
-                            </span>
-                            {% if link.is_primary %}
-                            <span class="badge bg-soft-success text-success ms-1">Principal</span>
-                            {% endif %}
-                        </div>
-                        <div class="text-muted small">
-                            {{ link.guardian.phone_mobile|default:link.guardian.phone|default:"—" }}
-                        </div>
-                    </div>
-                    {% empty %}
-                    <p class="text-muted mb-0">Nenhum responsável vinculado.</p>
-                    {% endfor %}
-                </div>
-            </div>
+        <div class="col-12 col-xl-7">
+            {% include "students/partials/student_guardians_card.html" %}
 
             {% include "addresses/partials/address_table.html" with addresses=addresses entity_type="student" entity_id=student.pk %}
         </div>

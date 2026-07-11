@@ -1,32 +1,8 @@
 """Smoke test do módulo de frequência."""
 
-from django.template.context import BaseContext
-
-
-def _patched_bctx_copy(self):
-    cls = type(self)
-    new = object.__new__(cls)
-    for slot in getattr(cls, "__slots__", ()) or ():
-        if hasattr(self, slot):
-            try:
-                setattr(new, slot, getattr(self, slot))
-            except AttributeError:
-                pass
-    try:
-        for k, v in vars(self).items():
-            try:
-                setattr(new, k, v)
-            except AttributeError:
-                pass
-    except TypeError:
-        pass
-    return new
-
-
-BaseContext.__copy__ = _patched_bctx_copy
-
 import re
 
+from django.conf import settings
 from django.test import Client
 from django.urls import reverse
 
@@ -45,7 +21,13 @@ def show(label, resp):
 
 
 c.post(
-    reverse("login"), {"email": "admin@demo.com", "password": "Senha123", "remember_me": True}, **H
+    reverse("login"),
+    {
+        "email": "admin@demo.com",
+        "password": settings.DEV_DEMO_ADMIN_PASSWORD,
+        "remember_me": True,
+    },
+    **H,
 )
 
 from attendance.models import AttendanceEntry, AttendanceJustification, AttendanceRecord

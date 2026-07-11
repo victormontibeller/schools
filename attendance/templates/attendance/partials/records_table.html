@@ -1,0 +1,42 @@
+<div class="table-responsive">
+    <table class="table table-hover mb-0">
+        <thead>
+            <tr>
+                {% for field, label in sorting.items %}
+                <th aria-sort="{{ label.aria_sort }}">
+                    <a href="?{{ label.query }}" class="sm-sort-link{% if label.active %} is-active{% endif %}"
+                       hx-get="?{{ label.query }}" hx-target="#attendance-records-table" hx-swap="innerHTML">
+                        {% if field == "class_obj" %}Turma{% elif field == "date" %}Data{% elif field == "subject" %}Disciplina{% elif field == "teacher" %}Professor{% else %}Aula{% endif %}
+                        {% if label.direction == "asc" %}<span class="sm-sort-indicator">↑</span>{% elif label.direction == "desc" %}<span class="sm-sort-indicator">↓</span>{% endif %}
+                    </a>
+                </th>
+                {% endfor %}
+                <th>Frequência</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in result.items %}
+            <tr>
+                <td><a href="{% url 'attendance_record_fill' record.pk %}" class="fw-semibold">{{ record.class_obj }}</a></td>
+                <td>{{ record.date|date:"d/m/Y" }}</td>
+                <td>{{ record.subject }}</td>
+                <td>{{ record.teacher }}</td>
+                <td>{{ record.lesson_number }}</td>
+                <td><a href="{% url 'class_attendance_summary' record.class_obj.pk %}" class="btn btn-sm btn-outline-secondary">Resumo</a></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center text-muted py-4">Nenhuma chamada registrada.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if result.total_pages > 1 %}
+<div class="d-flex justify-content-center py-3">
+    <nav><ul class="pagination pagination-sm mb-0">
+        {% if result.has_previous %}<li class="page-item"><a class="page-link" hx-get="?page={{ result.page|add:'-1' }}&{{ list_query }}" hx-target="#attendance-records-table" hx-swap="innerHTML" aria-label="Página anterior">«</a></li>{% endif %}
+        <li class="page-item active"><span class="page-link">{{ result.page }} / {{ result.total_pages }}</span></li>
+        {% if result.has_next %}<li class="page-item"><a class="page-link" hx-get="?page={{ result.page|add:'1' }}&{{ list_query }}" hx-target="#attendance-records-table" hx-swap="innerHTML" aria-label="Próxima página">»</a></li>{% endif %}
+    </ul></nav>
+</div>
+{% endif %}

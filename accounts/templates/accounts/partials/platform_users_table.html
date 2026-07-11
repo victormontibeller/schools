@@ -1,0 +1,64 @@
+<div class="table-responsive">
+    <table class="table table-hover mb-0">
+        <thead>
+            <tr>
+                <th aria-sort="{{ sorting.name.aria_sort }}"><a href="?{{ sorting.name.query }}" class="sm-sort-link{% if sorting.name.active %} is-active{% endif %}" hx-get="?{{ sorting.name.query }}" hx-target="#platform-users-table" hx-swap="innerHTML">Operador</a></th>
+                <th aria-sort="{{ sorting.email.aria_sort }}"><a href="?{{ sorting.email.query }}" class="sm-sort-link{% if sorting.email.active %} is-active{% endif %}" hx-get="?{{ sorting.email.query }}" hx-target="#platform-users-table" hx-swap="innerHTML">E-mail</a></th>
+                <th>Nível</th>
+                <th aria-sort="{{ sorting.is_active.aria_sort }}"><a href="?{{ sorting.is_active.query }}" class="sm-sort-link{% if sorting.is_active.active %} is-active{% endif %}" hx-get="?{{ sorting.is_active.query }}" hx-target="#platform-users-table" hx-swap="innerHTML">Status</a></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for operator in result.items %}
+            <tr>
+                <td>
+                    <a href="{% url 'platform_user_edit' operator.pk %}" class="fw-semibold">
+                        {{ operator.get_full_name|default:"Sem nome" }}
+                    </a>
+                </td>
+                <td>{{ operator.email }}</td>
+                <td>
+                    {% if operator.is_superuser %}
+                    <span class="badge bg-soft-primary text-primary">Superusuário</span>
+                    {% else %}
+                    <span class="badge bg-soft-info text-info">Operador</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if operator.is_active %}
+                    <span class="badge bg-soft-success text-success">Ativo</span>
+                    {% else %}
+                    <span class="badge bg-soft-secondary text-secondary">Inativo</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-center text-muted py-4">Nenhum operador encontrado.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if result.total_pages > 1 %}
+<div class="d-flex justify-content-center py-3">
+    <nav aria-label="Paginação de operadores">
+        <ul class="pagination pagination-sm mb-0">
+            {% if result.has_previous %}
+            <li class="page-item">
+                <a class="page-link" aria-label="Página anterior"
+                   hx-get="?page={{ result.page|add:'-1' }}{% if list_query %}&{{ list_query }}{% endif %}"
+                   hx-target="#platform-users-table" hx-swap="innerHTML">«</a>
+            </li>
+            {% endif %}
+            <li class="page-item active"><span class="page-link">{{ result.page }} / {{ result.total_pages }}</span></li>
+            {% if result.has_next %}
+            <li class="page-item">
+                <a class="page-link" aria-label="Próxima página"
+                   hx-get="?page={{ result.page|add:'1' }}{% if list_query %}&{{ list_query }}{% endif %}"
+                   hx-target="#platform-users-table" hx-swap="innerHTML">»</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endif %}

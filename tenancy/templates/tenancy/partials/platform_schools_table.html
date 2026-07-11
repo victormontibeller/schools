@@ -1,0 +1,66 @@
+<div class="table-responsive">
+    <table class="table table-hover mb-0">
+        <thead class="table-light">
+            <tr>
+                <th>Escola</th>
+                <th>Schema</th>
+                <th>Domínio principal</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for school in result.items %}
+            <tr>
+                <td>
+                    <a href="{% url 'platform_school_edit' school.pk %}" class="fw-semibold">
+                        {{ school.name }}
+                    </a>
+                </td>
+                <td><code>{{ school.schema_name }}</code></td>
+                <td>
+                    {% for domain in school.domains.all %}
+                        {% if domain.is_primary %}{{ domain.domain }}{% endif %}
+                    {% empty %}—{% endfor %}
+                </td>
+                <td>
+                    {% if school.is_active and not school.deleted_at %}
+                    <span class="badge bg-soft-success text-success">Ativa</span>
+                    {% else %}
+                    <span class="badge bg-soft-secondary text-secondary">Inativa</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" class="text-center text-muted py-4">
+                    Nenhuma escola encontrada.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if result.total_pages > 1 %}
+<div class="d-flex justify-content-center py-3">
+    <nav aria-label="Paginação de escolas">
+        <ul class="pagination pagination-sm mb-0">
+            {% if result.has_previous %}
+            <li class="page-item">
+                <a class="page-link" aria-label="Página anterior"
+                   hx-get="?page={{ result.page|add:'-1' }}{% if q %}&q={{ q }}{% endif %}"
+                   hx-target="#platform-schools-table" hx-swap="innerHTML">«</a>
+            </li>
+            {% endif %}
+            <li class="page-item active"><span class="page-link">{{ result.page }} / {{ result.total_pages }}</span></li>
+            {% if result.has_next %}
+            <li class="page-item">
+                <a class="page-link" aria-label="Próxima página"
+                   hx-get="?page={{ result.page|add:'1' }}{% if q %}&q={{ q }}{% endif %}"
+                   hx-target="#platform-schools-table" hx-swap="innerHTML">»</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endif %}

@@ -1,4 +1,4 @@
-{% extends "form_base.html" %}
+{% extends "entity_form_base.html" %}
 
 {% block title %}{{ title }}{% endblock %}
 
@@ -7,5 +7,9 @@
 {% endblock %}
 
 {% block form_enctype %}enctype="multipart/form-data"{% endblock %}
+
+{% block form_fields %}
+{% include "partials/organization_form_fields.html" with organization=school %}
+{% endblock %}
 
 {% block cancel_url %}{% url 'school_settings_detail' %}{% endblock %}

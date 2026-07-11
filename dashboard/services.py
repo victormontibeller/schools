@@ -6,6 +6,7 @@ import logging
 
 from django.core.cache import cache
 
+from base import context
 from base.services import BaseService
 
 logger = logging.getLogger(__name__)
@@ -35,8 +36,10 @@ class DashboardService(BaseService):
     """Servico de aplicacao para agregacao de dashboards."""
 
     @staticmethod
-    def _cache_key(prefix: str, identifier: str = "") -> str:
-        return f"dashboard:{prefix}:{identifier}".rstrip(":")
+    def _cache_key(prefix: str, identifier: str = "", tenant_schema: str | None = None) -> str:
+        """Monta chave sempre namespaced pelo schema."""
+        schema = tenant_schema or context.current_tenant.get() or "public"
+        return f"tenant:{schema}:dashboard:{prefix}:{identifier}".rstrip(":")
 
     def get_school_dashboard_data(self) -> dict:
         """Retorna todos os KPIs do dashboard escolar com cache.
@@ -77,7 +80,7 @@ class DashboardService(BaseService):
 
     def get_executive_dashboard_data(self) -> dict:
         """Retorna KPIs agregados de todos os tenants com cache."""
-        cache_key = self._cache_key("executive_dashboard")
+        cache_key = self._cache_key("executive_dashboard", tenant_schema="public")
         data = self._safe_cache_get(cache_key)
         if data is not None:
             return data
@@ -86,9 +89,15 @@ class DashboardService(BaseService):
 
         selector = DashboardSelector()
         data = {
-            "total_tenants": self._cached("total_tenants", selector.get_total_tenants),
-            "platform_users": self._cached("platform_users", selector.get_platform_users),
-            "platform_growth": self._cached("platform_growth", selector.get_platform_growth),
+            "total_tenants": self._cached(
+                "total_tenants", selector.get_total_tenants, tenant_schema="public"
+            ),
+            "platform_users": self._cached(
+                "platform_users", selector.get_platform_users, tenant_schema="public"
+            ),
+            "platform_growth": self._cached(
+                "platform_growth", selector.get_platform_growth, tenant_schema="public"
+            ),
         }
         self._safe_cache_set(cache_key, data, CACHE_TTL["executive_dashboard"])
         return data
@@ -102,7 +111,7 @@ class DashboardService(BaseService):
                 for prefix in CACHE_TTL:
                     cache.delete(self._cache_key(prefix))
         except Exception:
-            pass
+            logger.warning("dashboard_cache_invalidation_failed", exc_info=True)
         self._log("Cache de dashboard invalidado", key=key or "all")
 
     # ── Helpers ──────────────────────────────────────────────────────────────
@@ -121,11 +130,11 @@ class DashboardService(BaseService):
         try:
             cache.set(key, value, timeout=timeout)
         except Exception:
-            pass
+            logger.warning("dashboard_cache_write_failed", exc_info=True)
 
-    def _cached(self, key: str, fn, *args, **kwargs):
+    def _cached(self, key: str, fn, *args, tenant_schema: str | None = None, **kwargs):
         """Executa funcao com cache Redis individual."""
-        cache_key = self._cache_key(key)
+        cache_key = self._cache_key(key, tenant_schema=tenant_schema)
         value = self._safe_cache_get(cache_key)
         if value is not None:
             return value

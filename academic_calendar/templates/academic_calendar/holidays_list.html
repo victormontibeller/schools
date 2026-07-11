@@ -1,65 +1,7 @@
 {% extends "base.html" %}
-
-{% block title %}{{ title }} — School Manager{% endblock %}
-
+{% block title %}Feriados — School Manager{% endblock %}
 {% block content %}
-<div class="page-header">
-    <div class="page-header-left d-flex align-items-center">
-        <div class="page-header-title"><h5 class="m-b-10">{{ title }}</h5></div>
-        <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
-            <li class="breadcrumb-item"><a href="{% url 'calendar_month' %}">Calendário</a></li>
-            <li class="breadcrumb-item">{{ title }}</li>
-        </ul>
-    </div>
-</div>
-
-<div class="main-content">
-    <div class="row g-3">
-        <div class="col-md-5">
-            <div class="card">
-                <div class="card-header"><h6 class="card-title mb-0">Novo Feriado</h6></div>
-                <div class="card-body">
-                    {% if errors %}
-                    <div class="alert alert-danger small">
-                        {% for field, errs in errors.items %}{% for e in errs %}<div>{{ e }}</div>{% endfor %}{% endfor %}
-                    </div>
-                    {% endif %}
-                    <form method="post" action="{% url 'holiday_create' %}" novalidate>
-                        {% csrf_token %}
-                        <div class="row g-3">
-                            {% for field in form %}
-                                {% include "partials/form_field.html" with field=field full_width=True %}
-                            {% endfor %}
-                        </div>
-                        <button type="submit" class="btn btn-primary mt-4">Salvar</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-7">
-            <div class="card">
-                <div class="card-header"><h6 class="card-title mb-0">Feriados Cadastrados</h6></div>
-                <div class="card-body p-0">
-                    <table class="table table-hover align-middle">
-                        <thead><tr><th>Data</th><th>Nome</th><th>Tipo</th><th>Recorrente</th></tr></thead>
-                        <tbody>
-                            {% for h in holidays %}
-                            <tr>
-                                <td>{{ h.date|date:"d/m/Y" }}</td>
-                                <td>{{ h.name }}</td>
-                                <td>{{ h.get_type_display }}</td>
-                                <td>{{ h.is_recurring|yesno:"Sim,Não" }}</td>
-                            </tr>
-                            {% empty %}
-                            <tr><td colspan="4" class="text-center text-muted py-4">Nenhum feriado cadastrado.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+{% include "partials/list_header.html" with list_title="Feriados" breadcrumb_items=breadcrumb_items create_url="holiday_create" search_url="holidays_list" search_target="#holidays-table" search_value=q sort=sort total_count=result.total %}
+{% include "academic_calendar/partials/holidays_table.html" %}
+{% include "partials/list_footer.html" %}
 {% endblock %}

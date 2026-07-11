@@ -3,66 +3,7 @@
 {% block title %}Justificativas — School Manager{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div class="page-header-left d-flex align-items-center">
-        <div class="page-header-title"><h5 class="m-b-10">Justificativas de Ausência</h5></div>
-        <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
-            <li class="breadcrumb-item"><a href="{% url 'attendance_records_list' %}">Frequência</a></li>
-            <li class="breadcrumb-item">Justificativas</li>
-        </ul>
-    </div>
-    <div class="page-header-right ms-auto">
-        <a href="{% url 'justification_create' %}" class="btn btn-primary btn-sm">
-            <i class="feather-plus me-1"></i> NOVO
-        </a>
-    </div>
-</div>
-
-<div class="main-content">
-    <div class="card">
-        <div class="card-header">
-            <div class="d-flex align-items-center gap-2">
-                <h6 class="card-title mb-0">Justificativas</h6>
-                <a href="{% url 'justifications_list' %}" class="btn btn-link btn-sm {% if not request.GET.status %}fw-semibold{% endif %}">Todas</a>
-                <a href="{% url 'justifications_list' %}?status=PENDING" class="btn btn-link btn-sm {% if request.GET.status == 'PENDING' %}fw-semibold{% endif %}">Pendentes</a>
-                <a href="{% url 'justifications_list' %}?status=APPROVED" class="btn btn-link btn-sm {% if request.GET.status == 'APPROVED' %}fw-semibold{% endif %}">Aprovadas</a>
-                <a href="{% url 'justifications_list' %}?status=REJECTED" class="btn btn-link btn-sm {% if request.GET.status == 'REJECTED' %}fw-semibold{% endif %}">Rejeitadas</a>
-            </div>
-        </div>
-        <div class="card-body p-0">
-            <table class="table table-hover align-middle">
-                <thead><tr><th>Aluno</th><th>Período</th><th>Motivo</th><th>Situação</th><th>Ações</th></tr></thead>
-                <tbody>
-                    {% for j in justifications %}
-                    <tr>
-                        <td>{{ j.student.get_full_name }}</td>
-                        <td>{{ j.start_date|date:"d/m/Y" }} → {{ j.end_date|date:"d/m/Y" }}</td>
-                        <td>{{ j.reason|truncatechars:40 }}</td>
-                        <td>
-                            {% if j.status == 'PENDING' %}<span class="badge bg-warning text-dark">Pendente</span>
-                            {% elif j.status == 'APPROVED' %}<span class="badge bg-success">Aprovada</span>
-                            {% else %}<span class="badge bg-danger">Rejeitada</span>{% endif %}
-                        </td>
-                        <td>
-                            {% if j.status == 'PENDING' %}
-                            <form method="post" action="{% url 'justification_approve' j.pk %}" class="d-inline">
-                                {% csrf_token %}
-                                <button class="btn btn-sm btn-outline-success">Aprovar</button>
-                            </form>
-                            <form method="post" action="{% url 'justification_reject' j.pk %}" class="d-inline">
-                                {% csrf_token %}
-                                <button class="btn btn-sm btn-outline-danger">Rejeitar</button>
-                            </form>
-                            {% else %}{{ j.approved_by|default:"—" }}{% endif %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="5" class="text-center text-muted py-4">Nenhuma justificativa encontrada.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
+{% include "partials/list_header.html" with list_title="Justificativas" breadcrumb_items=breadcrumb_items create_url="justification_create" search_url="justifications_list" search_target="#justifications-table" search_value=q total_count=result.total status=status status_choices=status_choices %}
+{% include "attendance/partials/justifications_table.html" %}
+{% include "partials/list_footer.html" %}
 {% endblock %}

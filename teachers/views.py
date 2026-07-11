@@ -209,14 +209,25 @@ def _submitted_form_data(cleaned_data: dict, request) -> dict:
 def subjects_list(request):
     """Lista disciplinas paginadas, com busca por nome e suporte a HTMX."""
     page = int(request.GET.get("page", 1))
-    search = request.GET.get("q", "").strip()
+    state = resolve_listing_state(
+        request,
+        scope="subjects_list",
+        allowed_sorts={"name", "-name", "code", "-code", "workload", "-workload"},
+        default_sort="name",
+    )
+    search, sort = state["q"], state["sort"]
     filters = {}
     if search:
         filters["name__icontains"] = search
-    result = SubjectSelector().list_subjects(filters=filters, page=page)
+    result = SubjectSelector().list_subjects(filters=filters, order_by=sort, page=page)
     ctx = {
         "result": result,
         "q": search,
+        "sort": sort,
+        "sorting": build_sorting(
+            current_sort=sort, search=search, sortable_fields=["name", "code", "workload"]
+        ),
+        "list_query": build_querystring({"q": search, "sort": sort}),
         "breadcrumb_items": [
             {"label": "Home", "url": "dashboard"},
             {"label": "Disciplinas", "url": None},
@@ -247,13 +258,24 @@ def subject_create(request):
 
 
 @login_required
+def subject_detail(request, pk):
+    """Exibe a ficha da disciplina e concentra suas ações administrativas."""
+    subject = SubjectSelector().get_by_id(pk)
+    if request.headers.get("HX-Request") and request.GET.get("component") == "information":
+        return render(
+            request, "teachers/partials/subject_information_card.html", {"subject": subject}
+        )
+    return render(request, "teachers/subject_detail.html", {"subject": subject})
+
+
+@login_required
 def subject_edit(request, pk):
     """Edita a disciplina na própria linha da listagem quando solicitado por HTMX."""
     subject = SubjectSelector().get_by_id(pk)
     if request.headers.get("HX-Request") and request.GET.get("cancel"):
         return render(
             request,
-            "teachers/partials/subject_row.html",
+            "teachers/partials/subject_information_card.html",
             {"subject": subject},
         )
     form = SubjectForm(request.POST or None, instance=subject)
@@ -263,7 +285,7 @@ def subject_edit(request, pk):
             if request.headers.get("HX-Request"):
                 return render(
                     request,
-                    "teachers/partials/subject_row.html",
+                    "teachers/partials/subject_information_card.html",
                     {"subject": subject, "saved": True},
                 )
             messages.success(request, "Disciplina atualizada.")
@@ -277,8 +299,14 @@ def subject_edit(request, pk):
     if request.headers.get("HX-Request"):
         return render(
             request,
-            "teachers/partials/subject_row_form.html",
-            {"form": form, "subject": subject},
+            "partials/information_form_card.html",
+            {
+                "form": form,
+                "component_id": "subject-information-card",
+                "component_title": "Informações da Disciplina",
+                "edit_url": request.path,
+                "cancel_url": f"{request.path_info.removesuffix('editar/')}?component=information",
+            },
         )
     return render(
         request,

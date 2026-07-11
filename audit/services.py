@@ -8,7 +8,24 @@ from base.services import BaseService
 
 logger = logging.getLogger(__name__)
 
-EXCLUDED_FIELDS: frozenset[str] = frozenset({"password", "token", "secret", "api_key"})
+EXCLUDED_FIELDS: frozenset[str] = frozenset(
+    {
+        "password",
+        "token",
+        "secret",
+        "api_key",
+        "email",
+        "first_name",
+        "last_name",
+        "phone",
+        "cpf",
+        "rg",
+        "address",
+        "avatar",
+        "file",
+        "document",
+    }
+)
 
 
 class AuditService(BaseService):
@@ -46,9 +63,11 @@ class AuditService(BaseService):
             model_name=type(instance).__name__,
             object_id=str(instance.pk),
             operation=operation,
-            old_values=old_values,
-            new_values=new_values,
+            old_values=self._redact(old_values),
+            new_values=self._redact(new_values),
             correlation_id=context.correlation_id.get(),
+            platform_actor_id=context.platform_actor_id.get(),
+            support_grant_id=context.support_grant_id.get(),
         )
 
     @staticmethod
@@ -60,6 +79,7 @@ class AuditService(BaseService):
                 continue
             name: str = field.attname
             if any(ex in name.lower() for ex in EXCLUDED_FIELDS):
+                data[name] = "[REDACTED]"
                 continue
             value = getattr(instance, name, None)
             if hasattr(value, "isoformat"):
@@ -68,3 +88,13 @@ class AuditService(BaseService):
                 value = str(value)
             data[name] = value
         return data
+
+    @staticmethod
+    def _redact(values: dict | None) -> dict | None:
+        """Redige PII de snapshots fornecidos explicitamente pelo service."""
+        if values is None:
+            return None
+        return {
+            key: ("[REDACTED]" if any(ex in key.lower() for ex in EXCLUDED_FIELDS) else value)
+            for key, value in values.items()
+        }

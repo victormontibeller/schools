@@ -16,4 +16,5 @@ urlpatterns = [
     ),
     path("notifications/unread-count/", views.unread_count, name="unread_count"),
     path("announcements/", views.announcement_list, name="announcement_list"),
+    path("announcements/<uuid:pk>/", views.announcement_detail, name="announcement_detail"),
 ]

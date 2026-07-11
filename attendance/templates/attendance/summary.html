@@ -27,11 +27,11 @@
         <div class="card-body p-0">
             <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
-                <thead><tr><th>Aluno</th><th>Presentes</th><th>Ausentes</th><th>Justificados</th><th>Frequência</th><th>Ações</th></tr></thead>
+                <thead><tr><th>Aluno</th><th>Presentes</th><th>Ausentes</th><th>Justificados</th><th>Frequência</th><th>Histórico</th></tr></thead>
                 <tbody>
                     {% for s in summary %}
                     <tr>
-                        <td>{{ s.student.get_full_name }}</td>
+                        <td><a href="{% url 'student_attendance_class' s.student.pk class_obj.pk %}" class="fw-semibold">{{ s.student.get_full_name }}</a></td>
                         <td><span class="badge bg-success">{{ s.present }}</span></td>
                         <td><span class="badge bg-danger">{{ s.absent }}</span></td>
                         <td><span class="badge bg-warning text-dark">{{ s.justified }}</span></td>

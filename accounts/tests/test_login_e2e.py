@@ -82,6 +82,6 @@ class TestLoginE2E:
     def test_logout_works_when_logged_in(self, client):
         self._make_user()
         client.post(self.URL, {"email": "user@test.com", "password": "Senha123"})
-        resp = client.get("/logout/", follow=False)
+        resp = client.post("/logout/", follow=False)
         assert resp.status_code in (302, 303)
         assert "_auth_user_id" not in client.session

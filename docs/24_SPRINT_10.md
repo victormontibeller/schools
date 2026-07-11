@@ -1,5 +1,7 @@
 # Sprint 10 — Frequência
 
+> **Documento histórico.** Em caso de divergência, prevalecem os documentos normativos em `docs/`.
+
 ## Objetivo
 
 Implementar o controle de presença e frequência dos alunos, com registros por aula, relatórios de faltas e notificações automáticas para responsáveis quando o limite de ausências for atingido.

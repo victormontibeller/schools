@@ -1,0 +1,7 @@
+{% extends "entity_form_base.html" %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'time_slots_list' %}">Horários</a></li>
+{% endblock %}
+
+{% block cancel_url %}{% url 'time_slots_list' %}{% endblock %}

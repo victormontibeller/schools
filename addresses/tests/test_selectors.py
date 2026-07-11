@@ -13,7 +13,7 @@ def selector():
 @pytest.fixture()
 def school_with_address(user):
     from addresses.models import Address, SchoolAddress
-    from core.models import School
+    from tenancy.models import School
 
     school = School.objects.create(
         schema_name="testschool2",

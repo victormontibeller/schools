@@ -41,7 +41,8 @@ class AddressService(BaseService):
         endpoint = f"https://viacep.com.br/ws/{cleaned_postal_code}/json/"
 
         try:
-            with urlopen(endpoint, timeout=5) as response:
+            # URL fixa em HTTPS para o ViaCEP; somente o CEP validado compõe o path.
+            with urlopen(endpoint, timeout=5) as response:  # noqa: S310
                 payload = json.loads(response.read().decode("utf-8"))
         except (HTTPError, URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
             raise ValidationError(
@@ -158,75 +159,74 @@ class AddressService(BaseService):
         self._log("Vinculo de endereco criado", link_id=str(link.pk))
         return link
 
+    def _create_address_for_entity(
+        self,
+        entity_id,
+        data: dict,
+        entity_model,
+        link_model,
+        entity_field: str,
+        entity_label: str,
+    ) -> Address:
+        """Cria endereco e vincula-o a uma entidade de dominio."""
+        try:
+            entity = entity_model.objects.get(pk=entity_id)
+        except entity_model.DoesNotExist:
+            raise ObjectNotFoundError(entity_label, str(entity_id)) from None
+
+        address = self._create_address(data)
+        self._link_address(link_model, entity_field, entity, address)
+        return address
+
     def create_address_for_school(self, school_id, data: dict) -> Address:
         """Cria endereco e vincula a uma escola."""
         from addresses.models import SchoolAddress
-        from core.models import School
+        from tenancy.models import School
 
-        try:
-            school = School.objects.get(pk=school_id)
-        except School.DoesNotExist:
-            raise ObjectNotFoundError("School", str(school_id)) from None
-
-        address = self._create_address(data)
-        self._link_address(SchoolAddress, "school", school, address)
-        return address
+        return self._create_address_for_entity(
+            school_id, data, School, SchoolAddress, "school", "School"
+        )
 
     def create_address_for_business_unit(self, business_unit_id, data: dict) -> Address:
         """Cria endereco e vincula a uma empresa."""
         from addresses.models import BusinessUnitAddress
         from core.models import BusinessUnit
 
-        try:
-            business_unit = BusinessUnit.objects.get(pk=business_unit_id)
-        except BusinessUnit.DoesNotExist:
-            raise ObjectNotFoundError("BusinessUnit", str(business_unit_id)) from None
-
-        address = self._create_address(data)
-        self._link_address(BusinessUnitAddress, "business_unit", business_unit, address)
-        return address
+        return self._create_address_for_entity(
+            business_unit_id,
+            data,
+            BusinessUnit,
+            BusinessUnitAddress,
+            "business_unit",
+            "BusinessUnit",
+        )
 
     def create_address_for_teacher(self, teacher_id, data: dict) -> Address:
         """Cria endereco e vincula a um professor."""
         from addresses.models import TeacherAddress
         from teachers.models import Teacher
 
-        try:
-            teacher = Teacher.objects.get(pk=teacher_id)
-        except Teacher.DoesNotExist:
-            raise ObjectNotFoundError("Teacher", str(teacher_id)) from None
-
-        address = self._create_address(data)
-        self._link_address(TeacherAddress, "teacher", teacher, address)
-        return address
+        return self._create_address_for_entity(
+            teacher_id, data, Teacher, TeacherAddress, "teacher", "Teacher"
+        )
 
     def create_address_for_student(self, student_id, data: dict) -> Address:
         """Cria endereco e vincula a um aluno."""
         from addresses.models import StudentAddress
         from students.models import Student
 
-        try:
-            student = Student.objects.get(pk=student_id)
-        except Student.DoesNotExist:
-            raise ObjectNotFoundError("Student", str(student_id)) from None
-
-        address = self._create_address(data)
-        self._link_address(StudentAddress, "student", student, address)
-        return address
+        return self._create_address_for_entity(
+            student_id, data, Student, StudentAddress, "student", "Student"
+        )
 
     def create_address_for_guardian(self, guardian_id, data: dict) -> Address:
         """Cria endereco e vincula a um responsavel."""
         from addresses.models import GuardianAddress
         from guardians.models import Guardian
 
-        try:
-            guardian = Guardian.objects.get(pk=guardian_id)
-        except Guardian.DoesNotExist:
-            raise ObjectNotFoundError("Guardian", str(guardian_id)) from None
-
-        address = self._create_address(data)
-        self._link_address(GuardianAddress, "guardian", guardian, address)
-        return address
+        return self._create_address_for_entity(
+            guardian_id, data, Guardian, GuardianAddress, "guardian", "Guardian"
+        )
 
     def update_address(self, address_id, data: dict) -> Address:
         """Atualiza dados do endereco e registra auditoria."""

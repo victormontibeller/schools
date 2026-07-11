@@ -1,5 +1,7 @@
 # Sprint 20 — Produção
 
+> **Documento histórico.** Em caso de divergência, prevalecem os documentos normativos em `docs/`.
+
 ## Objetivo
 
 Preparar a plataforma para o ambiente de produção com Docker Swarm, hardening de segurança, otimização de performance, configuração de alertas e validação de todos os requisitos não-funcionais antes do go-live.

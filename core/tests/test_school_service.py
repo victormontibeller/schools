@@ -14,7 +14,7 @@ def service(user):
 
 @pytest.fixture()
 def school(user):
-    from core.models import School
+    from tenancy.models import School
 
     return School.objects.create(
         schema_name="testschool06",
@@ -100,7 +100,7 @@ class TestUpdateSchool:
         assert result.state_registration == "123456"
 
     def test_update_duplicate_name(self, service, user, school):
-        from core.models import School
+        from tenancy.models import School
 
         School.objects.create(
             schema_name="other06",
@@ -112,7 +112,7 @@ class TestUpdateSchool:
             service.update_school(school.pk, {"name": "Outra Escola"})
 
     def test_update_duplicate_cnpj(self, service, user, school):
-        from core.models import School
+        from tenancy.models import School
 
         School.objects.create(
             schema_name="cnpj06",

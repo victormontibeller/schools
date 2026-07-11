@@ -29,6 +29,10 @@ request_ip: ContextVar[str] = ContextVar("request_ip", default="")
 # User-Agent da requisição
 user_agent: ContextVar[str] = ContextVar("user_agent", default="")
 
+# Identidade pública durante acesso temporário de suporte.
+platform_actor_id: ContextVar[str] = ContextVar("platform_actor_id", default="")
+support_grant_id: ContextVar[str] = ContextVar("support_grant_id", default="")
+
 
 def generate_correlation_id() -> str:
     """Gera um novo correlation ID RFC 4122 v4."""

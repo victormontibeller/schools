@@ -35,7 +35,6 @@ class ActivityForm(forms.Form):
     )
     description = forms.CharField(
         label="Descrição",
-        required=False,
         widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
     )
     type = forms.ChoiceField(
@@ -88,6 +87,5 @@ class ScoreForm(forms.Form):
     )
     feedback = forms.CharField(
         label="Feedback",
-        required=False,
         widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
     )

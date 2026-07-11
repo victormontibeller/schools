@@ -10,18 +10,89 @@ from attendance.forms import AttendanceRecordForm, JustificationForm
 from attendance.selectors import AttendanceSelector, JustificationSelector
 from attendance.services import AttendanceService
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+from base.listing import build_querystring, build_sorting, resolve_listing_state
 from classes.selectors import ClassSelector
 from students.selectors import StudentSelector
 
 logger = logging.getLogger(__name__)
+
+RECORD_SORTS = {
+    "class_obj": "class_obj__name",
+    "-class_obj": "-class_obj__name",
+    "date": "date",
+    "-date": "-date",
+    "subject": "subject__name",
+    "-subject": "-subject__name",
+    "teacher": "teacher__user__first_name",
+    "-teacher": "-teacher__user__first_name",
+    "lesson_number": "lesson_number",
+    "-lesson_number": "-lesson_number",
+}
+JUSTIFICATION_SORTS = {
+    "student": "student__first_name",
+    "-student": "-student__first_name",
+    "start_date": "start_date",
+    "-start_date": "-start_date",
+    "status": "status",
+    "-status": "-status",
+}
 
 
 @login_required
 def attendance_records_list(request):
     """Lista registros de chamada com filtros por turma."""
     class_id = request.GET.get("class_obj") or None
-    records = AttendanceSelector().list_records(class_id=class_id)
-    return render(request, "attendance/records_list.html", {"records": records})
+    page = int(request.GET.get("page", 1))
+    state = resolve_listing_state(
+        request,
+        scope="attendance_records_list",
+        allowed_sorts=set(RECORD_SORTS),
+        default_sort="-date",
+    )
+    search = state["q"]
+    sort = state["sort"]
+    sorting = build_sorting(
+        current_sort=sort,
+        search=search,
+        sortable_fields=["class_obj", "date", "subject", "teacher", "lesson_number"],
+    )
+    if class_id:
+        for item in sorting.values():
+            item["query"] = f"{item['query']}&class_obj={class_id}"
+    context = {
+        "result": AttendanceSelector().list_records(
+            class_id=class_id,
+            search=search,
+            order_by=RECORD_SORTS[sort],
+            page=page,
+        ),
+        "q": search,
+        "sort": sort,
+        "class_id": class_id,
+        "sorting": sorting,
+        "list_query": build_querystring({"q": search, "sort": sort, "class_obj": class_id}),
+        "breadcrumb_items": [
+            {"label": "Home", "url": "dashboard"},
+            {"label": "Frequência", "url": None},
+        ],
+        "extra_actions": [
+            {
+                "url": "students_at_risk",
+                "label": "Alunos em risco",
+                "icon": "feather-alert-triangle",
+                "class": "btn-outline-danger",
+            },
+            {
+                "url": "justifications_list",
+                "label": "Justificativas",
+                "icon": "feather-file-text",
+                "class": "btn-outline-secondary",
+            },
+        ],
+    }
+    if request.headers.get("HX-Request"):
+        return render(request, "attendance/partials/records_table.html", context)
+    return render(request, "attendance/records_list.html", context)
 
 
 @login_required
@@ -144,8 +215,49 @@ def students_at_risk(request):
 def justifications_list(request):
     """Lista justificativas de ausência; filtra por situação via ?status=."""
     status = request.GET.get("status") or None
-    justs = JustificationSelector().list_justifications(status=status)
-    return render(request, "attendance/justifications_list.html", {"justifications": justs})
+    page = int(request.GET.get("page", 1))
+    state = resolve_listing_state(
+        request,
+        scope="justifications_list",
+        allowed_sorts=set(JUSTIFICATION_SORTS),
+        default_sort="-start_date",
+    )
+    search = state["q"]
+    sort = state["sort"]
+    sorting = build_sorting(
+        current_sort=sort,
+        search=search,
+        sortable_fields=["student", "start_date", "status"],
+    )
+    if status:
+        for item in sorting.values():
+            item["query"] = f"{item['query']}&status={status}"
+    context = {
+        "result": JustificationSelector().list_justifications(
+            status=status,
+            search=search,
+            order_by=JUSTIFICATION_SORTS[sort],
+            page=page,
+        ),
+        "q": search,
+        "sort": sort,
+        "status": status,
+        "status_choices": [
+            ("PENDING", "Pendentes"),
+            ("APPROVED", "Aprovadas"),
+            ("REJECTED", "Rejeitadas"),
+        ],
+        "sorting": sorting,
+        "list_query": build_querystring({"q": search, "sort": sort, "status": status}),
+        "breadcrumb_items": [
+            {"label": "Home", "url": "dashboard"},
+            {"label": "Frequência", "url": "attendance_records_list"},
+            {"label": "Justificativas", "url": None},
+        ],
+    }
+    if request.headers.get("HX-Request"):
+        return render(request, "attendance/partials/justifications_table.html", context)
+    return render(request, "attendance/justifications_list.html", context)
 
 
 @login_required
@@ -161,6 +273,7 @@ def justification_create(request):
                     "start_date": cd["start_date"],
                     "end_date": cd["end_date"],
                     "reason": cd["reason"],
+                    "document": cd.get("document"),
                 }
             )
             return redirect("justifications_list")

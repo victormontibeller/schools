@@ -16,7 +16,7 @@ class GuardianSelector(BaseSelector):
         return Guardian
 
     def list_guardians(
-        self, search="", filters=None, order_by="user__first_name", page=1, page_size=20
+        self, search="", filters=None, order_by="first_name", page=1, page_size=20
     ) -> PageResult:
         """Lista responsáveis com busca por nome e paginação."""
         qs = self.model_class.objects.select_related("user").prefetch_related("students__student")
@@ -24,17 +24,29 @@ class GuardianSelector(BaseSelector):
             qs = qs.filter(**filters)
         if search:
             qs = qs.filter(
-                Q(user__first_name__icontains=search)
-                | Q(user__last_name__icontains=search)
+                Q(first_name__icontains=search)
+                | Q(last_name__icontains=search)
+                | Q(email__icontains=search)
                 | Q(cpf__icontains=search)
             )
-        qs = qs.order_by(order_by, "user__last_name")
+        qs = qs.order_by(order_by, "last_name")
         return self._paginate(qs, page=page, page_size=page_size)
 
     def get_guardian_students(self, guardian_id):
         """Retorna alunos vinculados ao responsavel, com dados do aluno."""
         guardian = self.get_by_id(guardian_id)
         return guardian.students.select_related("student").all()
+
+    def search_reusable(self, query: str):
+        """Busca responsáveis ativos para vinculação a um aluno."""
+        if not query:
+            return self.model_class.objects.none()
+        return self.model_class.objects.filter(
+            Q(first_name__icontains=query)
+            | Q(last_name__icontains=query)
+            | Q(email__icontains=query)
+            | Q(cpf__icontains=query)
+        ).order_by("first_name", "last_name")[:10]
 
     def search_by_cpf(self, cpf: str):
         """Busca responsavel por CPF."""

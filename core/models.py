@@ -1,92 +1,17 @@
 """
-Modelos centrais: School (tenant), Domain, Role, CustomUser.
+Modelos tenant-specific: BusinessUnit, Role e CustomUser.
 
 AUTH_USER_MODEL     = "core.CustomUser"
-TENANT_MODEL        = "core.School"
-TENANT_DOMAIN_MODEL = "core.Domain"
+School e Domain vivem no app compartilhado `tenancy`.
 """
-
-import sys
 
 from django.contrib.auth.models import AbstractBaseUser, Permission, PermissionsMixin
 from django.db import models
+from django.utils import timezone
 
 from base.models import BaseModel
+from base.upload_validators import validate_image_upload
 from core.managers import UserManager
-
-# ── Mixins condicionais para django-tenants ───────────────────────────────────
-# Em perfil TESTING (SQLite, sem django_tenants — ADR-0001) usamos mixins vazios.
-# Em TEST_PG/dev/prod importamos os mixins reais do django_tenants.
-_IN_PYTEST = "pytest" in sys.modules
-_TEST_PG = _IN_PYTEST and __import__("os").environ.get("DJANGO_ENV") == "test_pg"
-_TESTING = _IN_PYTEST and not _TEST_PG
-if _TESTING:
-
-    class TenantMixin(models.Model):
-        schema_name = models.CharField(max_length=63, unique=True, default="public")
-
-        class Meta:
-            abstract = True
-
-    class DomainMixin(models.Model):
-        domain = models.CharField(max_length=253)
-        is_primary = models.BooleanField(default=False)
-
-        class Meta:
-            abstract = True
-
-else:
-    from django_tenants.models import DomainMixin, TenantMixin  # type: ignore[assignment]
-
-
-# ── Tenant ─────────────────────────────────────────────────────────────────────
-
-
-class School(TenantMixin, BaseModel):
-    """Tenant raiz — uma escola por schema PostgreSQL."""
-
-    name = models.CharField(max_length=200, verbose_name="Nome da Escola")
-    cnpj = models.CharField(max_length=18, unique=True, null=True, blank=True)
-    legal_name = models.CharField(
-        max_length=255, blank=True, default="", verbose_name="Razao Social"
-    )
-    trade_name = models.CharField(
-        max_length=255, blank=True, default="", verbose_name="Nome Fantasia"
-    )
-    state_registration = models.CharField(
-        max_length=20, blank=True, default="", verbose_name="Inscricao Estadual"
-    )
-    municipal_registration = models.CharField(
-        max_length=20, blank=True, default="", verbose_name="Inscricao Municipal"
-    )
-    phone = models.CharField(max_length=20, blank=True, default="")
-    email = models.EmailField(blank=True, default="")
-    contact_full_name = models.CharField(
-        max_length=255, blank=True, default="", verbose_name="Nome do Responsavel"
-    )
-    contact_role = models.CharField(
-        max_length=150, blank=True, default="", verbose_name="Cargo do Responsavel"
-    )
-    contact_phone = models.CharField(
-        max_length=20, blank=True, default="", verbose_name="Telefone do Responsavel"
-    )
-    contact_email = models.EmailField(blank=True, default="", verbose_name="E-mail do Responsavel")
-    address = models.JSONField(default=dict, blank=True)
-    logo = models.ImageField(upload_to="schools/logos/", null=True, blank=True)
-    settings = models.JSONField(default=dict, blank=True)
-    academic_year_start = models.DateField(null=True, blank=True)
-    academic_year_end = models.DateField(null=True, blank=True)
-
-    auto_create_schema = True
-
-    class Meta:
-        verbose_name = "Escola"
-        verbose_name_plural = "Escolas"
-        ordering = ["name"]
-
-    def __str__(self) -> str:
-        """Representação legível da escola."""
-        return self.name or self.schema_name
 
 
 class BusinessUnit(BaseModel):
@@ -118,7 +43,12 @@ class BusinessUnit(BaseModel):
         max_length=20, blank=True, default="", verbose_name="Telefone do Responsavel"
     )
     contact_email = models.EmailField(blank=True, default="", verbose_name="E-mail do Responsavel")
-    logo = models.ImageField(upload_to="business_units/logos/", null=True, blank=True)
+    logo = models.ImageField(
+        upload_to="business_units/logos/",
+        null=True,
+        blank=True,
+        validators=[validate_image_upload],
+    )
     academic_year_start = models.DateField(null=True, blank=True)
     academic_year_end = models.DateField(null=True, blank=True)
 
@@ -136,14 +66,6 @@ class BusinessUnit(BaseModel):
         return self.name
 
 
-class Domain(DomainMixin):
-    """Domínio HTTP associado a uma escola."""
-
-    class Meta:
-        verbose_name = "Domínio"
-        verbose_name_plural = "Domínios"
-
-
 # ── Acesso ─────────────────────────────────────────────────────────────────────
 
 
@@ -152,8 +74,10 @@ class Role(BaseModel):
 
     class Name(models.TextChoices):
         ADMIN = "ADMIN", "Administrador"
+        SECRETARY = "SECRETARY", "Secretaria"
         COORDINATOR = "COORDINATOR", "Coordenador"
         TEACHER = "TEACHER", "Professor"
+        FINANCE = "FINANCE", "Financeiro"
         GUARDIAN = "GUARDIAN", "Responsável"
 
     name = models.CharField(max_length=20, choices=Name.choices, unique=True)
@@ -175,11 +99,21 @@ class Role(BaseModel):
 class CustomUser(AbstractBaseUser, PermissionsMixin, BaseModel):
     """Usuário da plataforma — e-mail como identificador único."""
 
+    class AccessMode(models.TextChoices):
+        STANDARD = "STANDARD", "Padrão"
+        DEMO = "DEMO", "Demonstração"
+        SUPPORT = "SUPPORT", "Suporte da plataforma"
+
     email = models.EmailField(unique=True, verbose_name="E-mail")
     first_name = models.CharField(max_length=150)
     last_name = models.CharField(max_length=150)
     phone = models.CharField(max_length=20, blank=True, default="")
-    avatar = models.ImageField(upload_to="accounts/avatars/", null=True, blank=True)
+    avatar = models.ImageField(
+        upload_to="accounts/avatars/",
+        null=True,
+        blank=True,
+        validators=[validate_image_upload],
+    )
     role = models.ForeignKey(
         Role,
         null=True,
@@ -189,6 +123,14 @@ class CustomUser(AbstractBaseUser, PermissionsMixin, BaseModel):
     )
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
+    access_mode = models.CharField(
+        max_length=20,
+        choices=AccessMode.choices,
+        default=AccessMode.STANDARD,
+        db_index=True,
+    )
+    email_verified_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["first_name", "last_name"]
@@ -212,3 +154,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin, BaseModel):
     def get_short_name(self) -> str:
         """Retorna apenas o primeiro nome do usuário."""
         return self.first_name
+
+    @property
+    def is_expired(self) -> bool:
+        """Indica se a conta temporária já expirou."""
+        return bool(self.expires_at and self.expires_at <= timezone.now())

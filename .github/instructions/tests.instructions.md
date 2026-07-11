@@ -4,6 +4,8 @@ applyTo: "**/tests/**,**/tests.py"
 
 # Testes — Padrões Obrigatórios
 
+> Critérios de aceite estão em `docs/12_DEFINITION_OF_DONE.md`. Este arquivo cobre apenas convenções locais de testes.
+
 Framework: `pytest` + `pytest-django`. Cobertura mínima: **80%**.
 
 ## Estrutura de um arquivo de teste

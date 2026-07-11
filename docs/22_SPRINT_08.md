@@ -1,5 +1,7 @@
 # Sprint 08 — Turmas e Agenda
 
+> **Documento histórico.** Em caso de divergência, prevalecem os documentos normativos em `docs/`.
+
 ## Objetivo
 
 Implementar o gerenciamento de turmas, salas, grade horária e atividades acadêmicas, permitindo que a escola estruture seu ano letivo e os professores registrem conteúdos e avaliações.

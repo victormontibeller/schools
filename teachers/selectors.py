@@ -82,6 +82,6 @@ class SubjectSelector(BaseSelector):
 
         return Subject
 
-    def list_subjects(self, filters=None, page=1, page_size=50) -> PageResult:
+    def list_subjects(self, filters=None, order_by="name", page=1, page_size=50) -> PageResult:
         """Lista disciplinas com filtros e paginação."""
-        return self.list(filters=filters, page=page, page_size=page_size)
+        return self.list(filters=filters, order_by=order_by, page=page, page_size=page_size)

@@ -18,11 +18,11 @@
 
 <div class="main-content">
     <div class="row g-3 align-items-start">
-        <div class="col-12 col-xl-6">
+        <div class="col-12 col-xl-5">
             {% include "teachers/partials/teacher_information_card.html" %}
         </div>
 
-        <div class="col-12 col-xl-6">
+        <div class="col-12 col-xl-7">
             {% include "teachers/partials/teacher_subjects_card.html" %}
 
             {% include "addresses/partials/address_table.html" with addresses=addresses entity_type="teacher" entity_id=teacher.pk %}

@@ -1,24 +1,7 @@
 {% extends "base.html" %}
-
+{% block title %}Comunicados — School Manager{% endblock %}
 {% block content %}
-<div class="container py-4">
-  <h1 class="mb-4">Comunicados</h1>
-
-  {% if announcements %}
-  <div class="list-group">
-    {% for a in announcements %}
-    <div class="list-group-item">
-      <div class="d-flex justify-content-between">
-        <h5>{{ a.title }}</h5>
-        <small class="text-muted">{{ a.sent_at|date:"d/m/Y H:i" }}</small>
-      </div>
-      <p class="mb-1">{{ a.body }}</p>
-      <small class="text-muted">{{ a.get_audience_display }}</small>
-    </div>
-    {% endfor %}
-  </div>
-  {% else %}
-  <p class="text-muted">Nenhum comunicado enviado.</p>
-  {% endif %}
-</div>
+{% include "partials/list_header.html" with list_title="Comunicados" breadcrumb_items=breadcrumb_items search_url="announcement_list" search_target="#announcements-table" search_value=q sort=sort total_count=result.total %}
+{% include "notifications/partials/announcements_table.html" %}
+{% include "partials/list_footer.html" %}
 {% endblock %}

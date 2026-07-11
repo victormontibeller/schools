@@ -153,7 +153,7 @@
                                     <td class="text-end">
                                         <div class="d-flex gap-1 justify-content-end">
                                             {% if doc.file %}
-                                            <a href="{{ doc.file.url }}" class="btn btn-sm btn-outline-secondary" title="Download">
+                                            <a href="{% url 'document_download' doc.pk %}" class="btn btn-sm btn-outline-secondary" title="Download">
                                                 <i class="feather-download"></i>
                                             </a>
                                             {% endif %}

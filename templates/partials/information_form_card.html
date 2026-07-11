@@ -23,11 +23,7 @@
             {% if form.non_field_errors %}
             <div class="alert alert-danger">{{ form.non_field_errors }}</div>
             {% endif %}
-            <div class="row g-3">
-                {% for field in form %}
-                {% include "partials/form_field.html" with field=field %}
-                {% endfor %}
-            </div>
+            {% include "partials/person_form_fields.html" with form=form %}
         </div>
     </form>
 </div>

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block title %}Operadores — Administração da Plataforma{% endblock %}
+
+{% block content %}
+{% include "partials/list_header.html" with list_title="Operadores" breadcrumb_items=breadcrumb_items create_url="platform_user_create" search_url="platform_user_list" search_target="#platform-users-table" search_value=q sort=sort total_count=result.total %}
+{% include "accounts/partials/platform_users_table.html" %}
+{% include "partials/list_footer.html" %}
+{% endblock %}

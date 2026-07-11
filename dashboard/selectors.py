@@ -163,7 +163,7 @@ class DashboardSelector(BaseSelector):
 
     def get_total_tenants(self) -> int:
         """Numero de escolas ativas na plataforma."""
-        from core.models import School
+        from tenancy.models import School
 
         return School.objects.filter(is_active=True).count()
 
@@ -189,7 +189,7 @@ class DashboardSelector(BaseSelector):
         """Crescimento de tenants nos ultimos N meses."""
         from django.db.models.functions import TruncMonth
 
-        from core.models import School
+        from tenancy.models import School
 
         since = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         since -= dt.timedelta(days=30 * months)

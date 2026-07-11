@@ -5,7 +5,8 @@ from __future__ import annotations
 import logging
 
 from celery import shared_task
-from django_tenants.utils import schema_context
+
+from base.context import tenant_schema_context
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 @shared_task
 def update_school_dashboard_cache(tenant_schema: str) -> None:
     """Atualiza cache do dashboard escolar para um tenant especifico."""
-    with schema_context(tenant_schema):
+    with tenant_schema_context(tenant_schema):
         from dashboard.services import DashboardService
 
         DashboardService().get_school_dashboard_data()
@@ -30,7 +31,7 @@ def refresh_all_school_dashboards() -> None:
     Ela itera todos os tenants ativos e dispara `update_school_dashboard_cache`
     individualmente, garantindo isolamento de schema.
     """
-    from core.models import School
+    from tenancy.models import School
 
     for tenant in School.objects.filter(is_active=True):
         update_school_dashboard_cache.delay(tenant.schema_name)

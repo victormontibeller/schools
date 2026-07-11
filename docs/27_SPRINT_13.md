@@ -1,5 +1,7 @@
 # Sprint 13 - Padrao de Listagens
 
+> **Documento histórico.** Em caso de divergência, prevalecem os documentos normativos em `docs/`.
+
 ## Objetivo
 
 Padronizar em todas as telas de listagem os elementos operacionais de cabecalho, garantindo consistencia visual e funcional para botao de adicionar, campo de busca e contador de registros.

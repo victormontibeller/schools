@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import logging
 
-from base.selectors import BaseSelector
+from django.db.models import Q
+
+from base.selectors import MAX_PAGE_SIZE, BaseSelector, PageResult
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +53,28 @@ class AnnouncementSelector(BaseSelector):
         return Announcement
 
     def get_sent(self):
-        """Comunicados ja enviados, do mais recente."""
+        """Retorna comunicados enviados, preservando o contrato de QuerySet."""
         return self.model_class.objects.filter(sent_at__isnull=False).order_by("-sent_at")
+
+    def list_sent(self, search="", order_by="-sent_at", page=1, page_size=20) -> PageResult:
+        """Lista comunicados enviados com busca, ordenação e paginação."""
+        page_size = min(max(1, page_size), MAX_PAGE_SIZE)
+        page = max(1, page)
+        queryset = self.get_sent().select_related("class_obj")
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search)
+                | Q(body__icontains=search)
+                | Q(audience__icontains=search)
+            )
+        total = queryset.count()
+        offset = (page - 1) * page_size
+        return PageResult(
+            items=list(queryset.order_by(order_by)[offset : offset + page_size]),
+            total=total,
+            page=page,
+            page_size=page_size,
+        )
 
     def get_scheduled(self):
         """Comunicados agendados ainda nao enviados."""

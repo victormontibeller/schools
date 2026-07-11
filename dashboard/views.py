@@ -5,7 +5,7 @@ from __future__ import annotations
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 
 from dashboard.services import DashboardService
 
@@ -13,6 +13,10 @@ from dashboard.services import DashboardService
 @login_required
 def school_dashboard(request: HttpRequest) -> HttpResponse:
     """Dashboard escolar com KPIs, frequencia, atividades e eventos."""
+    from core.tenant_routing import is_platform_request
+
+    if is_platform_request(request):
+        return redirect("platform_dashboard")
     data = DashboardService(user=request.user).get_school_dashboard_data()
     return render(request, "dashboard/school.html", {"data": data})
 
@@ -20,6 +24,10 @@ def school_dashboard(request: HttpRequest) -> HttpResponse:
 @login_required
 def school_dashboard_partial(request: HttpRequest) -> HttpResponse:
     """Partial HTMX para atualizacao assincrona do dashboard escolar."""
+    from core.tenant_routing import is_platform_request
+
+    if is_platform_request(request):
+        return redirect("platform_dashboard")
     data = DashboardService(user=request.user).get_school_dashboard_data()
     return render(request, "dashboard/partials/school_widgets.html", {"data": data})
 
@@ -27,5 +35,9 @@ def school_dashboard_partial(request: HttpRequest) -> HttpResponse:
 @staff_member_required
 def executive_dashboard(request: HttpRequest) -> HttpResponse:
     """Dashboard executivo — visao agregada de todos os tenants (admin only)."""
+    from core.tenant_routing import is_platform_request
+
+    if is_platform_request(request):
+        return redirect("platform_dashboard")
     data = DashboardService(user=request.user).get_executive_dashboard_data()
     return render(request, "dashboard/executive.html", {"data": data})

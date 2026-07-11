@@ -1,0 +1,33 @@
+<div class="card mb-3 sm-profile-card" id="student-guardians-card">
+    <div class="card-header d-flex align-items-center justify-content-between gap-2">
+        <h6 class="card-title mb-0">Responsáveis</h6>
+        <button type="button" class="btn btn-sm btn-primary"
+                hx-get="{% url 'student_guardian_create' student.pk %}"
+                hx-target="#student-guardians-card" hx-swap="outerHTML">
+            <i class="feather-plus me-1"></i> Adicionar
+        </button>
+    </div>
+    <div class="card-body sm-selection-card-body">
+        {% if saved %}<div class="alert alert-success py-2" role="alert">Responsáveis atualizados com sucesso.</div>{% endif %}
+        {% for link in guardians %}
+        <div class="sm-detail-list-item d-flex flex-wrap align-items-center justify-content-between gap-2 {% if not forloop.last %}mb-3 pb-3 border-bottom{% endif %}">
+            <div>
+                <span class="fw-semibold">{{ link.guardian.full_name }}</span>
+                <span class="badge bg-soft-info text-info ms-1">{{ link.get_relationship_type_display }}</span>
+                {% if link.is_primary %}<span class="badge bg-soft-success text-success ms-1">Principal</span>{% endif %}
+                {% if link.has_custody %}<span class="badge bg-soft-warning text-warning ms-1">Guarda legal</span>{% endif %}
+                {% if link.can_pickup %}<span class="badge bg-soft-secondary text-secondary ms-1">Autorizado a buscar</span>{% endif %}
+                <div class="text-muted small mt-1">{{ link.guardian.email|default:"—" }} · {{ link.guardian.phone_mobile|default:link.guardian.phone|default:"—" }}</div>
+            </div>
+            <div class="d-flex gap-1">
+                <button type="button" class="btn btn-sm btn-outline-primary" aria-label="Editar vínculo de {{ link.guardian.full_name }}"
+                        hx-get="{% url 'student_guardian_link_edit' student.pk link.pk %}" hx-target="#student-guardians-card" hx-swap="outerHTML"><i class="feather-edit-2"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Editar dados de {{ link.guardian.full_name }}"
+                        hx-get="{% url 'student_guardian_contact_edit' student.pk link.pk %}" hx-target="#student-guardians-card" hx-swap="outerHTML"><i class="feather-user"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-danger" aria-label="Desvincular {{ link.guardian.full_name }}"
+                        hx-post="{% url 'student_guardian_unlink' student.pk link.pk %}" hx-target="#student-guardians-card" hx-swap="outerHTML" hx-confirm="Desvincular este responsável do aluno?"><i class="feather-x"></i></button>
+            </div>
+        </div>
+        {% empty %}<p class="text-muted mb-0">Nenhum responsável vinculado.</p>{% endfor %}
+    </div>
+</div>

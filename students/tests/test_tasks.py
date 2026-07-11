@@ -10,7 +10,10 @@ _TEST_SCHEMA = "public"
 
 @pytest.mark.django_db
 class TestImportStudentsCsv:
-    HEADER = "first_name,last_name,birth_date,enrollment_number,gender,blood_type\n"
+    HEADER = (
+        "first_name,last_name,birth_date,enrollment_number,gender,blood_type,"
+        "nationality,cpf,rg_number,rg_issuer,rg_state,phone_mobile,email\n"
+    )
 
     def _csv(self, rows: list[list[str]]) -> str:
         lines = [self.HEADER] + [",".join(r) for r in rows]
@@ -19,8 +22,36 @@ class TestImportStudentsCsv:
     def test_valid_rows_create_students(self, user):
         csv_content = self._csv(
             [
-                ["Ana", "Silva", "2010-01-01", "IMP-001", "F", ""],
-                ["Bruno", "Souza", "2011-05-10", "IMP-002", "M", ""],
+                [
+                    "Ana",
+                    "Silva",
+                    "2010-01-01",
+                    "IMP-001",
+                    "F",
+                    "O+",
+                    "Brasileira",
+                    "390.533.447-05",
+                    "1234567",
+                    "SSP",
+                    "SP",
+                    "11999990001",
+                    "ana@example.com",
+                ],
+                [
+                    "Bruno",
+                    "Souza",
+                    "2011-05-10",
+                    "IMP-002",
+                    "M",
+                    "A+",
+                    "Brasileiro",
+                    "529.982.247-25",
+                    "7654321",
+                    "SSP",
+                    "SP",
+                    "11999990002",
+                    "bruno@example.com",
+                ],
             ]
         )
         result = import_students_csv.apply(args=[_TEST_SCHEMA, csv_content, str(user.pk)]).get()
@@ -36,10 +67,52 @@ class TestImportStudentsCsv:
         # Linha 2: faltando campos obrigatórios (linha em branco / lacks required fields).
         # Linha 3: matrícula duplicada com a linha 2.
         rows = [
-            ["Ana", "Silva", "2010-01-01", "IMP-OK1", "F", ""],
-            ["", "", "", "", "", ""],  # invalid — esperar ValidationError
-            ["Bruno", "Souza", "2011-05-10", "IMP-1", "M", ""],
-            ["Bruno2", "Souza", "2011-05-10", "IMP-1", "M", ""],  # duplicate
+            [
+                "Ana",
+                "Silva",
+                "2010-01-01",
+                "IMP-OK1",
+                "F",
+                "O+",
+                "Brasileira",
+                "390.533.447-05",
+                "1234567",
+                "SSP",
+                "SP",
+                "11999990001",
+                "ana@example.com",
+            ],
+            [""] * 13,  # invalid — esperar ValidationError
+            [
+                "Bruno",
+                "Souza",
+                "2011-05-10",
+                "IMP-1",
+                "M",
+                "A+",
+                "Brasileiro",
+                "529.982.247-25",
+                "7654321",
+                "SSP",
+                "SP",
+                "11999990002",
+                "bruno@example.com",
+            ],
+            [
+                "Bruno2",
+                "Souza",
+                "2011-05-10",
+                "IMP-1",
+                "M",
+                "A+",
+                "Brasileiro",
+                "529.982.247-25",
+                "7654321",
+                "SSP",
+                "SP",
+                "11999990003",
+                "bruno2@example.com",
+            ],
         ]
         csv_content = self._csv(rows)
         result = import_students_csv.apply(args=[_TEST_SCHEMA, csv_content, str(user.pk)]).get()

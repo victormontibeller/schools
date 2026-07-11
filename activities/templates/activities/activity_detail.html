@@ -27,22 +27,17 @@
         </div>
         <div class="card-body">
             <div class="collapse mb-3" id="score-form">
-                <form method="post" action="{% url 'activity_record_score' activity.pk %}" class="row g-2 align-items-end">
+                <form method="post" action="{% url 'activity_record_score' activity.pk %}" class="card border-0 bg-light">
                     {% csrf_token %}
-                    <div class="col-md-4">
-                        <label class="form-label">Aluno</label>
-                        {{ form.student }}
+                    <div class="card-body">
+                        <div class="row g-2">
+                            {% include "partials/form_field.html" with field=form.student %}
+                            {% include "partials/form_field.html" with field=form.score %}
+                            {% include "partials/form_field.html" with field=form.feedback %}
+                        </div>
                     </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Nota</label>
-                        {{ form.score }}
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Feedback</label>
-                        {{ form.feedback }}
-                    </div>
-                    <div class="col-md-2">
-                        <button type="submit" class="btn btn-primary w-100">Lançar</button>
+                    <div class="card-footer bg-transparent d-flex justify-content-end">
+                        <button type="submit" class="btn btn-sm btn-primary">Lançar nota</button>
                     </div>
                 </form>
             </div>

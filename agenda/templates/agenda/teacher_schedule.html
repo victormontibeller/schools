@@ -15,18 +15,29 @@
 </div>
 
 <div class="main-content">
-    <div class="card">
-        <div class="card-header"><h6 class="card-title mb-0">Itens ativos da grade</h6></div>
-        <div class="card-body">
-            <ul class="mb-0">
-                {% for d, items in by_day.items %}
-                    {% for s in items %}
-                    <li>{{ s.time_slot }} — {{ s.class_obj }} · {{ s.subject }}{% if s.room %} · {{ s.room }}{% endif %}</li>
-                    {% endfor %}
-                {% empty %}
-                    <li class="text-muted">Nenhum item atribuído.</li>
-                {% endfor %}
-            </ul>
+    <div class="row g-3 align-items-start">
+        <div class="col-12 col-xl-7">
+            <div class="card sm-detail-card">
+                <div class="card-header"><h6 class="card-title mb-0">Grade semanal</h6></div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead><tr><th>Dia</th><th>Horário</th><th>Turma</th><th>Disciplina</th><th>Sala</th></tr></thead>
+                            <tbody>
+                                {% if has_schedules %}
+                                    {% for day, items in by_day.items %}
+                                        {% for schedule in items %}
+                                        <tr><td>{{ schedule.time_slot.get_day_of_week_display }}</td><td>{{ schedule.time_slot.start_time|time:"H:i" }} – {{ schedule.time_slot.end_time|time:"H:i" }}</td><td>{{ schedule.class_obj }}</td><td>{{ schedule.subject }}</td><td>{{ schedule.room|default:"—" }}</td></tr>
+                                        {% endfor %}
+                                    {% endfor %}
+                                {% else %}
+                                <tr><td colspan="5" class="text-center text-muted py-4">Nenhum item atribuído.</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

@@ -1,27 +1,7 @@
 <tr id="subject-row-{{ subject.pk }}">
     <td>
-        <button type="button" class="btn btn-link p-0 fw-semibold text-start"
-                hx-get="{% url 'subject_edit' subject.pk %}"
-                hx-target="#subject-row-{{ subject.pk }}" hx-swap="outerHTML">
-            {{ subject.name }}
-        </button>
-        {% if saved %}<span class="text-success small ms-2">Salvo</span>{% endif %}
+        <a href="{% url 'subject_detail' subject.pk %}" class="fw-semibold">{{ subject.name }}</a>
     </td>
     <td><span class="badge bg-soft-info text-info">{{ subject.code }}</span></td>
     <td>{{ subject.workload }}h/ano</td>
-    <td class="text-end">
-        <button type="button" class="btn btn-sm btn-outline-primary"
-                hx-get="{% url 'subject_edit' subject.pk %}"
-                hx-target="#subject-row-{{ subject.pk }}" hx-swap="outerHTML"
-                aria-label="Editar disciplina">
-            <i class="feather-edit-2"></i>
-        </button>
-        <button type="button"
-                hx-post="{% url 'subject_deactivate' subject.pk %}"
-                hx-confirm="Desativar {{ subject.name }}?"
-                hx-target="#subjects-table" hx-swap="innerHTML"
-                class="btn btn-sm btn-outline-danger" aria-label="Desativar disciplina">
-            <i class="feather-trash-2"></i>
-        </button>
-    </td>
 </tr>

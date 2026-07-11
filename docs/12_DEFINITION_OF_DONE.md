@@ -1,5 +1,7 @@
 # Definition of Done
 
+> **Escopo:** checklist de entrega. Regras e padrões detalhados são definidos nos documentos de arquitetura, segurança, interface e código referenciados em `AGENTS.md`.
+
 Um item **só pode ser considerado concluído** quando todos os critérios abaixo forem atendidos.
 
 ---

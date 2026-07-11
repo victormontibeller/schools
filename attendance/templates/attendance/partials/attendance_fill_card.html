@@ -1,4 +1,4 @@
-<div class="card" id="attendance-fill-card">
+<div class="card sm-detail-card" id="attendance-fill-card">
     <form id="attendance-fill-form" method="post"
           hx-post="{% url 'attendance_record_fill' record.pk %}"
           hx-target="#attendance-fill-card" hx-swap="outerHTML">
@@ -17,7 +17,7 @@
             </div>
             {% endif %}
         </div>
-        <div class="card-body">
+        <div class="card-body sm-profile-card-body">
             {% if saved %}<div class="alert alert-success py-2">Chamada salva com sucesso.</div>{% endif %}
             <p class="text-muted small mb-3">Marque a presença de cada aluno. Use <b>Justificado</b> com motivo para faltas amparadas por atestado.</p>
             <div class="table-responsive">

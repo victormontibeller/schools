@@ -3,6 +3,27 @@
 import pytest
 
 
+def _unit_payload(**overrides):
+    data = {
+        "name": "Unidade Nova",
+        "legal_name": "Unidade Nova Ltda.",
+        "trade_name": "Unidade Nova",
+        "cnpj": "44555666000181",
+        "state_registration": "110042490114",
+        "municipal_registration": "123456",
+        "phone": "1133334444",
+        "email": "unidade@example.com",
+        "academic_year_start": "2026-02-01",
+        "academic_year_end": "2026-12-15",
+        "contact_full_name": "Maria Silva",
+        "contact_role": "Diretora",
+        "contact_phone": "11999990000",
+        "contact_email": "maria@example.com",
+    }
+    data.update(overrides)
+    return data
+
+
 @pytest.fixture()
 def force_login_client(client, user):
     client.force_login(user)
@@ -43,11 +64,7 @@ def test_business_unit_detail_renders(force_login_client, business_unit):
 def test_business_unit_create_creates_and_redirects(force_login_client):
     response = force_login_client.post(
         "/app/empresas/nova/",
-        {
-            "name": "Unidade Nova",
-            "cnpj": "44555666000181",
-            "phone": "1133334444",
-        },
+        _unit_payload(),
     )
 
     assert response.status_code == 302
@@ -58,11 +75,7 @@ def test_business_unit_create_creates_and_redirects(force_login_client):
 def test_business_unit_edit_updates_and_redirects(force_login_client, business_unit):
     response = force_login_client.post(
         f"/app/empresas/{business_unit.pk}/editar/",
-        {
-            "name": "Unidade Sul Atualizada",
-            "cnpj": business_unit.cnpj,
-            "phone": "11999990000",
-        },
+        _unit_payload(name="Unidade Sul Atualizada", cnpj=business_unit.cnpj),
     )
 
     assert response.status_code == 302

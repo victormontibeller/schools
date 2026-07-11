@@ -34,6 +34,17 @@ def _user_choices_queryset():
 class TeacherForm(forms.Form):
     """Formulário de criação de professor a partir de usuário existente."""
 
+    REQUIRED_FIELDS = (
+        "user_id",
+        "registration_number",
+        "hire_date",
+        "birth_date",
+        "gender",
+        "cpf",
+        "rg_number",
+        "phone_mobile",
+    )
+
     user_id = forms.UUIDField(
         label="Usuário",
         widget=forms.Select(attrs={"class": "form-select"}),
@@ -58,13 +69,6 @@ class TeacherForm(forms.Form):
         label="Gênero",
         widget=forms.Select(attrs={"class": "form-select"}),
     )
-    nationality = forms.CharField(
-        max_length=100,
-        required=False,
-        initial="Brasileiro(a)",
-        label="Nacionalidade",
-        widget=forms.TextInput(attrs={"class": "form-control"}),
-    )
     cpf = forms.CharField(
         max_length=14,
         required=False,
@@ -76,17 +80,6 @@ class TeacherForm(forms.Form):
         required=False,
         label="RG — Número",
         widget=forms.TextInput(attrs={"class": "form-control"}),
-    )
-    rg_issuer = forms.CharField(
-        max_length=50,
-        required=False,
-        label="RG — Órgão Emissor",
-        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "SSP"}),
-    )
-    rg_state = forms.ChoiceField(
-        required=False,
-        label="RG — UF",
-        widget=forms.Select(attrs={"class": "form-select"}),
     )
     phone_mobile = forms.CharField(
         max_length=20,
@@ -106,15 +99,27 @@ class TeacherForm(forms.Form):
         """Atribui choices lazy para Select widgets."""
         super().__init__(*args, **kwargs)
         self.fields["user_id"].widget.choices = _user_choices_queryset()
-        from locations.selectors import StateSelector
         from teachers.models import Teacher
 
-        self.fields["gender"].choices = [("", "---------")] + list(Teacher.Gender.choices)
-        self.fields["rg_state"].choices = StateSelector().list_choices(include_blank=True)
+        self.fields["gender"].choices = Teacher.Gender.choices
+        for field_name in self.REQUIRED_FIELDS:
+            self.fields[field_name].required = True
 
 
 class TeacherEditForm(forms.Form):
     """Formulario de edicao de professor (dados do perfil, nao do usuario)."""
+
+    REQUIRED_FIELDS = (
+        "first_name",
+        "last_name",
+        "registration_number",
+        "hire_date",
+        "birth_date",
+        "gender",
+        "cpf",
+        "rg_number",
+        "phone_mobile",
+    )
 
     first_name = forms.CharField(
         max_length=150,
@@ -157,12 +162,6 @@ class TeacherEditForm(forms.Form):
         label="Genero",
         widget=forms.Select(attrs={"class": "form-select", "data_grid": "col-12 col-md-6"}),
     )
-    nationality = forms.CharField(
-        max_length=100,
-        required=False,
-        label="Nacionalidade",
-        widget=forms.TextInput(attrs={"class": "form-control", "data_grid": "col-12 col-md-6"}),
-    )
     cpf = forms.CharField(
         max_length=14,
         required=False,
@@ -181,19 +180,6 @@ class TeacherEditForm(forms.Form):
         label="RG — Numero",
         widget=forms.TextInput(attrs={"class": "form-control", "data_grid": "col-12 col-md-4"}),
     )
-    rg_issuer = forms.CharField(
-        max_length=50,
-        required=False,
-        label="RG — Orgao Emissor",
-        widget=forms.TextInput(
-            attrs={"class": "form-control", "placeholder": "SSP", "data_grid": "col-12 col-md-4"}
-        ),
-    )
-    rg_state = forms.ChoiceField(
-        required=False,
-        label="RG — UF",
-        widget=forms.Select(attrs={"class": "form-select", "data_grid": "col-12 col-md-4"}),
-    )
     phone_mobile = forms.CharField(
         max_length=20,
         required=False,
@@ -209,11 +195,11 @@ class TeacherEditForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        from locations.selectors import StateSelector
         from teachers.models import Teacher
 
         self.fields["gender"].choices = list(Teacher.Gender.choices)
-        self.fields["rg_state"].choices = StateSelector().list_choices(include_blank=True)
+        for field_name in self.REQUIRED_FIELDS:
+            self.fields[field_name].required = True
 
 
 class TeacherSubjectsForm(forms.Form):

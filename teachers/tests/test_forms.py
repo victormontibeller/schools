@@ -27,16 +27,15 @@ class TestTeacherForm:
             data={
                 "user_id": "00000000-0000-0000-0000-000000000001",
                 "registration_number": "MAT-001",
-            }
-        )
-        assert form.is_valid()
-
-    def test_valid_with_hire_date(self):
-        form = TeacherForm(
-            data={
-                "user_id": "00000000-0000-0000-0000-000000000001",
-                "registration_number": "MAT-002",
                 "hire_date": dt.date(2025, 1, 15),
+                "birth_date": dt.date(1990, 5, 20),
+                "gender": "F",
+                "nationality": "Brasileira",
+                "cpf": "390.533.447-05",
+                "rg_number": "1234567",
+                "rg_issuer": "SSP",
+                "rg_state": "SP",
+                "phone_mobile": "11999990000",
             }
         )
         assert form.is_valid()
@@ -64,25 +63,22 @@ class TestTeacherForm:
 
 @pytest.mark.django_db
 class TestTeacherEditForm:
-    def test_requires_registration_number_only_for_partial_profile_update(self):
+    def test_requires_all_personal_fields_for_profile_update(self):
         form = TeacherEditForm(data={})
 
         assert not form.is_valid()
-        assert "registration_number" in form.errors
         for field_name in [
             "first_name",
             "last_name",
+            "registration_number",
             "hire_date",
             "birth_date",
             "gender",
-            "nationality",
             "cpf",
             "rg_number",
-            "rg_issuer",
-            "rg_state",
             "phone_mobile",
         ]:
-            assert field_name not in form.errors
+            assert field_name in form.errors
 
     def test_valid_with_complete_payload(self):
         form = TeacherEditForm(
@@ -93,11 +89,8 @@ class TestTeacherEditForm:
                 "hire_date": dt.date(2025, 1, 15),
                 "birth_date": dt.date(1990, 5, 20),
                 "gender": "F",
-                "nationality": "Brasileira",
                 "cpf": "390.533.447-05",
                 "rg_number": "1234567",
-                "rg_issuer": "SSP",
-                "rg_state": "SP",
                 "phone_mobile": "(11) 99999-0000",
             }
         )

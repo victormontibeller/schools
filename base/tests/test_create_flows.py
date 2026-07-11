@@ -6,7 +6,6 @@ garantindo que as telas novas renderizem, validem e persistam com auditoria.
 
 import pytest
 
-from guardians.models import Guardian
 from teachers.models import Subject, Teacher
 
 
@@ -36,6 +35,15 @@ class TestTeacherCreate:
         data = {
             "user_id": str(user.pk),
             "registration_number": "REG-001",
+            "hire_date": "2020-01-15",
+            "birth_date": "1990-05-20",
+            "gender": "M",
+            "nationality": "Brasileira",
+            "cpf": "390.533.447-05",
+            "rg_number": "1234567",
+            "rg_issuer": "SSP",
+            "rg_state": "SP",
+            "phone_mobile": "11999990000",
             "subjects": [str(s1.pk), str(s2.pk)],
         }
         resp = logged.post("/teachers/novo/", data, follow=False)
@@ -53,7 +61,19 @@ class TestTeacherCreate:
         )
         Teacher.objects.create(user=other, registration_number="DUP-REG")
         # O user logado NÃO tem perfil ainda → cai na checagem de matrícula duplicada
-        data = {"user_id": str(user.pk), "registration_number": "DUP-REG"}
+        data = {
+            "user_id": str(user.pk),
+            "registration_number": "DUP-REG",
+            "hire_date": "2020-01-15",
+            "birth_date": "1990-05-20",
+            "gender": "M",
+            "nationality": "Brasileira",
+            "cpf": "390.533.447-05",
+            "rg_number": "1234567",
+            "rg_issuer": "SSP",
+            "rg_state": "SP",
+            "phone_mobile": "11999990000",
+        }
         resp = logged.post("/teachers/novo/", data)
         assert resp.status_code == 200
         form = resp.context["form"]
@@ -65,14 +85,14 @@ class TestTeacherCreate:
 
 @pytest.mark.django_db
 class TestGuardianCreate:
-    def test_get_renders_form_with_relationship_options(self, logged):
-        """O formulário conterá o select de parentesco."""
+    def test_get_redirects_to_students(self, logged):
+        """O cadastro isolado foi substituído pelo perfil do aluno."""
         resp = logged.get("/guardians/novo/")
-        assert resp.status_code == 200
-        assert b"Parentesco" in resp.content
+        assert resp.status_code == 302
+        assert resp.url == "/students/"
 
-    def test_post_creates_guardian_with_contact_info(self, logged, user):
-        """POST válido cria responsável com cpf/telefone/etc."""
+    def test_post_redirects_to_students(self, logged, user):
+        """O cadastro isolado foi removido em favor do perfil do aluno."""
         from core.models import CustomUser
 
         other = CustomUser.objects.create_user(
@@ -84,32 +104,35 @@ class TestGuardianCreate:
         data = {
             "user_id": str(other.pk),
             "relationship_type": "MAE",
+            "birth_date": "1980-01-01",
+            "gender": "F",
+            "nationality": "Brasileira",
             "cpf": "52998224725",
             "rg_number": "MG-12.345",
             "rg_issuer": "SSP",
             "rg_state": "MG",
             "phone": "+55 31 98888-7777",
             "phone_whatsapp": "+55 31 98888-7777",
+            "phone_mobile": "+55 31 97777-6666",
         }
         resp = logged.post("/guardians/novo/", data, follow=False)
         assert resp.status_code == 302
-        assert Guardian.objects.filter(cpf="52998224725").exists()
+        assert resp.url == "/students/"
 
-    def test_post_blank_relationship_rerenders_form(self, logged, user):
-        """Parentesco obrigatório — vazio re-renderiza com erro."""
+    def test_post_blank_relationship_redirects_to_students(self, logged, user):
+        """A validação de parentesco ocorre no card do aluno."""
         data = {"user_id": str(user.pk), "relationship_type": ""}
         resp = logged.post("/guardians/novo/", data)
-        assert resp.status_code == 200
-        form = resp.context["form"]
-        assert "relationship_type" in form.errors
+        assert resp.status_code == 302
+        assert resp.url == "/students/"
 
 
-# ── Forms com JSONField ────────────────────────────────────────────────────────
+# ── Necessidades especiais ────────────────────────────────────────────────────
 
 
 @pytest.mark.django_db
-class TestJsonFields:
-    def test_studentform_accepts_special_needs_dict(self):
+class TestSpecialNeedsField:
+    def test_studentform_accepts_free_text_special_needs(self):
         from students.forms import StudentForm
 
         form = StudentForm(
@@ -118,15 +141,19 @@ class TestJsonFields:
                 "last_name": "Silva",
                 "enrollment_number": "STU-001",
                 "birth_date": "2010-05-12",
-                "special_needs": "{}",
+                "gender": "M",
+                "blood_type": "O+",
+                "cpf": "390.533.447-05",
+                "rg_number": "1234567",
+                "phone_mobile": "11999990000",
+                "email": "joao@example.com",
+                "special_needs": "Necessita acompanhamento para asma.",
             }
         )
-        # clean_* functions may need DB; we just verify no JSON error
-        form.is_valid()
-        if form.is_valid():
-            assert form.cleaned_data["special_needs"] == {}
+        assert form.is_valid()
+        assert form.cleaned_data["special_needs"] == "Necessita acompanhamento para asma."
 
-    def test_studentform_rejects_invalid_json(self):
+    def test_studentform_rejects_special_needs_above_250_characters(self):
         from students.forms import StudentForm
 
         form = StudentForm(
@@ -135,10 +162,15 @@ class TestJsonFields:
                 "last_name": "Silva",
                 "enrollment_number": "STU-002",
                 "birth_date": "2010-05-12",
-                "special_needs": "{not valid json",
+                "gender": "M",
+                "blood_type": "O+",
+                "cpf": "390.533.447-05",
+                "rg_number": "1234567",
+                "phone_mobile": "11999990000",
+                "email": "joao@example.com",
+                "special_needs": "a" * 251,
             }
         )
-        # JSON inválido deve ser capturado entre os erros de `special_needs`
         assert not form.is_valid()
         assert "special_needs" in form.errors
 

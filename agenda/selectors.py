@@ -1,6 +1,8 @@
 """ScheduleSelector: consultas de grade horária."""
 
-from base.selectors import BaseSelector
+from django.db.models import Q
+
+from base.selectors import BaseSelector, PageResult
 
 
 class ScheduleSelector(BaseSelector):
@@ -53,6 +55,24 @@ class TimeSlotSelector(BaseSelector):
 
         return TimeSlot
 
-    def list_time_slots(self, filters=None, page=1, page_size=50):
-        """Lista horários paginados, com filtros opcionais."""
-        return self.list(filters=filters, page=page, page_size=page_size)
+    def list_time_slots(self, search="", order_by="day_of_week", page=1, page_size=20):
+        """Lista horários com busca, ordenação e paginação."""
+        from agenda.models import TimeSlot
+
+        queryset = TimeSlot.objects.all()
+        if search:
+            queryset = queryset.filter(
+                Q(day_of_week__icontains=search)
+                | Q(slot_number__icontains=search)
+                | Q(start_time__icontains=search)
+                | Q(end_time__icontains=search)
+            )
+        total = queryset.count()
+        page = max(1, page)
+        offset = (page - 1) * page_size
+        return PageResult(
+            items=list(queryset.order_by(order_by)[offset : offset + page_size]),
+            total=total,
+            page=page,
+            page_size=page_size,
+        )

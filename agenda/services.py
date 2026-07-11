@@ -186,6 +186,45 @@ class ScheduleService(BaseService):
         self._log("Horário criado", time_slot_id=str(slot.pk))
         return slot
 
+    def update_time_slot(self, time_slot_id, data: dict):
+        """Atualiza horário sem alterar grades já vinculadas."""
+        from agenda.models import Schedule, TimeSlot
+
+        slot = _TimeSlotRepo().get_by_id(time_slot_id)
+        if Schedule.objects.filter(time_slot=slot).exists():
+            raise BusinessRuleViolationError(
+                "Este horário já está em uso na grade. Crie outro horário para alterações futuras."
+            )
+        self.validate_required(data, ["day_of_week", "start_time", "end_time"])
+        if data["end_time"] <= data["start_time"]:
+            raise ValidationError(
+                errors={"end_time": ["Horário final deve ser maior que o inicial."]}
+            )
+        if (
+            TimeSlot.objects.filter(
+                day_of_week=data["day_of_week"],
+                start_time=data["start_time"],
+                end_time=data["end_time"],
+            )
+            .exclude(pk=slot.pk)
+            .exists()
+        ):
+            raise ValidationError(
+                errors={"__all__": ["Já existe um horário idêntico para este dia."]}
+            )
+        old = self._snapshot(slot, ["day_of_week", "slot_number", "start_time", "end_time"])
+        slot = _TimeSlotRepo().update(
+            slot,
+            day_of_week=data["day_of_week"],
+            slot_number=data["slot_number"],
+            start_time=data["start_time"],
+            end_time=data["end_time"],
+            updated_by=self.user,
+        )
+        self._record_audit("UPDATE", slot, old_values=old)
+        self._log("horário_atualizado", time_slot_id=str(slot.pk))
+        return slot
+
     def _assert_teacher_available(self, teacher, time_slot, valid_from, exclude_schedule=None):
         """Garante que o professor nao esta atribuido a outra turma no mesmo horario."""
         self._assert_slot_available(

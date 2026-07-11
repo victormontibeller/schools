@@ -4,6 +4,8 @@ applyTo: "**/views.py"
 
 # Views — Padrões Obrigatórios
 
+> Arquitetura HTTP está em `docs/02_ARCHITECTURE.md`; padrões visuais estão em `docs/09_UI_GUIDELINES.md`. Este arquivo cobre apenas a orquestração em views.
+
 Views são **apenas orquestração HTTP**. Sem regras de negócio, sem queries diretas.
 
 ```python

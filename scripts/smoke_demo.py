@@ -1,31 +1,6 @@
 """Smoke test de demo via Django test client (host=localhost → tenant demo)."""
 
-# Workaround Django 5.1 + Python 3.14 (mesmo patch do conftest.py).
-from django.template.context import BaseContext
-
-
-def _patched_bctx_copy(self):
-    cls = type(self)
-    new = object.__new__(cls)
-    for slot in getattr(cls, "__slots__", ()) or ():
-        if hasattr(self, slot):
-            try:
-                setattr(new, slot, getattr(self, slot))
-            except AttributeError:
-                pass
-    try:
-        for k, v in vars(self).items():
-            try:
-                setattr(new, k, v)
-            except AttributeError:
-                pass
-    except TypeError:
-        pass
-    return new
-
-
-BaseContext.__copy__ = _patched_bctx_copy
-
+from django.conf import settings
 from django.test import Client
 
 c = Client(raise_request_exception=False)
@@ -53,7 +28,13 @@ login_url = reverse("login")
 show(
     "POST login",
     c.post(
-        login_url, {"email": "admin@demo.com", "password": "Senha123", "remember_me": True}, **HOST
+        login_url,
+        {
+            "email": "admin@demo.com",
+            "password": settings.DEV_DEMO_ADMIN_PASSWORD,
+            "remember_me": True,
+        },
+        **HOST,
     ),
 )
 

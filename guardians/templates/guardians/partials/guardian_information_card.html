@@ -34,20 +34,14 @@
             <dd class="col-sm-7 mb-0">{% if guardian.birth_date %}{{ guardian.birth_date|date:"d/m/Y" }}{% else %}—{% endif %}</dd>
             <dt class="col-sm-5 text-muted fw-medium">Gênero</dt>
             <dd class="col-sm-7 mb-0">{{ guardian.get_gender_display|default:"—" }}</dd>
-            <dt class="col-sm-5 text-muted fw-medium">Nacionalidade</dt>
-            <dd class="col-sm-7 mb-0">{{ guardian.nationality|default:"—" }}</dd>
             <dt class="col-sm-5 text-muted fw-medium">CPF</dt>
             <dd class="col-sm-7 mb-0">{{ guardian.cpf|default:"—" }}</dd>
             <dt class="col-sm-5 text-muted fw-medium">RG</dt>
             <dd class="col-sm-7 mb-0">
                 {% if guardian.rg_number %}
-                    {{ guardian.rg_number }}{% if guardian.rg_issuer %} · {{ guardian.rg_issuer }}{% endif %}{% if guardian.rg_state %} / {{ guardian.rg_state }}{% endif %}
+                    {{ guardian.rg_number }}
                 {% else %}—{% endif %}
             </dd>
-            <dt class="col-sm-5 text-muted fw-medium">Telefone</dt>
-            <dd class="col-sm-7 mb-0">{{ guardian.phone|default:"—" }}</dd>
-            <dt class="col-sm-5 text-muted fw-medium">WhatsApp</dt>
-            <dd class="col-sm-7 mb-0">{{ guardian.phone_whatsapp|default:"—" }}</dd>
             <dt class="col-sm-5 text-muted fw-medium">Celular</dt>
             <dd class="col-sm-7 mb-0">{{ guardian.phone_mobile|default:"—" }}</dd>
         </dl>

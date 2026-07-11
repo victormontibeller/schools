@@ -1,6 +1,8 @@
 """AttendanceSelector: consultas somente-leitura de frequência."""
 
-from base.selectors import BaseSelector
+from django.db.models import Q
+
+from base.selectors import BaseSelector, PageResult
 
 
 class AttendanceSelector(BaseSelector):
@@ -12,8 +14,18 @@ class AttendanceSelector(BaseSelector):
 
         return AttendanceRecord
 
-    def list_records(self, class_id=None, teacher_id=None, date_from=None, date_to=None):
-        """Lista registros de chamada com filtros opcionais."""
+    def list_records(
+        self,
+        class_id=None,
+        teacher_id=None,
+        date_from=None,
+        date_to=None,
+        search="",
+        order_by="-date",
+        page=1,
+        page_size=20,
+    ):
+        """Lista chamadas com filtros, busca, ordenação e paginação."""
         from attendance.models import AttendanceRecord
 
         qs = AttendanceRecord.objects.select_related("class_obj", "subject", "teacher")
@@ -25,7 +37,22 @@ class AttendanceSelector(BaseSelector):
             qs = qs.filter(date__gte=date_from)
         if date_to:
             qs = qs.filter(date__lte=date_to)
-        return qs.order_by("-date", "-lesson_number")
+        if search:
+            qs = qs.filter(
+                Q(class_obj__name__icontains=search)
+                | Q(subject__name__icontains=search)
+                | Q(teacher__user__first_name__icontains=search)
+                | Q(teacher__user__last_name__icontains=search)
+            )
+        total = qs.count()
+        page = max(1, page)
+        offset = (page - 1) * page_size
+        return PageResult(
+            items=list(qs.order_by(order_by)[offset : offset + page_size]),
+            total=total,
+            page=page,
+            page_size=page_size,
+        )
 
     def get_class_attendance_summary(self, class_id):
         """Resumo por aluno da turma: presenças, ausências, justificadas, %."""
@@ -138,11 +165,32 @@ class JustificationSelector(BaseSelector):
 
         return AttendanceJustification
 
-    def list_justifications(self, status=None):
-        """Lista justificativas; opcionalmente filtra por situação."""
+    def list_justifications(
+        self,
+        status=None,
+        search="",
+        order_by="-start_date",
+        page=1,
+        page_size=20,
+    ):
+        """Lista justificativas com filtro de situação, busca e paginação."""
         from attendance.models import AttendanceJustification
 
         qs = AttendanceJustification.objects.select_related("student", "approved_by")
         if status:
             qs = qs.filter(status=status)
-        return qs.order_by("-start_date")
+        if search:
+            qs = qs.filter(
+                Q(student__first_name__icontains=search)
+                | Q(student__last_name__icontains=search)
+                | Q(reason__icontains=search)
+            )
+        total = qs.count()
+        page = max(1, page)
+        offset = (page - 1) * page_size
+        return PageResult(
+            items=list(qs.order_by(order_by)[offset : offset + page_size]),
+            total=total,
+            page=page,
+            page_size=page_size,
+        )

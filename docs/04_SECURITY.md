@@ -26,6 +26,10 @@ O sistema deverá seguir a abordagem **Security First**. Toda nova funcionalidad
 | **XSS** | Proteção contra Cross-Site Scripting deverá estar ativa |
 | **Clickjacking** | Header `X-Frame-Options` deverá estar configurado |
 
+A política CSP implementada bloqueia objetos, frames, origens de formulário e recursos externos
+não autorizados. HTMX é servido como asset local. A exceção temporária `unsafe-inline` permanece
+somente para scripts/estilos legados do tema e deverá ser removida conforme forem externalizados.
+
 ### Aplicação
 
 - **SQL Injection:** O sistema deverá utilizar exclusivamente o ORM do Django. SQL direto é proibido, exceto em casos documentados e aprovados.
@@ -41,6 +45,19 @@ O sistema deverá seguir a abordagem **Security First**. Toda nova funcionalidad
 - Toda entrada de usuário deverá ser validada e sanitizada antes do processamento.
 - Permissões deverão seguir o princípio do menor privilégio.
 - Todo acesso administrativo deverá ser logado e auditado.
+
+### Acesso de suporte
+
+- Exige operador público superuser ou permissão `tenancy.access_tenant`.
+- Exige motivo, token assinado de uso único e expiração em 30 minutos.
+- A sessão exibe banner permanente e registra `platform_actor_id` e `support_grant_id`.
+- Usuários públicos comuns nunca recebem acesso cross-schema.
+
+### Uploads
+
+- Imagens: JPEG, PNG ou WebP válidos, até 5 MiB.
+- Documentos: PDF, JPEG, PNG ou WebP válidos, até 10 MiB.
+- Documentos escolares são entregues por download autenticado, como anexo e sem cache público.
 
 ---
 

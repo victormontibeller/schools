@@ -10,6 +10,15 @@ _BASE_DATA = {
     "last_name": "Souza",
     "birth_date": "2010-05-15",
     "enrollment_number": "2024001",
+    "gender": "F",
+    "blood_type": "O+",
+    "nationality": "Brasileira",
+    "cpf": "390.533.447-05",
+    "rg_number": "1234567",
+    "rg_issuer": "SSP",
+    "rg_state": "SP",
+    "phone_mobile": "11999990000",
+    "email": "maria@example.com",
 }
 
 
@@ -32,9 +41,22 @@ class TestCreateStudent:
 
 @pytest.mark.django_db
 class TestUpdateStudent:
+    def test_update_succeeds_with_partial_data(self, user):
+        student = StudentService(user=user).create_student(
+            {**_BASE_DATA, "enrollment_number": "PARTIAL-001"}
+        )
+
+        updated = StudentService(user=user).update_student(student.pk, {"first_name": "Ana"})
+
+        assert updated.first_name == "Ana"
+        assert updated.last_name == _BASE_DATA["last_name"]
+
     def test_success(self, user):
         s = StudentService(user=user).create_student({**_BASE_DATA, "enrollment_number": "UPD001"})
-        updated = StudentService(user=user).update_student(s.pk, {"first_name": "Ana"})
+        updated = StudentService(user=user).update_student(
+            s.pk,
+            {**_BASE_DATA, "enrollment_number": "UPD001", "first_name": "Ana"},
+        )
         assert updated.first_name == "Ana"
         assert updated.version == 1
 
@@ -42,21 +64,16 @@ class TestUpdateStudent:
         from audit.models import AuditLog
 
         s = StudentService(user=user).create_student(
-            {
-                **_BASE_DATA,
-                "enrollment_number": "AUD-STU",
-                "cpf": "390.533.447-05",
-                "rg_state": "SP",
-                "email": "student-audit@test.com",
-            }
+            {**_BASE_DATA, "enrollment_number": "AUD-STU", "email": "student-audit@test.com"}
         )
 
         StudentService(user=user).update_student(
             s.pk,
             {
+                **_BASE_DATA,
+                "enrollment_number": "AUD-STU",
                 "first_name": "Ana",
                 "cpf": "529.982.247-25",
-                "rg_state": "RJ",
                 "email": "student-updated@test.com",
             },
         )
@@ -66,18 +83,32 @@ class TestUpdateStudent:
             model_name="Student",
             object_id=str(s.pk),
         ).latest("created_at")
-        assert log.old_values["first_name"] == "Maria"
-        assert log.old_values["cpf"] == "39053344705"
-        assert log.old_values["rg_state"] == "SP"
-        assert log.old_values["email"] == "student-audit@test.com"
+        assert log.old_values["first_name"] == "[REDACTED]"
+        assert log.old_values["cpf"] == "[REDACTED]"
+        assert log.old_values["email"] == "[REDACTED]"
 
     def test_duplicate_enrollment_on_update(self, user):
         StudentService(user=user).create_student({**_BASE_DATA, "enrollment_number": "E001"})
         s2 = StudentService(user=user).create_student(
-            {**_BASE_DATA, "enrollment_number": "E002", "first_name": "João"}
+            {
+                **_BASE_DATA,
+                "enrollment_number": "E002",
+                "first_name": "João",
+                "cpf": "529.982.247-25",
+                "email": "joao@example.com",
+            }
         )
         with pytest.raises(ValidationError):
-            StudentService(user=user).update_student(s2.pk, {"enrollment_number": "E001"})
+            StudentService(user=user).update_student(
+                s2.pk,
+                {
+                    **_BASE_DATA,
+                    "enrollment_number": "E001",
+                    "first_name": "João",
+                    "cpf": "529.982.247-25",
+                    "email": "joao@example.com",
+                },
+            )
 
 
 @pytest.mark.django_db

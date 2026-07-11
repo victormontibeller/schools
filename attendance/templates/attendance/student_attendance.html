@@ -22,10 +22,10 @@
 </div>
 
 <div class="main-content">
-    <div class="card">
+    <div class="card sm-detail-card sm-detail-table-card">
         <div class="card-header"><h6 class="card-title mb-0">Histórico de presença</h6></div>
         <div class="card-body p-0">
-            <table class="table table-hover align-middle">
+            <div class="table-responsive"><table class="table table-hover mb-0">
                 <thead><tr><th>Data</th><th>Turma</th><th>Disciplina</th><th>Aula</th><th>Situação</th><th>Justificativa</th></tr></thead>
                 <tbody>
                     {% for e in entries %}
@@ -45,7 +45,7 @@
                     <tr><td colspan="6" class="text-center text-muted py-4">Nenhuma chamada registrada.</td></tr>
                     {% endfor %}
                 </tbody>
-            </table>
+            </table></div>
         </div>
     </div>
 </div>

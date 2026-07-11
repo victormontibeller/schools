@@ -15,7 +15,8 @@
 </div>
 
 <div class="main-content">
-    <div class="card">
+    {% block form_container_open %}{% endblock %}
+    <div class="card {% block form_card_class %}{% endblock %}">
         <div class="card-header d-flex align-items-center justify-content-between gap-2">
             <h6 class="card-title mb-0">{{ title }}</h6>
             <div class="d-flex flex-wrap align-items-center gap-2">
@@ -25,7 +26,7 @@
                 </button>
             </div>
         </div>
-        <div class="card-body">
+        <div class="card-body {% block form_card_body_class %}{% endblock %}">
             <form id="primary-form" method="post" {% block form_enctype %}{% endblock %} novalidate data-submit-once-form>
                 {% csrf_token %}
                 {% if form.non_field_errors %}
@@ -33,14 +34,17 @@
                         {% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
                     </div>
                 {% endif %}
-                <div class="row g-3">
-                    {% for field in form %}
-                        {% include "partials/form_field.html" with field=field %}
-                    {% endfor %}
-                </div>
+                {% block form_fields %}
+                    <div class="row g-3">
+                        {% for field in form %}
+                            {% include "partials/form_field.html" with field=field %}
+                        {% endfor %}
+                    </div>
+                {% endblock %}
             </form>
         </div>
     </div>
+    {% block form_container_close %}{% endblock %}
 </div>
 {% endblock %}
 

@@ -19,7 +19,6 @@ media/
 
 # Environment
 .env
-!.env.example
 
 # Database
 *.sqlite3

@@ -1,5 +1,7 @@
 # Regras de Engenharia
 
+> **Escopo:** regras normativas de engenharia. Para arquitetura consulte `docs/02_ARCHITECTURE.md`; para helpers e convenções locais consulte `docs/10_CODING_STANDARDS.md`; para critérios de entrega consulte `docs/12_DEFINITION_OF_DONE.md`.
+
 ## Princípio
 
 Todo código deverá ser escrito como se fosse ser mantido por outra pessoa no futuro. Clareza, previsibilidade e consistência deverão ser priorizadas em todas as decisões.

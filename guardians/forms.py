@@ -8,6 +8,16 @@ from students.models import Student
 class GuardianForm(forms.Form):
     """Formulário de criação de responsável a partir de usuário existente."""
 
+    REQUIRED_FIELDS = (
+        "user_id",
+        "relationship_type",
+        "birth_date",
+        "gender",
+        "cpf",
+        "rg_number",
+        "phone_mobile",
+    )
+
     user_id = forms.UUIDField(
         label="Usuário",
         widget=forms.Select(attrs={"class": "form-select"}),
@@ -26,13 +36,6 @@ class GuardianForm(forms.Form):
         label="Gênero",
         widget=forms.Select(attrs={"class": "form-select"}),
     )
-    nationality = forms.CharField(
-        max_length=100,
-        required=False,
-        initial="Brasileiro(a)",
-        label="Nacionalidade",
-        widget=forms.TextInput(attrs={"class": "form-control"}),
-    )
     cpf = forms.CharField(
         max_length=14,
         required=False,
@@ -43,29 +46,6 @@ class GuardianForm(forms.Form):
         max_length=20,
         required=False,
         label="RG — Número",
-        widget=forms.TextInput(attrs={"class": "form-control"}),
-    )
-    rg_issuer = forms.CharField(
-        max_length=50,
-        required=False,
-        label="RG — Órgão Emissor",
-        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "SSP"}),
-    )
-    rg_state = forms.ChoiceField(
-        required=False,
-        label="RG — UF",
-        widget=forms.Select(attrs={"class": "form-select"}),
-    )
-    phone = forms.CharField(
-        max_length=20,
-        required=False,
-        label="Telefone",
-        widget=forms.TextInput(attrs={"class": "form-control"}),
-    )
-    phone_whatsapp = forms.CharField(
-        max_length=20,
-        required=False,
-        label="WhatsApp",
         widget=forms.TextInput(attrs={"class": "form-control"}),
     )
     phone_mobile = forms.CharField(
@@ -80,14 +60,14 @@ class GuardianForm(forms.Form):
         super().__init__(*args, **kwargs)
         from core.models import CustomUser
         from guardians.models import Guardian
-        from locations.selectors import StateSelector
 
         self.fields["relationship_type"].choices = Guardian.Relationship.choices
         self.fields["user_id"].widget.choices = CustomUser.objects.filter(
             is_active=True
         ).values_list("pk", "email")
-        self.fields["gender"].choices = [("", "---------")] + list(Guardian.Gender.choices)
-        self.fields["rg_state"].choices = StateSelector().list_choices(include_blank=True)
+        self.fields["gender"].choices = Guardian.Gender.choices
+        for field_name in self.REQUIRED_FIELDS:
+            self.fields[field_name].required = True
 
 
 class StudentGuardianForm(forms.Form):
@@ -118,8 +98,112 @@ class StudentGuardianForm(forms.Form):
     )
 
 
+class GuardianLinkForm(forms.Form):
+    """Campos do vínculo editados no contexto de um aluno."""
+
+    relationship_type = forms.ChoiceField(
+        label="Parentesco", widget=forms.Select(attrs={"class": "form-select"})
+    )
+    is_primary = forms.BooleanField(
+        required=False,
+        label="Responsável principal",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
+    has_custody = forms.BooleanField(
+        required=False,
+        initial=True,
+        label="Possui guarda legal",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
+    can_pickup = forms.BooleanField(
+        required=False,
+        initial=True,
+        label="Autorizado a buscar",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from guardians.models import Guardian
+
+        self.fields["relationship_type"].choices = Guardian.Relationship.choices
+        for field in self.fields.values():
+            field.widget.attrs["data_grid"] = "col-12 col-sm-4"
+
+
+class GuardianCreateForm(GuardianLinkForm):
+    """Cadastro de contato e vínculo inicial, sem criar conta de acesso."""
+
+    first_name = forms.CharField(
+        max_length=150, label="Nome", widget=forms.TextInput(attrs={"class": "form-control"})
+    )
+    last_name = forms.CharField(
+        max_length=150, label="Sobrenome", widget=forms.TextInput(attrs={"class": "form-control"})
+    )
+    email = forms.EmailField(
+        label="E-mail", widget=forms.EmailInput(attrs={"class": "form-control"})
+    )
+    avatar = forms.ImageField(
+        required=False,
+        label="Foto",
+        widget=forms.ClearableFileInput(attrs={"class": "form-control"}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # O parentesco aparece junto dos dados de vínculo, mas os demais dados
+        # pessoais mantêm o mesmo contrato obrigatório do domínio legado.
+        for name in (
+            "birth_date",
+            "gender",
+            "cpf",
+            "rg_number",
+            "phone_mobile",
+        ):
+            if name not in self.fields:
+                self.fields[name] = GuardianEditForm.base_fields[name]
+        from guardians.models import Guardian
+
+        self.fields["gender"].choices = Guardian.Gender.choices
+        for field_name, field in self.fields.items():
+            if field_name not in {"avatar", "is_primary", "has_custody", "can_pickup"}:
+                field.required = True
+        self.fields["avatar"].widget.attrs["class"] = "sm-profile-avatar-input"
+        for field_name, field in self.fields.items():
+            if field_name != "avatar":
+                field.widget.attrs["data_grid"] = "col-12 col-sm-4"
+        self.order_fields(
+            [
+                "first_name",
+                "last_name",
+                "email",
+                "avatar",
+                "birth_date",
+                "gender",
+                "cpf",
+                "rg_number",
+                "phone_mobile",
+                "relationship_type",
+                "is_primary",
+                "has_custody",
+                "can_pickup",
+            ]
+        )
+
+
 class GuardianEditForm(forms.Form):
     """Formulario de edicao de responsavel."""
+
+    REQUIRED_FIELDS = (
+        "first_name",
+        "last_name",
+        "email",
+        "birth_date",
+        "gender",
+        "cpf",
+        "rg_number",
+        "phone_mobile",
+    )
 
     first_name = forms.CharField(
         max_length=150,
@@ -132,6 +216,9 @@ class GuardianEditForm(forms.Form):
         required=False,
         label="Sobrenome",
         widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    email = forms.EmailField(
+        required=False, label="E-mail", widget=forms.EmailInput(attrs={"class": "form-control"})
     )
     avatar = forms.ImageField(
         required=False,
@@ -152,12 +239,6 @@ class GuardianEditForm(forms.Form):
         label="Genero",
         widget=forms.Select(attrs={"class": "form-select"}),
     )
-    nationality = forms.CharField(
-        max_length=100,
-        required=False,
-        label="Nacionalidade",
-        widget=forms.TextInput(attrs={"class": "form-control"}),
-    )
     cpf = forms.CharField(
         max_length=14,
         required=False,
@@ -170,29 +251,6 @@ class GuardianEditForm(forms.Form):
         label="RG — Numero",
         widget=forms.TextInput(attrs={"class": "form-control"}),
     )
-    rg_issuer = forms.CharField(
-        max_length=50,
-        required=False,
-        label="RG — Orgao Emissor",
-        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "SSP"}),
-    )
-    rg_state = forms.ChoiceField(
-        required=False,
-        label="RG — UF",
-        widget=forms.Select(attrs={"class": "form-select"}),
-    )
-    phone = forms.CharField(
-        max_length=20,
-        required=False,
-        label="Telefone",
-        widget=forms.TextInput(attrs={"class": "form-control"}),
-    )
-    phone_whatsapp = forms.CharField(
-        max_length=20,
-        required=False,
-        label="WhatsApp",
-        widget=forms.TextInput(attrs={"class": "form-control"}),
-    )
     phone_mobile = forms.CharField(
         max_length=20,
         required=False,
@@ -203,8 +261,33 @@ class GuardianEditForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from guardians.models import Guardian
-        from locations.selectors import StateSelector
 
         self.fields["relationship_type"].choices = Guardian.Relationship.choices
-        self.fields["gender"].choices = [("", "---------")] + list(Guardian.Gender.choices)
-        self.fields["rg_state"].choices = StateSelector().list_choices(include_blank=True)
+        self.fields["gender"].choices = Guardian.Gender.choices
+        for field_name in self.REQUIRED_FIELDS:
+            self.fields[field_name].required = True
+        self.order_fields(
+            [
+                "first_name",
+                "last_name",
+                "email",
+                "avatar",
+                "birth_date",
+                "gender",
+                "cpf",
+                "rg_number",
+                "phone_mobile",
+                "relationship_type",
+            ]
+        )
+
+
+class GuardianContactEditForm(GuardianEditForm):
+    """Edição da pessoa dentro do perfil do aluno, sem campos do vínculo."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields.pop("relationship_type")
+        for field_name, field in self.fields.items():
+            if field_name != "avatar":
+                field.widget.attrs["data_grid"] = "col-12 col-sm-4"

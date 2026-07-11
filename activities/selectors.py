@@ -12,9 +12,11 @@ class ActivitySelector(BaseSelector):
 
         return Activity
 
-    def list_activities(self, filters=None, page=1, page_size=20) -> PageResult:
+    def list_activities(
+        self, filters=None, order_by="-due_date", page=1, page_size=20
+    ) -> PageResult:
         """Lista atividades paginadas, com filtros opcionais."""
-        return self.list(filters=filters, page=page, page_size=page_size)
+        return self.list(filters=filters, order_by=order_by, page=page, page_size=page_size)
 
     def get_activity_by_id(self, activity_id):
         """Retorna a atividade pelo ID."""

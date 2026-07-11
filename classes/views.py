@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+from base.listing import build_querystring, build_sorting, resolve_listing_state
 from classes.forms import ClassForm
 from classes.selectors import ClassSelector
 from classes.services import ClassService
@@ -17,16 +18,40 @@ logger = logging.getLogger(__name__)
 def classes_list(request):
     """Lista turmas paginadas; suporta busca por nome."""
     page = int(request.GET.get("page", 1))
-    search = request.GET.get("q", "").strip()
+    state = resolve_listing_state(
+        request,
+        scope="classes_list",
+        allowed_sorts={
+            "name",
+            "-name",
+            "grade",
+            "-grade",
+            "shift",
+            "-shift",
+            "academic_year",
+            "-academic_year",
+            "max_students",
+            "-max_students",
+        },
+        default_sort="-academic_year",
+    )
+    search, sort = state["q"], state["sort"]
     filters = {}
     if search:
         filters["name__icontains"] = search
 
-    result = ClassSelector().list_classes(filters=filters, page=page)
+    result = ClassSelector().list_classes(filters=filters, order_by=sort, page=page)
 
     ctx = {
         "result": result,
         "q": search,
+        "sort": sort,
+        "sorting": build_sorting(
+            current_sort=sort,
+            search=search,
+            sortable_fields=["name", "grade", "shift", "academic_year", "max_students"],
+        ),
+        "list_query": build_querystring({"q": search, "sort": sort}),
         "breadcrumb_items": [
             {"label": "Home", "url": "dashboard"},
             {"label": "Turmas", "url": None},

@@ -42,6 +42,10 @@ Um Middleware dedicado deverá identificar e ativar o Tenant em cada requisiçã
 | `public` | Tabelas compartilhadas: lista de tenants, planos, configurações globais |
 | `<tenant_slug>` | Todos os dados da escola: usuários, alunos, professores, turmas, etc. |
 
+Auth, sessions e `CustomUser` possuem tabelas independentes em cada schema. O `public` mantém
+somente operadores da plataforma. Trocar o domínio troca a tabela de usuários consultada; uma
+sessão escolar não concede identidade em outra escola.
+
 ---
 
 ## Ciclo de Vida do Tenant
@@ -59,3 +63,5 @@ Um Middleware dedicado deverá identificar e ativar o Tenant em cada requisiçã
 Toda tarefa Celery deverá receber o identificador do Tenant e ativar o Schema correto no início da execução.
 
 Nenhuma tarefa assíncrona poderá ser executada sem o contexto do Tenant definido.
+
+Toda chave Redis que represente dados escolares deve começar com `tenant:<schema>:`.

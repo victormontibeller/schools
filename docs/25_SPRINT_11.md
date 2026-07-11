@@ -1,5 +1,7 @@
 # Sprint 11 — Comunicação
 
+> **Documento histórico.** Em caso de divergência, prevalecem os documentos normativos em `docs/`.
+
 ## Objetivo
 
 Implementar o sistema completo de comunicação da plataforma: notificações in-app, envio de e-mails e integração com WhatsApp, permitindo que a escola se comunique de forma eficiente com professores, alunos e responsáveis.

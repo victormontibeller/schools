@@ -6,12 +6,19 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.http import require_POST
 
-from accounts.forms import ChangePasswordForm, LoginForm, UserEditForm
+from accounts.forms import ChangePasswordForm, DemoSignupForm, LoginForm, UserEditForm
 from accounts.selectors import AccountSelector
 from accounts.services import AccountService
 from base import context
-from base.exceptions import ValidationError
+from base.exceptions import (
+    AppBaseError,
+    BusinessRuleViolationError,
+    PermissionDeniedError,
+    ValidationError,
+)
 from base.listing import build_querystring, build_sorting, resolve_listing_state
 
 logger = logging.getLogger(__name__)
@@ -24,6 +31,54 @@ USER_SORTS = {
     "created_at": "created_at",
     "-created_at": "-created_at",
 }
+PLATFORM_USER_SORTS = {
+    "name": "first_name",
+    "-name": "-first_name",
+    "email": "email",
+    "-email": "-email",
+    "is_active": "is_active",
+    "-is_active": "-is_active",
+}
+
+
+def demo_signup_view(request):
+    """Cadastra conta temporária exclusivamente no tenant DEMO."""
+    from django.core.cache import cache
+    from django.urls import reverse
+
+    form = DemoSignupForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        throttle_key = f"demo-signup:{request.META.get('REMOTE_ADDR', '')}"
+        attempts = cache.get(throttle_key, 0)
+        if attempts >= 5:
+            form.add_error(None, "Limite de cadastros atingido. Tente novamente mais tarde.")
+        else:
+            cache.set(throttle_key, attempts + 1, timeout=3600)
+            try:
+                AccountService().create_demo_user(
+                    form.cleaned_data,
+                    lambda token: request.build_absolute_uri(
+                        reverse("demo_verify", kwargs={"token": token})
+                    ),
+                )
+                return render(request, "auth/demo_signup_done.html")
+            except ValidationError as exc:
+                for field, errors in exc.errors.items():
+                    for error in errors:
+                        form.add_error(field, error)
+            except BusinessRuleViolationError as exc:
+                form.add_error(None, exc.message)
+    return render(request, "auth/demo_signup.html", {"form": form})
+
+
+def demo_verify_view(request, token):
+    """Confirma o e-mail da conta DEMO e direciona ao login."""
+    try:
+        AccountService().verify_demo_user(token)
+        messages.success(request, "E-mail confirmado. Sua conta DEMO está ativa por sete dias.")
+    except BusinessRuleViolationError as exc:
+        messages.error(request, exc.message)
+    return redirect("login")
 
 
 def login_view(request):
@@ -43,12 +98,22 @@ def login_view(request):
                 "Login bem-sucedido",
                 extra={"user_id": str(user.pk), "correlation_id": context.correlation_id.get()},
             )
-            return redirect(request.GET.get("next", "school_dashboard"))
+            next_url = request.GET.get("next", "")
+            if not url_has_allowed_host_and_scheme(
+                next_url,
+                allowed_hosts={request.get_host()},
+                require_https=request.is_secure(),
+            ):
+                from core.tenant_routing import is_platform_request
+
+                next_url = "platform_dashboard" if is_platform_request(request) else "dashboard"
+            return redirect(next_url)
         logger.warning("Login com falha", extra={"login_user_id": None})
         form.add_error(None, "E-mail ou senha inválidos.")
     return render(request, "auth/login.html", {"form": form})
 
 
+@require_POST
 def logout_view(request):
     """Encerra a sessão do usuário e redireciona para o login."""
     if request.user.is_authenticated:
@@ -58,8 +123,8 @@ def logout_view(request):
 
 @login_required
 def profile_view(request):
-    """Exibe o perfil do usuário autenticado."""
-    return render(request, "accounts/profile.html", {"user_obj": request.user})
+    """Mantém a URL legada redirecionando para a ficha do usuário autenticado."""
+    return redirect("user_detail", pk=request.user.pk)
 
 
 @login_required
@@ -74,7 +139,7 @@ def change_password_view(request):
                 form.cleaned_data["new_password"],
             )
             messages.success(request, "Senha alterada com sucesso.")
-            return redirect("profile")
+            return redirect("user_detail", pk=request.user.pk)
         except ValidationError as exc:
             for field, errors in exc.errors.items():
                 for error in errors:
@@ -135,8 +200,10 @@ def user_edit_view(request, pk):
     user_obj = AccountSelector().get_by_id(pk)
     form = UserEditForm(
         request.POST or None,
+        request.FILES or None,
         initial={
             "first_name": user_obj.first_name,
+            "email": user_obj.email,
             "last_name": user_obj.last_name,
             "phone": user_obj.phone,
             "role": user_obj.role,
@@ -147,24 +214,131 @@ def user_edit_view(request, pk):
         data = form.cleaned_data.copy()
         role = data.pop("role", None)
         data["role_id"] = role.pk if role else None
-        user_obj = AccountService(user=request.user).update_user(pk, data)
-        if request.headers.get("HX-Request"):
-            return render(
-                request,
-                "accounts/partials/user_information_card.html",
-                {"user_obj": user_obj, "saved": True},
-            )
-        return redirect("user_detail", pk=pk)
+        try:
+            user_obj = AccountService(user=request.user).update_user(pk, data)
+        except ValidationError as exc:
+            for field, errors in exc.errors.items():
+                for error in errors:
+                    form.add_error(field, error)
+        else:
+            if request.headers.get("HX-Request"):
+                return render(
+                    request,
+                    "accounts/partials/user_information_card.html",
+                    {"user_obj": user_obj, "saved": True},
+                )
+            return redirect("user_detail", pk=pk)
     if not request.headers.get("HX-Request"):
         return redirect("user_detail", pk=pk)
     return render(
         request,
-        "partials/information_form_card.html",
-        {
-            "form": form,
-            "component_id": "user-information-card",
-            "component_title": "Informações da Pessoa",
-            "edit_url": request.path,
-            "cancel_url": f"{request.path_info.removesuffix('editar/')}?component=information",
+        "accounts/partials/user_information_form.html",
+        {"form": form, "user_obj": user_obj},
+    )
+
+
+@login_required
+def platform_user_list_view(request):
+    """Lista operadores persistentes do schema público."""
+    _require_platform_superuser(request)
+    page = int(request.GET.get("page", 1))
+    state = resolve_listing_state(
+        request,
+        scope="platform_users_list",
+        allowed_sorts=set(PLATFORM_USER_SORTS),
+        default_sort="name",
+    )
+    search = state["q"]
+    sort = state["sort"]
+    context = {
+        "result": AccountSelector().list_platform_users(
+            search=search,
+            order_by=PLATFORM_USER_SORTS[sort],
+            page=page,
+        ),
+        "q": search,
+        "sort": sort,
+        "sorting": build_sorting(
+            current_sort=sort,
+            search=search,
+            sortable_fields=["name", "email", "is_active"],
+        ),
+        "list_query": build_querystring({"q": search, "sort": sort}),
+        "breadcrumb_items": [
+            {"label": "Plataforma", "url": "platform_dashboard"},
+            {"label": "Operadores", "url": None},
+        ],
+    }
+    if request.headers.get("HX-Request"):
+        return render(request, "accounts/partials/platform_users_table.html", context)
+    return render(request, "accounts/platform_users_list.html", context)
+
+
+@login_required
+def platform_user_create_view(request):
+    """Cadastra operador do painel público."""
+    _require_platform_superuser(request)
+    from accounts.forms import PlatformUserCreateForm
+
+    form = PlatformUserCreateForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            AccountService(user=request.user).create_platform_user(form.cleaned_data)
+            messages.success(request, "Operador cadastrado com sucesso.")
+            return redirect("platform_user_list")
+        except AppBaseError as exc:
+            _apply_platform_form_error(form, exc)
+    return render(
+        request,
+        "accounts/platform_user_form.html",
+        {"form": form, "title": "Novo Operador"},
+    )
+
+
+@login_required
+def platform_user_edit_view(request, pk):
+    """Edita permissões básicas de operador público."""
+    _require_platform_superuser(request)
+    from accounts.forms import PlatformUserEditForm
+
+    user_obj = AccountSelector().get_platform_user(pk)
+    form = PlatformUserEditForm(
+        request.POST or None,
+        initial={
+            "first_name": user_obj.first_name,
+            "last_name": user_obj.last_name,
+            "is_active": user_obj.is_active,
+            "is_superuser": user_obj.is_superuser,
         },
     )
+    if request.method == "POST" and form.is_valid():
+        try:
+            AccountService(user=request.user).update_platform_user(pk, form.cleaned_data)
+            messages.success(request, "Operador atualizado com sucesso.")
+            return redirect("platform_user_list")
+        except AppBaseError as exc:
+            _apply_platform_form_error(form, exc)
+    return render(
+        request,
+        "accounts/platform_user_form.html",
+        {"form": form, "title": "Editar Operador", "user_obj": user_obj},
+    )
+
+
+def _require_platform_superuser(request) -> None:
+    """Restringe gestão de operadores ao painel público."""
+    from core.tenant_routing import is_platform_request
+
+    if not is_platform_request(request) or not request.user.is_superuser:
+        raise PermissionDeniedError("Sem permissão para administrar operadores.")
+
+
+def _apply_platform_form_error(form, exc: AppBaseError) -> None:
+    """Converte exceção de aplicação em erros do formulário."""
+    errors = getattr(exc, "errors", None)
+    if errors:
+        for field, messages_list in errors.items():
+            for error in messages_list:
+                form.add_error(field, error)
+        return
+    form.add_error(None, exc.message)

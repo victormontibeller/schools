@@ -64,6 +64,51 @@ def _make_room(user, code="R-AG01"):
 
 
 @pytest.mark.django_db
+class TestUpdateTimeSlot:
+    def test_updates_slot_without_linked_schedule(self, user):
+        slot = _make_time_slot(user)
+
+        updated = ScheduleService(user=user).update_time_slot(
+            slot.pk,
+            {
+                "day_of_week": TimeSlot.Day.MON,
+                "slot_number": 2,
+                "start_time": dt.time(9, 0),
+                "end_time": dt.time(10, 0),
+            },
+        )
+
+        assert updated.slot_number == 2
+        assert updated.start_time == dt.time(9, 0)
+
+    def test_rejects_slot_used_by_schedule(self, user):
+        cls = _make_class(user)
+        teacher = _make_teacher(user)
+        subject = _make_subject(user)
+        slot = _make_time_slot(user)
+        ScheduleService(user=user).create_schedule(
+            {
+                "class_obj_id": cls.pk,
+                "teacher_id": teacher.pk,
+                "subject_id": subject.pk,
+                "time_slot_id": slot.pk,
+                "valid_from": dt.date(2025, 2, 1),
+            }
+        )
+
+        with pytest.raises(BusinessRuleViolationError):
+            ScheduleService(user=user).update_time_slot(
+                slot.pk,
+                {
+                    "day_of_week": TimeSlot.Day.MON,
+                    "slot_number": 2,
+                    "start_time": dt.time(9, 0),
+                    "end_time": dt.time(10, 0),
+                },
+            )
+
+
+@pytest.mark.django_db
 class TestCreateSchedule:
     def test_success(self, user):
         cls = _make_class(user)

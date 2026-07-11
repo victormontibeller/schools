@@ -4,6 +4,8 @@ applyTo: "**/forms.py"
 
 # Forms — Padrões Obrigatórios
 
+> Regras globais de arquitetura e entrega estão em `docs/03_ENGINEERING_RULES.md` e `docs/10_CODING_STANDARDS.md`. Este arquivo cobre apenas convenções locais de forms.
+
 Forms são responsáveis **apenas por validação de campo** (required, tipo, choices, formato).
 Nenhuma regra de negócio aqui — isso vai em `services.py`.
 

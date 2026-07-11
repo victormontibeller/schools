@@ -3,6 +3,7 @@
 from django.db import models
 
 from base.models import BaseModel
+from base.upload_validators import validate_document_upload
 
 
 class AttendanceRecord(BaseModel):
@@ -106,6 +107,7 @@ class AttendanceJustification(BaseModel):
         null=True,
         blank=True,
         verbose_name="Documento",
+        validators=[validate_document_upload],
     )
     status = models.CharField(
         max_length=20,

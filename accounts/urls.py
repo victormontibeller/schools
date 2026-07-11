@@ -9,6 +9,8 @@ from django.urls import path
 from accounts import views
 
 urlpatterns = [
+    path("demo/cadastro/", views.demo_signup_view, name="demo_signup"),
+    path("demo/verificar/<str:token>/", views.demo_verify_view, name="demo_verify"),
     path("login/", views.login_view, name="login"),
     path("logout/", views.logout_view, name="logout"),
     path("profile/", views.profile_view, name="profile"),
@@ -16,6 +18,21 @@ urlpatterns = [
     path("users/", views.users_list_view, name="users_list"),
     path("users/<uuid:pk>/", views.user_detail_view, name="user_detail"),
     path("users/<uuid:pk>/editar/", views.user_edit_view, name="user_edit"),
+    path(
+        "platform/usuarios/",
+        views.platform_user_list_view,
+        name="platform_user_list",
+    ),
+    path(
+        "platform/usuarios/novo/",
+        views.platform_user_create_view,
+        name="platform_user_create",
+    ),
+    path(
+        "platform/usuarios/<uuid:pk>/editar/",
+        views.platform_user_edit_view,
+        name="platform_user_edit",
+    ),
     # Recuperação de senha — views nativas (Sprint 02 §55).
     path(
         "password-reset/",

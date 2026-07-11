@@ -1,5 +1,7 @@
 # Sprint 16 — Matricula e Secretaria
 
+> **Documento histórico.** Em caso de divergência, prevalecem os documentos normativos em `docs/`.
+
 ## Objetivo
 
 Digitalizar o ciclo de secretaria escolar com foco em pre-matricula, matricula, rematricula, transferencia e controle documental.

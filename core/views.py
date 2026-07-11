@@ -142,11 +142,22 @@ _LANDING_FAQS = [
 
 
 def health(request: HttpRequest) -> HttpResponse:
-    """Endpoint de health check que verifica conectividade com banco, Redis e RabbitMQ.
+    """Liveness pública sem detalhes internos de infraestrutura."""
+    return HttpResponse(
+        content=json.dumps({"status": "ok"}),
+        content_type="application/json",
+        status=200,
+    )
 
-    Em modo de testes (SQLite in-memory + Django cache dummy), as checagens de
-    Redis/RabbitMQ são puladas para manter o health autônomo.
-    """
+
+def readiness(request: HttpRequest) -> HttpResponse:
+    """Readiness protegida que verifica dependências sem vazar exceções."""
+    from django.conf import settings
+
+    expected = getattr(settings, "READINESS_TOKEN", "")
+    supplied = request.headers.get("Authorization", "").removeprefix("Bearer ")
+    if (not expected or supplied != expected) and not getattr(request.user, "is_staff", False):
+        return HttpResponse(status=403)
     checks: dict[str, str] = {}
     overall = "ok"
     status_code = 200
@@ -157,8 +168,8 @@ def health(request: HttpRequest) -> HttpResponse:
 
         connection.ensure_connection()
         checks["db"] = "ok"
-    except Exception as exc:  # noqa: BLE001
-        checks["db"] = f"error: {exc}"
+    except Exception:  # noqa: BLE001
+        checks["db"] = "error"
         overall = "degraded"
         status_code = 503
 
@@ -168,8 +179,8 @@ def health(request: HttpRequest) -> HttpResponse:
 
         cache.set("health:probe", "1", timeout=5)
         checks["redis"] = "ok" if cache.get("health:probe") == "1" else "stale"
-    except Exception as exc:  # noqa: BLE001
-        checks["redis"] = f"error: {exc}"
+    except Exception:  # noqa: BLE001
+        checks["redis"] = "error"
         overall = "degraded"
         status_code = 503
 
@@ -205,7 +216,14 @@ def metrics(request: HttpRequest) -> HttpResponse:
     """
     from django.conf import settings
 
-    if not getattr(settings, "DEBUG", False) and not request.user.is_staff:
+    expected = getattr(settings, "METRICS_TOKEN", "")
+    supplied = request.headers.get("Authorization", "").removeprefix("Bearer ")
+    is_staff = getattr(request.user, "is_staff", False)
+    if (
+        not getattr(settings, "DEBUG", False)
+        and not is_staff
+        and (not expected or supplied != expected)
+    ):
         return HttpResponse(status=403)
 
     from django_prometheus import exports  # noqa: PLC0415
@@ -221,7 +239,10 @@ def index(request: HttpRequest) -> HttpResponse:
     encaminhados direto ao dashboard.
     """
     if request.user.is_authenticated:
-        return redirect("school_dashboard")
+        from core.tenant_routing import is_platform_request
+
+        target = "platform_dashboard" if is_platform_request(request) else "dashboard"
+        return redirect(target)
 
     return render(
         request,
@@ -285,10 +306,16 @@ def _dashboard_quick_actions(role_name: str) -> list[dict[str, str]]:
 def _dashboard_module_groups(role_name: str) -> tuple[list[str], str]:
     """Define o foco operacional da home sem esconder os demais modulos."""
     module_map = {
-        "ADMIN": (["Empresa", "Escola", "Usuários", "Alunos"], "Visão administrativa"),
-        "COORDINATOR": (["Alunos", "Professores", "Turmas", "Calendário"], "Operação acadêmica"),
+        "ADMIN": (
+            ["Empresa", "Escola", "Usuários", "Alunos e Responsáveis"],
+            "Visão administrativa",
+        ),
+        "COORDINATOR": (
+            ["Alunos e Responsáveis", "Professores", "Turmas", "Calendário"],
+            "Operação acadêmica",
+        ),
         "TEACHER": (["Professores", "Disciplinas", "Atividades", "Frequência"], "Rotina docente"),
-        "GUARDIAN": (["Alunos", "Calendário", "Atividades", "Responsáveis"], "Acompanhamento"),
+        "GUARDIAN": (["Alunos e Responsáveis", "Calendário", "Atividades"], "Acompanhamento"),
     }
     return module_map.get(role_name, module_map["COORDINATOR"])
 
@@ -309,6 +336,11 @@ def _dashboard_role_label(user, role_name: str) -> str:
 @login_required
 def dashboard(request: HttpRequest) -> HttpResponse:
     """Exibe o dashboard com atalhos para os módulos principais e próximos eventos."""
+    from core.tenant_routing import is_platform_request
+
+    if is_platform_request(request):
+        return redirect("platform_dashboard")
+
     from academic_calendar.selectors import CalendarSelector
 
     modules = [
@@ -316,8 +348,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         {"name": "Escola", "url": "school_settings_detail", "icon": "feather-settings"},
         {"name": "Professores", "url": "teachers_list", "icon": "feather-book-open"},
         {"name": "Disciplinas", "url": "subjects_list", "icon": "feather-book"},
-        {"name": "Alunos", "url": "students_list", "icon": "feather-user-check"},
-        {"name": "Responsáveis", "url": "guardians_list", "icon": "feather-heart"},
+        {"name": "Alunos e Responsáveis", "url": "students_list", "icon": "feather-user-check"},
         {"name": "Turmas", "url": "classes_list", "icon": "feather-layers"},
         {"name": "Salas", "url": "rooms_list", "icon": "feather-home"},
         {"name": "Atividades", "url": "activities_list", "icon": "feather-edit-3"},
@@ -351,16 +382,31 @@ def dashboard(request: HttpRequest) -> HttpResponse:
 
 @login_required
 def business_unit_list(request: HttpRequest) -> HttpResponse:
-    """Lista empresas (unidades de negocio) do tenant ativo."""
+    """Lista unidades de negócio do tenant ativo."""
+    from base.listing import build_querystring, build_sorting, resolve_listing_state
     from core.selectors import BusinessUnitSelector
 
     page = int(request.GET.get("page", 1))
-    result = BusinessUnitSelector().list_business_units(page=page)
+    state = resolve_listing_state(
+        request,
+        scope="business_unit_list",
+        allowed_sorts={"name", "-name", "cnpj", "-cnpj", "phone", "-phone", "email", "-email"},
+        default_sort="name",
+    )
+    search, sort = state["q"], state["sort"]
+    result = BusinessUnitSelector().list_business_units(search=search, order_by=sort, page=page)
     ctx = {
         "result": result,
+        "q": search,
+        "sort": sort,
+        "sorting": build_sorting(
+            current_sort=sort, search=search, sortable_fields=["name", "cnpj", "phone", "email"]
+        ),
+        "list_query": build_querystring({"q": search, "sort": sort}),
+        "clear_query": build_querystring({"q": "", "sort": "name"}, include_blank=True),
         "breadcrumb_items": [
             {"label": "Home", "url": "dashboard"},
-            {"label": "Empresas", "url": None},
+            {"label": "Unidades", "url": None},
         ],
     }
     if request.headers.get("HX-Request"):
@@ -484,18 +530,18 @@ def business_unit_edit(request: HttpRequest, pk) -> HttpResponse:
         return render(
             request,
             "core/business_unit_form.html",
-            {"form": form, "title": "Editar Empresa", "instance": business_unit},
+            {"form": form, "title": "Editar Unidade", "instance": business_unit},
         )
     return render(
         request,
-        "partials/information_form_card.html",
+        "core/partials/organization_information_form.html",
         {
             "form": form,
             "component_id": "business-unit-information-card",
-            "component_title": "Informações da Empresa",
+            "component_title": "Informações da Unidade",
             "edit_url": request.path,
             "cancel_url": f"{request.path_info.removesuffix('editar/')}?component=information",
-            "multipart": True,
+            "organization": business_unit,
         },
     )
 
@@ -602,14 +648,14 @@ def school_edit(request: HttpRequest) -> HttpResponse:
         )
     return render(
         request,
-        "partials/information_form_card.html",
+        "core/partials/organization_information_form.html",
         {
             "form": form,
             "component_id": "school-information-card",
             "component_title": "Informações da Escola",
             "edit_url": request.path,
             "cancel_url": f"{reverse('school_settings_detail')}?component=information",
-            "multipart": True,
+            "organization": school,
         },
     )
 

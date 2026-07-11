@@ -15,6 +15,15 @@ def student(db, user):
             "last_name": "Silva",
             "birth_date": "2010-03-10",
             "enrollment_number": "ENR-TEST-001",
+            "gender": "M",
+            "blood_type": "O+",
+            "nationality": "Brasileira",
+            "cpf": "390.533.447-05",
+            "rg_number": "1234567",
+            "rg_issuer": "SSP",
+            "rg_state": "SP",
+            "phone_mobile": "11999990000",
+            "email": "lucas@example.com",
         }
     )
 
@@ -354,5 +363,14 @@ def _create_student(user, enrollment, first_name, last_name):
             "last_name": last_name,
             "birth_date": "2010-01-01",
             "enrollment_number": enrollment,
+            "gender": "M",
+            "blood_type": "A+",
+            "nationality": "Brasileira",
+            "cpf": "529.982.247-25",
+            "rg_number": "7654321",
+            "rg_issuer": "SSP",
+            "rg_state": "SP",
+            "phone_mobile": "11999990001",
+            "email": f"{enrollment.lower()}@example.com",
         }
     )

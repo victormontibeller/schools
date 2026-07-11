@@ -4,6 +4,7 @@ from django.conf import settings
 from django.db import models
 
 from base.models import BaseModel
+from base.upload_validators import validate_document_upload
 
 
 class EnrollmentApplication(BaseModel):
@@ -148,7 +149,11 @@ class StudentDocument(BaseModel):
         verbose_name="Situacao",
     )
     file = models.FileField(
-        upload_to="documents/students/", null=True, blank=True, verbose_name="Arquivo"
+        upload_to="documents/students/",
+        null=True,
+        blank=True,
+        verbose_name="Arquivo",
+        validators=[validate_document_upload],
     )
     verified_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

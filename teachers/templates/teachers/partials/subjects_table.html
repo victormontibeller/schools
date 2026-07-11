@@ -2,10 +2,9 @@
     <table class="table table-hover mb-0">
         <thead class="table-light">
             <tr>
-                <th>Nome</th>
-                <th>Código</th>
-                <th>Carga Horária</th>
-                <th class="text-end">Ações</th>
+                {% for key, label in sorting.items %}
+                <th aria-sort="{{ label.aria_sort }}"><a href="?{{ label.query }}" class="sm-sort-link{% if label.active %} is-active{% endif %}" hx-get="?{{ label.query }}" hx-target="#subjects-table" hx-swap="innerHTML">{% if key == "name" %}Nome{% elif key == "code" %}Código{% else %}Carga Horária{% endif %}{% if label.direction == "asc" %} <span class="sm-sort-indicator">↑</span>{% elif label.direction == "desc" %} <span class="sm-sort-indicator">↓</span>{% endif %}</a></th>
+                {% endfor %}
             </tr>
         </thead>
         <tbody>
@@ -13,7 +12,7 @@
             {% include "teachers/partials/subject_row.html" %}
             {% empty %}
             <tr>
-                <td colspan="4" class="text-center text-muted py-4">Nenhuma disciplina encontrada.</td>
+                <td colspan="3" class="text-center text-muted py-4">Nenhuma disciplina encontrada.</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -27,7 +26,7 @@
             {% if result.has_previous %}
             <li class="page-item">
                 <a class="page-link"
-                   hx-get="?page={{ result.page|add:'-1' }}{% if q %}&q={{ q }}{% endif %}"
+                   hx-get="?page={{ result.page|add:'-1' }}{% if list_query %}&{{ list_query }}{% endif %}"
                    hx-target="#subjects-table" hx-swap="innerHTML">«</a>
             </li>
             {% endif %}
@@ -37,7 +36,7 @@
             {% if result.has_next %}
             <li class="page-item">
                 <a class="page-link"
-                   hx-get="?page={{ result.page|add:'1' }}{% if q %}&q={{ q }}{% endif %}"
+                   hx-get="?page={{ result.page|add:'1' }}{% if list_query %}&{{ list_query }}{% endif %}"
                    hx-target="#subjects-table" hx-swap="innerHTML">»</a>
             </li>
             {% endif %}

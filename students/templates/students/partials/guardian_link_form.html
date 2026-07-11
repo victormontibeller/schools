@@ -1,0 +1,20 @@
+<div class="card mb-3 sm-profile-card" id="student-guardians-card">
+    <form method="post"
+          hx-post="{% if link %}{% url 'student_guardian_link_edit' student.pk link.pk %}{% else %}{% url 'student_guardian_link' student.pk guardian_pk %}{% endif %}"
+          hx-target="#student-guardians-card" hx-swap="outerHTML">
+        {% csrf_token %}
+        <div class="card-header d-flex align-items-center justify-content-between gap-2">
+            <h6 class="card-title mb-0">{% if link %}Editar vínculo{% else %}Vincular responsável{% endif %}</h6>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary"
+                        hx-get="{% url 'student_guardians_component' student.pk %}"
+                        hx-target="#student-guardians-card" hx-swap="outerHTML">Cancelar</button>
+                <button class="btn btn-sm btn-primary" type="submit"><i class="feather-check me-1"></i> Salvar</button>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+            <div class="row g-2">{% for field in form %}{% include "partials/form_field.html" with field=field %}{% endfor %}</div>
+        </div>
+    </form>
+</div>

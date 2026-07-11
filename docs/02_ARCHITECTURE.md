@@ -1,5 +1,7 @@
 # Arquitetura do Sistema
 
+> **Escopo:** arquitetura, módulos e fluxo de execução. Regras de implementação ficam em `docs/03_ENGINEERING_RULES.md`; padrões de código em `docs/10_CODING_STANDARDS.md`; interface em `docs/09_UI_GUIDELINES.md`.
+
 ## Visão Geral
 
 O projeto deverá utilizar uma arquitetura de **Monólito Modular**, permitindo evolução contínua sem a complexidade de microserviços.
@@ -107,7 +109,7 @@ Cada domínio deverá possuir seu próprio módulo independente:
 
 ```
 accounts/       → Usuários, autenticação, perfis e permissões
-schools/        → Escola, configurações e dados institucionais
+tenancy/        → Catálogo público de escolas, domínios e acessos de suporte
 teachers/       → Professores e suas disciplinas
 students/       → Alunos e seus dados
 guardians/      → Responsáveis e vínculos com alunos
@@ -116,7 +118,10 @@ rooms/          → Salas físicas e recursos
 agenda/         → Grade horária e agendamentos
 activities/     → Atividades, avaliações e notas
 attendance/     → Frequência e controle de presença
-calendar/       → Calendário acadêmico e eventos
+academic_calendar/ → Calendário acadêmico e eventos
+enrollments/    → Matrículas, rematrículas e documentos
+financeiro/     → Planos, cobranças e pagamentos
+addresses/      → Endereços unificados
 notifications/  → Notificações, e-mails e WhatsApp
 dashboard/      → Dashboards técnico, escolar e executivo
 audit/          → Auditoria de todas as ações do sistema
@@ -127,8 +132,9 @@ audit/          → Auditoria de todas as ações do sistema
 ```
 base/           → Módulo Python puro: BaseModel, BaseService, BaseRepository,
                    BaseSelector, BaseValidator, exceptions, events, context vars
-core/           → App Django principal: School (tenant), Domain, Role, CustomUser,
-                   settings, middleware, urls, wsgi, asgi, celery
+tenancy/        → App compartilhado: School, Domain e SupportAccessGrant
+core/           → Configuração e app presente em cada schema: Role, CustomUser,
+                   BusinessUnit, settings, middleware, urls, wsgi, asgi, celery
 ```
 
 Cada módulo deverá conter **apenas sua própria responsabilidade**. Dependências entre módulos deverão ocorrer apenas via interfaces explícitas, nunca via acesso direto a modelos internos.
@@ -162,6 +168,15 @@ Todo módulo deverá seguir estrutura **plana** — arquivos únicos, sem sub-pa
 ```
 
 > **Regra:** Nunca criar `services/`, `models/`, `repositories/` como sub-pacote. Um arquivo por camada. Se um arquivo crescer além de 400 linhas, é sinal de que o domínio precisa de um novo app, não de um sub-pacote.
+
+## Identidade entre schemas
+
+- `School`, `Domain` e `SupportAccessGrant` existem somente no `public`.
+- `CustomUser`, `Role`, auth e sessions existem no `public` e separadamente em cada tenant.
+- O domínio resolve o schema antes da autenticação; o mesmo e-mail pode existir em escolas
+  diferentes sem compartilhar senha, sessão ou permissões.
+- Operadores do `public` acessam tenants apenas por token temporário, de uso único e auditado.
+- A conta técnica de suporte não possui senha utilizável e registra o operador público real.
 
 ### Responsabilidades por Camada
 

@@ -5,9 +5,8 @@ from guardians.models import Guardian, StudentGuardian
 
 @admin.register(Guardian)
 class GuardianAdmin(admin.ModelAdmin):
-    list_display = ["full_name", "relationship_type", "phone", "phone_whatsapp", "created_at"]
-    list_filter = ["relationship_type"]
-    search_fields = ["user__first_name", "user__last_name", "cpf", "phone"]
+    list_display = ["full_name", "phone", "phone_whatsapp", "created_at"]
+    search_fields = ["first_name", "last_name", "email", "cpf", "phone"]
     readonly_fields = ["created_at", "updated_at", "deleted_at"]
 
 

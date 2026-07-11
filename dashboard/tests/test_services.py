@@ -37,9 +37,9 @@ class TestDashboardService:
 
     def test_cache_key_format(self):
         key = DashboardService._cache_key("test", "123")
-        assert key == "dashboard:test:123"
+        assert key == "tenant:public:dashboard:test:123"
         key2 = DashboardService._cache_key("test")
-        assert key2 == "dashboard:test"
+        assert key2 == "tenant:public:dashboard:test"
 
     def test_cache_ttls_defined(self):
         assert "total_students" in CACHE_TTL

@@ -220,6 +220,7 @@ class AttendanceService(BaseService):
             start_date=data["start_date"],
             end_date=data["end_date"],
             reason=data["reason"].strip(),
+            document=data.get("document"),
             status=AttendanceJustification.Status.PENDING,
             created_by=self.user,
             updated_by=self.user,

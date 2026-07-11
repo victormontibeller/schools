@@ -1,0 +1,15 @@
+groups:
+  - name: schools
+    rules:
+      - alert: SchoolManagerHighErrorRate
+        expr: sum(rate(django_http_responses_total_by_status_total{status=~"5.."}[5m])) / sum(rate(django_http_responses_total_by_status_total[5m])) > 0.01
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: Taxa de erros 5xx acima de 1%
+      - alert: SchoolManagerDown
+        expr: up{job="django"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: Aplicação School Manager indisponível

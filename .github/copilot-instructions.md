@@ -70,7 +70,7 @@ Design System: **Duralux** (tema Bootstrap 5). Classes de layout com prefixo `nx
 
 ## Consultar Sempre
 
-- `AGENTS.md` — guia completo com exemplos de código
+- `AGENTS.md` — regras invioláveis e mapa da documentação canônica
 - `docs/10_CODING_STANDARDS.md` — catálogo DRY de helpers
 - `docs/03_ENGINEERING_RULES.md` — lista de proibições
 - `docs/09_UI_GUIDELINES.md` — padrões de frontend

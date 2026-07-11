@@ -1,5 +1,7 @@
 # Sprint 07 - Frontend de Disciplinas
 
+> **Documento histórico.** Em caso de divergência, prevalecem os documentos normativos em `docs/`.
+
 ## Objetivo
 
 Criar o frontend completo do modulo de disciplinas (`subjects`), incluindo listagem, busca, cadastro, edicao e exibicao consistente com o design system do projeto.

@@ -1,5 +1,7 @@
 # Sprint 12 — Dashboards
 
+> **Documento histórico.** Em caso de divergência, prevalecem os documentos normativos em `docs/`.
+
 ## Objetivo
 
 Implementar os dashboards da plataforma: o dashboard técnico (Grafana), o dashboard escolar (visão operacional da escola) e o dashboard executivo (visão da plataforma como produto), consolidando dados de todos os módulos anteriores.

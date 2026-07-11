@@ -4,7 +4,7 @@ import logging
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import redirect, render
 
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
@@ -294,16 +294,33 @@ def document_reject(request, pk):
 
 
 @login_required
+def document_download(request, pk):
+    """Entrega documento privado como anexo após autorização tenant/RBAC."""
+    document = EnrollmentApplicationSelector().get_document_by_id(pk)
+    if not document.file:
+        raise ObjectNotFoundError("StudentDocumentFile", str(pk))
+    response = FileResponse(
+        document.file.open("rb"),
+        as_attachment=True,
+        filename=document.file.name.rsplit("/", maxsplit=1)[-1],
+    )
+    response["X-Content-Type-Options"] = "nosniff"
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+@login_required
 def notify_pending_documents(request, student_id):
     """Dispara notificacao de pendencias documentais para o aluno/responsavel."""
     if request.method != "POST":
         return _redirect_back(request)
     try:
-        from base.context import current_tenant
+        from django.db import connection
+
         from enrollments.tasks import send_pending_documents_notification
 
         send_pending_documents_notification.delay(
-            tenant_schema=current_tenant.get(),
+            tenant_schema=getattr(connection, "schema_name", "public"),
             student_id=str(student_id),
         )
         messages.success(request, "Notificacao de pendencias enviada.")

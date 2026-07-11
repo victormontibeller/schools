@@ -68,7 +68,7 @@ class TestDomainEvent:
 class TestBaseServiceDispatchesDomainEvent:
     """`BaseService._record_audit` deve disparar `DomainEvent` no dispatcher global."""
 
-    def test_dispatched_event_carries_operation_instance_user(self, monkeypatch):
+    def test_dispatched_event_carries_operation_instance_user(self, monkeypatch, db, user):
         recorded: list[DomainEvent] = []
         from base import events
 
@@ -78,17 +78,18 @@ class TestBaseServiceDispatchesDomainEvent:
         class FakeInstance:
             pk = "obj-1"
 
-        svc = BaseService(user="user-fixture-12")
+        monkeypatch.setattr("audit.services.AuditService.record", lambda *args, **kwargs: None)
+        svc = BaseService(user=user)
         svc._record_audit("INSERT", FakeInstance())
 
         assert len(recorded) == 1
         evt = recorded[0]
         assert evt.operation == "INSERT"
         assert evt.instance.pk == "obj-1"
-        assert evt.user == "user-fixture-12"
+        assert evt.user == user
 
-    def test_dispatch_failure_is_swallowed_with_log(self, caplog, monkeypatch):
-        """Bugs em handler (audit, etc.) nunca derrubam o service."""
+    def test_dispatch_failure_is_swallowed_after_required_audit(self, caplog, monkeypatch):
+        """Bugs em eventos não críticos não derrubam o service após auditoria."""
         from base import events
 
         monkeypatch.setattr(events, "dispatcher", events.EventDispatcher())
@@ -98,9 +99,10 @@ class TestBaseServiceDispatchesDomainEvent:
 
         events.dispatcher.register(DomainEvent, boom)
 
+        monkeypatch.setattr("audit.services.AuditService.record", lambda *args, **kwargs: None)
         svc = BaseService()
         # Não deve levantar — serviço continua funcionando.
-        svc._record_audit("DELETE", object())
+        svc._record_audit("DELETE", type("Fake", (), {"pk": "fake-1"})())
 
 
 class TestBaseServiceLogGuardPII:

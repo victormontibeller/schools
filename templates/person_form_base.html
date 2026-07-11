@@ -1,0 +1,18 @@
+{% extends "form_base.html" %}
+
+{% block form_container_open %}
+<div class="row g-3 align-items-start">
+    <div class="col-12 col-xl-5">
+{% endblock %}
+
+{% block form_card_class %}mb-0 sm-profile-card{% endblock %}
+{% block form_card_body_class %}sm-profile-card-body{% endblock %}
+
+{% block form_fields %}
+    {% include "partials/person_form_fields.html" with form=form %}
+{% endblock %}
+
+{% block form_container_close %}
+    </div>
+</div>
+{% endblock %}

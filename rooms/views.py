@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
 from base.exceptions import ValidationError
+from base.listing import build_querystring, build_sorting, resolve_listing_state
 from rooms.forms import RoomForm
 from rooms.selectors import RoomSelector
 from rooms.services import RoomService
@@ -13,16 +14,40 @@ from rooms.services import RoomService
 def rooms_list(request):
     """Lista salas paginadas; suporta busca por nome e partial HTMX."""
     page = int(request.GET.get("page", 1))
-    search = request.GET.get("q", "").strip()
+    state = resolve_listing_state(
+        request,
+        scope="rooms_list",
+        allowed_sorts={
+            "name",
+            "-name",
+            "code",
+            "-code",
+            "type",
+            "-type",
+            "capacity",
+            "-capacity",
+            "building",
+            "-building",
+        },
+        default_sort="name",
+    )
+    search, sort = state["q"], state["sort"]
     filters = {}
     if search:
         filters["name__icontains"] = search
 
-    result = RoomSelector().list_rooms(filters=filters, page=page)
+    result = RoomSelector().list_rooms(filters=filters, order_by=sort, page=page)
 
     ctx = {
         "result": result,
         "q": search,
+        "sort": sort,
+        "sorting": build_sorting(
+            current_sort=sort,
+            search=search,
+            sortable_fields=["name", "code", "type", "capacity", "building"],
+        ),
+        "list_query": build_querystring({"q": search, "sort": sort}),
         "breadcrumb_items": [
             {"label": "Home", "url": "dashboard"},
             {"label": "Salas", "url": None},

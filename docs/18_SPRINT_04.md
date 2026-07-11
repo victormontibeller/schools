@@ -1,5 +1,7 @@
 # Sprint 04 - Enderecos Unificados
 
+> **Documento histórico.** Em caso de divergência, prevalecem os documentos normativos em `docs/`.
+
 ## Objetivo
 
 Criar o modulo de Enderecos para centralizar e padronizar o cadastro de enderecos vinculados a School, Teacher, Student e Guardian.

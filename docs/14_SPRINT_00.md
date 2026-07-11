@@ -1,5 +1,7 @@
 # Sprint 00 — Infraestrutura
 
+> **Documento histórico.** Em caso de divergência, prevalecem os documentos normativos em `docs/`.
+
 ## Objetivo
 
 Configurar todo o ambiente de desenvolvimento e produção base, garantindo que todos os serviços necessários estejam disponíveis, funcional e integrados antes do início do desenvolvimento da aplicação.

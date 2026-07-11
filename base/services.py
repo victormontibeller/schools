@@ -7,6 +7,7 @@ e apenas avisando em prod, para evitar derrubar serviços por log ruidoso.
 """
 
 import logging
+from functools import wraps
 from typing import TYPE_CHECKING
 
 from base import context
@@ -176,6 +177,8 @@ class BaseService:
             "user_id": context.user_id.get(),
             "correlation_id": context.correlation_id.get(),
             "tenant": context.current_tenant.get(),
+            "platform_actor_id": context.platform_actor_id.get(),
+            "support_grant_id": context.support_grant_id.get(),
             **extra,
         }
         getattr(logger, level)(message, extra=log_data)
@@ -187,21 +190,87 @@ class BaseService:
         old_values: dict | None = None,
         new_values: dict | None = None,
     ) -> None:
+        from audit.services import AuditService
         from base.events import DomainEvent, dispatcher
 
-        try:
-            dispatcher.dispatch(
-                DomainEvent(
-                    correlation_id=context.correlation_id.get(),
-                    operation=operation,
-                    instance=instance,
-                    old_values=old_values,
-                    new_values=new_values,
-                    user=self.user,
-                )
+        AuditService(user=self.user).record(
+            operation=operation,
+            instance=instance,
+            old_values=old_values,
+            new_values=new_values,
+        )
+        dispatcher.dispatch(
+            DomainEvent(
+                correlation_id=context.correlation_id.get(),
+                operation=operation,
+                instance=instance,
+                old_values=old_values,
+                new_values=new_values,
+                user=self.user,
             )
-        except Exception:
-            logger.exception(
-                "Audit recording failed",
-                extra={"operation": operation, "model": type(instance).__name__},
-            )
+        )
+
+    _MUTATION_PREFIXES = (
+        "create_",
+        "update_",
+        "deactivate_",
+        "restore_",
+        "change_",
+        "assign_",
+        "remove_",
+        "enroll_",
+        "transfer_",
+        "record_",
+        "cancel_",
+        "approve_",
+        "reject_",
+        "submit_",
+        "complete_",
+        "add_",
+        "mark_",
+        "send_",
+        "generate_",
+        "register_",
+        "apply_",
+        "reconcile_",
+        "consume_",
+        "expire_",
+        "open_",
+        "batch_",
+        "unenroll_",
+        "request_",
+        "refresh_",
+        "set_",
+        "renegotiate_",
+        "suspend_",
+        "activate_",
+        "verify_",
+        "bulk_",
+        "import_",
+        "log_",
+    )
+
+    def __init_subclass__(cls, **kwargs) -> None:
+        """Envolve automaticamente comandos públicos em transação atômica."""
+        super().__init_subclass__(**kwargs)
+        from django.db import transaction
+
+        for name, method in tuple(cls.__dict__.items()):
+            if not name.startswith(cls._MUTATION_PREFIXES) or not callable(method):
+                continue
+            if getattr(method, "_base_service_atomic", False):
+                continue
+            app_label = cls.__module__.split(".", maxsplit=1)[0]
+
+            @wraps(method)
+            def authorized(self, *args, __method=method, __name=name, __app=app_label, **kwargs):
+                from base.exceptions import PermissionDeniedError
+                from core.permissions import can_execute_service
+
+                if not can_execute_service(self.user, __app, __name):
+                    raise PermissionDeniedError("Sem permissão para executar esta operação.")
+                return __method(self, *args, **kwargs)
+
+            wrapped = transaction.atomic(authorized)
+            wrapped._base_service_atomic = True
+            setattr(cls, name, wrapped)

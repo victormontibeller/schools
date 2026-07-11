@@ -30,7 +30,7 @@ class StudentSelector(BaseSelector):
     def get_student_guardians(self, student_id):
         """Retorna vinculos de responsaveis do aluno, com dados do guardian e user."""
         student = self.get_by_id(student_id)
-        return student.guardians.select_related("guardian__user").all()
+        return student.guardians.select_related("guardian", "guardian__user").all()
 
     def get_student_by_enrollment(self, enrollment_number: str):
         """Retorna o aluno portador da matrícula informada, ou `None`."""

@@ -14,18 +14,11 @@
             <li class="breadcrumb-item active">{{ user_obj.get_full_name }}</li>
         </ul>
     </div>
-    <div class="page-header-right ms-auto">
-        {% if user_obj.pk == request.user.pk %}
-        <a href="{% url 'change_password' %}" class="btn btn-primary btn-sm">
-            <i class="feather-lock me-1"></i> Alterar senha
-        </a>
-        {% endif %}
-    </div>
 </div>
 
 <div class="main-content">
     <div class="row g-3 align-items-start">
-        <div class="col-12 col-xl-6">
+        <div class="col-12 col-xl-5">
             {% include "accounts/partials/user_information_card.html" %}
         </div>
     </div>

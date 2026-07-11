@@ -23,8 +23,18 @@ TEST_PG = _IN_PYTEST and DJANGO_ENV == "test_pg"
 TESTING = _IN_PYTEST and not TEST_PG
 DEBUG = TEST_PG or TESTING or config("DEBUG", default=True, cast=bool)
 
-SECRET_KEY = config("SECRET_KEY", default="dev-secret-key-not-for-production-change-me")
+DEV_SECRET_KEY = "dev-secret-key-not-for-production-change-me"  # noqa: S105
+SECRET_KEY = config("SECRET_KEY", default=DEV_SECRET_KEY)
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv())
+TRUSTED_PROXY_IPS = config("TRUSTED_PROXY_IPS", default="", cast=Csv())
+
+if DJANGO_ENV == "production":
+    if DEBUG:
+        raise RuntimeError("DEBUG deve ser False em produção.")
+    if SECRET_KEY == DEV_SECRET_KEY:
+        raise RuntimeError("SECRET_KEY obrigatória e sem valor padrão em produção.")
+    if not ALLOWED_HOSTS:
+        raise RuntimeError("ALLOWED_HOSTS obrigatório em produção.")
 
 # ── Apps ───────────────────────────────────────────────────────────────────────
 BASE_APPS = [
@@ -35,9 +45,11 @@ BASE_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.admin",
+    "tenancy",
     "core",
     "accounts",
     "locations",
+    "audit",
 ]
 
 # Observabilidade via django-prometheus exposta em /metrics/ (Sprint 08.5).
@@ -48,7 +60,6 @@ if not TESTING:
 
 # Apps que rodam por schema de tenant (dados por escola)
 TENANT_SPECIFIC_APPS = [
-    "audit",
     "teachers",
     "students",
     "guardians",
@@ -72,28 +83,41 @@ if TESTING:
 else:
     # Perfil "full" (dev, prod e TEST_PG): django_tenants + PostgreSQL.
     SHARED_APPS = ["django_tenants"] + BASE_APPS
-    TENANT_APPS = ["django.contrib.contenttypes"] + TENANT_SPECIFIC_APPS
+    # Auth, sessões e o CustomUser existem no public e isoladamente em cada
+    # schema. `tenancy` permanece exclusivamente compartilhado.
+    TENANT_APPS = [
+        "django.contrib.contenttypes",
+        "django.contrib.auth",
+        "django.contrib.sessions",
+        "django.contrib.messages",
+        "django.contrib.admin",
+        "core",
+        "audit",
+    ] + TENANT_SPECIFIC_APPS
     INSTALLED_APPS = list(SHARED_APPS) + [a for a in TENANT_APPS if a not in SHARED_APPS]
     DATABASE_ROUTERS = ["django_tenants.routers.TenantSyncRouter"]
 
-TENANT_MODEL = "core.School"
-TENANT_DOMAIN_MODEL = "core.Domain"
+TENANT_MODEL = "tenancy.School"
+TENANT_DOMAIN_MODEL = "tenancy.Domain"
 
 # ── Middleware ─────────────────────────────────────────────────────────────────
 MIDDLEWARE = [
     *([] if TESTING else ["django_prometheus.middleware.PrometheusBeforeMiddleware"]),
     *([] if TESTING else ["django_tenants.middleware.main.TenantMainMiddleware"]),
+    "core.middleware.TenantContextMiddleware",
     "axes.middleware.AxesMiddleware",
     "core.middleware.CorrelationIdMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "core.middleware.SecurityHeadersMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "core.middleware.ExceptionHandlerMiddleware",
+    "core.middleware.PermissionPolicyMiddleware",
     "core.middleware.AuditContextMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "core.middleware.ExceptionHandlerMiddleware",
     *([] if TESTING else ["django_prometheus.middleware.PrometheusAfterMiddleware"]),
 ]
 
@@ -125,6 +149,8 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "core.context_processors.current_school",
+                "core.context_processors.support_access",
+                "core.context_processors.accessible_modules",
             ],
         },
     },
@@ -181,7 +207,7 @@ LOGIN_URL = "login"
 # round-trip no banco a cada request.
 AUTHENTICATION_BACKENDS = [
     "axes.backends.AxesStandaloneBackend",
-    "django.contrib.auth.backends.ModelBackend",
+    "core.auth_backends.RolePermissionBackend",
 ]
 
 AXES_FAILURE_LIMIT = 5
@@ -227,6 +253,8 @@ CACHES = (
 )
 
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
 
 # ── Celery ─────────────────────────────────────────────────────────────────────
 CELERY_BROKER_URL = config("RABBITMQ_URL", default="amqp://guest:guest@localhost:5672//")
@@ -235,6 +263,11 @@ CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
+DEMO_SCHEMA_NAME = config("DEMO_SCHEMA_NAME", default="demo")
+DEV_PLATFORM_ADMIN_PASSWORD = config("DEV_PLATFORM_ADMIN_PASSWORD", default="")
+DEV_DEMO_ADMIN_PASSWORD = config("DEV_DEMO_ADMIN_PASSWORD", default="")
+METRICS_TOKEN = config("METRICS_TOKEN", default="")
+READINESS_TOKEN = config("READINESS_TOKEN", default="")
 
 # ── Logging (JSON estruturado) ─────────────────────────────────────────────────
 LOG_LEVEL = "CRITICAL" if (TESTING or TEST_PG) else config("LOG_LEVEL", default="INFO")

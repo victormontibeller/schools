@@ -16,7 +16,7 @@ line-length = 100
 target-version = "py313"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "T20", "DJ"]
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "T20", "DJ", "S"]
 ignore = [
     "DJ001",   # Avoid using null=True on string-based fields — we handle it explicitly
     "A003",    # Class attribute shadowing builtin (id, type etc.)
@@ -26,13 +26,14 @@ ignore = [
 exclude = ["migrations", ".git", ".venv", "build"]
 
 [tool.ruff.lint.per-file-ignores]
-"*/tests/*" = ["N802", "S101", "ANN"]
-"*/conftest.py" = ["N802", "ANN"]
+"*/tests/*" = ["N802", "S101", "S105", "S106", "ANN"]
+"*/conftest.py" = ["N802", "S101", "S105", "S106", "ANN"]
+"conftest.py" = ["N802", "S101", "S105", "S106", "ANN"]
 "*/migrations/*" = ["ALL"]
 "scripts/*" = ["T20", "E402", "E501"]
 
 [tool.coverage.run]
-source = ["base", "core", "accounts", "locations", "audit", "teachers", "students", "guardians", "classes", "rooms", "agenda", "activities", "academic_calendar", "attendance", "enrollments", "notifications", "dashboard", "addresses", "financeiro"]
+source = ["base", "tenancy", "core", "accounts", "locations", "audit", "teachers", "students", "guardians", "classes", "rooms", "agenda", "activities", "academic_calendar", "attendance", "enrollments", "notifications", "dashboard", "addresses", "financeiro"]
 omit = ["*/migrations/*", "*/tests/*", "*/conftest.py", "manage.py"]
 
 [tool.coverage.report]

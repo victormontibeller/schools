@@ -16,6 +16,7 @@ urlpatterns = [
     ),
     path("subjects/", views.subjects_list, name="subjects_list"),
     path("subjects/novo/", views.subject_create, name="subject_create"),
+    path("subjects/<uuid:pk>/", views.subject_detail, name="subject_detail"),
     path("subjects/<uuid:pk>/editar/", views.subject_edit, name="subject_edit"),
     path("subjects/<uuid:pk>/desativar/", views.subject_deactivate, name="subject_deactivate"),
 ]

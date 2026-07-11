@@ -57,6 +57,11 @@ urlpatterns = [
         name="document_reject",
     ),
     path(
+        "secretaria/documento/<uuid:pk>/download/",
+        views.document_download,
+        name="document_download",
+    ),
+    path(
         "secretaria/aluno/<uuid:student_id>/notificar-pendencias/",
         views.notify_pending_documents,
         name="notify_pending_documents",

@@ -7,6 +7,10 @@ Cada escola (tenant) pode definir seu proprio remetente via
 
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 def get_tenant_from_email() -> str:
     """Retorna o e-mail do remetente para o tenant atual.
@@ -36,7 +40,7 @@ def get_tenant_from_email() -> str:
             if from_email:
                 return from_email
     except Exception:
-        pass
+        logger.debug("tenant_email_fallback", exc_info=True)
 
     return settings.DEFAULT_FROM_EMAIL
 
@@ -59,6 +63,6 @@ def get_tenant_email_display() -> str:
             address = email_config.get("from_email", "").strip() or settings.DEFAULT_FROM_EMAIL
             return f"{name} <{address}>"
     except Exception:
-        pass
+        logger.debug("tenant_email_display_fallback", exc_info=True)
 
     return settings.DEFAULT_FROM_EMAIL

@@ -1,16 +1,9 @@
-"""Admin: School, BusinessUnit, Domain, Role e CustomUser."""
+"""Admin tenant-specific: BusinessUnit, Role e CustomUser."""
 
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from core.models import BusinessUnit, CustomUser, Domain, Role, School
-
-
-@admin.register(School)
-class SchoolAdmin(admin.ModelAdmin):
-    list_display = ["name", "schema_name", "email", "created_at"]
-    search_fields = ["name", "schema_name", "cnpj"]
-    readonly_fields = ["schema_name", "created_at", "updated_at"]
+from core.models import BusinessUnit, CustomUser, Role
 
 
 @admin.register(BusinessUnit)
@@ -18,11 +11,6 @@ class BusinessUnitAdmin(admin.ModelAdmin):
     list_display = ["name", "cnpj", "email", "created_at"]
     search_fields = ["name", "cnpj", "trade_name"]
     readonly_fields = ["created_at", "updated_at"]
-
-
-@admin.register(Domain)
-class DomainAdmin(admin.ModelAdmin):
-    list_display = ["domain", "tenant", "is_primary"]
 
 
 @admin.register(Role)
@@ -42,9 +30,24 @@ class CustomUserAdmin(UserAdmin):
     fieldsets = (
         (None, {"fields": ("email", "password")}),
         ("Dados Pessoais", {"fields": ("first_name", "last_name", "phone", "avatar")}),
-        ("Acesso", {"fields": ("role", "is_active", "is_staff", "is_superuser")}),
+        (
+            "Acesso",
+            {"fields": ("role", "access_mode", "is_active", "is_staff", "is_superuser")},
+        ),
         ("Permissões", {"fields": ("groups", "user_permissions")}),
-        ("Datas", {"fields": ("last_login", "created_at", "updated_at", "deleted_at")}),
+        (
+            "Datas",
+            {
+                "fields": (
+                    "last_login",
+                    "email_verified_at",
+                    "expires_at",
+                    "created_at",
+                    "updated_at",
+                    "deleted_at",
+                )
+            },
+        ),
     )
     add_fieldsets = (
         (

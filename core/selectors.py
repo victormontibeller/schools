@@ -12,9 +12,12 @@ class BusinessUnitSelector(BaseSelector):
 
         return BusinessUnit
 
-    def list_business_units(self, page=1, page_size=20) -> PageResult:
-        """Lista empresas ativas do tenant."""
-        return self.list(page=page, page_size=page_size, order_by="name")
+    def list_business_units(
+        self, search: str = "", order_by: str = "name", page: int = 1, page_size: int = 20
+    ) -> PageResult:
+        """Lista unidades ativas do tenant, com busca e ordenação."""
+        filters = {"name__icontains": search} if search else None
+        return self.list(filters=filters, page=page, page_size=page_size, order_by=order_by)
 
 
 class SchoolSelector(BaseSelector):
@@ -22,12 +25,12 @@ class SchoolSelector(BaseSelector):
 
     @property
     def model_class(self):
-        from core.models import School
+        from tenancy.models import School
 
         return School
 
     def get_current_school(self):
         """Retorna a escola do tenant ativo, ou None."""
-        from core.models import School
+        from tenancy.models import School
 
         return School.objects.order_by("name").first()

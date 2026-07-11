@@ -12,9 +12,9 @@ class RoomSelector(BaseSelector):
 
         return Room
 
-    def list_rooms(self, filters=None, page=1, page_size=20) -> PageResult:
+    def list_rooms(self, filters=None, order_by="name", page=1, page_size=20) -> PageResult:
         """Lista salas ativas paginadas, com filtros opcionais."""
-        return self.list(filters=filters, page=page, page_size=page_size)
+        return self.list(filters=filters, order_by=order_by, page=page, page_size=page_size)
 
     def get_room_by_id(self, room_id):
         """Retorna a sala com o ID informado."""

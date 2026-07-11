@@ -3,12 +3,38 @@
 import datetime as dt
 
 import pytest
+from django.urls import reverse
 
 from attendance.services import AttendanceService
 from classes.models import Class, Enrollment
 from core.models import CustomUser
 from students.models import Student
 from teachers.models import Subject, Teacher
+
+
+@pytest.mark.django_db
+def test_attendance_records_list_uses_shared_listing_pattern(client, user):
+    client.force_login(user)
+
+    response = client.get(reverse("attendance_records_list"))
+    partial_response = client.get(reverse("attendance_records_list"), HTTP_HX_REQUEST="true")
+
+    assert response.status_code == 200
+    assert b"Lista de Frequ" in response.content
+    assert b"NOVO" in response.content
+    assert partial_response.status_code == 200
+    assert b"<html" not in partial_response.content
+
+
+@pytest.mark.django_db
+def test_justifications_list_preserves_status_filter_in_shared_header(client, user):
+    client.force_login(user)
+
+    response = client.get(reverse("justifications_list"), {"status": "PENDING"})
+
+    assert response.status_code == 200
+    assert b"Lista de Justificativas" in response.content
+    assert b'name="status"' in response.content
 
 
 @pytest.mark.django_db

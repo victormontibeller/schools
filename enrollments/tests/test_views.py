@@ -14,6 +14,15 @@ def student(db, user):
             "last_name": "Lima",
             "birth_date": "2010-05-15",
             "enrollment_number": "VW-TEST-001",
+            "gender": "F",
+            "blood_type": "O+",
+            "nationality": "Brasileira",
+            "cpf": "390.533.447-05",
+            "rg_number": "1234567",
+            "rg_issuer": "SSP",
+            "rg_state": "SP",
+            "phone_mobile": "11999990000",
+            "email": "ana.lima@example.com",
         }
     )
 

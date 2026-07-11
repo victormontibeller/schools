@@ -16,6 +16,7 @@ from core.views import (
     health,
     index,
     metrics,
+    readiness,
     school_detail,
     school_edit,
 )
@@ -36,6 +37,7 @@ urlpatterns = [
     path("app/empresa/editar/", school_edit, name="school_edit"),
     path("admin/", admin.site.urls),
     path("health/", health, name="health"),
+    path("ready/", readiness, name="readiness"),
     path("metrics/", metrics, name="metrics"),
     path("", include("accounts.urls")),
     path("", include("teachers.urls")),
@@ -52,6 +54,7 @@ urlpatterns = [
     path("", include("notifications.urls")),
     path("", include("dashboard.urls")),
     path("", include("addresses.urls")),
+    path("", include("tenancy.urls")),
 ]
 
 if settings.DEBUG:

@@ -12,9 +12,11 @@ class ClassSelector(BaseSelector):
 
         return Class
 
-    def list_classes(self, filters=None, page=1, page_size=20) -> PageResult:
+    def list_classes(
+        self, filters=None, order_by="-academic_year", page=1, page_size=20
+    ) -> PageResult:
         """Lista turmas ativas paginadas, com filtros opcionais."""
-        return self.list(filters=filters, page=page, page_size=page_size)
+        return self.list(filters=filters, order_by=order_by, page=page, page_size=page_size)
 
     def get_class_by_id(self, class_id):
         """Retorna a turma com o ID informado."""

@@ -1,273 +1,68 @@
-# UI Guidelines
+# Padrões de Interface
 
-## Stack
+> **Fonte de verdade de frontend.** Em caso de divergência, este documento prevalece sobre Sprints, exemplos históricos e instruções resumidas para agentes.
 
-| Tecnologia | Uso |
-|---|---|
-| **Duralux** | Tema principal sobre Bootstrap 5 — classes `nxl-*` para shell, nav e layout |
-| **Bootstrap 5** | Grid, componentes (cards, modais, badges, alertas, paginação, tabelas) |
-| **HTMX 1.9** | Interatividade sem JS: busca, paginação, submit, polling, carregamento lazy |
-| **Feather Icons** | Ícones (`<i class="feather-*">`) — incluído no `vendors.min.css` |
-| **Alpine.js** | Disponível mas **não em uso** — Bootstrap JS cobre dropdowns e modais |
+## Princípios e stack
 
----
+- Django Templates renderiza a tela inicial; HTMX atualiza somente o menor fragmento necessário.
+- O tema é Duralux sobre Bootstrap 5. Assets são locais via `{% static %}`; não usar Bootstrap por CDN.
+- Usar Feather Icons e evitar JavaScript customizado complexo. Alpine.js só pode controlar estado local.
+- Toda tela herda de `base.html`; formulários herdam de `form_base.html`, `person_form_base.html` ou `entity_form_base.html` conforme o caso.
 
-## Princípios
+## Tema claro e escuro
 
-- **Server-side rendering first:** toda renderização inicial é feita pelo Django Templates.
-- **HTMX para atualizações parciais:** recarregar apenas o fragmento relevante, não a página inteira.
-- **Sem JS customizado complexo:** se precisar de mais de ~10 linhas de JS, rever o design.
-- **Herança obrigatória:** toda tela usa `{% extends "base.html" %}` ou `{% extends "form_base.html" %}`.
+- O alternador global de tema fica no cabeçalho, antes do menu de usuário e ao lado das notificações quando elas existirem.
+- Usar `app-skin-dark`, tema nativo do Duralux; não criar temas paralelos por página.
+- A preferência é local ao navegador e deve ser aplicada antes dos estilos para evitar piscada. Botões apenas com ícone exigem `aria-label` que descreva a próxima ação.
 
----
+## Listagens
 
-## Hierarquia de Templates
-
-```
-templates/
-    base.html          — layout raiz (nav sidebar, header, messages, blocks)
-    form_base.html     — base para formulários (card + form + botões)
-    partials/
-        form_field.html — renderização automática de campo Django
-
-<app>/templates/<app>/
-    <resource>_list.html    — listagem com busca + HTMX
-    <resource>_form.html    — formulário (herda form_base.html)
-    <resource>_detail.html  — visualização detalhada
-    partials/
-        <resource>_table.html  — tabela + paginação (alvo HTMX)
-```
-
----
-
-## Perfil de Pessoa
-
-Perfis de professor, aluno, responsável e futuras entidades pessoais seguem uma estrutura única:
-
-- Um card **Informações da Pessoa** reúne avatar, nome, identificador, dados pessoais,
-  documentos e contato.
-- Um card separado apresenta relações do domínio, como disciplinas, responsáveis ou alunos.
-- Endereços ficam em card próprio por meio de `addresses/partials/address_table.html`.
-- Dados pessoais, documentos e contato nunca devem ser fragmentados em cards diferentes.
-- Valores ausentes são exibidos como `—`.
-- Edições inline ficam no cabeçalho do próprio card e substituem somente aquele componente.
-- Relações como disciplinas são vinculadas no card próprio, separadas dos dados pessoais.
-- Layout desktop: `col-xl-5` para a pessoa e `col-xl-7` para relações/endereço.
-- Layout mobile: cards empilhados, sem overflow horizontal.
-
-Usuários administrativos seguem o mesmo agrupamento: identidade, contato, perfil de acesso,
-status e data de ingresso ficam em um único card. A listagem abre essa ficha, não uma edição.
-
-## Perfil da Empresa
-
-- Empresas representam unidades de negócio dentro do tenant ativo; não devem
-  reutilizar a entidade `School`, que continua sendo o tenant.
-- A rota principal de Empresa exibe primeiro a listagem das unidades disponíveis.
-- Nome, documentos, contato institucional e responsável ficam no card
-  **Informações da Empresa**.
-- Endereços permanecem em card separado.
-- O formulário é acessado pelo botão **Editar** no cabeçalho da ficha.
-
----
-
-## Padrões de HTMX
+- Usar `partials/list_header.html`: título, breadcrumb, contador, busca e botão `+ NOVO`.
+- O card sempre exibe **Lista de &lt;domínio&gt;**.
+- Toda lista usa `table-responsive`, `table table-hover mb-0`, `{% empty %}` e paginação HTMX centralizada.
+- A primeira coluna identifica o registro e é o link para ficha/detalhe; sem ficha, aponta para a tela operacional principal.
+- Colunas ordenáveis usam `resolve_listing_state`, `build_sorting` e links HTMX. Busca, ordenação, filtros e página devem ser preservados na query string.
+- Não criar coluna **Ações** apenas para repetir Ver ou Editar. Ações administrativas ficam na ficha; ações operacionais (aprovar, preencher chamada, lançar nota) ficam no contexto do fluxo.
 
 ```html
-{# Busca com debounce #}
-<input hx-get="{% url 'list' %}"
-       hx-target="#container"
-       hx-trigger="keyup changed delay:300ms, search"
-       name="q">
-
-{# Paginação — sempre preservar filtros #}
-<a hx-get="?page={{ result.page|add:'1' }}&q={{ q }}"
-   hx-target="#container"
-   hx-swap="innerHTML">»</a>
-
-{# Submit sem reload #}
-<form hx-post="{% url 'create' %}"
-      hx-target="#result"
-      hx-swap="innerHTML">
-
-{# Auto-refresh #}
-<div hx-get="{% url 'partial' %}"
-     hx-trigger="every 60s"
-     hx-swap="outerHTML">
-
-{# Carregar ao exibir #}
-<div hx-get="{% url 'partial' %}"
-     hx-trigger="load"
-     hx-target="#container"
-     hx-swap="innerHTML">
+<a href="?{{ sorting.name.query }}" class="sm-sort-link{% if sorting.name.active %} is-active{% endif %}"
+   hx-get="?{{ sorting.name.query }}" hx-target="#resource-table" hx-swap="innerHTML">
+    Nome
+</a>
 ```
 
----
+## Fichas e edição
 
-## Tabelas de Listagem
-
-- Botões de cadastro usam apenas `+ NOVO`; o título da página já informa o domínio.
-- A primeira coluna é a identificação e o link principal do registro.
-- Para pessoas e demais entidades com tela de detalhe, o link aponta para a ficha completa.
-- Sem tela de detalhe, o link aponta para a tela operacional principal, como edição ou lançamento.
-- Coluna de ações não deve existir apenas para repetir “Ver” ou “Editar”.
-- Ações secundárias, como desativar, permanecem na última coluna.
-- Todas as tabelas usam `table-responsive`, `table table-hover mb-0` e paginação HTMX uniforme.
-- Busca, contador, botão de criação e card seguem `partials/list_header.html`.
-
----
-
-## Cabeçalho da Aplicação
-
-- Notificações usam botão compacto com foco/hover e contador oculto quando zerado.
-- O usuário usa um controle com avatar, nome, perfil e indicador do menu.
-- Em telas pequenas, textos secundários são ocultados sem reduzir a área clicável.
-
----
+- Fichas usam `row g-3 align-items-start`, com `col-12 col-xl-5` para informações e `col-12 col-xl-7` para relações/endereço.
+- O card de informações agrupa os dados principais. Endereços e relações de domínio ficam em cards próprios.
+- Editar fica no cabeçalho do card e substitui apenas o componente com `hx-target="#card-id"` e `hx-swap="outerHTML"`.
+- Valores sem dado exibem `—`.
+- Ações de perfil, como Alterar senha, ficam no card correspondente, não no cabeçalho geral da página.
 
 ## Formulários
 
-- Herdar de `form_base.html` — fornece card, CSRF, iteração de campos, botões.
-- Campos renderizados via `{% include "partials/form_field.html" with field=field %}`.
-- Erros de campo: `text-danger small` (automático via partial).
-- Erros do service: `messages.error(request, exc.message)` — aparece no `base.html`.
-- Upload de arquivo: `{% block form_enctype %}enctype="multipart/form-data"{% endblock %}`.
+- Formulários de cadastro e edição usam a mesma largura/posição da ficha e grade compacta `row g-2`.
+- Campos usam `partials/form_field.html`; erros e asteriscos de obrigatoriedade são exibidos pelo partial.
+- Forms com upload definem `enctype="multipart/form-data"` e, em HTMX, `hx-encoding="multipart/form-data"`.
+- Avatar, foto e logotipo são o objeto editável do topo do formulário: imagem/monograma dentro de um `<label>` associado ao input oculto (`sm-profile-avatar-input`). Não exibir um controle “Choose file” no corpo do formulário.
+- Pessoas usam `person_form_base.html`; entidades administrativas usam `entity_form_base.html` e o partial de organização quando há logotipo.
 
----
+## Pessoas, usuários e organizações
 
-## Mensagens
+- Perfis de pessoa reúnem identidade, dados pessoais, documentos e contato em um card; apenas endereço e relações são separados.
+- Usuários seguem o mesmo padrão de perfil, incluindo avatar editável no topo.
+- **Unidades** é a nomenclatura da entidade `BusinessUnit`; não usar “Empresas” na interface atual. Escola é a configuração do tenant e permanece distinta de Unidades.
+- Unidade e Escola exibem e editam o logotipo no topo do card de informações.
 
-Django messages são exibidas automaticamente em `base.html`. Nunca re-implementar.
+## HTMX, acessibilidade e feedback
 
-```python
-messages.success(request, "Salvo com sucesso.")   # → alert-success
-messages.error(request, exc.message)              # → alert-danger
-messages.warning(request, "Atenção: ...")         # → alert-warning
-messages.info(request, "Informação: ...")         # → alert-info
-```
+- Busca: `hx-trigger="keyup changed delay:300ms, search"`.
+- Paginação e ordenação: `hx-target` aponta para a tabela/fragmento e preserva a query string.
+- Botões exclusivamente com ícone exigem `aria-label`; imagens exigem `alt`; navegação de página exige `aria-label`.
+- `base.html` renderiza mensagens Django. Views usam `messages.success()` e `messages.error()` sem duplicar alertas nos templates.
 
----
+## Referências
 
-## Ícones Feather (mais usados)
-
-```html
-<i class="feather-plus"></i>      <i class="feather-edit-2"></i>
-<i class="feather-trash-2"></i>   <i class="feather-eye"></i>
-<i class="feather-search"></i>    <i class="feather-user"></i>
-<i class="feather-calendar"></i>  <i class="feather-check"></i>
-```
-
----
-
-## Template Tags Disponíveis
-
-| Tag | App | Uso |
-|---|---|---|
-| `widget_type` | `core` | Detectar tipo de widget: `field.field.widget\|widget_type` |
-| `get` | `academic_calendar` | Acessar dict: `by_day\|get:day` |
-| `default` | `dashboard` | Valor padrão: `value\|default:"—"` |
-
----
-
-## Regras
-
-- **Nunca** bootstrap via CDN — usar `{% static 'css/bootstrap.min.css' %}`
-- **Nunca** `{% csrf_token %}` omitido em `<form method="post">`
-- **Nunca** `{% load static %}` esquecido quando usar `{% static %}`
-- **Sempre** `{% block title %}` com nome da tela
-- **Sempre** breadcrumb em listagens e formulários
-- **Sempre** `{% empty %}` em tabelas para estado vazio
-- Consultar `design_system/design-system.html` para referência visual dos componentes Duralux
-- Consultar `.github/instructions/templates.instructions.md` para exemplos completos de código
-
----
-
-## Princípios
-
-- **Server-side rendering first:** toda renderização inicial é feita pelo Django Templates.
-- **HTMX para atualizações parciais:** recarregar apenas o fragmento relevante, não a página inteira.
-- **Alpine.js para estado local:** não usar Alpine.js para lógica de negócio ou chamadas de API.
-- **Sem JavaScript custom complexo:** se precisar de mais de ~20 linhas de JS, rever o design.
-
----
-
-## Padrões de Templates
-
-### Estrutura de diretórios
-
-```
-templates/
-    base.html              — layout raiz (head, navbar, sidebar, footer)
-    partials/              — fragmentos reutilizáveis (breadcrumb, pagination, etc.)
-<app>/
-    templates/<app>/
-        list.html          — listagem com paginação
-        create.html        — formulário de criação
-        edit.html          — formulário de edição
-        detail.html        — visualização detalhada
-        _form.html         — fragmento de formulário (usado por HTMX)
-        _row.html          — linha de tabela (usado por HTMX para atualização parcial)
-```
-
-### HTMX — padrões
-
-```html
-<!-- Submit de form sem reload -->
-<form hx-post="{% url 'app:create' %}" hx-target="#result" hx-swap="innerHTML">
-    {% csrf_token %}
-    ...
-</form>
-
-<!-- Recarregar lista após ação -->
-<button hx-post="{% url 'app:deactivate' pk=obj.pk %}"
-        hx-target="#object-list"
-        hx-swap="outerHTML"
-        hx-confirm="Confirmar desativação?">
-    Desativar
-</button>
-
-<!-- Polling para atualização automática -->
-<div hx-get="{% url 'dashboard:kpi' %}" hx-trigger="every 30s" hx-swap="innerHTML">
-    ...
-</div>
-```
-
-### Alpine.js — padrões
-
-```html
-<!-- Toggle simples -->
-<div x-data="{ open: false }">
-    <button @click="open = !open">Expandir</button>
-    <div x-show="open">Conteúdo oculto</div>
-</div>
-
-<!-- Confirmação antes de ação -->
-<button x-data
-        @click="if (confirm('Confirmar?')) $el.closest('form').submit()">
-    Deletar
-</button>
-```
-
----
-
-## Formulários
-
-- Usar `django-crispy-forms` ou renderização manual com Bootstrap classes.
-- Erros de campo: renderizar ao lado do campo com `is-invalid` + `invalid-feedback`.
-- Erros globais do service: usar `messages.error()` no topo do formulário.
-- Labels em português, obrigatórios marcados com `*`.
-
----
-
-## Responsividade
-
-- Layout responsivo obrigatório em todas as telas.
-- Mobile-first: testar em viewport 375px.
-- Sidebar colapsável em telas < 768px.
-
----
-
-## Acessibilidade
-
-- `aria-label` em botões que usam apenas ícones.
-- `alt` em todas as imagens.
-- Contraste mínimo WCAG AA (4.5:1 para texto normal).
+- Regras de arquivos de template: `.github/instructions/templates.instructions.md`.
+- Arquitetura de camadas: `docs/02_ARCHITECTURE.md` e `docs/03_ENGINEERING_RULES.md`.
+- Regras de dados, segurança e multi-tenancy: `docs/05_DATABASE.md`, `docs/04_SECURITY.md` e `docs/06_MULTI_TENANT.md`.

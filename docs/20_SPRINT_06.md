@@ -1,5 +1,7 @@
 # Sprint 06 - Tela da Empresa
 
+> **Documento histórico.** Em caso de divergência, prevalecem os documentos normativos em `docs/`.
+
 ## Objetivo
 
 Criar o frontend da tela da empresa (escola) para cadastro, visualizacao e edicao dos dados institucionais, endereco e contato responsavel, seguindo o padrao visual do sistema.

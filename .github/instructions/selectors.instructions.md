@@ -4,6 +4,8 @@ applyTo: "**/selectors.py"
 
 # Selectors — Padrões Obrigatórios
 
+> Arquitetura de camadas e convenções compartilhadas estão em `docs/02_ARCHITECTURE.md` e `docs/10_CODING_STANDARDS.md`. Este arquivo cobre apenas selectors.
+
 Selectors são **somente-leitura**. Nunca escrevem no banco. Nunca chamam services.
 
 ```python

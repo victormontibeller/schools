@@ -1,5 +1,7 @@
 # Sprint 02 — Contas e Autenticação
 
+> **Documento histórico.** Em caso de divergência, prevalecem os documentos normativos em `docs/`.
+
 ## Objetivo
 
 Implementar o sistema de gerenciamento de usuários, autenticação e o módulo de escolas, garantindo que toda a plataforma tenha uma base sólida de identidade e controle de acesso.
@@ -99,7 +101,7 @@ Implementar o sistema de gerenciamento de usuários, autenticação e o módulo 
 - [x] Todos os critérios de aceite principais validados
 - [x] `AccountService` com 9 testes unitários cobrindo todos os métodos
 - [x] Auditoria validada via `AuditService` (herdado do `BaseService`)
-- [x] Refatoração arquitetural concluída: `School`, `Domain`, `Role`, `CustomUser` movidos para `core/models.py`; `src/` removido; estrutura plana em todos os apps
+- [x] Histórico da refatoração inicial registrado. A arquitetura vigente mantém `School` e `Domain` no app compartilhado `tenancy`, enquanto `Role` e `CustomUser` existem isoladamente em cada schema por meio do app `core`.
 - [x] 17/17 testes passando (`core.settings` único com detecção TESTING automática)
 - [ ] Testes de integração para login e logout
 - [ ] Rate limiting e bloqueio por tentativas falhas

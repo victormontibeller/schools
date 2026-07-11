@@ -2,11 +2,11 @@
 <table class="table table-hover mb-0">
     <thead>
         <tr>
-            <th>Nome</th>
-            <th>Código</th>
-            <th>Tipo</th>
-            <th>Capacidade</th>
-            <th>Prédio/Andar</th>
+            <th><a href="?{{ sorting.name.query }}" class="sm-sort-link" hx-get="?{{ sorting.name.query }}" hx-target="#rooms-table">Nome</a></th>
+            <th><a href="?{{ sorting.code.query }}" class="sm-sort-link" hx-get="?{{ sorting.code.query }}" hx-target="#rooms-table">Código</a></th>
+            <th><a href="?{{ sorting.type.query }}" class="sm-sort-link" hx-get="?{{ sorting.type.query }}" hx-target="#rooms-table">Tipo</a></th>
+            <th><a href="?{{ sorting.capacity.query }}" class="sm-sort-link" hx-get="?{{ sorting.capacity.query }}" hx-target="#rooms-table">Capacidade</a></th>
+            <th><a href="?{{ sorting.building.query }}" class="sm-sort-link" hx-get="?{{ sorting.building.query }}" hx-target="#rooms-table">Prédio/Andar</a></th>
         </tr>
     </thead>
     <tbody>
@@ -34,7 +34,7 @@
         <ul class="pagination pagination-sm mb-0">
         {% if result.has_previous %}
         <li class="page-item">
-            <a class="page-link" hx-get="?page={{ result.page|add:'-1' }}{% if q %}&q={{ q }}{% endif %}"
+            <a class="page-link" hx-get="?page={{ result.page|add:'-1' }}{% if list_query %}&{{ list_query }}{% endif %}"
                hx-target="#rooms-table" hx-swap="innerHTML" aria-label="Página anterior">«</a>
         </li>
         {% endif %}
@@ -43,7 +43,7 @@
         </li>
         {% if result.has_next %}
         <li class="page-item">
-            <a class="page-link" hx-get="?page={{ result.page|add:'1' }}{% if q %}&q={{ q }}{% endif %}"
+            <a class="page-link" hx-get="?page={{ result.page|add:'1' }}{% if list_query %}&{{ list_query }}{% endif %}"
                hx-target="#rooms-table" hx-swap="innerHTML" aria-label="Próxima página">»</a>
         </li>
         {% endif %}

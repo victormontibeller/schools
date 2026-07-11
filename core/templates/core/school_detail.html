@@ -17,10 +17,10 @@
 
 <div class="main-content">
     <div class="row g-3 align-items-start">
-        <div class="col-12 col-xl-6">
+        <div class="col-12 col-xl-5">
             {% include "core/partials/school_information_card.html" %}
         </div>
-        <div class="col-12 col-xl-6 sm-detail-side">
+        <div class="col-12 col-xl-7 sm-detail-side">
             {% include "addresses/partials/address_table.html" with addresses=addresses entity_type="school" entity_id=school.pk %}
         </div>
     </div>

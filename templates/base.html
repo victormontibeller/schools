@@ -5,13 +5,33 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}School Manager{% endblock %}</title>
+    <script>
+    (function () {
+        try {
+            if (window.localStorage.getItem("app-skin-dark") === "app-skin-dark") {
+                document.documentElement.classList.add("app-skin-dark");
+            }
+        } catch (error) {
+            // A preferência é um aprimoramento visual; a aplicação continua clara sem storage.
+        }
+    }());
+    </script>
     <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
     <link rel="stylesheet" href="{% static 'css/vendors.min.css' %}">
     <link rel="stylesheet" href="{% static 'css/theme.min.css' %}">
-    <link rel="stylesheet" href="{% static 'css/school-manager.css' %}">
+    <link rel="stylesheet" href="{% static 'css/school-manager.css' %}?v=20260710-dark-mode-4">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+    {% if support_access_active %}
+    <div class="alert alert-warning rounded-0 mb-0 d-flex justify-content-between align-items-center" role="alert">
+        <span><i class="feather-shield me-2"></i>Acesso temporário de suporte ativo e auditado.</span>
+        <form method="post" action="{% url 'support_access_end' %}" class="m-0">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-warning">Encerrar acesso</button>
+        </form>
+    </div>
+    {% endif %}
     <!--! [Start] Navigation -->
     <nav class="nxl-navigation sm-fixed-sidebar">
         <div class="navbar-wrapper">
@@ -23,6 +43,39 @@
             </div>
             <div class="navbar-content">
                 <ul class="nxl-navbar">
+                    {% if is_platform_schema %}
+                    <li class="nxl-item nxl-caption"><label>Plataforma</label></li>
+                    <li class="nxl-item">
+                        <a href="{% url 'platform_dashboard' %}" class="nxl-link sm-menu-link">
+                            <span class="nxl-micon"><i class="feather-grid"></i></span>
+                            <span class="nxl-mtext">Visão geral</span>
+                        </a>
+                    </li>
+                    <li class="nxl-item">
+                        <a href="{% url 'platform_school_list' %}" class="nxl-link sm-menu-link">
+                            <span class="nxl-micon"><i class="feather-home"></i></span>
+                            <span class="nxl-mtext">Escolas</span>
+                        </a>
+                    </li>
+                    <li class="nxl-item">
+                        <a href="{% url 'platform_user_list' %}" class="nxl-link sm-menu-link">
+                            <span class="nxl-micon"><i class="feather-users"></i></span>
+                            <span class="nxl-mtext">Operadores</span>
+                        </a>
+                    </li>
+                    <li class="nxl-item">
+                        <a href="{% url 'support_access_create' %}" class="nxl-link sm-menu-link">
+                            <span class="nxl-micon"><i class="feather-shield"></i></span>
+                            <span class="nxl-mtext">Acesso de suporte</span>
+                        </a>
+                    </li>
+                    <li class="nxl-item">
+                        <a href="{% url 'admin:index' %}" class="nxl-link sm-menu-link">
+                            <span class="nxl-micon"><i class="feather-tool"></i></span>
+                            <span class="nxl-mtext">Administração técnica</span>
+                        </a>
+                    </li>
+                    {% else %}
                     <li class="nxl-item nxl-caption"><label>Dashboard</label></li>
                     <li class="nxl-item">
                         <a href="{% url 'school_dashboard' %}" class="nxl-link sm-menu-link">
@@ -39,6 +92,7 @@
                     </li>
                     {% endif %}
                     <li class="nxl-item nxl-caption"><label>Acadêmico</label></li>
+                    {% if accessible_modules|module_allowed:'teachers' %}
                     <li class="nxl-item">
                         <a href="{% url 'teachers_list' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-book-open"></i></span>
@@ -51,62 +105,74 @@
                             <span class="nxl-mtext">Disciplinas</span>
                         </a>
                     </li>
+                    {% endif %}
+                    {% if accessible_modules|module_allowed:'students' %}
                     <li class="nxl-item">
                         <a href="{% url 'students_list' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-user-check"></i></span>
-                            <span class="nxl-mtext">Alunos</span>
+                            <span class="nxl-mtext">Alunos e Responsáveis</span>
                         </a>
                     </li>
-                    <li class="nxl-item">
-                        <a href="{% url 'guardians_list' %}" class="nxl-link sm-menu-link">
-                            <span class="nxl-micon"><i class="feather-heart"></i></span>
-                            <span class="nxl-mtext">Responsáveis</span>
-                        </a>
-                    </li>
+                    {% endif %}
+                    {% if accessible_modules|module_allowed:'classes' %}
                     <li class="nxl-item">
                         <a href="{% url 'classes_list' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-layers"></i></span>
                             <span class="nxl-mtext">Turmas</span>
                         </a>
                     </li>
+                    {% endif %}
+                    {% if accessible_modules|module_allowed:'rooms' %}
                     <li class="nxl-item">
                         <a href="{% url 'rooms_list' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-home"></i></span>
                             <span class="nxl-mtext">Salas</span>
                         </a>
                     </li>
+                    {% endif %}
                     <li class="nxl-item nxl-caption"><label>Secretaria</label></li>
+                    {% if accessible_modules|module_allowed:'enrollments' %}
                     <li class="nxl-item">
                         <a href="{% url 'secretary_dashboard' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-file-text"></i></span>
                             <span class="nxl-mtext">Matrículas</span>
                         </a>
                     </li>
+                    {% endif %}
+                    {% if accessible_modules|module_allowed:'financeiro' %}
                     <li class="nxl-item">
                         <a href="{% url 'finance_dashboard' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-credit-card"></i></span>
                             <span class="nxl-mtext">Financeiro</span>
                         </a>
                     </li>
+                    {% endif %}
                     <li class="nxl-item nxl-caption"><label>Coordenação</label></li>
+                    {% if accessible_modules|module_allowed:'activities' %}
                     <li class="nxl-item">
                         <a href="{% url 'activities_list' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-edit-3"></i></span>
                             <span class="nxl-mtext">Atividades</span>
                         </a>
                     </li>
+                    {% endif %}
+                    {% if accessible_modules|module_allowed:'attendance' %}
                     <li class="nxl-item">
                         <a href="{% url 'attendance_records_list' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-check-circle"></i></span>
                             <span class="nxl-mtext">Frequência</span>
                         </a>
                     </li>
+                    {% endif %}
+                    {% if accessible_modules|module_allowed:'agenda' %}
                     <li class="nxl-item">
                         <a href="{% url 'time_slots_list' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-clock"></i></span>
-                            <span class="nxl-mtext">Horários</span>
+                            <span class="nxl-mtext">Grade Horária</span>
                         </a>
                     </li>
+                    {% endif %}
+                    {% if accessible_modules|module_allowed:'academic_calendar' %}
                     <li class="nxl-item">
                         <a href="{% url 'calendar_month' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-calendar"></i></span>
@@ -114,16 +180,32 @@
                         </a>
                     </li>
                     <li class="nxl-item">
+                        <a href="{% url 'holidays_list' %}" class="nxl-link sm-menu-link">
+                            <span class="nxl-micon"><i class="feather-flag"></i></span>
+                            <span class="nxl-mtext">Feriados</span>
+                        </a>
+                    </li>
+                    <li class="nxl-item">
+                        <a href="{% url 'academic_years_list' %}" class="nxl-link sm-menu-link">
+                            <span class="nxl-micon"><i class="feather-calendar"></i></span>
+                            <span class="nxl-mtext">Anos Letivos</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if accessible_modules|module_allowed:'notifications' %}
+                    <li class="nxl-item">
                         <a href="{% url 'announcement_list' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-message-square"></i></span>
                             <span class="nxl-mtext">Comunicados</span>
                         </a>
                     </li>
+                    {% endif %}
+                    {% if accessible_modules|module_allowed:'core' %}
                     <li class="nxl-item nxl-caption"><label>Administração</label></li>
                     <li class="nxl-item">
                         <a href="{% url 'business_unit_list' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-briefcase"></i></span>
-                            <span class="nxl-mtext">Empresas</span>
+                            <span class="nxl-mtext">Unidades</span>
                         </a>
                     </li>
                     <li class="nxl-item">
@@ -138,6 +220,8 @@
                             <span class="nxl-mtext">Usuários</span>
                         </a>
                     </li>
+                    {% endif %}
+                    {% endif %}
                 </ul>
             </div>
         </div>
@@ -155,7 +239,16 @@
                 </div>
             </div>
             <div class="header-center mx-auto d-none d-lg-flex align-items-center justify-content-center">
-                {% if current_school %}
+                {% if is_platform_schema %}
+                <div class="header-school-brand d-inline-flex align-items-center gap-3">
+                    <div class="avatar-text avatar-sm bg-soft-primary text-primary header-school-fallback">
+                        P
+                    </div>
+                    <div class="header-school-copy text-start">
+                        <span class="d-block">Administração da Plataforma</span>
+                    </div>
+                </div>
+                {% elif current_school %}
                 <a href="{% url 'school_settings_detail' %}"
                    class="header-school-brand d-inline-flex align-items-center gap-3 text-decoration-none">
                     {% if current_school.logo %}
@@ -175,6 +268,7 @@
             </div>
             <div class="header-right ms-auto d-flex align-items-center">
                 <div class="d-flex align-items-center gap-2">
+                    {% if not is_platform_schema %}
                     <div class="dropdown header-notification-dropdown">
                         <button type="button"
                                 class="header-action-button position-relative border-0 header-notification-trigger"
@@ -200,6 +294,14 @@
                             </div>
                         </div>
                     </div>
+                    {% endif %}
+                    <button type="button"
+                            id="theme-toggle"
+                            class="header-action-button border-0"
+                            aria-label="Ativar modo escuro"
+                            aria-pressed="false">
+                        <i class="feather-moon" aria-hidden="true"></i>
+                    </button>
                     <div class="dropdown">
                         <a href="#"
                            class="header-user-button arrow-none d-flex align-items-center gap-2"
@@ -230,9 +332,12 @@
                                 <i class="feather-user me-2"></i> Meu Perfil
                             </a>
                             <div class="dropdown-divider"></div>
-                            <a href="{% url 'logout' %}" class="dropdown-item text-danger">
-                                <i class="feather-log-out me-2"></i> Sair
-                            </a>
+                            <form method="post" action="{% url 'logout' %}">
+                                {% csrf_token %}
+                                <button type="submit" class="dropdown-item text-danger">
+                                    <i class="feather-log-out me-2"></i> Sair
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -261,9 +366,41 @@
 
     <script src="{% static 'js/vendors.min.js' %}"></script>
     <script src="{% static 'js/common-init.min.js' %}"></script>
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="{% static 'js/htmx.min.js' %}"></script>
     <script>
     document.addEventListener("DOMContentLoaded", function () {
+        var themeToggle = document.getElementById("theme-toggle");
+        var root = document.documentElement;
+
+        function setTheme(isDark) {
+            root.classList.toggle("app-skin-dark", isDark);
+            try {
+                window.localStorage.setItem(
+                    "app-skin-dark",
+                    isDark ? "app-skin-dark" : "app-skin-light"
+                );
+            } catch (error) {
+                // A alternância visual funciona mesmo quando o storage não está disponível.
+            }
+
+            if (!themeToggle) {
+                return;
+            }
+
+            var icon = themeToggle.querySelector("i");
+            themeToggle.setAttribute(
+                "aria-label",
+                isDark ? "Ativar modo claro" : "Ativar modo escuro"
+            );
+            themeToggle.setAttribute("aria-pressed", String(isDark));
+            icon.className = isDark ? "feather-sun" : "feather-moon";
+        }
+
+        setTheme(root.classList.contains("app-skin-dark"));
+        themeToggle.addEventListener("click", function () {
+            setTheme(!root.classList.contains("app-skin-dark"));
+        });
+
         document.querySelectorAll(".sm-menu-link").forEach(function (link) {
             link.addEventListener("click", function () {
                 link.classList.add("is-pressed");

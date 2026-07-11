@@ -81,3 +81,26 @@ class TestChangePassword:
     def test_wrong_current_password(self, user):
         with pytest.raises(ValidationError):
             AccountService(user=user).change_password(user.pk, "SenhaErrada", "NovaSenha456")
+
+
+@pytest.mark.django_db
+class TestUpdateUser:
+    def test_updates_and_normalizes_email(self, user):
+        updated = AccountService(user=user).update_user(
+            user.pk,
+            {"email": "  NOVO@EXAMPLE.COM  "},
+        )
+
+        assert updated.email == "novo@example.com"
+
+    def test_rejects_email_used_by_inactive_user(self, user):
+        CustomUser.objects.create_user(
+            email="existente@example.com",
+            password="Senha123",
+            is_active=False,
+        )
+
+        with pytest.raises(ValidationError) as exc_info:
+            AccountService(user=user).update_user(user.pk, {"email": "EXISTENTE@example.com"})
+
+        assert "email" in exc_info.value.errors

@@ -4,6 +4,8 @@ applyTo: "**/services.py"
 
 # Services — Padrões Obrigatórios
 
+> Regras normativas de engenharia, segurança e auditoria estão em `docs/03_ENGINEERING_RULES.md` e `docs/04_SECURITY.md`. Este arquivo cobre apenas a aplicação dessas regras em services.
+
 Todo service deve herdar de `BaseService` e seguir este padrão:
 
 ```python

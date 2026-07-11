@@ -2,11 +2,11 @@
     <table class="table table-hover mb-0">
         <thead>
             <tr>
-                <th>Empresa</th>
-                <th>CNPJ</th>
+                <th><a href="?{{ sorting.name.query }}" class="sm-sort-link" hx-get="?{{ sorting.name.query }}" hx-target="#business-units-table">Unidade</a></th>
+                <th><a href="?{{ sorting.cnpj.query }}" class="sm-sort-link" hx-get="?{{ sorting.cnpj.query }}" hx-target="#business-units-table">CNPJ</a></th>
                 <th>Contato principal</th>
-                <th>Telefone</th>
-                <th>E-mail</th>
+                <th><a href="?{{ sorting.phone.query }}" class="sm-sort-link" hx-get="?{{ sorting.phone.query }}" hx-target="#business-units-table">Telefone</a></th>
+                <th><a href="?{{ sorting.email.query }}" class="sm-sort-link" hx-get="?{{ sorting.email.query }}" hx-target="#business-units-table">E-mail</a></th>
             </tr>
         </thead>
         <tbody>
@@ -43,7 +43,7 @@
             {% if result.has_previous %}
             <li class="page-item">
                 <a class="page-link"
-                   hx-get="?page={{ result.page|add:'-1' }}"
+                   hx-get="?page={{ result.page|add:'-1' }}{% if list_query %}&{{ list_query }}{% endif %}"
                    hx-target="#business-units-table"
                    hx-swap="innerHTML">«</a>
             </li>
@@ -54,7 +54,7 @@
             {% if result.has_next %}
             <li class="page-item">
                 <a class="page-link"
-                   hx-get="?page={{ result.page|add:'1' }}"
+                   hx-get="?page={{ result.page|add:'1' }}{% if list_query %}&{{ list_query }}{% endif %}"
                    hx-target="#business-units-table"
                    hx-swap="innerHTML">»</a>
             </li>

@@ -43,13 +43,7 @@
                     <p class="text-muted mb-0 text-break">{{ guardian.user.email|default:"—" }}</p>
                 </div>
             </div>
-            <div class="row g-3">
-                {% for field in form %}
-                    {% if field.name != "avatar" %}
-                    {% include "partials/form_field.html" with field=field %}
-                    {% endif %}
-                {% endfor %}
-            </div>
+            {% include "partials/person_form_fields.html" with form=form exclude_field="avatar" %}
         </div>
     </form>
 </div>

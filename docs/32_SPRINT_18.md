@@ -1,5 +1,7 @@
 # Sprint 18 — Inteligência Artificial
 
+> **Documento histórico.** Em caso de divergência, prevalecem os documentos normativos em `docs/`.
+
 ## Objetivo
 
 Incorporar funcionalidades de Inteligência Artificial para apoio pedagógico, análise preditiva e automação de tarefas repetitivas, preservando os princípios de simplicidade e modularidade da plataforma.

@@ -144,6 +144,14 @@ class TestStudentViews:
                 "birth_date": "2010-01-01",
                 "enrollment_number": "NEW-001",
                 "gender": "M",
+                "blood_type": "O+",
+                "nationality": "Brasileira",
+                "cpf": "390.533.447-05",
+                "rg_number": "1234567",
+                "rg_issuer": "SSP",
+                "rg_state": "SP",
+                "phone_mobile": "11999990000",
+                "email": "tiago@example.com",
             },
         )
         assert resp.status_code == 302
@@ -223,9 +231,10 @@ class TestGuardianViews:
     def test_guardians_list_renders(self, force_login_client):
         self._make()
         resp = force_login_client.get("/guardians/")
-        assert resp.status_code == 200
+        assert resp.status_code == 302
+        assert resp["Location"] == "/students/"
 
-    def test_guardian_detail_renders_with_students(self, force_login_client):
+    def test_guardian_detail_redirects_to_students(self, force_login_client):
         from guardians.models import StudentGuardian
         from students.models import Student
 
@@ -238,18 +247,17 @@ class TestGuardianViews:
         )
         StudentGuardian.objects.create(student=s, guardian=g)
         resp = force_login_client.get(f"/guardians/{g.pk}/")
-        assert resp.status_code == 200
-        assert b"DET-001" in resp.content
-        assert b"Informa\xc3\xa7\xc3\xb5es do Respons\xc3\xa1vel" in resp.content
-        assert b"Dados Pessoais" not in resp.content
-        assert b">Contato<" not in resp.content
+        assert resp.status_code == 302
+        assert resp["Location"] == "/students/"
 
-    def test_guardian_detail_404_when_unknown(self, force_login_client):
+    def test_guardian_detail_unknown_redirects_to_students(self, force_login_client):
         import uuid
 
-        assert force_login_client.get(f"/guardians/{uuid.uuid4()}/").status_code == 404
+        response = force_login_client.get(f"/guardians/{uuid.uuid4()}/")
+        assert response.status_code == 302
+        assert response["Location"] == "/students/"
 
-    def test_guardian_edit_get_redirects_to_profile(self, force_login_client):
+    def test_guardian_edit_get_redirects_to_students(self, force_login_client):
         from core.models import CustomUser
         from guardians.models import Guardian
 
@@ -259,9 +267,9 @@ class TestGuardianViews:
         g = Guardian.objects.create(user=u, relationship_type="PAI")
         resp = force_login_client.get(f"/guardians/{g.pk}/editar/")
         assert resp.status_code == 302
-        assert resp["Location"] == f"/guardians/{g.pk}/"
+        assert resp["Location"] == "/students/"
 
-    def test_guardian_edit_post_updates_and_redirects(self, force_login_client):
+    def test_guardian_edit_post_redirects_to_students(self, force_login_client):
         from core.models import CustomUser
         from guardians.models import Guardian
 
@@ -271,12 +279,24 @@ class TestGuardianViews:
         g = Guardian.objects.create(user=u, relationship_type="PAI", phone="111")
         resp = force_login_client.post(
             f"/guardians/{g.pk}/editar/",
-            {"relationship_type": "MAE", "phone": "999"},
+            {
+                "first_name": "GE2",
+                "last_name": "Test",
+                "relationship_type": "MAE",
+                "birth_date": "1980-01-01",
+                "gender": "M",
+                "nationality": "Brasileira",
+                "cpf": "390.533.447-05",
+                "rg_number": "1234567",
+                "rg_issuer": "SSP",
+                "rg_state": "SP",
+                "phone": "999",
+                "phone_whatsapp": "11999991111",
+                "phone_mobile": "11988882222",
+            },
         )
         assert resp.status_code == 302
-        g.refresh_from_db()
-        assert g.relationship_type == "MAE"
-        assert g.phone == "999"
+        assert resp["Location"] == "/students/"
 
     def test_teacher_edit_get_redirects_to_profile(self, force_login_client, user):
         from teachers.models import Teacher
@@ -299,7 +319,16 @@ class TestGuardianViews:
             {
                 "registration_number": "EDT002",
                 "hire_date": "2025-06-15",
+                "birth_date": "1990-05-20",
+                "gender": "M",
+                "nationality": "Brasileira",
+                "cpf": "390.533.447-05",
+                "rg_number": "1234567",
+                "rg_issuer": "SSP",
+                "rg_state": "SP",
                 "phone_mobile": "11999999999",
+                "first_name": user.first_name,
+                "last_name": user.last_name,
             },
         )
         assert resp.status_code == 302

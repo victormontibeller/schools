@@ -20,7 +20,7 @@ A ordem abaixo e a referencia oficial para planejamento e execucao das Sprints.
 | **Sprint 03** | Cadastros Principais | Professores, alunos e responsáveis |
 | **Sprint 04** | Enderecos Unificados | Centralizar cadastro de enderecos para school, teacher, student e guardian |
 | **Sprint 05** | Identificacao Cadastral | Padronizar dados pessoais e documentos de guardian, student e teacher |
-| **Sprint 06** | Tela da Empresa | Criar a interface de cadastro e edicao da escola com dados institucionais e responsavel |
+| **Sprint 06** | Escola e Unidades | Criar a interface de cadastro e edição da escola e das unidades com dados institucionais e responsável |
 | **Sprint 07** | Frontend de Disciplinas | Criar a interface completa de subjects com listagem, cadastro e edicao |
 | **Sprint 08** | Turmas e Agenda | Turmas, salas, grade horária e atividades |
 | **Sprint 09** | Calendário | Calendário acadêmico, eventos e feriados |

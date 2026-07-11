@@ -1,5 +1,7 @@
 # Sprint 03 — Cadastros Principais
 
+> **Documento histórico.** Em caso de divergência, prevalecem os documentos normativos em `docs/`.
+
 ## Objetivo
 
 Implementar os módulos de cadastro dos atores principais da plataforma: professores, alunos e responsáveis. Estes módulos formam o núcleo de dados do sistema escolar.

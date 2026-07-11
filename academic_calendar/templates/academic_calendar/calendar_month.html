@@ -1,42 +1,6 @@
 {% extends "base.html" %}
-
 {% block title %}Calendário — School Manager{% endblock %}
-
 {% block content %}
-<div class="page-header">
-    <div class="page-header-left d-flex align-items-center">
-        <div class="page-header-title"><h5 class="m-b-10">Calendário</h5></div>
-        <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
-            <li class="breadcrumb-item">Calendário</li>
-        </ul>
-    </div>
-    <div class="page-header-right ms-auto d-flex gap-2">
-        <a href="{% url 'event_create' %}" class="btn btn-primary btn-sm">
-            <i class="feather-plus me-1"></i> NOVO
-        </a>
-        <a href="{% url 'holidays_list' %}" class="btn btn-outline-secondary btn-sm">Feriados</a>
-        <a href="{% url 'academic_years_list' %}" class="btn btn-outline-secondary btn-sm">Anos Letivos</a>
-    </div>
-</div>
-
-<div class="main-content">
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <div class="btn-group" id="calendar-nav">
-                <a class="btn btn-outline-secondary btn-sm"
-                   hx-get="{% url 'calendar_month_specific' prev_year prev_month %}"
-                   hx-target="#calendar-grid-container">&laquo; {{ prev_month|add:0 }}/{{ prev_year }}</a>
-                <button class="btn btn-light btn-sm fw-semibold">{{ month_name }} {{ year }}</button>
-                <a class="btn btn-outline-secondary btn-sm"
-                   hx-get="{% url 'calendar_month_specific' next_year next_month %}"
-                   hx-target="#calendar-grid-container">{{ next_month|add:0 }}/{{ next_year }} &raquo;</a>
-            </div>
-            <a href="{% url 'calendar_month' %}" class="btn btn-link btn-sm">Hoje</a>
-        </div>
-        <div class="card-body" id="calendar-grid-container">
-            {% include "academic_calendar/partials/calendar_grid.html" %}
-        </div>
-    </div>
-</div>
+<div class="page-header"><div class="page-header-left d-flex align-items-center"><div class="page-header-title"><h5 class="m-b-10">Calendário</h5></div><ul class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li><li class="breadcrumb-item active">Calendário</li></ul></div><div class="page-header-right ms-auto d-flex gap-2"><a href="{% url 'event_create' %}?date={{ selected_date|date:'Y-m-d' }}" hx-get="{% url 'event_create' %}?date={{ selected_date|date:'Y-m-d' }}" hx-target="#calendar-day-agenda" hx-swap="outerHTML" class="btn btn-primary btn-sm"><i class="feather-plus me-1"></i> NOVO</a><a href="{% url 'holidays_list' %}" class="btn btn-outline-secondary btn-sm">Feriados</a><a href="{% url 'academic_years_list' %}" class="btn btn-outline-secondary btn-sm">Anos Letivos</a></div></div>
+<div class="main-content" id="calendar-workspace">{% include "academic_calendar/partials/calendar_workspace_content.html" %}</div>
 {% endblock %}

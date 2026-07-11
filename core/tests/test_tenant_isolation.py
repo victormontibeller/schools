@@ -17,7 +17,8 @@ from django.db import connection
 from django_tenants.test.cases import TenantTestCase
 
 from base import context
-from core.models import CustomUser, Domain, School
+from core.models import CustomUser
+from tenancy.models import Domain, School
 
 pytestmark = [pytest.mark.tenant]
 
@@ -63,6 +64,9 @@ class TestTenantSchemaIsolation(TenantTestCase):
 
     def setUp(self):
         super().setUp()
+        # Cada teste começa explicitamente no tenant A; o método anterior pode
+        # ter terminado após validar o tenant B.
+        connection.set_tenant(self.tenant)
         # Ajusta `current_tenant` (em produção é reponsabilidade do middleware)
         self._ctx_token = context.current_tenant.set(connection.schema_name)
 
@@ -109,6 +113,31 @@ class TestTenantSchemaIsolation(TenantTestCase):
         assert a_after.pk == a1.pk
         assert a_after.pk != b_after.pk
 
+    def test_same_email_is_isolated_between_tenant_schemas(self):
+        """Cada schema possui sua própria tabela de autenticação."""
+        user_a = CustomUser.objects.create_user(
+            email="admin@school.test",
+            password="SenhaA123",
+            first_name="Admin",
+            last_name="A",
+        )
+        connection.set_tenant(self.tenant_b)
+        user_b = CustomUser.objects.create_user(
+            email="admin@school.test",
+            password="SenhaB123",
+            first_name="Admin",
+            last_name="B",
+        )
+        assert user_b.pk != user_a.pk
+        assert user_b.check_password("SenhaB123")
+        assert not user_b.check_password("SenhaA123")
+
+        connection.set_tenant(self.tenant)
+        isolated_a = CustomUser.objects.get(email="admin@school.test")
+        assert isolated_a.pk == user_a.pk
+        assert isolated_a.check_password("SenhaA123")
+        assert not isolated_a.check_password("SenhaB123")
+
     def test_audit_logs_record_tenant_schema(self):
         from audit.models import AuditLog
         from students.services import StudentService
@@ -118,6 +147,7 @@ class TestTenantSchemaIsolation(TenantTestCase):
             password="Senha123",
             first_name="A",
             last_name="B",
+            is_superuser=True,
         )
         StudentService(user=actor).create_student(
             {
@@ -125,6 +155,15 @@ class TestTenantSchemaIsolation(TenantTestCase):
                 "last_name": "Y",
                 "birth_date": "2010-01-01",
                 "enrollment_number": "AUD-001",
+                "gender": "M",
+                "blood_type": "O+",
+                "nationality": "Brasileira",
+                "cpf": "390.533.447-05",
+                "rg_number": "1234567",
+                "rg_issuer": "SSP",
+                "rg_state": "SP",
+                "phone_mobile": "11999990000",
+                "email": "x@example.com",
             }
         )
 

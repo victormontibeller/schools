@@ -3,51 +3,7 @@
 {% block title %}Frequência — School Manager{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div class="page-header-left d-flex align-items-center">
-        <div class="page-header-title"><h5 class="m-b-10">Frequência</h5></div>
-        <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
-            <li class="breadcrumb-item">Frequência</li>
-        </ul>
-    </div>
-    <div class="page-header-right ms-auto d-flex gap-2">
-        <a href="{% url 'students_at_risk' %}" class="btn btn-outline-danger btn-sm">Alunos em risco</a>
-        <a href="{% url 'justifications_list' %}" class="btn btn-outline-secondary btn-sm">Justificativas</a>
-        <a href="{% url 'attendance_record_create' %}" class="btn btn-primary btn-sm">Abrir chamada</a>
-    </div>
-</div>
-
-<div class="main-content">
-    <div class="card sm-detail-card sm-detail-table-card">
-        <div class="card-header"><h6 class="card-title mb-0">Registros de Chamada</h6></div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead><tr><th>Chamada</th><th>Data</th><th>Disciplina</th><th>Professor</th><th>Aula</th><th>Resumo</th></tr></thead>
-                <tbody>
-                    {% for r in records %}
-                    <tr>
-                        <td>
-                            <a href="{% url 'attendance_record_fill' r.pk %}" class="fw-semibold">
-                                {{ r.class_obj }}
-                            </a>
-                        </td>
-                        <td>{{ r.date|date:"d/m/Y" }}</td>
-                        <td>{{ r.subject }}</td>
-                        <td>{{ r.teacher }}</td>
-                        <td>{{ r.lesson_number }}</td>
-                        <td>
-                            <a href="{% url 'class_attendance_summary' r.class_obj.pk %}" class="btn btn-sm btn-outline-secondary">Resumo</a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="6" class="text-center text-muted py-4">Nenhuma chamada registrada. Clique em "Abrir chamada".</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            </div>
-        </div>
-    </div>
-</div>
+{% include "partials/list_header.html" with list_title="Frequência" breadcrumb_items=breadcrumb_items create_url="attendance_record_create" search_url="attendance_records_list" search_target="#attendance-records-table" search_value=q total_count=result.total %}
+{% include "attendance/partials/records_table.html" %}
+{% include "partials/list_footer.html" %}
 {% endblock %}

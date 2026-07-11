@@ -2,7 +2,7 @@
 
 import pytest
 
-from core.models import School
+from tenancy.models import School
 
 
 @pytest.fixture()
@@ -52,8 +52,19 @@ class TestSchoolEdit:
             "/app/empresa/editar/",
             data={
                 "name": "Escola Atualizada",
+                "legal_name": "Escola Atualizada Ltda.",
+                "trade_name": "Escola Atualizada",
+                "cnpj": "44555666000181",
+                "state_registration": "110042490114",
+                "municipal_registration": "123456",
                 "phone": "1133445566",
                 "email": "novo@escola.com",
+                "academic_year_start": "2026-02-01",
+                "academic_year_end": "2026-12-15",
+                "contact_full_name": "Maria Silva",
+                "contact_role": "Diretora",
+                "contact_phone": "11999990000",
+                "contact_email": "maria@escola.com",
             },
         )
         assert resp.status_code == 302

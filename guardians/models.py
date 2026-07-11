@@ -4,6 +4,7 @@ from django.conf import settings
 from django.db import models
 
 from base.models import BaseModel
+from base.upload_validators import validate_image_upload
 
 
 class Guardian(BaseModel):
@@ -29,12 +30,25 @@ class Guardian(BaseModel):
 
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
         related_name="guardian_profile",
-        verbose_name="Usuário",
+        verbose_name="Usuário do Sistema",
     )
+    first_name = models.CharField(max_length=150, blank=True, default="", verbose_name="Nome")
+    last_name = models.CharField(max_length=150, blank=True, default="", verbose_name="Sobrenome")
+    email = models.EmailField(blank=True, default="", verbose_name="E-mail")
+    avatar = models.ImageField(
+        upload_to="guardians/avatars/", null=True, blank=True, validators=[validate_image_upload]
+    )
+    # Campo legado: o parentesco passa a pertencer ao vínculo StudentGuardian.
     relationship_type = models.CharField(
-        max_length=10, choices=Relationship.choices, verbose_name="Parentesco"
+        max_length=10,
+        choices=Relationship.choices,
+        blank=True,
+        default="",
+        verbose_name="Parentesco legado",
     )
     birth_date = models.DateField(null=True, blank=True, verbose_name="Data de Nascimento")
     gender = models.CharField(
@@ -56,19 +70,21 @@ class Guardian(BaseModel):
     phone_mobile = models.CharField(max_length=20, blank=True, default="", verbose_name="Celular")
 
     class Meta:
-        ordering = ["user__first_name", "user__last_name"]
+        ordering = ["first_name", "last_name"]
         verbose_name = "Responsável"
         verbose_name_plural = "Responsáveis"
         indexes = [
             models.Index(fields=["cpf"]),
+            models.Index(fields=["email"]),
         ]
 
     def __str__(self) -> str:
-        return f"{self.user.get_full_name()} ({self.get_relationship_type_display()})"
+        return self.full_name
 
     @property
     def full_name(self) -> str:
-        return self.user.get_full_name()
+        name = f"{self.first_name} {self.last_name}".strip()
+        return name or (self.user.get_full_name() if self.user else "—")
 
 
 class StudentGuardian(BaseModel):
@@ -86,6 +102,12 @@ class StudentGuardian(BaseModel):
         related_name="students",
         verbose_name="Responsável",
     )
+    relationship_type = models.CharField(
+        max_length=10,
+        choices=Guardian.Relationship.choices,
+        default=Guardian.Relationship.OTHER,
+        verbose_name="Parentesco",
+    )
     is_primary = models.BooleanField(default=False, verbose_name="Responsável Principal")
     has_custody = models.BooleanField(default=True, verbose_name="Possui Guarda Legal")
     can_pickup = models.BooleanField(default=True, verbose_name="Autorizado a Buscar")
@@ -94,7 +116,7 @@ class StudentGuardian(BaseModel):
         unique_together = [("student", "guardian")]
         verbose_name = "Vínculo Aluno-Responsável"
         verbose_name_plural = "Vínculos Aluno-Responsável"
-        ordering = ["-is_primary", "guardian__user__first_name"]
+        ordering = ["-is_primary", "guardian__first_name"]
 
     def __str__(self) -> str:
         return f"{self.guardian} → {self.student}"

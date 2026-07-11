@@ -10,9 +10,18 @@ from django.http import HttpResponse
 from django.shortcuts import redirect, render
 
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError
+from base.listing import build_querystring, build_sorting, resolve_listing_state
 from notifications.selectors import AnnouncementSelector, NotificationSelector
 
 logger = logging.getLogger(__name__)
+ANNOUNCEMENT_SORTS = {
+    "title": "title",
+    "-title": "-title",
+    "sent_at": "sent_at",
+    "-sent_at": "-sent_at",
+    "audience": "audience",
+    "-audience": "-audience",
+}
 
 
 @login_required
@@ -78,9 +87,37 @@ def _render_header_notifications(request) -> HttpResponse:
 @login_required
 def announcement_list(request) -> HttpResponse:
     """Lista comunicados enviados."""
-    announcements = AnnouncementSelector().get_sent()[:30]
-    return render(
+    page = int(request.GET.get("page", 1))
+    state = resolve_listing_state(
         request,
-        "notifications/announcement_list.html",
-        {"announcements": announcements},
+        scope="announcements_list",
+        allowed_sorts=set(ANNOUNCEMENT_SORTS),
+        default_sort="-sent_at",
     )
+    context = {
+        "result": AnnouncementSelector().list_sent(
+            state["q"], ANNOUNCEMENT_SORTS[state["sort"]], page
+        ),
+        "q": state["q"],
+        "sort": state["sort"],
+        "sorting": build_sorting(
+            current_sort=state["sort"],
+            search=state["q"],
+            sortable_fields=["title", "sent_at", "audience"],
+        ),
+        "list_query": build_querystring({"q": state["q"], "sort": state["sort"]}),
+        "breadcrumb_items": [
+            {"label": "Home", "url": "dashboard"},
+            {"label": "Comunicados", "url": None},
+        ],
+    }
+    if request.headers.get("HX-Request"):
+        return render(request, "notifications/partials/announcements_table.html", context)
+    return render(request, "notifications/announcement_list.html", context)
+
+
+@login_required
+def announcement_detail(request, pk) -> HttpResponse:
+    """Exibe o comunicado selecionado pela listagem."""
+    announcement = AnnouncementSelector().get_by_id(pk)
+    return render(request, "notifications/announcement_detail.html", {"announcement": announcement})

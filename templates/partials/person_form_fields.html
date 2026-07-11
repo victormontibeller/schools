@@ -1,0 +1,7 @@
+<div class="row g-2">
+    {% for field in form %}
+        {% if field.name != exclude_field %}
+            {% include "partials/form_field.html" with field=field %}
+        {% endif %}
+    {% endfor %}
+</div>

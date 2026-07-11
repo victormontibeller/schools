@@ -9,6 +9,7 @@ from activities.forms import ActivityEditForm, ActivityForm, ScoreForm
 from activities.selectors import ActivitySelector
 from activities.services import ActivityService
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+from base.listing import build_querystring, build_sorting, resolve_listing_state
 
 logger = logging.getLogger(__name__)
 
@@ -18,17 +19,43 @@ def activities_list(request):
     """Lista atividades paginadas; filtra por turma quando ?class_obj=."""
     page = int(request.GET.get("page", 1))
     class_obj_filter = request.GET.get("class_obj", "").strip()
-    search = request.GET.get("q", "").strip()
+    state = resolve_listing_state(
+        request,
+        scope="activities_list",
+        allowed_sorts={
+            "title",
+            "-title",
+            "class_obj",
+            "-class_obj",
+            "subject",
+            "-subject",
+            "type",
+            "-type",
+            "due_date",
+            "-due_date",
+            "max_score",
+            "-max_score",
+        },
+        default_sort="-due_date",
+    )
+    search, sort = state["q"], state["sort"]
     filters = {}
     if class_obj_filter:
         filters["class_obj_id"] = class_obj_filter
     if search:
         filters["title__icontains"] = search
 
-    result = ActivitySelector().list_activities(filters=filters, page=page)
+    result = ActivitySelector().list_activities(filters=filters, order_by=sort, page=page)
     ctx = {
         "result": result,
         "q": search,
+        "sort": sort,
+        "sorting": build_sorting(
+            current_sort=sort,
+            search=search,
+            sortable_fields=["title", "class_obj", "subject", "type", "due_date", "max_score"],
+        ),
+        "list_query": build_querystring({"q": search, "class_obj": class_obj_filter, "sort": sort}),
         "class_obj_filter": class_obj_filter,
         "breadcrumb_items": [
             {"label": "Home", "url": "dashboard"},

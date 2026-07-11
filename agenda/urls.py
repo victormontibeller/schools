@@ -7,6 +7,7 @@ from agenda import views
 urlpatterns = [
     path("horarios/", views.time_slots_list, name="time_slots_list"),
     path("horarios/novo/", views.time_slot_create, name="time_slot_create"),
+    path("horarios/<uuid:pk>/editar/", views.time_slot_edit, name="time_slot_edit"),
     path(
         "classes/<uuid:class_id>/schedule/",
         views.schedule_weekly,

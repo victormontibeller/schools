@@ -251,14 +251,20 @@ class AnnouncementService(BaseService):
 
             from notifications.tasks import send_announcement_email_task
 
-            send_announcement_email_task.delay(connection.schema_name, str(announcement.pk))
+            schema_name = connection.schema_name
+            transaction.on_commit(
+                lambda: send_announcement_email_task.delay(schema_name, str(announcement.pk))
+            )
 
         if announcement.send_whatsapp:
             from django.db import connection
 
             from notifications.tasks import send_announcement_whatsapp_task
 
-            send_announcement_whatsapp_task.delay(connection.schema_name, str(announcement.pk))
+            schema_name = connection.schema_name
+            transaction.on_commit(
+                lambda: send_announcement_whatsapp_task.delay(schema_name, str(announcement.pk))
+            )
 
         self._log("Comunicado enviado", announcement_id=str(announcement.pk))
         return announcement

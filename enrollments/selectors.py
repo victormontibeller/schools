@@ -95,6 +95,18 @@ class EnrollmentApplicationSelector(BaseSelector):
             "document_type"
         )
 
+    def get_document_by_id(self, document_id):
+        """Retorna documento com aluno e solicitação para download autorizado."""
+        from base.exceptions import ObjectNotFoundError
+        from enrollments.models import StudentDocument
+
+        try:
+            return StudentDocument.objects.select_related("student", "application").get(
+                pk=document_id
+            )
+        except StudentDocument.DoesNotExist:
+            raise ObjectNotFoundError("StudentDocument", str(document_id)) from None
+
     def get_student_pending_documents(self, student_id):
         """Retorna documentos pendentes de um aluno."""
         from enrollments.models import StudentDocument

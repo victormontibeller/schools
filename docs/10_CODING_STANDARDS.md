@@ -1,5 +1,7 @@
 # Coding Standards
 
+> **Escopo:** convenções de código e catálogo de helpers. As regras normativas de arquitetura, segurança e entrega estão, respectivamente, em `docs/03_ENGINEERING_RULES.md`, `docs/04_SECURITY.md` e `docs/12_DEFINITION_OF_DONE.md`.
+
 ## Ferramentas
 
 - **PEP8** — style guide base

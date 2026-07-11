@@ -36,14 +36,12 @@
             <dd class="col-sm-7 mb-0">{{ student.get_gender_display|default:"—" }}</dd>
             <dt class="col-sm-5 text-muted fw-medium">Tipo sanguíneo</dt>
             <dd class="col-sm-7 mb-0">{% if student.blood_type %}<span class="badge bg-soft-danger text-danger">{{ student.blood_type }}</span>{% else %}—{% endif %}</dd>
-            <dt class="col-sm-5 text-muted fw-medium">Nacionalidade</dt>
-            <dd class="col-sm-7 mb-0">{{ student.nationality|default:"—" }}</dd>
             <dt class="col-sm-5 text-muted fw-medium">CPF</dt>
             <dd class="col-sm-7 mb-0">{{ student.cpf|default:"—" }}</dd>
             <dt class="col-sm-5 text-muted fw-medium">RG</dt>
             <dd class="col-sm-7 mb-0">
                 {% if student.rg_number %}
-                    {{ student.rg_number }}{% if student.rg_issuer %} · {{ student.rg_issuer }}{% endif %}{% if student.rg_state %} / {{ student.rg_state }}{% endif %}
+                    {{ student.rg_number }}
                 {% else %}—{% endif %}
             </dd>
             <dt class="col-sm-5 text-muted fw-medium">Celular</dt>

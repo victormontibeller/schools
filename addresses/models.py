@@ -39,7 +39,7 @@ class SchoolAddress(BaseModel):
     """Vinculo entre School e Address."""
 
     school = models.ForeignKey(
-        "core.School",
+        "tenancy.School",
         # DO_NOTHING: o schema do tenant e removido integralmente antes do registro publico.
         on_delete=models.DO_NOTHING,
         related_name="+",

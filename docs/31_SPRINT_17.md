@@ -1,5 +1,7 @@
 # Sprint 17 — Financeiro Escolar
 
+> **Documento histórico.** Em caso de divergência, prevalecem os documentos normativos em `docs/`.
+
 ## Objetivo
 
 Disponibilizar um nucleo financeiro escolar para emissao de cobrancas, acompanhamento de inadimplencia, conciliacao basica e visao operacional de receitas.

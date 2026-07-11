@@ -396,3 +396,28 @@ class TestMonthGrid:
         assert grid["month_name"] is not None
         assert grid["prev_year"] == 2025
         assert grid["prev_month"] == 2
+
+    def test_includes_regular_and_recurring_holidays(self, user):
+        from academic_calendar.selectors import CalendarSelector
+
+        Holiday.objects.create(
+            name="Feriado municipal",
+            date=dt.date(2026, 7, 15),
+            type=Holiday.Type.MUNICIPAL,
+            created_by=user,
+            updated_by=user,
+        )
+        Holiday.objects.create(
+            name="Feriado recorrente",
+            date=dt.date(2020, 7, 20),
+            type=Holiday.Type.NATIONAL,
+            is_recurring=True,
+            created_by=user,
+            updated_by=user,
+        )
+
+        grid = CalendarSelector().get_month_grid(2026, 7)
+
+        assert grid["by_day"][dt.date(2026, 7, 15)][0]["title"] == "Feriado municipal"
+        assert grid["by_day"][dt.date(2026, 7, 15)][0]["type"] == "holiday"
+        assert grid["by_day"][dt.date(2026, 7, 20)][0]["title"] == "Feriado recorrente"

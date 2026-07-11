@@ -1,45 +1,94 @@
 """Views HTMX para grade horária."""
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
 from agenda.forms import ScheduleForm, TimeSlotForm
 from agenda.selectors import ScheduleSelector, TimeSlotSelector
 from agenda.services import ScheduleService
-from base.exceptions import ValidationError
+from base.exceptions import BusinessRuleViolationError, ValidationError
+from base.listing import build_querystring, build_sorting, resolve_listing_state
 from classes.selectors import ClassSelector
 from teachers.selectors import TeacherSelector
 
 
 @login_required
 def time_slots_list(request):
-    """Lista horários cadastrados e o formulário de criação."""
-    result = TimeSlotSelector().list_time_slots()
-    form = TimeSlotForm()
-    return render(
+    """Lista horários cadastrados usando busca, ordenação e paginação HTMX."""
+    page = int(request.GET.get("page", 1))
+    state = resolve_listing_state(
         request,
-        "agenda/time_slots_list.html",
-        {"result": result, "form": form, "title": "Horários"},
+        scope="time_slots_list",
+        allowed_sorts={
+            "day_of_week",
+            "-day_of_week",
+            "slot_number",
+            "-slot_number",
+            "start_time",
+            "-start_time",
+            "end_time",
+            "-end_time",
+        },
+        default_sort="day_of_week",
     )
+    search = state["q"]
+    sort = state["sort"]
+    result = TimeSlotSelector().list_time_slots(search=search, order_by=sort, page=page)
+    context = {
+        "result": result,
+        "q": search,
+        "sort": sort,
+        "sorting": build_sorting(
+            current_sort=sort,
+            search=search,
+            sortable_fields=["day_of_week", "slot_number", "start_time", "end_time"],
+        ),
+        "list_query": build_querystring({"q": search, "sort": sort}),
+        "breadcrumb_items": [
+            {"label": "Home", "url": "dashboard"},
+            {"label": "Horários", "url": None},
+        ],
+    }
+    if request.headers.get("HX-Request"):
+        return render(request, "agenda/partials/time_slots_table.html", context)
+    return render(request, "agenda/time_slots_list.html", context)
 
 
 @login_required
 def time_slot_create(request):
-    """Cria uma faixa de horário; redireciona de volta para a lista."""
-    if request.method != "POST":
-        return redirect("time_slots_list")
-    form = TimeSlotForm(request.POST)
-    if form.is_valid():
+    """Cadastra uma faixa de horário no card compacto padrão."""
+    form = TimeSlotForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
         try:
             ScheduleService(user=request.user).create_time_slot(form.cleaned_data)
+            messages.success(request, "Horário cadastrado com sucesso.")
+            return redirect("time_slots_list")
         except ValidationError as exc:
-            result = TimeSlotSelector().list_time_slots()
-            return render(
-                request,
-                "agenda/time_slots_list.html",
-                {"result": result, "form": form, "title": "Horários", "errors": exc.errors},
-            )
-    return redirect("time_slots_list")
+            for field, errors in exc.errors.items():
+                for error in errors:
+                    form.add_error(field if field != "__all__" else None, error)
+    return render(request, "agenda/time_slot_form.html", {"form": form, "title": "Novo Horário"})
+
+
+@login_required
+def time_slot_edit(request, pk):
+    """Edita um horário que ainda não foi usado em uma grade."""
+    slot = TimeSlotSelector().get_by_id(pk)
+    form = TimeSlotForm(request.POST or None, instance=slot)
+    if request.method == "POST" and form.is_valid():
+        try:
+            ScheduleService(user=request.user).update_time_slot(pk, form.cleaned_data)
+            messages.success(request, "Horário atualizado com sucesso.")
+            return redirect("time_slots_list")
+        except (ValidationError, BusinessRuleViolationError) as exc:
+            if isinstance(exc, ValidationError):
+                for field, errors in exc.errors.items():
+                    for error in errors:
+                        form.add_error(field if field != "__all__" else None, error)
+            else:
+                form.add_error(None, exc.message)
+    return render(request, "agenda/time_slot_form.html", {"form": form, "title": "Editar Horário"})
 
 
 @login_required
@@ -52,7 +101,7 @@ def schedule_weekly(request, class_id):
     return render(
         request,
         "agenda/schedule_weekly.html",
-        {"class_obj": class_obj, "by_day": by_day},
+        {"class_obj": class_obj, "by_day": by_day, "has_schedules": schedules.exists()},
     )
 
 
@@ -66,7 +115,7 @@ def teacher_schedule(request, teacher_id):
     return render(
         request,
         "agenda/teacher_schedule.html",
-        {"teacher": teacher, "by_day": by_day},
+        {"teacher": teacher, "by_day": by_day, "has_schedules": schedules.exists()},
     )
 
 

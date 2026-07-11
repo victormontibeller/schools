@@ -1,14 +1,18 @@
-{% extends "form_base.html" %}
+{% extends "entity_form_base.html" %}
 
 {% block title %}{{ title }}{% endblock %}
 
 {% block breadcrumb %}
-<li class="breadcrumb-item"><a href="{% url 'business_unit_list' %}">Empresas</a></li>
+<li class="breadcrumb-item"><a href="{% url 'business_unit_list' %}">Unidades</a></li>
 {% if instance %}
-<li class="breadcrumb-item"><a href="{% url 'business_unit_detail' instance.pk %}">Empresa</a></li>
+<li class="breadcrumb-item"><a href="{% url 'business_unit_detail' instance.pk %}">Unidade</a></li>
 {% endif %}
 {% endblock %}
 
 {% block form_enctype %}enctype="multipart/form-data"{% endblock %}
+
+{% block form_fields %}
+{% include "partials/organization_form_fields.html" with organization=instance %}
+{% endblock %}
 
 {% block cancel_url %}{% if instance %}{% url 'business_unit_detail' instance.pk %}{% else %}{% url 'business_unit_list' %}{% endif %}{% endblock %}

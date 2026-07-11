@@ -24,10 +24,13 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Run ruff (linting)
-        run: ruff check base core accounts audit teachers students guardians classes rooms agenda activities academic_calendar attendance notifications dashboard addresses scripts
+        run: ruff check .
 
       - name: Run black (format check)
-        run: black --check base core accounts audit teachers students guardians classes rooms agenda activities academic_calendar attendance notifications dashboard addresses scripts
+        run: black --check .
+
+      - name: Audit Python dependencies
+        run: pip-audit -r requirements.txt
 
   test:
     name: Tests (SQLite)
@@ -92,3 +95,12 @@ jobs:
           DB_USER: postgres
           DB_PASSWORD: postgres
           DB_TEST_NAME: schools_test_db
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2

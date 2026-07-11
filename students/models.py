@@ -4,6 +4,7 @@ from django.conf import settings
 from django.db import models
 
 from base.models import BaseModel
+from base.upload_validators import validate_image_upload
 
 
 class Student(BaseModel):
@@ -47,11 +48,15 @@ class Student(BaseModel):
         default="",
         verbose_name="Tipo Sanguíneo",
     )
-    special_needs = models.JSONField(
-        default=dict, blank=True, verbose_name="Necessidades Especiais"
+    special_needs = models.TextField(
+        max_length=250, blank=True, default="", verbose_name="Necessidades Especiais"
     )
     photo = models.ImageField(
-        upload_to="students/photos/", null=True, blank=True, verbose_name="Foto"
+        upload_to="students/photos/",
+        null=True,
+        blank=True,
+        verbose_name="Foto",
+        validators=[validate_image_upload],
     )
     nationality = models.CharField(
         max_length=100, blank=True, default="Brasileiro(a)", verbose_name="Nacionalidade"

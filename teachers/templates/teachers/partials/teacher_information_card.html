@@ -42,16 +42,12 @@
             </dd>
             <dt class="col-sm-5 text-muted fw-medium">Gênero</dt>
             <dd class="col-sm-7 mb-0">{{ teacher.get_gender_display|default:"—" }}</dd>
-            <dt class="col-sm-5 text-muted fw-medium">Nacionalidade</dt>
-            <dd class="col-sm-7 mb-0">{{ teacher.nationality|default:"—" }}</dd>
             <dt class="col-sm-5 text-muted fw-medium">CPF</dt>
             <dd class="col-sm-7 mb-0">{{ teacher.cpf|default:"—" }}</dd>
             <dt class="col-sm-5 text-muted fw-medium">RG</dt>
             <dd class="col-sm-7 mb-0">
                 {% if teacher.rg_number %}
                     {{ teacher.rg_number }}
-                    {% if teacher.rg_issuer %} · {{ teacher.rg_issuer }}{% endif %}
-                    {% if teacher.rg_state %} / {{ teacher.rg_state }}{% endif %}
                 {% else %}
                     —
                 {% endif %}

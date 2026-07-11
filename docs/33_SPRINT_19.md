@@ -1,5 +1,7 @@
 # Sprint 19 — Seguranca e LGPD+
 
+> **Documento histórico.** Em caso de divergência, prevalecem os documentos normativos em `docs/`.
+
 ## Objetivo
 
 Fortalecer seguranca aplicacional e governanca de dados com foco em LGPD, trilha de auditoria ampliada, revisao de acessos e capacidade de resposta a incidentes.

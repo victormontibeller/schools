@@ -57,7 +57,7 @@ class BusinessUnitForm(forms.Form):
     logo = forms.ImageField(
         required=False,
         label="Logotipo",
-        widget=forms.ClearableFileInput(attrs={"class": "form-control"}),
+        widget=forms.ClearableFileInput(attrs={"class": "sm-profile-avatar-input"}),
     )
     academic_year_start = forms.DateField(
         required=False,
@@ -92,6 +92,12 @@ class BusinessUnitForm(forms.Form):
         label="E-mail do Responsavel",
         widget=forms.EmailInput(attrs={"class": "form-control"}),
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, field in self.fields.items():
+            if name != "logo":
+                field.required = True
 
 
 class SchoolEditForm(forms.Form):
@@ -148,7 +154,7 @@ class SchoolEditForm(forms.Form):
     logo = forms.ImageField(
         required=False,
         label="Logotipo",
-        widget=forms.ClearableFileInput(attrs={"class": "form-control"}),
+        widget=forms.ClearableFileInput(attrs={"class": "sm-profile-avatar-input"}),
     )
     academic_year_start = forms.DateField(
         required=False,
@@ -184,3 +190,9 @@ class SchoolEditForm(forms.Form):
         label="E-mail do Responsavel",
         widget=forms.EmailInput(attrs={"class": "form-control"}),
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, field in self.fields.items():
+            if name != "logo":
+                field.required = True

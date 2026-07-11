@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}{{ announcement.title }} — School Manager{% endblock %}
+{% block content %}
+<div class="page-header"><div class="page-header-left d-flex align-items-center"><div class="page-header-title"><h5 class="m-b-10">Comunicado</h5></div><ul class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li><li class="breadcrumb-item"><a href="{% url 'announcement_list' %}">Comunicados</a></li><li class="breadcrumb-item active">{{ announcement.title }}</li></ul></div></div>
+<div class="main-content"><div class="row g-3 align-items-start"><div class="col-12 col-xl-5"><div class="card sm-detail-card"><div class="card-header"><h6 class="card-title mb-0">{{ announcement.title }}</h6></div><div class="card-body"><dl class="row mb-0 sm-profile-definition"><dt class="col-sm-4 text-muted">Público</dt><dd class="col-sm-8">{{ announcement.get_audience_display }}</dd><dt class="col-sm-4 text-muted">Enviado em</dt><dd class="col-sm-8">{{ announcement.sent_at|date:"d/m/Y H:i" }}</dd></dl></div></div></div><div class="col-12 col-xl-7"><div class="card sm-detail-card"><div class="card-header"><h6 class="card-title mb-0">Mensagem</h6></div><div class="card-body">{{ announcement.body|linebreaksbr }}</div></div></div></div></div>
+{% endblock %}

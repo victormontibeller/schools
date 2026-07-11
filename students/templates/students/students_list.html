@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Alunos — School Manager{% endblock %}
+{% block title %}Alunos e Responsáveis — School Manager{% endblock %}
 
 {% block content %}
-{% include "partials/list_header.html" with list_title="Alunos" breadcrumb_items=breadcrumb_items create_url="student_create" search_url="students_list" search_target="#students-table" search_value=q sort=sort clear_query=clear_query total_count=result.total %}
+{% include "partials/list_header.html" with list_title="Alunos e Responsáveis" breadcrumb_items=breadcrumb_items create_url="student_create" search_url="students_list" search_target="#students-table" search_value=q sort=sort clear_query=clear_query total_count=result.total %}
 {% include "students/partials/students_table.html" %}
 {% include "partials/list_footer.html" %}
 {% endblock %}

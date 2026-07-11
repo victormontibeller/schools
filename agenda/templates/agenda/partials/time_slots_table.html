@@ -1,0 +1,31 @@
+<div class="table-responsive">
+    <table class="table table-hover mb-0">
+        <thead>
+            <tr>
+                {% for field, label in sorting.items %}
+                <th aria-sort="{{ label.aria_sort }}">
+                    <a href="?{{ label.query }}" class="sm-sort-link{% if label.active %} is-active{% endif %}"
+                       hx-get="?{{ label.query }}" hx-target="#time-slots-table" hx-swap="innerHTML">
+                        {% if field == "day_of_week" %}Dia{% elif field == "slot_number" %}Nº{% elif field == "start_time" %}Início{% else %}Fim{% endif %}
+                        {% if label.direction == "asc" %}<span class="sm-sort-indicator">↑</span>{% elif label.direction == "desc" %}<span class="sm-sort-indicator">↓</span>{% endif %}
+                    </a>
+                </th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in result.items %}
+            <tr><td><a href="{% url 'time_slot_edit' t.pk %}" class="fw-semibold">{{ t.get_day_of_week_display }}</a></td><td>{{ t.slot_number }}</td><td>{{ t.start_time|time:"H:i" }}</td><td>{{ t.end_time|time:"H:i" }}</td></tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-center text-muted py-4">Nenhum horário cadastrado.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if result.total_pages > 1 %}
+    <div class="d-flex justify-content-center py-3"><ul class="pagination pagination-sm mb-0">
+        {% if result.has_previous %}<li class="page-item"><a class="page-link" hx-get="?page={{ result.page|add:'-1' }}&{{ list_query }}" hx-target="#time-slots-table" hx-swap="innerHTML" aria-label="Página anterior">«</a></li>{% endif %}
+        <li class="page-item active"><span class="page-link">{{ result.page }} / {{ result.total_pages }}</span></li>
+        {% if result.has_next %}<li class="page-item"><a class="page-link" hx-get="?page={{ result.page|add:'1' }}&{{ list_query }}" hx-target="#time-slots-table" hx-swap="innerHTML" aria-label="Próxima página">»</a></li>{% endif %}
+    </ul></div>
+    {% endif %}
+</div>

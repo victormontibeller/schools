@@ -1,8 +1,8 @@
 """Testes de integracao das views de disciplinas."""
 
 import pytest
-from django.core.files.uploadedfile import SimpleUploadedFile
 
+from base.tests.images import png_upload
 from core.models import CustomUser
 from teachers.models import Subject
 from teachers.services import TeacherService
@@ -77,7 +77,19 @@ class TestTeacherInlineEditing:
             last_name="Inline",
         )
         return TeacherService(user=user).create_teacher(
-            {"user_id": target.pk, "registration_number": "INLINE-001"}
+            {
+                "user_id": target.pk,
+                "registration_number": "INLINE-001",
+                "hire_date": "2020-01-15",
+                "birth_date": "1990-05-20",
+                "gender": "M",
+                "nationality": "Brasileira",
+                "cpf": "529.982.247-25",
+                "rg_number": "1234567",
+                "rg_issuer": "SSP",
+                "rg_state": "SP",
+                "phone_mobile": "11999990000",
+            }
         )
 
     def test_detail_exposes_inline_edit_and_subject_actions(self, force_login_client, user):
@@ -104,15 +116,7 @@ class TestTeacherInlineEditing:
 
     def test_edit_post_updates_and_returns_card_for_htmx(self, force_login_client, user):
         teacher = self._make_teacher(user)
-        avatar = SimpleUploadedFile(
-            "inline-avatar.gif",
-            (
-                b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00"
-                b"\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00"
-                b"\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"
-            ),
-            content_type="image/gif",
-        )
+        avatar = png_upload("inline-avatar.png")
 
         response = force_login_client.post(
             f"/teachers/{teacher.pk}/editar/",

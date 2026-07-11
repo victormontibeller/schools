@@ -1,5 +1,7 @@
 # Sprint 05 - Identificacao Cadastral
 
+> **Documento histórico.** Em caso de divergência, prevalecem os documentos normativos em `docs/`.
+
 ## Objetivo
 
 Padronizar os dados pessoais, documentais e de contato de Guardians, Students e Teachers para garantir consistencia de cadastro, melhor rastreabilidade administrativa e base segura para futuras regras academicas e operacionais.

@@ -17,6 +17,9 @@ Nenhuma funcionalidade crítica poderá existir sem logs, métricas e eventos as
 | **Loki** | Coleta, indexação e consulta de logs |
 | **OpenTelemetry** | Instrumentação, traces distribuídos e correlação |
 
+O runtime de produção usa `opentelemetry-instrument` no web e nos workers, exportando OTLP para
+o Collector interno definido no stack Swarm. Métricas exigem Bearer token no acesso direto.
+
 ---
 
 ## Logs Estruturados
@@ -92,3 +95,6 @@ Alertas deverão ser configurados para:
 - Fila Celery com mais de 1000 mensagens pendentes
 - Falha em worker Celery
 - Banco de dados inatingível
+
+As regras iniciais ficam em `docker/prometheus/alerts.yml`; novas operações críticas devem incluir
+alerta ou justificar explicitamente sua ausência.

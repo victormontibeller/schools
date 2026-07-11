@@ -41,6 +41,7 @@
 }
 
 .nxl-navigation .logo-lg {
+    color: #0f172a !important;
     white-space: nowrap;
 }
 
@@ -609,4 +610,229 @@
     .header-user-button {
         transform: none;
     }
+}
+
+/* Modo escuro: complementa o app-skin-dark nativo nos componentes do School Manager. */
+html.app-skin-dark .header-action-button,
+html.app-skin-dark .header-user-button {
+    border-color: #273550;
+    color: #cbd5e1;
+    background: #0f172a;
+}
+
+html.app-skin-dark .nxl-navigation .m-header .logo-lg {
+    color: #fff !important;
+    filter: none !important;
+}
+
+html.app-skin-dark .header-action-button:hover,
+html.app-skin-dark .header-user-button:hover,
+html.app-skin-dark .header-user-button[aria-expanded="true"] {
+    border-color: #3b82f6;
+    color: #fff;
+    background: #1e293b;
+}
+
+html.app-skin-dark .header-school-brand,
+html.app-skin-dark .sm-subject-item,
+html.app-skin-dark .sm-detail-list-item,
+html.app-skin-dark .sm-dashboard-hero,
+html.app-skin-dark .sm-dashboard-panel,
+html.app-skin-dark .sm-dashboard-chip,
+html.app-skin-dark .sm-dashboard-module,
+html.app-skin-dark .sm-search-clear,
+html.app-skin-dark .header-notification-panel {
+    border-color: #273550;
+    color: #e2e8f0;
+    background: #0f172a;
+}
+
+html.app-skin-dark .header-school-brand:hover,
+html.app-skin-dark .sm-search-clear:hover {
+    border-color: #3b82f6;
+    color: #fff;
+    background: #1e293b;
+}
+
+html.app-skin-dark .sm-profile-card,
+html.app-skin-dark .sm-detail-card,
+html.app-skin-dark .sm-profile-avatar,
+html.app-skin-dark .sm-subject-item,
+html.app-skin-dark .sm-detail-list-item,
+html.app-skin-dark .sm-dashboard-panel,
+html.app-skin-dark .sm-dashboard-chip,
+html.app-skin-dark .sm-dashboard-module {
+    border-color: #273550;
+    box-shadow: none;
+}
+
+html.app-skin-dark .sm-dashboard-title,
+html.app-skin-dark .header-school-brand,
+html.app-skin-dark .header-school-brand:hover {
+    color: #f8fafc;
+}
+
+html.app-skin-dark .header-notification-panel-head,
+html.app-skin-dark .header-notification-panel-foot,
+html.app-skin-dark .header-notification-item {
+    border-color: #273550;
+}
+
+html.app-skin-dark .header-notification-item:hover {
+    background: rgba(148, 163, 184, 0.15);
+}
+
+html.app-skin-dark #calendar-workspace .table.sm-calendar-grid > thead > tr > th {
+    border-color: #273550;
+    color: #cbd5e1;
+    background: #16213d;
+}
+
+html.app-skin-dark #calendar-workspace .table.sm-calendar-grid > tbody > tr > td {
+    border-color: #273550;
+}
+
+html.app-skin-dark #calendar-workspace .sm-calendar-grid .is-outside {
+    background: #111827;
+}
+
+html.app-skin-dark #calendar-workspace .sm-calendar-day:hover {
+    background: #1e293b;
+}
+
+html.app-skin-dark #calendar-workspace .sm-calendar-grid .is-selected .sm-calendar-day {
+    background: #1e3a5f;
+}
+
+html.app-skin-dark #calendar-workspace .sm-calendar-summary span {
+    color: #cbd5e1;
+}
+/* Calendário mensal: regras isoladas para não sofrer colisão com tabelas do tema. */
+#calendar-workspace .table.sm-calendar-grid {
+    width: 100%;
+    margin-bottom: 0;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+#calendar-workspace .table.sm-calendar-grid > thead > tr > th {
+    padding: .65rem .5rem;
+    border: 1px solid #e4e8ef;
+    border-right-width: 0;
+    background: #f8f9fc;
+    color: #6b7280;
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+#calendar-workspace .table.sm-calendar-grid > thead > tr > th:last-child {
+    border-right-width: 1px;
+}
+
+#calendar-workspace .table.sm-calendar-grid > tbody > tr {
+    height: 105px;
+}
+
+#calendar-workspace .table.sm-calendar-grid > tbody > tr > td {
+    height: 105px;
+    min-height: 105px;
+    padding: 0;
+    border: 1px solid #e4e8ef;
+    border-top-width: 0;
+    border-right-width: 0;
+    vertical-align: top;
+}
+
+#calendar-workspace .table.sm-calendar-grid > tbody > tr > td:last-child {
+    border-right-width: 1px;
+}
+
+#calendar-workspace .sm-calendar-day {
+    display: flex;
+    min-height: 104px;
+    height: 100%;
+    flex-direction: column;
+    padding: .7rem;
+    border-radius: 0;
+    color: inherit;
+    text-decoration: none;
+}
+
+#calendar-workspace .sm-calendar-day:hover {
+    background: #f3f5ff;
+    color: inherit;
+}
+
+#calendar-workspace .sm-calendar-grid .is-outside {
+    background: #f7f8fa;
+}
+
+#calendar-workspace .sm-calendar-grid .is-outside .sm-calendar-day {
+    color: #aeb6c3;
+    opacity: .68;
+}
+
+#calendar-workspace .sm-calendar-grid .is-today .sm-calendar-day {
+    box-shadow: inset 0 0 0 1px #4361ee;
+}
+
+#calendar-workspace .sm-calendar-grid .is-selected .sm-calendar-day {
+    background: #eef1ff;
+    box-shadow: inset 0 0 0 2px #4361ee;
+}
+
+#calendar-workspace .sm-calendar-date {
+    font-weight: 700;
+}
+
+#calendar-workspace .sm-calendar-summary {
+    display: grid;
+    gap: .2rem;
+    margin-top: .45rem;
+    overflow: hidden;
+}
+
+#calendar-workspace .sm-calendar-summary span {
+    display: block;
+    overflow: hidden;
+    padding-left: .35rem;
+    border-left: 2px solid #4361ee;
+    color: #525b6c;
+    font-size: .67rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#calendar-workspace .sm-calendar-summary .type-holiday,
+#calendar-workspace .sm-calendar-summary .type-non_school_day {
+    border-left-color: #e74c3c;
+}
+
+#calendar-workspace .sm-calendar-summary .type-assessment { border-left-color: #f0ad4e; }
+#calendar-workspace .sm-calendar-summary .type-meeting { border-left-color: #2da9ef; }
+#calendar-workspace .sm-calendar-summary small { color: #6b7280; font-size: .66rem; font-weight: 700; }
+#calendar-workspace .sm-day-agenda { display: grid; gap: .65rem; }
+#calendar-workspace .sm-agenda-item { align-items: flex-start; border-left: 3px solid #4361ee; color: inherit; display: flex; gap: .75rem; padding: .55rem .25rem .55rem .75rem; text-decoration: none; }
+#calendar-workspace .sm-agenda-item:hover { background: #f8f9ff; color: inherit; }
+#calendar-workspace .sm-agenda-item.is-holiday { border-left-color: #e74c3c; }
+#calendar-workspace .sm-agenda-time { color: #6b7280; flex: 0 0 58px; font-size: .72rem; font-weight: 700; padding-top: .1rem; }
+#calendar-workspace .sm-agenda-content { display: grid; gap: .1rem; min-width: 0; }
+#calendar-workspace .sm-agenda-content strong { font-size: .86rem; }
+#calendar-workspace .sm-agenda-content small { color: #6b7280; font-size: .75rem; }
+
+@media (max-width: 575.98px) {
+    #calendar-workspace .table.sm-calendar-grid > tbody > tr,
+    #calendar-workspace .table.sm-calendar-grid > tbody > tr > td {
+        height: 96px;
+        min-height: 96px;
+    }
+
+    #calendar-workspace .sm-calendar-day {
+        min-height: 95px;
+        padding: .45rem;
+    }
+
+    #calendar-workspace .sm-calendar-summary span { font-size: .58rem; }
 }

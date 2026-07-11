@@ -1,0 +1,38 @@
+<div class="card mb-3 sm-profile-card" id="student-guardians-card">
+    <form method="post" enctype="multipart/form-data"
+          hx-post="{% url 'student_guardian_create' student.pk %}"
+          hx-encoding="multipart/form-data"
+          hx-target="#student-guardians-card" hx-swap="outerHTML">
+        {% csrf_token %}
+        <div class="card-header d-flex align-items-center justify-content-between gap-2">
+            <h6 class="card-title mb-0">Novo responsável</h6>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary"
+                        hx-get="{% url 'student_guardians_component' student.pk %}"
+                        hx-target="#student-guardians-card" hx-swap="outerHTML">Cancelar</button>
+                <button class="btn btn-sm btn-primary" type="submit"><i class="feather-check me-1"></i> Salvar e vincular</button>
+            </div>
+        </div>
+        <div class="card-body sm-profile-card-body">
+            <div class="mb-4 pb-4 border-bottom">
+                <label class="form-label fw-semibold" for="guardian-search">Buscar responsável já cadastrado</label>
+                <input id="guardian-search" class="form-control" name="q" placeholder="Nome, CPF ou e-mail"
+                       hx-get="{% url 'student_guardian_search' student.pk %}"
+                       hx-trigger="keyup changed delay:300ms, search" hx-target="#guardian-search-results">
+                <div id="guardian-search-results"></div>
+            </div>
+            {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+            <div class="sm-profile-hero d-flex flex-column flex-sm-row align-items-center text-center text-sm-start gap-3 pb-4 mb-4 border-bottom">
+                <div class="sm-profile-avatar-picker flex-shrink-0">
+                    <label for="{{ form.avatar.id_for_label }}" class="sm-profile-avatar-edit mb-0">
+                        <div class="avatar-text avatar-xl bg-soft-purple text-purple" style="width:72px;height:72px;font-size:1.75rem">{{ form.first_name.value|default:"R"|first|upper }}</div>
+                    </label>
+                    {{ form.avatar }}
+                    {% if form.avatar.errors %}<div class="invalid-feedback d-block text-center mt-2">{{ form.avatar.errors }}</div>{% endif %}
+                </div>
+                <div><h5 class="mb-1">Novo responsável</h5><p class="text-muted mb-0">Selecione a foto para adicionar um avatar.</p></div>
+            </div>
+            {% include "partials/person_form_fields.html" with form=form exclude_field="avatar" %}
+        </div>
+    </form>
+</div>
