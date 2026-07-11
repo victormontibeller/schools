@@ -52,18 +52,18 @@ _LANDING_FEATURES = [
     },
     {
         "icon": "feather-shield",
-        "title": "Multi-escola Seguro",
+        "title": "Dados protegidos por escola",
         "desc": (
-            "Isolamento por schema PostgreSQL — cada escola enxerga apenas os "
-            "próprios dados, com auditoria completa."
+            "Cada instituição trabalha em um espaço isolado, com permissões "
+            "e histórico de alterações."
         ),
     },
     {
         "icon": "feather-bar-chart-2",
-        "title": "Auditoria & Observabilidade",
+        "title": "Visão e rastreabilidade",
         "desc": (
-            "Toda operação é registrada com usuário, IP e correlation ID. "
-            "Logs estruturados prontos para produção."
+            "Indicadores operacionais e registros de auditoria ajudam a equipe "
+            "a acompanhar decisões e mudanças."
         ),
     },
 ]
@@ -74,6 +74,9 @@ _LANDING_PLANS = [
         "price": "R$ 299",
         "period": "/mês",
         "highlight": False,
+        "description": "Para organizar a rotina de uma unidade escolar.",
+        "cta_label": "Testar por 7 dias",
+        "cta_url": "demo_signup",
         "features": [
             "1 escola (tenant)",
             "Até 300 alunos",
@@ -86,11 +89,14 @@ _LANDING_PLANS = [
         "price": "R$ 699",
         "period": "/mês",
         "highlight": True,
+        "description": "Para escolas que querem uma operação acadêmica completa.",
+        "cta_label": "Testar por 7 dias",
+        "cta_url": "demo_signup",
         "features": [
             "3 escolas (tenants)",
             "Alunos ilimitados",
             "Atividades, notas e relatórios",
-            "Notificações por e-mail e WhatsApp",
+            "Comunicados e notificações por e-mail",
             "Suporte prioritário",
         ],
     },
@@ -99,12 +105,15 @@ _LANDING_PLANS = [
         "price": "Sob consulta",
         "period": "",
         "highlight": False,
+        "description": "Para redes que precisam de visão consolidada e implantação acompanhada.",
+        "cta_label": "Falar com especialista",
+        "cta_href": "mailto:contato@schoolmanager.dev?subject=Plano%20Rede",
         "features": [
             "Escolas ilimitadas",
-            "Dashboards executivos",
-            "SSO/LDAP e API",
+            "Dashboards executivos e visão multi-escola",
+            "Perfis de acesso e auditoria centralizada",
             "Onboarding dedicado",
-            "SLA garantido",
+            "Suporte para implantação",
         ],
     },
 ]
@@ -127,15 +136,15 @@ _LANDING_FAQS = [
     {
         "q": "Consigo migrar de outro sistema?",
         "a": (
-            "Sim. Importamos alunos e professores via CSV/planilha, e "
-            "aceleramos o cadastro inicial assim que você assina."
+            "A plataforma possui importação de alunos via CSV. Outros dados "
+            "podem ser avaliados com a equipe durante a implantação."
         ),
     },
     {
         "q": "Tem teste grátis?",
         "a": (
-            "Você pode experimentar o ambiente de demonstração agora mesmo e "
-            "solicitar 14 dias grátis antes de assinar."
+            "Sim. Crie seu acesso ao ambiente demonstrativo e explore os principais "
+            "fluxos por sete dias antes de decidir."
         ),
     },
 ]

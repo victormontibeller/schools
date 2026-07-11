@@ -7,7 +7,16 @@
 - Django Templates renderiza a tela inicial; HTMX atualiza somente o menor fragmento necessário.
 - O tema é Duralux sobre Bootstrap 5. Assets são locais via `{% static %}`; não usar Bootstrap por CDN.
 - Usar Feather Icons e evitar JavaScript customizado complexo. Alpine.js só pode controlar estado local.
-- Toda tela herda de `base.html`; formulários herdam de `form_base.html`, `person_form_base.html` ou `entity_form_base.html` conforme o caso.
+- Telas autenticadas herdam de `base.html`; formulários herdam de `form_base.html`, `person_form_base.html` ou `entity_form_base.html` conforme o caso. Páginas públicas podem seguir a exceção standalone definida abaixo.
+
+## Páginas públicas e landing pages
+
+- Landing pages públicas podem usar layout standalone quando a navegação, a hierarquia e o objetivo de conversão forem diferentes da aplicação autenticada.
+- Bootstrap, Feather Icons, estilos e scripts continuam sendo assets locais via `{% static %}`; não adicionar CDN, rastreadores ou bibliotecas de animação apenas para efeitos visuais.
+- A página deve manter HTML semântico, um único `h1`, skip link, foco visível, navegação real por `href` e controles com nome e relacionamentos ARIA adequados.
+- Animações devem reforçar hierarquia e feedback, ocorrer uma única vez quando possível e respeitar `prefers-reduced-motion`. Não usar scroll-jacking, parallax agressivo, contadores artificiais ou movimento indispensável à compreensão.
+- Mockups e indicadores demonstrativos precisam ser identificados como exemplos visuais; não podem ser apresentados como métricas comerciais, prova social ou garantia de resultado.
+- Conteúdo comercial anuncia somente integrações, canais, importações e níveis de serviço realmente disponíveis. O CTA principal deve apontar para um fluxo público existente e manter fallback sem JavaScript.
 
 ## Tema claro e escuro
 
