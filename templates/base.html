@@ -19,7 +19,7 @@
     <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
     <link rel="stylesheet" href="{% static 'css/vendors.min.css' %}">
     <link rel="stylesheet" href="{% static 'css/theme.min.css' %}">
-    <link rel="stylesheet" href="{% static 'css/school-manager.css' %}?v=20260710-dark-mode-4">
+    <link rel="stylesheet" href="{% static 'css/school-manager.css' %}?v=20260711-partial-navigation">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -42,7 +42,7 @@
                 </a>
             </div>
             <div class="navbar-content">
-                <ul class="nxl-navbar">
+                <ul class="nxl-navbar" id="school-navigation">
                     {% if is_platform_schema %}
                     <li class="nxl-item nxl-caption"><label>Plataforma</label></li>
                     <li class="nxl-item">
@@ -76,151 +76,7 @@
                         </a>
                     </li>
                     {% else %}
-                    <li class="nxl-item nxl-caption"><label>Dashboard</label></li>
-                    <li class="nxl-item">
-                        <a href="{% url 'school_dashboard' %}" class="nxl-link sm-menu-link">
-                            <span class="nxl-micon"><i class="feather-airplay"></i></span>
-                            <span class="nxl-mtext">Painel</span>
-                        </a>
-                    </li>
-                    {% if request.user.is_staff %}
-                    <li class="nxl-item">
-                        <a href="{% url 'executive_dashboard' %}" class="nxl-link sm-menu-link">
-                            <span class="nxl-micon"><i class="feather-bar-chart-2"></i></span>
-                            <span class="nxl-mtext">Executivo</span>
-                        </a>
-                    </li>
-                    {% endif %}
-                    <li class="nxl-item nxl-caption"><label>Acadêmico</label></li>
-                    {% if accessible_modules|module_allowed:'teachers' %}
-                    <li class="nxl-item">
-                        <a href="{% url 'teachers_list' %}" class="nxl-link sm-menu-link">
-                            <span class="nxl-micon"><i class="feather-book-open"></i></span>
-                            <span class="nxl-mtext">Professores</span>
-                        </a>
-                    </li>
-                    <li class="nxl-item">
-                        <a href="{% url 'subjects_list' %}" class="nxl-link sm-menu-link">
-                            <span class="nxl-micon"><i class="feather-book"></i></span>
-                            <span class="nxl-mtext">Disciplinas</span>
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if accessible_modules|module_allowed:'students' %}
-                    <li class="nxl-item">
-                        <a href="{% url 'students_list' %}" class="nxl-link sm-menu-link">
-                            <span class="nxl-micon"><i class="feather-user-check"></i></span>
-                            <span class="nxl-mtext">Alunos e Responsáveis</span>
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if accessible_modules|module_allowed:'classes' %}
-                    <li class="nxl-item">
-                        <a href="{% url 'classes_list' %}" class="nxl-link sm-menu-link">
-                            <span class="nxl-micon"><i class="feather-layers"></i></span>
-                            <span class="nxl-mtext">Turmas</span>
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if accessible_modules|module_allowed:'rooms' %}
-                    <li class="nxl-item">
-                        <a href="{% url 'rooms_list' %}" class="nxl-link sm-menu-link">
-                            <span class="nxl-micon"><i class="feather-home"></i></span>
-                            <span class="nxl-mtext">Salas</span>
-                        </a>
-                    </li>
-                    {% endif %}
-                    <li class="nxl-item nxl-caption"><label>Secretaria</label></li>
-                    {% if accessible_modules|module_allowed:'enrollments' %}
-                    <li class="nxl-item">
-                        <a href="{% url 'secretary_dashboard' %}" class="nxl-link sm-menu-link">
-                            <span class="nxl-micon"><i class="feather-file-text"></i></span>
-                            <span class="nxl-mtext">Matrículas</span>
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if accessible_modules|module_allowed:'financeiro' %}
-                    <li class="nxl-item">
-                        <a href="{% url 'finance_dashboard' %}" class="nxl-link sm-menu-link">
-                            <span class="nxl-micon"><i class="feather-credit-card"></i></span>
-                            <span class="nxl-mtext">Financeiro</span>
-                        </a>
-                    </li>
-                    {% endif %}
-                    <li class="nxl-item nxl-caption"><label>Coordenação</label></li>
-                    {% if accessible_modules|module_allowed:'activities' %}
-                    <li class="nxl-item">
-                        <a href="{% url 'activities_list' %}" class="nxl-link sm-menu-link">
-                            <span class="nxl-micon"><i class="feather-edit-3"></i></span>
-                            <span class="nxl-mtext">Atividades</span>
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if accessible_modules|module_allowed:'attendance' %}
-                    <li class="nxl-item">
-                        <a href="{% url 'attendance_records_list' %}" class="nxl-link sm-menu-link">
-                            <span class="nxl-micon"><i class="feather-check-circle"></i></span>
-                            <span class="nxl-mtext">Frequência</span>
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if accessible_modules|module_allowed:'agenda' %}
-                    <li class="nxl-item">
-                        <a href="{% url 'time_slots_list' %}" class="nxl-link sm-menu-link">
-                            <span class="nxl-micon"><i class="feather-clock"></i></span>
-                            <span class="nxl-mtext">Grade Horária</span>
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if accessible_modules|module_allowed:'academic_calendar' %}
-                    <li class="nxl-item">
-                        <a href="{% url 'calendar_month' %}" class="nxl-link sm-menu-link">
-                            <span class="nxl-micon"><i class="feather-calendar"></i></span>
-                            <span class="nxl-mtext">Calendário</span>
-                        </a>
-                    </li>
-                    <li class="nxl-item">
-                        <a href="{% url 'holidays_list' %}" class="nxl-link sm-menu-link">
-                            <span class="nxl-micon"><i class="feather-flag"></i></span>
-                            <span class="nxl-mtext">Feriados</span>
-                        </a>
-                    </li>
-                    <li class="nxl-item">
-                        <a href="{% url 'academic_years_list' %}" class="nxl-link sm-menu-link">
-                            <span class="nxl-micon"><i class="feather-calendar"></i></span>
-                            <span class="nxl-mtext">Anos Letivos</span>
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if accessible_modules|module_allowed:'notifications' %}
-                    <li class="nxl-item">
-                        <a href="{% url 'announcement_list' %}" class="nxl-link sm-menu-link">
-                            <span class="nxl-micon"><i class="feather-message-square"></i></span>
-                            <span class="nxl-mtext">Comunicados</span>
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if accessible_modules|module_allowed:'core' %}
-                    <li class="nxl-item nxl-caption"><label>Administração</label></li>
-                    <li class="nxl-item">
-                        <a href="{% url 'business_unit_list' %}" class="nxl-link sm-menu-link">
-                            <span class="nxl-micon"><i class="feather-briefcase"></i></span>
-                            <span class="nxl-mtext">Unidades</span>
-                        </a>
-                    </li>
-                    <li class="nxl-item">
-                        <a href="{% url 'school_settings_detail' %}" class="nxl-link sm-menu-link">
-                            <span class="nxl-micon"><i class="feather-settings"></i></span>
-                            <span class="nxl-mtext">Escola</span>
-                        </a>
-                    </li>
-                    <li class="nxl-item">
-                        <a href="{% url 'users_list' %}" class="nxl-link sm-menu-link">
-                            <span class="nxl-micon"><i class="feather-users"></i></span>
-                            <span class="nxl-mtext">Usuários</span>
-                        </a>
-                    </li>
-                    {% endif %}
+                    {% include "partials/school_navigation.html" %}
                     {% endif %}
                 </ul>
             </div>
@@ -346,8 +202,14 @@
     </header>
     <!--! [End] Header -->
 
+    <div id="app-navigation-progress" class="sm-navigation-progress htmx-indicator" aria-hidden="true"></div>
+
     <!--! [Start] Main Content -->
-    <main class="nxl-container">
+    <main class="nxl-container"
+          id="app-main"
+          hx-history-elt
+          data-nav-group-id="{{ school_navigation.active_group_id }}"
+          data-nav-url-name="{{ school_navigation.active_url_name }}">
         <div class="nxl-content">
             {% if messages %}
                 <div class="px-4 pt-3">
@@ -401,12 +263,117 @@
             setTheme(!root.classList.contains("app-skin-dark"));
         });
 
-        document.querySelectorAll(".sm-menu-link").forEach(function (link) {
-            link.addEventListener("click", function () {
-                link.classList.add("is-pressed");
-                window.setTimeout(function () {
-                    link.classList.remove("is-pressed");
-                }, 220);
+        function syncSchoolNavigationAria() {
+            document.querySelectorAll(".sm-nav-group").forEach(function (group) {
+                var toggle = group.querySelector(".sm-nav-group-toggle");
+                if (toggle) {
+                    toggle.setAttribute("aria-expanded", String(group.classList.contains("nxl-trigger")));
+                }
+            });
+        }
+
+        function initializeSchoolNavigation() {
+            document.querySelectorAll(".sm-menu-link:not([data-sm-menu-ready])").forEach(function (link) {
+                link.dataset.smMenuReady = "true";
+                link.addEventListener("click", function () {
+                    link.classList.add("is-pressed");
+                    window.setTimeout(function () {
+                        link.classList.remove("is-pressed");
+                    }, 220);
+                });
+            });
+
+            document.querySelectorAll(".sm-nav-group-toggle:not([data-sm-menu-ready])").forEach(function (toggle) {
+                toggle.dataset.smMenuReady = "true";
+                toggle.addEventListener("click", function () {
+                    window.setTimeout(syncSchoolNavigationAria, 0);
+                });
+            });
+            syncSchoolNavigationAria();
+        }
+
+        function applySchoolNavigationState() {
+            var navigation = document.getElementById("school-navigation");
+            var main = document.getElementById("app-main");
+            if (!navigation || !main) {
+                return;
+            }
+
+            var activeGroupId = main.dataset.navGroupId || "";
+            var activeUrlName = main.dataset.navUrlName || "";
+
+            navigation.querySelectorAll(".nxl-item.active").forEach(function (item) {
+                item.classList.remove("active");
+            });
+            navigation.querySelectorAll(".sm-nav-group").forEach(function (group) {
+                var submenu = group.querySelector(".nxl-submenu");
+                var expanded = Boolean(submenu && submenu.id === activeGroupId);
+                group.classList.toggle("active", expanded);
+                group.classList.toggle("nxl-trigger", expanded);
+                if (submenu) {
+                    submenu.style.display = expanded ? "block" : "none";
+                }
+            });
+            navigation.querySelectorAll("[aria-current='page']").forEach(function (link) {
+                link.removeAttribute("aria-current");
+            });
+            navigation.querySelectorAll("[data-nav-url-name]").forEach(function (link) {
+                if (link.dataset.navUrlName === activeUrlName) {
+                    link.setAttribute("aria-current", "page");
+                    var item = link.closest(".nxl-item");
+                    if (item) {
+                        item.classList.add("active");
+                    }
+                }
+            });
+            syncSchoolNavigationAria();
+        }
+
+        var sidebarContent = document.querySelector(".sm-fixed-sidebar .navbar-content");
+        if (sidebarContent) {
+            sidebarContent.addEventListener("focusin", function (event) {
+                if (event.target.closest(".nxl-link")) {
+                    event.target.scrollIntoView({block: "nearest", inline: "nearest"});
+                }
+            });
+        }
+        initializeSchoolNavigation();
+
+        document.body.addEventListener("htmx:afterSettle", function (event) {
+            if (!event.detail.requestConfig || !event.detail.requestConfig.boosted) {
+                return;
+            }
+            applySchoolNavigationState();
+            if (window.innerWidth <= 1024 && typeof window.rmmenu === "function") {
+                window.rmmenu();
+            }
+        });
+
+        document.body.addEventListener("htmx:historyRestore", function () {
+            applySchoolNavigationState();
+        });
+
+        document.body.addEventListener("htmx:beforeSwap", function (event) {
+            var config = event.detail.requestConfig;
+            if (!config || !config.boosted) {
+                return;
+            }
+            var responseDocument = new DOMParser().parseFromString(
+                event.detail.serverResponse,
+                "text/html"
+            );
+            if (!responseDocument.querySelector("#app-main")) {
+                event.detail.shouldSwap = false;
+                window.location.assign(event.detail.xhr.responseURL || config.path);
+            }
+        });
+
+        ["htmx:responseError", "htmx:sendError", "htmx:timeout"].forEach(function (eventName) {
+            document.body.addEventListener(eventName, function (event) {
+                var config = event.detail.requestConfig;
+                if (config && config.boosted) {
+                    window.location.assign(event.detail.xhr.responseURL || config.path);
+                }
             });
         });
 

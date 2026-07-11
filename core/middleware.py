@@ -73,6 +73,21 @@ class SecurityHeadersMiddleware:
         return response
 
 
+class HtmxBoostMiddleware:
+    """Diferencia navegacao boosted de requisicoes HTMX de componentes."""
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        """Faz views renderizarem o documento completo em navegacao boosted."""
+        if request.META.get("HTTP_HX_BOOSTED", "").lower() == "true":
+            request.is_htmx_boosted = True
+            request.META.pop("HTTP_HX_REQUEST", None)
+            request.__dict__.pop("headers", None)
+        return self.get_response(request)
+
+
 class CorrelationIdMiddleware:
     """Gera/lê X-Correlation-ID e armazena em context var."""
 

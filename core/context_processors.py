@@ -39,3 +39,23 @@ def accessible_modules(request):
         "accessible_modules": (frozenset() if is_platform else modules_for_user(request.user)),
         "is_platform_schema": is_platform,
     }
+
+
+def school_navigation(request):
+    """Disponibiliza a navegacao escolar autorizada e o grupo da rota atual."""
+    from core.navigation import build_school_navigation
+    from core.tenant_routing import is_platform_request
+
+    user = getattr(request, "user", None)
+    if not user or not user.is_authenticated or is_platform_request(request):
+        return {
+            "school_navigation": {
+                "direct_links": [],
+                "groups": [],
+                "active_group_id": "",
+                "active_url_name": "",
+            }
+        }
+    resolver_match = getattr(request, "resolver_match", None)
+    view_name = getattr(resolver_match, "url_name", "") or ""
+    return {"school_navigation": build_school_navigation(user, view_name)}

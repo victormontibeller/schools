@@ -1,0 +1,9 @@
+{% for announcement in data.recent_announcements %}
+<a href="{% url 'announcement_detail' announcement.id %}" class="sm-dashboard-announcement">
+    <span class="sm-dashboard-attention-icon bg-soft-info text-info"><i class="feather-bell" aria-hidden="true"></i></span>
+    <span><strong>{{ announcement.title }}</strong><small>{{ announcement.audience }} · {{ announcement.sent_at|slice:":10" }}</small></span>
+    <i class="feather-chevron-right ms-auto" aria-hidden="true"></i>
+</a>
+{% empty %}
+<div class="sm-dashboard-compact-empty">Nenhum comunicado publicado recentemente.</div>
+{% endfor %}

@@ -1,0 +1,48 @@
+<li class="nxl-item nxl-caption"><label>Navegação</label></li>
+{% for link in school_navigation.direct_links %}
+<li class="nxl-item{% if link.active %} active{% endif %}">
+    <a href="{% url link.url_name %}"
+       class="nxl-link sm-menu-link"
+       hx-boost="true"
+       hx-target="#app-main"
+       hx-select="#app-main"
+       hx-swap="outerHTML transition:true show:top"
+       hx-push-url="true"
+       hx-indicator="#app-navigation-progress"
+       data-nav-url-name="{{ link.url_name }}"{% if link.active %} aria-current="page"{% endif %}>
+        <span class="nxl-micon"><i class="{{ link.icon }}" aria-hidden="true"></i></span>
+        <span class="nxl-mtext">{{ link.label }}</span>
+    </a>
+</li>
+{% endfor %}
+
+{% for group in school_navigation.groups %}
+<li class="nxl-item nxl-hasmenu sm-nav-group{% if group.expanded %} active nxl-trigger{% endif %}">
+    <button type="button"
+            class="nxl-link sm-nav-group-toggle"
+            aria-expanded="{% if group.expanded %}true{% else %}false{% endif %}"
+            aria-controls="{{ group.id }}">
+        <span class="nxl-micon"><i class="{{ group.icon }}" aria-hidden="true"></i></span>
+        <span class="nxl-mtext">{{ group.label }}</span>
+        <span class="nxl-arrow"><i class="feather-chevron-right" aria-hidden="true"></i></span>
+    </button>
+    <ul class="nxl-submenu" id="{{ group.id }}">
+        {% for item in group.items %}
+        <li class="nxl-item{% if item.active %} active{% endif %}">
+            <a href="{% url item.url_name %}"
+               class="nxl-link sm-menu-link"
+               hx-boost="true"
+               hx-target="#app-main"
+               hx-select="#app-main"
+               hx-swap="outerHTML transition:true show:top"
+               hx-push-url="true"
+               hx-indicator="#app-navigation-progress"
+               data-nav-url-name="{{ item.url_name }}"{% if item.active %} aria-current="page"{% endif %}>
+                <span class="nxl-micon sm-submenu-icon"><i class="{{ item.icon }}" aria-hidden="true"></i></span>
+                <span class="nxl-mtext">{{ item.label }}</span>
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+</li>
+{% endfor %}

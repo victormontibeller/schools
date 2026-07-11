@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard — School Manager{% endblock %}
+{% block title %}Visão geral — School Manager{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div class="page-header-left d-flex align-items-center">
-        <div class="page-header-title"><h5 class="m-b-10">Dashboard</h5></div>
+        <div class="page-header-title"><h5 class="m-b-10">Visão geral</h5></div>
         <ul class="breadcrumb">
             <li class="breadcrumb-item">Home</li>
         </ul>
@@ -13,135 +13,26 @@
 </div>
 
 <div class="main-content">
-    <div class="card sm-dashboard-hero border-0 overflow-hidden">
-        <div class="card-body p-4 p-xl-5">
-            <div class="row g-4 align-items-center">
-                <div class="col-12 col-xl-7">
-                    <span class="sm-dashboard-eyebrow">Sprint 14 · UX e produtividade</span>
-                    <h2 class="sm-dashboard-title mt-3 mb-3">Atalhos mais rápidos para a rotina de {{ role_summary|lower }}</h2>
-                    <p class="text-muted mb-4">
-                        Centralizamos as ações que você mais usa, preservamos contexto nas listagens
-                        e reduzimos cliques para manter o fluxo de trabalho mais direto.
-                    </p>
-                    <div class="d-flex flex-wrap gap-2">
-                        {% for action in quick_actions %}
-                        <a href="{% url action.url %}" class="btn btn-primary">
-                            <i class="{{ action.icon }} me-1"></i>{{ action.label }}
-                        </a>
-                        {% endfor %}
-                    </div>
-                </div>
-                <div class="col-12 col-xl-5">
-                    <div class="sm-dashboard-panel">
-                        <div class="d-flex justify-content-between align-items-start gap-3">
-                            <div>
-                                <span class="text-uppercase text-muted small d-block">Perfil ativo</span>
-                                <h6 class="mb-1">{{ role_name }}</h6>
-                                <p class="text-muted small mb-0">Os módulos destacados abaixo foram reorganizados conforme a prioridade operacional desse perfil.</p>
-                            </div>
-                            <div class="avatar-text avatar-lg bg-soft-primary text-primary">
-                                <i class="feather-zap"></i>
-                            </div>
-                        </div>
-                        <div class="row g-2 mt-3">
-                            {% for module in featured_modules %}
-                            <div class="col-6">
-                                <a href="{% url module.url %}" class="sm-dashboard-chip">
-                                    <i class="{{ module.icon }}"></i>
-                                    <span>{{ module.name }}</span>
-                                </a>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <section class="sm-dashboard-welcome mb-3" aria-labelledby="dashboard-title">
+        <div>
+            <p class="sm-dashboard-context mb-2">
+                <span class="badge bg-soft-primary text-primary">{{ role_name }}</span>
+                <span>{% now "l, d \d\e F" %}</span>
+            </p>
+            <h2 id="dashboard-title" class="mb-2">{{ greeting }}{% if request.user.first_name %}, {{ request.user.first_name }}{% endif %}.</h2>
+            <p class="text-muted mb-0">
+                {% if current_school %}Acompanhe o que precisa de atenção hoje em {{ current_school.name }}.{% else %}Acompanhe o que precisa de atenção hoje.{% endif %}
+            </p>
         </div>
-    </div>
+        <div class="sm-dashboard-actions" aria-label="Ações rápidas">
+            {% for action in quick_actions %}
+            <a href="{% url action.url %}" class="btn {% if forloop.first %}btn-primary{% else %}btn-outline-secondary{% endif %} btn-sm">
+                <i class="{{ action.icon }} me-1" aria-hidden="true"></i>{{ action.label }}
+            </a>
+            {% endfor %}
+        </div>
+    </section>
 
-    <div class="row g-3 mt-1">
-        <div class="col-12 col-xl-7">
-            <div class="card h-100">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="card-title mb-1">Módulos em foco</h6>
-                        <p class="text-muted small mb-0">Acessos rápidos organizados pela sua rotina atual.</p>
-                    </div>
-                    <span class="badge bg-soft-primary text-primary">{{ featured_modules|length }} priorizados</span>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        {% for module in featured_modules %}
-                        <div class="col-sm-6">
-                            <a href="{% url module.url %}" class="sm-dashboard-module text-decoration-none">
-                                <div class="avatar-text avatar bg-soft-primary text-primary">
-                                    <i class="{{ module.icon }}"></i>
-                                </div>
-                                <div>
-                                    <h6 class="mb-1">{{ module.name }}</h6>
-                                    <span class="text-muted small">Abrir módulo</span>
-                                </div>
-                            </a>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-12 col-xl-5">
-            <div class="card h-100">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="card-title mb-1">Próximos eventos</h6>
-                        <p class="text-muted small mb-0">Agenda dos próximos 7 dias.</p>
-                    </div>
-                    <a href="{% url 'calendar_month' %}" class="btn btn-outline-secondary btn-sm">Ver calendário</a>
-                </div>
-                <div class="card-body p-0">
-                    <div class="list-group list-group-flush">
-                        {% for e in upcoming %}
-                        <a href="{% url 'event_detail' e.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-start gap-3">
-                            <div>
-                                <span class="text-muted small d-block">{{ e.start_date|date:"d/m/Y" }}</span>
-                                <span class="fw-semibold d-block">{{ e.title }}</span>
-                                <span class="text-muted small">{{ e.get_audience_display }}</span>
-                            </div>
-                            <span class="badge bg-soft-primary text-primary">{{ e.get_type_display }}</span>
-                        </a>
-                        {% empty %}
-                        <div class="text-center text-muted py-5">Nenhum evento nos próximos 7 dias.</div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="card mt-3">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <div>
-                <h6 class="card-title mb-1">Todos os módulos</h6>
-                <p class="text-muted small mb-0">Acesso completo aos demais fluxos da plataforma.</p>
-            </div>
-            <span class="badge bg-soft-secondary text-secondary">{{ modules|length }} módulos</span>
-        </div>
-        <div class="card-body">
-            <div class="row g-3">
-                {% for module in other_modules %}
-                <div class="col-sm-6 col-lg-4 col-xl-3">
-                    <a href="{% url module.url %}" class="sm-dashboard-module text-decoration-none h-100">
-                        <div class="avatar-text avatar bg-soft-secondary text-secondary">
-                            <i class="{{ module.icon }}"></i>
-                        </div>
-                        <div>
-                            <h6 class="mb-1">{{ module.name }}</h6>
-                            <span class="text-muted small">Abrir módulo</span>
-                        </div>
-                    </a>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
+    {% include "dashboard/partials/operational_widgets.html" %}
 </div>
 {% endblock %}

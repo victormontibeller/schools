@@ -1,0 +1,224 @@
+<div id="dashboard-widgets"
+     hx-get="{% url 'school_dashboard_partial' %}"
+     hx-trigger="every 60s"
+     hx-swap="outerHTML">
+    <section class="row g-3 mb-3" aria-label="Indicadores da escola">
+        <div class="col-12 col-sm-6 col-xl-3">
+            <a href="{% url 'students_list' %}" class="card sm-dashboard-kpi h-100 text-decoration-none">
+                <div class="card-body">
+                    <div class="sm-dashboard-kpi-icon bg-soft-primary text-primary"><i class="feather-users" aria-hidden="true"></i></div>
+                    <span class="text-muted small">Alunos ativos</span>
+                    <strong>{{ data.total_students|default_if_none:"—" }}</strong>
+                    <span class="sm-dashboard-kpi-link">Ver alunos <i class="feather-arrow-right" aria-hidden="true"></i></span>
+                </div>
+            </a>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <a href="{% url 'classes_list' %}" class="card sm-dashboard-kpi h-100 text-decoration-none">
+                <div class="card-body">
+                    <div class="sm-dashboard-kpi-icon bg-soft-info text-info"><i class="feather-layers" aria-hidden="true"></i></div>
+                    <span class="text-muted small">Turmas ativas</span>
+                    <strong>{{ data.total_classes|default_if_none:"—" }}</strong>
+                    <span class="sm-dashboard-kpi-link">Ver turmas <i class="feather-arrow-right" aria-hidden="true"></i></span>
+                </div>
+            </a>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <a href="{% url 'attendance_records_list' %}" class="card sm-dashboard-kpi h-100 text-decoration-none">
+                <div class="card-body">
+                    <div class="sm-dashboard-kpi-icon bg-soft-success text-success"><i class="feather-check-circle" aria-hidden="true"></i></div>
+                    <span class="text-muted small">Frequência hoje</span>
+                    <strong>{% if data.today_attendance %}{{ data.today_attendance.rate|floatformat:0 }}%{% else %}—{% endif %}</strong>
+                    <span class="sm-dashboard-kpi-link">Ver frequência <i class="feather-arrow-right" aria-hidden="true"></i></span>
+                </div>
+            </a>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <a href="{% url 'students_at_risk' %}" class="card sm-dashboard-kpi h-100 text-decoration-none{% if data.students_at_risk %} is-alert{% endif %}">
+                <div class="card-body">
+                    <div class="sm-dashboard-kpi-icon bg-soft-warning text-warning"><i class="feather-alert-triangle" aria-hidden="true"></i></div>
+                    <span class="text-muted small">Alunos em risco</span>
+                    <strong>{{ data.students_at_risk|default_if_none:"—" }}</strong>
+                    <span class="sm-dashboard-kpi-link">Ver acompanhamento <i class="feather-arrow-right" aria-hidden="true"></i></span>
+                </div>
+            </a>
+        </div>
+    </section>
+
+    <div class="row g-3 align-items-stretch">
+        <div class="col-12 col-xl-7">
+            <section class="card h-100" aria-labelledby="attention-title">
+                <div class="card-header">
+                    <div>
+                        <h6 id="attention-title" class="card-title mb-1">Atenção necessária</h6>
+                        <p class="text-muted small mb-0">Pendências que podem exigir uma ação da equipe.</p>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="sm-dashboard-attention-list">
+                        {% if data.students_at_risk %}
+                        <a href="{% url 'students_at_risk' %}" class="sm-dashboard-attention-item">
+                            <span class="sm-dashboard-attention-icon bg-soft-warning text-warning"><i class="feather-alert-triangle" aria-hidden="true"></i></span>
+                            <span><strong>{{ data.students_at_risk }} aluno{{ data.students_at_risk|pluralize }} em risco</strong><small>Frequência abaixo do limite recomendado.</small></span>
+                            <i class="feather-chevron-right ms-auto" aria-hidden="true"></i>
+                        </a>
+                        {% endif %}
+                        {% if data.financial_kpis.total_vencido and can_view_financial %}
+                        <a href="{% url 'finance_overdue_report' %}" class="sm-dashboard-attention-item">
+                            <span class="sm-dashboard-attention-icon bg-soft-danger text-danger"><i class="feather-credit-card" aria-hidden="true"></i></span>
+                            <span><strong>R$ {{ data.financial_kpis.total_vencido|floatformat:2 }} em atraso</strong><small>Cobranças vencidas aguardando acompanhamento.</small></span>
+                            <i class="feather-chevron-right ms-auto" aria-hidden="true"></i>
+                        </a>
+                        {% endif %}
+                        {% for activity in data.pending_activities %}
+                        <a href="{% url 'activity_detail' activity.id %}" class="sm-dashboard-attention-item">
+                            <span class="sm-dashboard-attention-icon bg-soft-primary text-primary"><i class="feather-edit-3" aria-hidden="true"></i></span>
+                            <span><strong>{{ activity.title }}</strong><small>{{ activity.subject }} · {{ activity.class_obj }} · entrega {{ activity.due_date }}</small></span>
+                            <i class="feather-chevron-right ms-auto" aria-hidden="true"></i>
+                        </a>
+                        {% empty %}{% endfor %}
+                        {% if not has_visible_attention %}
+                        <div class="sm-dashboard-empty">
+                            <i class="feather-check-circle" aria-hidden="true"></i>
+                            <strong>Nenhuma pendência prioritária.</strong>
+                            <span>Está tudo em dia por aqui.</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="col-12 col-xl-5">
+            <section class="card h-100" aria-labelledby="agenda-title">
+                <div class="card-header d-flex justify-content-between align-items-center gap-3">
+                    <div>
+                        <h6 id="agenda-title" class="card-title mb-1">Agenda</h6>
+                        <p class="text-muted small mb-0">Próximos 7 dias.</p>
+                    </div>
+                    <a href="{% url 'calendar_month' %}" class="btn btn-outline-secondary btn-sm">Ver calendário</a>
+                </div>
+                <div class="card-body p-0">
+                    {% for event in data.upcoming_events %}
+                    <a href="{% url 'event_detail' event.id %}" class="sm-dashboard-event">
+                        <span class="sm-dashboard-event-date"><strong>{{ event.start_date|slice:"8:10" }}</strong><small>{{ event.start_date|slice:"5:7" }}/{{ event.start_date|slice:"0:4" }}</small></span>
+                        <span><strong>{{ event.title }}</strong><small>{{ event.type }}</small></span>
+                        <i class="feather-chevron-right ms-auto" aria-hidden="true"></i>
+                    </a>
+                    {% empty %}
+                    <div class="sm-dashboard-empty">
+                        <i class="feather-calendar" aria-hidden="true"></i>
+                        <strong>Nenhum evento próximo.</strong>
+                        <span>A agenda dos próximos 7 dias está livre.</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <div class="row g-3 mt-0 align-items-stretch">
+        <div class="col-12 col-lg-6 col-xl-4">
+            <section class="card h-100" aria-labelledby="school-summary-title">
+                <div class="card-header">
+                    <div>
+                        <h6 id="school-summary-title" class="card-title mb-1">Resumo da escola</h6>
+                        <p class="text-muted small mb-0">Estrutura e movimentação atual.</p>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="sm-dashboard-summary-grid">
+                        <a href="{% url 'teachers_list' %}" class="sm-dashboard-summary-item">
+                            <span>Professores ativos</span><strong>{{ data.total_teachers|default_if_none:"—" }}</strong>
+                        </a>
+                        <a href="{% url 'guardians_list' %}" class="sm-dashboard-summary-item">
+                            <span>Responsáveis ativos</span><strong>{{ data.total_guardians|default_if_none:"—" }}</strong>
+                        </a>
+                        <a href="{% url 'activities_list' %}" class="sm-dashboard-summary-item">
+                            <span>Atividades próximas</span><strong>{{ data.pending_activities|length }}</strong>
+                        </a>
+                        <a href="{% url 'calendar_month' %}" class="sm-dashboard-summary-item">
+                            <span>Eventos próximos</span><strong>{{ data.upcoming_events|length }}</strong>
+                        </a>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="col-12 col-lg-6 col-xl-4">
+            <section class="card h-100" aria-labelledby="weekly-attendance-title">
+                <div class="card-header d-flex justify-content-between align-items-center gap-3">
+                    <div>
+                        <h6 id="weekly-attendance-title" class="card-title mb-1">Frequência da semana</h6>
+                        <p class="text-muted small mb-0">Últimos sete dias.</p>
+                    </div>
+                    <a href="{% url 'attendance_records_list' %}" class="btn btn-outline-secondary btn-sm">Detalhes</a>
+                </div>
+                <div class="card-body">
+                    <div class="sm-dashboard-weekly-attendance">
+                        {% for day in data.weekly_attendance %}
+                        <div class="sm-dashboard-attendance-day">
+                            <span>{{ day.label }}</span>
+                            <div class="progress" role="progressbar" aria-label="Frequência de {{ day.label }}" aria-valuenow="{{ day.rate|default:0 }}" aria-valuemin="0" aria-valuemax="100">
+                                <div class="progress-bar {% if day.rate >= 75 %}bg-success{% elif day.rate %}bg-warning{% else %}bg-secondary{% endif %}" style="width: {{ day.rate|default:0 }}%"></div>
+                            </div>
+                            <strong>{% if day.rate is not None %}{{ day.rate|floatformat:0 }}%{% else %}—{% endif %}</strong>
+                        </div>
+                        {% empty %}
+                        <div class="sm-dashboard-compact-empty">Sem dados de frequência nesta semana.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="col-12 col-xl-4">
+            {% if can_view_financial %}
+            <section class="card h-100" aria-labelledby="financial-title">
+                <div class="card-header d-flex justify-content-between align-items-center gap-3">
+                    <div>
+                        <h6 id="financial-title" class="card-title mb-1">Panorama financeiro</h6>
+                        <p class="text-muted small mb-0">Posição atual das cobranças.</p>
+                    </div>
+                    <a href="{% url 'finance_dashboard' %}" class="btn btn-outline-secondary btn-sm">Abrir</a>
+                </div>
+                <div class="card-body">
+                    <dl class="sm-dashboard-financial mb-0">
+                        <div><dt>Em aberto</dt><dd>R$ {{ data.financial_kpis.total_aberto|default:0|floatformat:2 }}</dd></div>
+                        <div><dt>Vencido</dt><dd class="{% if data.financial_kpis.total_vencido %}text-danger{% endif %}">R$ {{ data.financial_kpis.total_vencido|default:0|floatformat:2 }}</dd></div>
+                        <div><dt>Recebido no mês</dt><dd class="text-success">R$ {{ data.financial_kpis.recebido_mes|default:0|floatformat:2 }}</dd></div>
+                    </dl>
+                </div>
+            </section>
+            {% else %}
+            <section class="card h-100" aria-labelledby="announcements-title">
+                <div class="card-header d-flex justify-content-between align-items-center gap-3">
+                    <div>
+                        <h6 id="announcements-title" class="card-title mb-1">Comunicados recentes</h6>
+                        <p class="text-muted small mb-0">Últimas publicações da escola.</p>
+                    </div>
+                    <a href="{% url 'announcement_list' %}" class="btn btn-outline-secondary btn-sm">Ver todos</a>
+                </div>
+                <div class="card-body p-0">
+                    {% include "dashboard/partials/recent_announcements.html" %}
+                </div>
+            </section>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if can_view_financial %}
+    <section class="card mt-3" aria-labelledby="announcements-title">
+        <div class="card-header d-flex justify-content-between align-items-center gap-3">
+            <div>
+                <h6 id="announcements-title" class="card-title mb-1">Comunicados recentes</h6>
+                <p class="text-muted small mb-0">Últimas publicações enviadas à comunidade escolar.</p>
+            </div>
+            <a href="{% url 'announcement_list' %}" class="btn btn-outline-secondary btn-sm">Ver todos</a>
+        </div>
+        <div class="card-body p-0">
+            {% include "dashboard/partials/recent_announcements.html" %}
+        </div>
+    </section>
+    {% endif %}
+</div>

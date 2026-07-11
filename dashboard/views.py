@@ -12,13 +12,12 @@ from dashboard.services import DashboardService
 
 @login_required
 def school_dashboard(request: HttpRequest) -> HttpResponse:
-    """Dashboard escolar com KPIs, frequencia, atividades e eventos."""
+    """Redireciona o dashboard escolar legado para a home canonica."""
     from core.tenant_routing import is_platform_request
 
     if is_platform_request(request):
         return redirect("platform_dashboard")
-    data = DashboardService(user=request.user).get_school_dashboard_data()
-    return render(request, "dashboard/school.html", {"data": data})
+    return redirect("dashboard")
 
 
 @login_required
@@ -28,8 +27,23 @@ def school_dashboard_partial(request: HttpRequest) -> HttpResponse:
 
     if is_platform_request(request):
         return redirect("platform_dashboard")
+    from core.permissions import can_access_module
+
     data = DashboardService(user=request.user).get_school_dashboard_data()
-    return render(request, "dashboard/partials/school_widgets.html", {"data": data})
+    can_view_financial = can_access_module(request.user, "financeiro")
+    return render(
+        request,
+        "dashboard/partials/operational_widgets.html",
+        {
+            "data": data,
+            "can_view_financial": can_view_financial,
+            "has_visible_attention": bool(
+                data["students_at_risk"]
+                or data["pending_activities"]
+                or (can_view_financial and data["financial_kpis"]["total_vencido"])
+            ),
+        },
+    )
 
 
 @staff_member_required

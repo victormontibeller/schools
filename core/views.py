@@ -303,21 +303,16 @@ def _dashboard_quick_actions(role_name: str) -> list[dict[str, str]]:
     return quick_actions_map.get(role_name, quick_actions_map["COORDINATOR"])
 
 
-def _dashboard_module_groups(role_name: str) -> tuple[list[str], str]:
-    """Define o foco operacional da home sem esconder os demais modulos."""
-    module_map = {
-        "ADMIN": (
-            ["Empresa", "Escola", "Usuários", "Alunos e Responsáveis"],
-            "Visão administrativa",
-        ),
-        "COORDINATOR": (
-            ["Alunos e Responsáveis", "Professores", "Turmas", "Calendário"],
-            "Operação acadêmica",
-        ),
-        "TEACHER": (["Professores", "Disciplinas", "Atividades", "Frequência"], "Rotina docente"),
-        "GUARDIAN": (["Alunos e Responsáveis", "Calendário", "Atividades"], "Acompanhamento"),
-    }
-    return module_map.get(role_name, module_map["COORDINATOR"])
+def _dashboard_greeting() -> str:
+    """Retorna uma saudacao curta conforme o horario local."""
+    from django.utils import timezone
+
+    hour = timezone.localtime().hour
+    if hour < 12:
+        return "Bom dia"
+    if hour < 18:
+        return "Boa tarde"
+    return "Boa noite"
 
 
 def _dashboard_role_label(user, role_name: str) -> str:
@@ -335,44 +330,32 @@ def _dashboard_role_label(user, role_name: str) -> str:
 
 @login_required
 def dashboard(request: HttpRequest) -> HttpResponse:
-    """Exibe o dashboard com atalhos para os módulos principais e próximos eventos."""
+    """Exibe o painel operacional canonico da escola."""
     from core.tenant_routing import is_platform_request
 
     if is_platform_request(request):
         return redirect("platform_dashboard")
 
-    from academic_calendar.selectors import CalendarSelector
+    from core.permissions import can_access_module
+    from dashboard.services import DashboardService
 
-    modules = [
-        {"name": "Empresa", "url": "business_unit_list", "icon": "feather-briefcase"},
-        {"name": "Escola", "url": "school_settings_detail", "icon": "feather-settings"},
-        {"name": "Professores", "url": "teachers_list", "icon": "feather-book-open"},
-        {"name": "Disciplinas", "url": "subjects_list", "icon": "feather-book"},
-        {"name": "Alunos e Responsáveis", "url": "students_list", "icon": "feather-user-check"},
-        {"name": "Turmas", "url": "classes_list", "icon": "feather-layers"},
-        {"name": "Salas", "url": "rooms_list", "icon": "feather-home"},
-        {"name": "Atividades", "url": "activities_list", "icon": "feather-edit-3"},
-        {"name": "Frequência", "url": "attendance_records_list", "icon": "feather-check-circle"},
-        {"name": "Horários", "url": "time_slots_list", "icon": "feather-clock"},
-        {"name": "Calendário", "url": "calendar_month", "icon": "feather-calendar"},
-        {"name": "Usuários", "url": "users_list", "icon": "feather-users"},
-    ]
     role_name = _detect_dashboard_role(request.user)
-    highlighted_names, role_summary = _dashboard_module_groups(role_name)
-    featured_modules = [module for module in modules if module["name"] in highlighted_names]
-    other_modules = [module for module in modules if module["name"] not in highlighted_names]
-    upcoming = CalendarSelector().get_upcoming_events(days=7)[:5]
+    data = DashboardService(user=request.user).get_school_dashboard_data()
+    can_view_financial = can_access_module(request.user, "financeiro")
     return render(
         request,
         "dashboard.html",
         {
-            "modules": modules,
-            "featured_modules": featured_modules,
-            "other_modules": other_modules,
+            "data": data,
             "quick_actions": _dashboard_quick_actions(role_name),
-            "role_summary": role_summary,
             "role_name": _dashboard_role_label(request.user, role_name),
-            "upcoming": upcoming,
+            "greeting": _dashboard_greeting(),
+            "can_view_financial": can_view_financial,
+            "has_visible_attention": bool(
+                data["students_at_risk"]
+                or data["pending_activities"]
+                or (can_view_financial and data["financial_kpis"]["total_vencido"])
+            ),
         },
     )
 

@@ -15,6 +15,17 @@
 - Usar `app-skin-dark`, tema nativo do Duralux; não criar temas paralelos por página.
 - A preferência é local ao navegador e deve ser aplicada antes dos estilos para evitar piscada. Botões apenas com ícone exigem `aria-label` que descreva a próxima ação.
 
+## Navegação lateral
+
+- No contexto escolar, **Visão geral** permanece como acesso direto e os demais destinos são agrupados por departamento: Acadêmico, Secretaria, Coordenação e Administração.
+- Os departamentos usam o accordion nativo do Duralux. Somente o grupo da rota atual inicia expandido e apenas um grupo permanece aberto por vez.
+- Listagens, cadastros, edições e fichas destacam o item principal de sua família de rotas; grupos sem nenhum item autorizado não são renderizados.
+- A composição do menu reutiliza as políticas de `core.permissions`; templates não duplicam regras de acesso.
+- Controles de expansão usam botão, foco visível, `aria-expanded` e `aria-controls`. A preferência de abertura não é persistida.
+- Quando o conteúdo excede a altura disponível, a rolagem permanece interna e acessível por mouse, trackpad, toque e teclado, mas o trilho visual do scrollbar não é exibido.
+- Links do menu escolar usam navegação progressiva: mantêm menu e cabeçalho no DOM, substituem somente `#app-main` e atualizam o estado ativo do menu por metadados do novo conteúdo. URL, título e histórico são preservados; o `href` real é obrigatório como fallback.
+- Links internos do conteúdo, formulários, ações destrutivas e o menu da plataforma não participam da navegação parcial global.
+
 ## Listagens
 
 - Usar `partials/list_header.html`: título, breadcrumb, contador, busca e botão `+ NOVO`.
