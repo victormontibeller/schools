@@ -48,8 +48,8 @@ class Student(BaseModel):
         default="",
         verbose_name="Tipo Sanguíneo",
     )
-    special_needs = models.TextField(
-        max_length=250, blank=True, default="", verbose_name="Necessidades Especiais"
+    observations = models.TextField(
+        max_length=250, blank=True, default="", verbose_name="Observações"
     )
     photo = models.ImageField(
         upload_to="students/photos/",
@@ -71,6 +71,12 @@ class Student(BaseModel):
     rg_state = models.CharField(max_length=2, blank=True, default="", verbose_name="RG — UF")
     phone_mobile = models.CharField(max_length=20, blank=True, default="", verbose_name="Celular")
     email = models.EmailField(blank=True, default="", verbose_name="E-mail do Aluno")
+    accepts_email_notifications = models.BooleanField(
+        default=False, verbose_name="Aceita notificações por e-mail"
+    )
+    accepts_whatsapp_notifications = models.BooleanField(
+        default=False, verbose_name="Aceita notificações por WhatsApp"
+    )
 
     class Meta:
         ordering = ["first_name", "last_name"]

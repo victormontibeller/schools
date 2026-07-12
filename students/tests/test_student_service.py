@@ -27,12 +27,14 @@ class TestCreateStudent:
     def test_success(self, user):
         s = StudentService(user=user).create_student(_BASE_DATA)
         assert s.pk is not None
-        assert s.enrollment_number == "2024001"
+        assert s.enrollment_number.startswith("ALU-")
 
-    def test_duplicate_enrollment(self, user):
-        StudentService(user=user).create_student(_BASE_DATA)
-        with pytest.raises(ValidationError):
-            StudentService(user=user).create_student(_BASE_DATA)
+    def test_generates_sequential_enrollments(self, user):
+        first = StudentService(user=user).create_student(_BASE_DATA)
+        second = StudentService(user=user).create_student(
+            {**_BASE_DATA, "cpf": "529.982.247-25", "email": "second@example.com"}
+        )
+        assert first.enrollment_number != second.enrollment_number
 
     def test_missing_required_fields(self, user):
         with pytest.raises(ValidationError):
@@ -87,8 +89,10 @@ class TestUpdateStudent:
         assert log.old_values["cpf"] == "[REDACTED]"
         assert log.old_values["email"] == "[REDACTED]"
 
-    def test_duplicate_enrollment_on_update(self, user):
-        StudentService(user=user).create_student({**_BASE_DATA, "enrollment_number": "E001"})
+    def test_enrollment_is_immutable_on_update(self, user):
+        first = StudentService(user=user).create_student(
+            {**_BASE_DATA, "enrollment_number": "E001"}
+        )
         s2 = StudentService(user=user).create_student(
             {
                 **_BASE_DATA,
@@ -98,17 +102,18 @@ class TestUpdateStudent:
                 "email": "joao@example.com",
             }
         )
-        with pytest.raises(ValidationError):
-            StudentService(user=user).update_student(
-                s2.pk,
-                {
-                    **_BASE_DATA,
-                    "enrollment_number": "E001",
-                    "first_name": "João",
-                    "cpf": "529.982.247-25",
-                    "email": "joao@example.com",
-                },
-            )
+        StudentService(user=user).update_student(
+            s2.pk,
+            {
+                **_BASE_DATA,
+                "enrollment_number": first.enrollment_number,
+                "first_name": "João",
+                "cpf": "529.982.247-25",
+                "email": "joao@example.com",
+            },
+        )
+        s2.refresh_from_db()
+        assert s2.enrollment_number != first.enrollment_number
 
 
 @pytest.mark.django_db

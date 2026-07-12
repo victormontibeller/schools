@@ -27,6 +27,16 @@
 ## Navegação lateral
 
 - No contexto escolar, **Visão geral** permanece como acesso direto e os demais destinos são agrupados por departamento: Acadêmico, Secretaria, Coordenação e Administração.
+- Para funcionários, a taxonomia canônica é:
+  - **Acadêmico:** Turmas, Disciplinas, Grade Horária, Atividades e Frequência;
+  - **Secretaria:** Professores, Alunos, Responsáveis e Matrículas;
+  - **Coordenação:** Calendário, Feriados, Anos Letivos e Comunicados;
+  - **Financeiro:** Visão Financeira;
+  - **Administração:** Salas, Unidades, Escola e Usuários.
+- Professores usam os grupos **Rotina Docente** e **Planejamento**. Responsáveis usam somente
+  **Acompanhamento**. Permissões auxiliares de módulo não devem criar links fora da taxonomia do
+  papel.
+- Alunos e Responsáveis são destinos separados; os vínculos continuam editáveis nas fichas.
 - Os departamentos usam o accordion nativo do Duralux. Somente o grupo da rota atual inicia expandido e apenas um grupo permanece aberto por vez.
 - Listagens, cadastros, edições e fichas destacam o item principal de sua família de rotas; grupos sem nenhum item autorizado não são renderizados.
 - A composição do menu reutiliza as políticas de `core.permissions`; templates não duplicam regras de acesso.
@@ -73,6 +83,10 @@
 - Usuários seguem o mesmo padrão de perfil, incluindo avatar editável no topo.
 - **Unidades** é a nomenclatura da entidade `BusinessUnit`; não usar “Empresas” na interface atual. Escola é a configuração do tenant e permanece distinta de Unidades.
 - Unidade e Escola exibem e editam o logotipo no topo do card de informações.
+- Matrículas de professor e aluno são informativas e somente leitura; o sistema as gera ao salvar.
+- Responsáveis editam seus vínculos com alunos no card lateral da mesma tela de edição.
+- Grades de notas e frequência pré-carregam os alunos e deixam editáveis apenas os dados do
+  lançamento.
 
 ## HTMX, acessibilidade e feedback
 

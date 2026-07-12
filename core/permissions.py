@@ -5,7 +5,16 @@ from __future__ import annotations
 ROLE_MODULES: dict[str, frozenset[str]] = {
     "ADMIN": frozenset({"*"}),
     "SECRETARY": frozenset(
-        {"students", "guardians", "classes", "enrollments", "addresses", "rooms", "dashboard"}
+        {
+            "teachers",
+            "students",
+            "guardians",
+            "classes",
+            "enrollments",
+            "addresses",
+            "rooms",
+            "dashboard",
+        }
     ),
     "COORDINATOR": frozenset(
         {

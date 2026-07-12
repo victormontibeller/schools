@@ -33,8 +33,9 @@ class TestTeacherCreate:
         s1 = Subject.objects.create(name="Matemática", code="MAT", workload=80)
         s2 = Subject.objects.create(name="História", code="HIS", workload=60)
         data = {
-            "user_id": str(user.pk),
-            "registration_number": "REG-001",
+            "first_name": "Professor",
+            "last_name": "Novo",
+            "email": "professor-novo@example.com",
             "hire_date": "2020-01-15",
             "birth_date": "1990-05-20",
             "gender": "M",
@@ -48,22 +49,17 @@ class TestTeacherCreate:
         }
         resp = logged.post("/teachers/novo/", data, follow=False)
         assert resp.status_code == 302  # redireciona para listagem
-        assert Teacher.objects.filter(registration_number="REG-001").exists()
-        t = Teacher.objects.get(registration_number="REG-001")
+        t = Teacher.objects.get(user__email="professor-novo@example.com")
+        assert t.registration_number.startswith("PRO-")
         assert set(t.subjects.values_list("pk", flat=True)) == {s1.pk, s2.pk}
 
-    def test_post_duplicated_registration_rerenders_form(self, logged, user):
-        """Matrícula duplicada deve re-renderizar o form com erro no campo."""
-        from core.models import CustomUser
-
-        other = CustomUser.objects.create_user(
-            email="dup@test.com", password="Senha123", first_name="D", last_name="U"
-        )
-        Teacher.objects.create(user=other, registration_number="DUP-REG")
-        # O user logado NÃO tem perfil ainda → cai na checagem de matrícula duplicada
+    def test_post_existing_teacher_email_rerenders_form(self, logged, user):
+        """E-mail já vinculado a professor deve re-renderizar o formulário."""
+        existing = Teacher.objects.create(user=user, registration_number="LEGACY")
         data = {
-            "user_id": str(user.pk),
-            "registration_number": "DUP-REG",
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email": user.email,
             "hire_date": "2020-01-15",
             "birth_date": "1990-05-20",
             "gender": "M",
@@ -76,8 +72,8 @@ class TestTeacherCreate:
         }
         resp = logged.post("/teachers/novo/", data)
         assert resp.status_code == 200
-        form = resp.context["form"]
-        assert "registration_number" in form.errors
+        assert existing.pk is not None
+        assert resp.context["form"].non_field_errors()
 
 
 # ── Guardians ─────────────────────────────────────────────────────────────────
@@ -85,11 +81,10 @@ class TestTeacherCreate:
 
 @pytest.mark.django_db
 class TestGuardianCreate:
-    def test_get_redirects_to_students(self, logged):
-        """O cadastro isolado foi substituído pelo perfil do aluno."""
+    def test_get_renders_form(self, logged):
+        """O cadastro isolado de responsável está disponível."""
         resp = logged.get("/guardians/novo/")
-        assert resp.status_code == 302
-        assert resp.url == "/students/"
+        assert resp.status_code == 200
 
     def test_post_redirects_to_students(self, logged, user):
         """O cadastro isolado foi removido em favor do perfil do aluno."""
@@ -102,8 +97,9 @@ class TestGuardianCreate:
             last_name="Silva",
         )
         data = {
-            "user_id": str(other.pk),
-            "relationship_type": "MAE",
+            "first_name": other.first_name,
+            "last_name": other.last_name,
+            "email": other.email,
             "birth_date": "1980-01-01",
             "gender": "F",
             "nationality": "Brasileira",
@@ -117,22 +113,21 @@ class TestGuardianCreate:
         }
         resp = logged.post("/guardians/novo/", data, follow=False)
         assert resp.status_code == 302
-        assert resp.url == "/students/"
+        assert "/guardians/" in resp.url
 
-    def test_post_blank_relationship_redirects_to_students(self, logged, user):
-        """A validação de parentesco ocorre no card do aluno."""
-        data = {"user_id": str(user.pk), "relationship_type": ""}
+    def test_post_missing_identity_rerenders(self, logged, user):
+        """Identidade incompleta mantém o formulário com erros."""
+        data = {"first_name": ""}
         resp = logged.post("/guardians/novo/", data)
-        assert resp.status_code == 302
-        assert resp.url == "/students/"
+        assert resp.status_code == 200
 
 
-# ── Necessidades especiais ────────────────────────────────────────────────────
+# ── Observações do aluno ──────────────────────────────────────────────────────
 
 
 @pytest.mark.django_db
 class TestSpecialNeedsField:
-    def test_studentform_accepts_free_text_special_needs(self):
+    def test_studentform_accepts_free_text_observations(self):
         from students.forms import StudentForm
 
         form = StudentForm(
@@ -147,13 +142,13 @@ class TestSpecialNeedsField:
                 "rg_number": "1234567",
                 "phone_mobile": "11999990000",
                 "email": "joao@example.com",
-                "special_needs": "Necessita acompanhamento para asma.",
+                "observations": "Necessita acompanhamento para asma.",
             }
         )
         assert form.is_valid()
-        assert form.cleaned_data["special_needs"] == "Necessita acompanhamento para asma."
+        assert form.cleaned_data["observations"] == "Necessita acompanhamento para asma."
 
-    def test_studentform_rejects_special_needs_above_250_characters(self):
+    def test_studentform_rejects_observations_above_250_characters(self):
         from students.forms import StudentForm
 
         form = StudentForm(
@@ -168,11 +163,11 @@ class TestSpecialNeedsField:
                 "rg_number": "1234567",
                 "phone_mobile": "11999990000",
                 "email": "joao@example.com",
-                "special_needs": "a" * 251,
+                "observations": "a" * 251,
             }
         )
         assert not form.is_valid()
-        assert "special_needs" in form.errors
+        assert "observations" in form.errors
 
     def test_roomform_validates_resources_json(self):
         from rooms.forms import RoomForm

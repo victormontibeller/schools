@@ -257,7 +257,7 @@ class DemoSeedService(BaseService):
                     "birth_date": dt.date(2013, index, 12),
                     "gender": Student.Gender.FEMALE if index % 2 == 0 else Student.Gender.MALE,
                     "blood_type": Student.BloodType.O_POS,
-                    "special_needs": "",
+                    "observations": "",
                     "nationality": "Brasileiro(a)",
                     "cpf": f"390.533.447-{index:02d}",
                     "rg_number": f"{58 + index}.234.567-{index}",

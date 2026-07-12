@@ -39,39 +39,39 @@ def guardian(user):
 
 
 @pytest.mark.django_db
-def test_guardians_list_redirects_to_students(force_login_client, guardian):
+def test_guardians_list_renders(force_login_client, guardian):
     response = force_login_client.get("/guardians/?q=Carla&sort=relationship_type")
 
-    assert response.status_code == 302
-    assert response.url == "/students/"
+    assert response.status_code == 200
+    assert b"Carla" in response.content
 
 
 @pytest.mark.django_db
-def test_guardian_detail_redirects_to_students(force_login_client, guardian):
+def test_guardian_detail_renders(force_login_client, guardian):
     response = force_login_client.get(f"/guardians/{guardian.pk}/")
 
-    assert response.status_code == 302
-    assert response.url == "/students/"
+    assert response.status_code == 200
 
 
 @pytest.mark.django_db
-def test_guardian_edit_redirects_to_students(force_login_client, guardian):
+def test_guardian_edit_renders_with_links(force_login_client, guardian):
     response = force_login_client.get(
         f"/guardians/{guardian.pk}/editar/",
         HTTP_HX_REQUEST="true",
     )
 
-    assert response.status_code == 302
-    assert response.url == "/students/"
+    assert response.status_code == 200
+    assert b"Alunos vinculados" in response.content
 
 
 @pytest.mark.django_db
-def test_guardian_legacy_post_redirects_without_updating(force_login_client, guardian):
+def test_guardian_post_updates(force_login_client, guardian):
     response = force_login_client.post(
         f"/guardians/{guardian.pk}/editar/",
         {
             "first_name": "Carla",
             "last_name": "Atualizada",
+            "email": "guardian-view@example.com",
             "relationship_type": "PAI",
             "birth_date": "1985-03-10",
             "gender": "F",
@@ -88,4 +88,5 @@ def test_guardian_legacy_post_redirects_without_updating(force_login_client, gua
     )
 
     assert response.status_code == 302
-    assert response.url == "/students/"
+    guardian.refresh_from_db()
+    assert guardian.last_name == "Atualizada"

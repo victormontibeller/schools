@@ -1,0 +1,7 @@
+{% for student in students %}
+<form method="post" action="{% url 'class_enroll' class_obj.pk %}" class="d-flex justify-content-between align-items-center border rounded p-2 mb-2">
+  {% csrf_token %}<input type="hidden" name="student_id" value="{{ student.pk }}">
+  <div><strong>{{ student.get_full_name }}</strong><div class="text-muted small">{{ student.enrollment_number }}</div></div>
+  <button type="submit" class="btn btn-sm btn-outline-primary">Matricular</button>
+</form>
+{% empty %}{% if request.GET.q %}<p class="text-muted small mb-0">Nenhum aluno disponível.</p>{% endif %}{% endfor %}

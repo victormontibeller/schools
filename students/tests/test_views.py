@@ -97,7 +97,7 @@ def test_student_edit_post_updates_and_returns_card_for_htmx(force_login_client,
             "rg_state": "SP",
             "phone_mobile": "(11) 99999-0000",
             "email": "ana@example.com",
-            "special_needs": "Asma; utilizar bombinha quando necessário.",
+            "observations": "Asma; utilizar bombinha quando necessário.",
         },
         HTTP_HX_REQUEST="true",
     )
@@ -180,8 +180,8 @@ def test_guardian_create_requires_email_but_not_avatar(force_login_client, stude
 
 
 @pytest.mark.django_db
-def test_legacy_guardians_list_redirects_to_students(force_login_client):
+def test_guardians_list_is_available(force_login_client):
     response = force_login_client.get("/guardians/")
 
-    assert response.status_code == 302
-    assert response.url == "/students/"
+    assert response.status_code == 200
+    assert b"Respons" in response.content

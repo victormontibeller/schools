@@ -35,7 +35,7 @@ class RoomService(BaseService):
             code=code,
             capacity=int(data.get("capacity", 0) or 0),
             type=data.get("type", Room.Type.CLASSROOM),
-            resources=data.get("resources", {}),
+            observations=(data.get("observations") or "").strip(),
             floor=(data.get("floor") or "").strip(),
             building=(data.get("building") or "").strip(),
             created_by=self.user,
@@ -51,7 +51,7 @@ class RoomService(BaseService):
         room = repo.get_by_id(room_id)
         old = {"name": room.name, "code": room.code, "capacity": room.capacity}
 
-        allowed = {"name", "capacity", "type", "resources", "floor", "building"}
+        allowed = {"name", "capacity", "type", "observations", "floor", "building"}
         updates = {k: v for k, v in data.items() if k in allowed}
 
         if "code" in data:

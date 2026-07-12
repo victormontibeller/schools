@@ -128,6 +128,7 @@ class AttendanceService(BaseService):
             entries_data[str(entry.student_id)] = {
                 "status": status,
                 "justification": justification,
+                "note": post_data.get(f"note_{entry.student_id}", ""),
             }
         return entries_data
 
@@ -154,9 +155,11 @@ class AttendanceService(BaseService):
             if isinstance(payload, dict):
                 status = payload.get("status")
                 justification = payload.get("justification", "")
+                note = payload.get("note", "")
             else:
                 status = payload
                 justification = ""
+                note = ""
 
             if status not in valid:
                 raise ValidationError(errors={"__all__": [f"Status inválido: {status}"]})
@@ -165,14 +168,17 @@ class AttendanceService(BaseService):
             except AttendanceEntry.DoesNotExist:
                 raise ObjectNotFoundError("AttendanceEntry", student_id) from None
 
-            old = self._snapshot(entry, ["status", "justification"])
+            old = self._snapshot(entry, ["status", "justification", "note"])
             entry.status = status
             if status == AttendanceEntry.Status.JUSTIFIED:
                 entry.justification = (justification or "").strip()
             else:
                 entry.justification = ""
+            entry.note = (note or "").strip()
             entry.updated_by = self.user
-            entry.save(update_fields=["status", "justification", "updated_by", "updated_at"])
+            entry.save(
+                update_fields=["status", "justification", "note", "updated_by", "updated_at"]
+            )
             updated += 1
 
             self._record_audit("UPDATE", entry, old_values=old)

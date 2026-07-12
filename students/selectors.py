@@ -59,6 +59,20 @@ class StudentSelector(BaseSelector):
         qs = Student.objects.filter(Q(first_name__icontains=query) | Q(last_name__icontains=query))
         return self._paginate(qs, page=page)
 
+    def search_for_guardian(self, query: str, guardian_id, limit: int = 10):
+        """Busca alunos por nome/matrícula, excluindo vínculos já existentes."""
+        if not query.strip():
+            return self.model_class.objects.none()
+        return (
+            self.model_class.objects.filter(
+                Q(first_name__icontains=query)
+                | Q(last_name__icontains=query)
+                | Q(enrollment_number__icontains=query)
+            )
+            .exclude(guardians__guardian_id=guardian_id)
+            .order_by("first_name", "last_name")[:limit]
+        )
+
     def _paginate(self, qs, page: int = 1, page_size: int = 20) -> PageResult:
         """Paginação interna para querysets customizados."""
         from base.selectors import MAX_PAGE_SIZE

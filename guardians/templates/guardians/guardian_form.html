@@ -1,7 +1,45 @@
-{% extends "person_form_base.html" %}
-
-{% block breadcrumb %}
-<li class="breadcrumb-item"><a href="{% url 'guardians_list' %}">Responsáveis</a></li>
+{% extends "base.html" %}
+{% block title %}{{ title }} — School Manager{% endblock %}
+{% block content %}
+<div class="page-header"><div class="page-header-left"><div class="page-header-title"><h5 class="m-b-10">{{ title }}</h5></div></div></div>
+<div class="main-content">
+  <div class="row g-3 align-items-start">
+    <div class="col-12 col-xl-5">
+      <form method="post" enctype="multipart/form-data" class="card mb-0 sm-profile-card">
+        {% csrf_token %}
+        <div class="card-header"><h6 class="card-title mb-0">Informações do Responsável</h6></div>
+        <div class="card-body sm-profile-card-body">
+          <div class="sm-profile-hero text-center pb-3 mb-3 border-bottom">
+            <label for="{{ form.avatar.id_for_label }}" class="sm-profile-avatar-edit">
+              {% if guardian and guardian.avatar %}<img src="{{ guardian.avatar.url }}" alt="{{ guardian.full_name }}" class="sm-profile-avatar">
+              {% else %}<span class="avatar-text avatar-xl bg-soft-purple text-purple mx-auto">{% if guardian %}{{ guardian.full_name|first|upper }}{% else %}+{% endif %}</span>{% endif %}
+            </label>
+            {{ form.avatar }}
+            {% for error in form.avatar.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+          </div>
+          {% include "partials/person_form_fields.html" with form=form exclude_field="avatar" %}
+        </div>
+        <div class="card-footer d-flex justify-content-end gap-2"><a href="{% url 'guardians_list' %}" class="btn btn-outline-secondary">Cancelar</a><button class="btn btn-primary" type="submit">Salvar</button></div>
+      </form>
+    </div>
+    {% if guardian %}
+    <div class="col-12 col-xl-7">
+      <div class="card mb-0 sm-detail-card">
+        <div class="card-header"><h6 class="card-title mb-0">Alunos vinculados</h6></div>
+        <div class="card-body">
+          <input type="search" class="form-control mb-3" name="q" placeholder="Buscar aluno por nome ou matrícula"
+                 hx-get="{% url 'guardian_student_search' guardian.pk %}" hx-trigger="keyup changed delay:300ms, search" hx-target="#guardian-student-results" aria-label="Buscar aluno">
+          <div id="guardian-student-results"></div>
+          {% for link in students %}
+          <div class="d-flex justify-content-between align-items-center border-top py-3">
+            <div><a class="fw-semibold" href="{% url 'student_profile' link.student.pk %}">{{ link.student.get_full_name }}</a><div class="text-muted small">{{ link.student.enrollment_number }} · {{ link.get_relationship_type_display }}</div></div>
+            <form method="post" action="{% url 'guardian_student_unlink' guardian.pk link.student.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" type="submit">Desvincular</button></form>
+          </div>
+          {% empty %}<p class="text-muted mb-0">Nenhum aluno vinculado.</p>{% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
 {% endblock %}
-
-{% block cancel_url %}{% url 'guardians_list' %}{% endblock %}

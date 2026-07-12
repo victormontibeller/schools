@@ -35,7 +35,7 @@ class TestRoomViews:
             "type": "CLASSROOM",
             "floor": "2",
             "building": "Bloco A",
-            "resources": '{"projetor": true}',
+            "observations": "Possui projetor",
         }
         resp = force_login_client.post("/rooms/nova/", data)
         assert resp.status_code == 302

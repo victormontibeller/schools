@@ -39,7 +39,22 @@ class TestCreateTeacher:
         target = _make_user()
         t = TeacherService(user=user).create_teacher(_teacher_data(target.pk, "MAT-001"))
         assert t.pk is not None
-        assert t.registration_number == "MAT-001"
+        assert t.registration_number.startswith("PRO-")
+
+    def test_generates_sequential_registration_and_default_consent(self, user):
+        first = TeacherService(user=user).create_teacher(
+            _teacher_data(_make_user("sequence-1@test.com").pk, "IGNORED-1")
+        )
+        second = TeacherService(user=user).create_teacher(
+            _teacher_data(
+                _make_user("sequence-2@test.com").pk,
+                "IGNORED-2",
+                cpf="529.982.247-25",
+            )
+        )
+        assert first.registration_number < second.registration_number
+        assert first.accepts_email_notifications is False
+        assert first.accepts_whatsapp_notifications is False
 
     def test_duplicate_user(self, user):
         target = _make_user("dup@test.com")
@@ -47,19 +62,19 @@ class TestCreateTeacher:
         with pytest.raises(BusinessRuleViolationError):
             TeacherService(user=user).create_teacher(_teacher_data(target.pk, "MAT-003"))
 
-    def test_duplicate_registration(self, user):
+    def test_ignores_supplied_registration(self, user):
         u1 = _make_user("u1@test.com")
         u2 = _make_user("u2@test.com")
         TeacherService(user=user).create_teacher(_teacher_data(u1.pk, "MAT-X"))
-        with pytest.raises(ValidationError):
-            TeacherService(user=user).create_teacher(
-                _teacher_data(u2.pk, "MAT-X", cpf="529.982.247-25")
-            )
+        second = TeacherService(user=user).create_teacher(
+            _teacher_data(u2.pk, "MAT-X", cpf="529.982.247-25")
+        )
+        assert second.registration_number != "MAT-X"
 
-    def test_missing_registration(self, user):
+    def test_missing_registration_is_generated(self, user):
         target = _make_user("nomat@test.com")
-        with pytest.raises(ValidationError):
-            TeacherService(user=user).create_teacher(_teacher_data(target.pk, ""))
+        teacher = TeacherService(user=user).create_teacher(_teacher_data(target.pk, ""))
+        assert teacher.registration_number.startswith("PRO-")
 
     def test_user_not_found(self, user):
         import uuid
@@ -146,7 +161,7 @@ class TestAssignSubject:
         updated.refresh_from_db()
         updated.user.refresh_from_db()
         assert updated.hire_date == dt.date(2025, 1, 15)
-        assert updated.registration_number == "MAT-UP2"
+        assert updated.registration_number == teacher.registration_number
         assert updated.user.first_name == "Marina"
         assert updated.user.last_name == "Oliveira"
         assert updated.user.avatar.name.endswith(".png")

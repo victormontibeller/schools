@@ -3,6 +3,24 @@
 from django import forms
 
 
+class TeacherInvitationForm(forms.Form):
+    """Formulário público para definição inicial da senha do professor."""
+
+    password = forms.CharField(
+        label="Nova senha", widget=forms.PasswordInput(attrs={"class": "form-control"})
+    )
+    password_confirm = forms.CharField(
+        label="Confirme a senha", widget=forms.PasswordInput(attrs={"class": "form-control"})
+    )
+
+    def clean(self):
+        """Confirma que as duas senhas coincidem."""
+        cleaned = super().clean()
+        if cleaned.get("password") != cleaned.get("password_confirm"):
+            self.add_error("password_confirm", "As senhas não coincidem.")
+        return cleaned
+
+
 class DemoSignupForm(forms.Form):
     """Cadastro temporário e verificado no tenant de demonstração."""
 

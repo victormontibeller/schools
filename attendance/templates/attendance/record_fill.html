@@ -15,6 +15,25 @@
 </div>
 
 <div class="main-content">
-    {% include "attendance/partials/attendance_fill_card.html" %}
+    <div class="row g-3 align-items-start">
+        <div class="col-12 col-xl-5">
+            <div class="card mb-0 sm-detail-card">
+                <div class="card-header"><h6 class="card-title mb-0">Informações da Chamada</h6></div>
+                <div class="card-body">
+                    <dl class="row mb-0 sm-detail-definition">
+                        <dt class="col-sm-4">Turma</dt><dd class="col-sm-8">{{ record.class_obj }}</dd>
+                        <dt class="col-sm-4">Disciplina</dt><dd class="col-sm-8">{{ record.subject }}</dd>
+                        <dt class="col-sm-4">Professor</dt><dd class="col-sm-8">{{ record.teacher }}</dd>
+                        <dt class="col-sm-4">Data</dt><dd class="col-sm-8">{{ record.date|date:"d/m/Y" }}</dd>
+                        <dt class="col-sm-4">Aula</dt><dd class="col-sm-8">{{ record.lesson_number }}</dd>
+                        <dt class="col-sm-4">Observações</dt><dd class="col-sm-8">{{ record.notes|default:"—" }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-xl-7">
+            {% include "attendance/partials/attendance_fill_card.html" %}
+        </div>
+    </div>
 </div>
 {% endblock %}

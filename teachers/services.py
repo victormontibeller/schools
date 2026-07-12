@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from django.db import transaction
+
 if TYPE_CHECKING:
     from teachers.models import Subject, Teacher
 
@@ -15,7 +17,9 @@ from base.services import BaseService
 logger = logging.getLogger(__name__)
 
 TEACHER_REQUIRED_FIELDS = [
-    "registration_number",
+    "first_name",
+    "last_name",
+    "email",
     "hire_date",
     "birth_date",
     "gender",
@@ -23,7 +27,7 @@ TEACHER_REQUIRED_FIELDS = [
     "rg_number",
     "phone_mobile",
 ]
-TEACHER_EDIT_REQUIRED_FIELDS = ["first_name", "last_name", *TEACHER_REQUIRED_FIELDS]
+TEACHER_EDIT_REQUIRED_FIELDS = ["first_name", "last_name", *TEACHER_REQUIRED_FIELDS[3:]]
 
 
 class _SubjectRepo(BaseRepository):
@@ -110,26 +114,53 @@ class SubjectService(BaseService):
 class TeacherService(BaseService):
     """Serviço de regras de negócio para professores e atribuição de disciplinas."""
 
+    @transaction.atomic
     def create_teacher(self, data: dict) -> Teacher:
         """Cria um professor validando usuário, matrícula única e registra auditoria."""
         from teachers.models import Teacher
 
-        self.validate_required(data, ["user_id", *TEACHER_REQUIRED_FIELDS])
-        user_id = data["user_id"]
+        legacy_user_id = data.get("user_id")
+        required = TEACHER_REQUIRED_FIELDS if not legacy_user_id else TEACHER_REQUIRED_FIELDS[3:]
+        self.validate_required(data, required)
 
-        from core.models import CustomUser
+        from core.models import CustomUser, Role
+        from core.services import RegistrationSequenceService
 
-        try:
-            user = CustomUser.objects.get(pk=user_id)
-        except CustomUser.DoesNotExist:
-            raise ObjectNotFoundError("CustomUser", str(user_id)) from None
+        if legacy_user_id:
+            try:
+                user = CustomUser.objects.get(pk=legacy_user_id)
+            except CustomUser.DoesNotExist:
+                raise ObjectNotFoundError("CustomUser", str(legacy_user_id)) from None
+            email = user.email
+        else:
+            email = data["email"].strip().lower()
+            user = CustomUser.all_objects.filter(
+                email__iexact=email, deleted_at__isnull=True
+            ).first()
+        if user is None:
+            role = Role.objects.filter(name=Role.Name.TEACHER).first()
+            if role is None:
+                role = Role.objects.create(
+                    name=Role.Name.TEACHER, created_by=self.user, updated_by=self.user
+                )
+                self._record_audit("INSERT", role)
+            user = CustomUser(
+                email=email,
+                first_name=data["first_name"].strip(),
+                last_name=data["last_name"].strip(),
+                role=role,
+                is_active=False,
+                created_by=self.user,
+                updated_by=self.user,
+            )
+            user.set_unusable_password()
+            user.save()
+            self._record_audit("INSERT", user)
 
         if Teacher.objects.filter(user=user).exists():
             raise BusinessRuleViolationError("Este usuário já possui perfil de professor.")
 
-        reg = data["registration_number"].strip()
-        if Teacher.objects.filter(registration_number=reg).exists():
-            raise ValidationError(errors={"registration_number": ["Matrícula já cadastrada."]})
+        reg = RegistrationSequenceService(user=self.user).next_number("teacher")
 
         cpf_cleaned = self._validate_cpf(data)
         teacher = Teacher.objects.create(
@@ -141,12 +172,18 @@ class TeacherService(BaseService):
             cpf=cpf_cleaned,
             rg_number=data.get("rg_number", ""),
             phone_mobile=data.get("phone_mobile", ""),
+            accepts_email_notifications=bool(data.get("accepts_email_notifications")),
+            accepts_whatsapp_notifications=bool(data.get("accepts_whatsapp_notifications")),
             created_by=self.user,
             updated_by=self.user,
         )
         subjects = data.get("subjects")
         if subjects:
             teacher.subjects.set(subjects)
+        if data.get("avatar"):
+            user.avatar = data["avatar"]
+            user.updated_by = self.user
+            user.save(update_fields=["avatar", "updated_by", "updated_at"])
         self._record_audit("INSERT", teacher)
         self._log("Professor criado", teacher_id=str(teacher.pk))
         return teacher
@@ -164,26 +201,29 @@ class TeacherService(BaseService):
             "gender",
             "rg_number",
             "phone_mobile",
+            "accepts_email_notifications",
+            "accepts_whatsapp_notifications",
         }
         old = self._snapshot(teacher, [*allowed, "registration_number", "cpf"])
         user_old = self._person_user_old_values(teacher.user)
         updates = {k: v for k, v in data.items() if k in allowed}
-
-        if "registration_number" in data:
-            reg = data["registration_number"].strip()
-            if not reg:
-                raise ValidationError(errors={"registration_number": ["Matrícula é obrigatória."]})
-            from teachers.models import Teacher
-
-            if Teacher.objects.filter(registration_number=reg).exclude(pk=teacher_id).exists():
-                raise ValidationError(errors={"registration_number": ["Matrícula já cadastrada."]})
-            updates["registration_number"] = reg
 
         if "cpf" in data:
             cpf_cleaned = self._validate_cpf(data, exclude_id=teacher_id)
             updates["cpf"] = cpf_cleaned
 
         user_updates = self._person_user_updates(data)
+        if "email" in data:
+            from core.models import CustomUser
+
+            email = data["email"].strip().lower()
+            if (
+                CustomUser.all_objects.filter(email__iexact=email)
+                .exclude(pk=teacher.user_id)
+                .exists()
+            ):
+                raise ValidationError(errors={"email": ["Este e-mail já está em uso."]})
+            user_updates["email"] = email
         for field, value in user_updates.items():
             setattr(teacher.user, field, value)
         teacher.user.save(update_fields=[*user_updates.keys(), "updated_at"])

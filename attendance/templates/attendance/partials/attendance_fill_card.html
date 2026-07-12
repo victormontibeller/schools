@@ -22,7 +22,7 @@
             <p class="text-muted small mb-3">Marque a presença de cada aluno. Use <b>Justificado</b> com motivo para faltas amparadas por atestado.</p>
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
-                    <thead><tr><th>Aluno</th><th style="width:60%">Presença</th></tr></thead>
+                    <thead><tr><th>Aluno</th><th>Presença</th><th>Observação/recado</th></tr></thead>
                     <tbody>
                         {% for entry in entries %}
                         <tr>
@@ -37,9 +37,14 @@
                                     <label class="btn btn-outline-warning text-dark" for="just_{{ entry.student_id }}">Justificado</label>
                                 </div>
                             </td>
+                            <td>
+                                <input type="text" class="form-control form-control-sm"
+                                       name="note_{{ entry.student_id }}" maxlength="250"
+                                       value="{{ entry.note }}" aria-label="Observação para {{ entry.student.get_full_name }}">
+                            </td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="2" class="text-center text-muted py-4">Nenhum aluno matriculado nesta turma.</td></tr>
+                        <tr><td colspan="3" class="text-center text-muted py-4">Nenhum aluno matriculado nesta turma.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>

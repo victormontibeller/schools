@@ -24,19 +24,13 @@ class SubjectForm(forms.ModelForm):
             field.required = True
 
 
-def _user_choices_queryset():
-    """QuerySet preguiçoso de usuários ativos — avaliado só no render do widget."""
-    from core.models import CustomUser
-
-    return CustomUser.objects.filter(is_active=True).values_list("pk", "email")
-
-
 class TeacherForm(forms.Form):
-    """Formulário de criação de professor a partir de usuário existente."""
+    """Formulário de criação de professor com identidade e contato próprios."""
 
     REQUIRED_FIELDS = (
-        "user_id",
-        "registration_number",
+        "first_name",
+        "last_name",
+        "email",
         "hire_date",
         "birth_date",
         "gender",
@@ -45,14 +39,26 @@ class TeacherForm(forms.Form):
         "phone_mobile",
     )
 
-    user_id = forms.UUIDField(
-        label="Usuário",
-        widget=forms.Select(attrs={"class": "form-select"}),
+    first_name = forms.CharField(
+        max_length=150, label="Nome", widget=forms.TextInput(attrs={"class": "form-control"})
+    )
+    last_name = forms.CharField(
+        max_length=150, label="Sobrenome", widget=forms.TextInput(attrs={"class": "form-control"})
+    )
+    email = forms.EmailField(
+        label="E-mail", widget=forms.EmailInput(attrs={"class": "form-control"})
     )
     registration_number = forms.CharField(
-        max_length=30,
+        required=False,
         label="Matrícula",
-        widget=forms.TextInput(attrs={"class": "form-control"}),
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "readonly": True, "placeholder": "Gerada ao salvar"}
+        ),
+    )
+    avatar = forms.ImageField(
+        required=False,
+        label="Foto do Professor",
+        widget=forms.ClearableFileInput(attrs={"class": "sm-profile-avatar-input"}),
     )
     hire_date = forms.DateField(
         required=False,
@@ -94,11 +100,20 @@ class TeacherForm(forms.Form):
         widget=forms.SelectMultiple(attrs={"class": "form-select", "size": "8"}),
         help_text="Segure Ctrl/Cmd para selecionar várias disciplinas.",
     )
+    accepts_email_notifications = forms.BooleanField(
+        required=False,
+        label="Aceita notificações por e-mail",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
+    accepts_whatsapp_notifications = forms.BooleanField(
+        required=False,
+        label="Aceita notificações por WhatsApp",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
 
     def __init__(self, *args, **kwargs):
-        """Atribui choices lazy para Select widgets."""
+        """Configura choices de gênero."""
         super().__init__(*args, **kwargs)
-        self.fields["user_id"].widget.choices = _user_choices_queryset()
         from teachers.models import Teacher
 
         self.fields["gender"].choices = Teacher.Gender.choices
@@ -112,7 +127,6 @@ class TeacherEditForm(forms.Form):
     REQUIRED_FIELDS = (
         "first_name",
         "last_name",
-        "registration_number",
         "hire_date",
         "birth_date",
         "gender",
@@ -133,15 +147,21 @@ class TeacherEditForm(forms.Form):
         label="Sobrenome",
         widget=forms.TextInput(attrs={"class": "form-control", "data_grid": "col-12 col-md-6"}),
     )
+    email = forms.EmailField(
+        label="E-mail", widget=forms.EmailInput(attrs={"class": "form-control"})
+    )
     avatar = forms.ImageField(
         required=False,
         label="Foto do Professor",
         widget=forms.ClearableFileInput(attrs={"class": "sm-profile-avatar-input"}),
     )
     registration_number = forms.CharField(
+        required=False,
         max_length=30,
-        label="Matricula",
-        widget=forms.TextInput(attrs={"class": "form-control", "data_grid": "col-12 col-lg-6"}),
+        label="Matrícula",
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "readonly": True, "data_grid": "col-12 col-lg-6"}
+        ),
     )
     hire_date = forms.DateField(
         required=False,
@@ -191,6 +211,16 @@ class TeacherEditForm(forms.Form):
                 "data_grid": "col-12 col-md-6",
             }
         ),
+    )
+    accepts_email_notifications = forms.BooleanField(
+        required=False,
+        label="Aceita notificações por e-mail",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
+    accepts_whatsapp_notifications = forms.BooleanField(
+        required=False,
+        label="Aceita notificações por WhatsApp",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
     )
 
     def __init__(self, *args, **kwargs):

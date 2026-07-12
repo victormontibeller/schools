@@ -9,7 +9,6 @@ class StudentForm(forms.ModelForm):
     """Formulário de cadastro e edição de aluno."""
 
     REQUIRED_FIELDS = (
-        "enrollment_number",
         "first_name",
         "last_name",
         "birth_date",
@@ -35,12 +34,16 @@ class StudentForm(forms.ModelForm):
             "rg_number",
             "phone_mobile",
             "email",
-            "special_needs",
+            "observations",
             "photo",
+            "accepts_email_notifications",
+            "accepts_whatsapp_notifications",
         ]
         widgets = {
             "user": forms.Select(attrs={"class": "form-select"}),
-            "enrollment_number": forms.TextInput(attrs={"class": "form-control"}),
+            "enrollment_number": forms.TextInput(
+                attrs={"class": "form-control", "readonly": True, "placeholder": "Gerada ao salvar"}
+            ),
             "first_name": forms.TextInput(attrs={"class": "form-control"}),
             "last_name": forms.TextInput(attrs={"class": "form-control"}),
             "birth_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
@@ -54,10 +57,14 @@ class StudentForm(forms.ModelForm):
                 attrs={"class": "form-control", "placeholder": "(00) 00000-0000"}
             ),
             "email": forms.EmailInput(attrs={"class": "form-control"}),
-            "special_needs": forms.Textarea(
+            "observations": forms.Textarea(
                 attrs={"class": "form-control", "rows": 3, "maxlength": 250}
             ),
-            "photo": forms.ClearableFileInput(attrs={"class": "form-control"}),
+            "photo": forms.ClearableFileInput(attrs={"class": "sm-profile-avatar-input"}),
+            "accepts_email_notifications": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "accepts_whatsapp_notifications": forms.CheckboxInput(
+                attrs={"class": "form-check-input"}
+            ),
         }
         labels = {
             "user": "Usuário do Sistema (opcional)",
@@ -71,7 +78,7 @@ class StudentForm(forms.ModelForm):
             "rg_number": "RG — Número",
             "phone_mobile": "Celular",
             "email": "E-mail do Aluno",
-            "special_needs": "Necessidades Especiais",
+            "observations": "Observações",
             "photo": "Foto",
         }
 
@@ -97,8 +104,10 @@ class StudentEditForm(StudentForm):
             "rg_number",
             "phone_mobile",
             "email",
-            "special_needs",
+            "observations",
             "photo",
+            "accepts_email_notifications",
+            "accepts_whatsapp_notifications",
         ]
         widgets = {
             **StudentForm.Meta.widgets,

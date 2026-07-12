@@ -5,7 +5,7 @@ import logging
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
-from activities.forms import ActivityEditForm, ActivityForm, ScoreForm
+from activities.forms import ActivityEditForm, ActivityForm
 from activities.selectors import ActivitySelector
 from activities.services import ActivityService
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
@@ -102,8 +102,6 @@ def activity_create(request):
 @login_required
 def activity_detail(request, pk):
     """Exibe atividade e lista de entregas/notas."""
-    from activities.forms import ScoreForm
-
     activity = ActivitySelector().get_by_id(pk)
     if request.headers.get("HX-Request") and request.GET.get("component") == "information":
         return render(
@@ -115,7 +113,7 @@ def activity_detail(request, pk):
     return render(
         request,
         "activities/activity_detail.html",
-        {"activity": activity, "submissions": submissions, "form": ScoreForm()},
+        {"activity": activity, "submissions": submissions},
     )
 
 
@@ -126,6 +124,9 @@ def activity_edit(request, pk):
     form = ActivityEditForm(
         request.POST or None,
         initial={
+            "class_obj": activity.class_obj,
+            "subject": activity.subject,
+            "teacher": activity.teacher,
             "title": activity.title,
             "description": activity.description,
             "type": activity.type,
@@ -165,22 +166,24 @@ def activity_edit(request, pk):
 
 @login_required
 def activity_record_score(request, pk):
-    """Lança nota de um aluno numa atividade (POST via HTMX)."""
+    """Lança notas e feedbacks da grade pré-carregada."""
     if request.method != "POST":
         return redirect("activity_detail", pk=pk)
 
-    form = ScoreForm(request.POST)
-    if form.is_valid():
-        try:
-            ActivityService(user=request.user).record_score(
-                pk,
-                form.cleaned_data["student"].pk,
-                form.cleaned_data["score"],
-                form.cleaned_data.get("feedback", ""),
-            )
-        except (ValidationError, ObjectNotFoundError, BusinessRuleViolationError) as exc:
-            logger.warning("Erro ao lancar nota: %s", exc, extra={"activity_id": str(pk)})
-            from django.contrib import messages
+    submissions = ActivitySelector().list_submissions(pk)
+    rows = [
+        {
+            "student_id": submission.student_id,
+            "score": request.POST.get(f"score_{submission.student_id}", ""),
+            "feedback": request.POST.get(f"feedback_{submission.student_id}", ""),
+        }
+        for submission in submissions
+    ]
+    try:
+        ActivityService(user=request.user).batch_record_scores(pk, rows)
+    except (ValidationError, ObjectNotFoundError, BusinessRuleViolationError) as exc:
+        logger.warning("Erro ao lancar notas", extra={"activity_id": str(pk)})
+        from django.contrib import messages
 
-            messages.error(request, str(exc))
+        messages.error(request, str(exc))
     return redirect("activity_detail", pk=pk)

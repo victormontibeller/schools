@@ -11,6 +11,11 @@ from accounts import views
 urlpatterns = [
     path("demo/cadastro/", views.demo_signup_view, name="demo_signup"),
     path("demo/verificar/<str:token>/", views.demo_verify_view, name="demo_verify"),
+    path(
+        "convite-professor/<str:token>/",
+        views.teacher_invitation_view,
+        name="teacher_invitation",
+    ),
     path("login/", views.login_view, name="login"),
     path("logout/", views.logout_view, name="logout"),
     path("profile/", views.profile_view, name="profile"),

@@ -56,7 +56,8 @@ def import_students_csv(
                         "rg_number": row.get("rg_number", "").strip(),
                         "phone_mobile": row.get("phone_mobile", "").strip(),
                         "email": row.get("email", "").strip(),
-                    }
+                    },
+                    preserve_enrollment=True,
                 )
                 created += 1
             except Exception as exc:

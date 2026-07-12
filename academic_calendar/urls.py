@@ -18,6 +18,8 @@ urlpatterns = [
     path("eventos/<uuid:pk>/cancelar/", views.event_cancel, name="event_cancel"),
     path("feriados/", views.holidays_list, name="holidays_list"),
     path("feriados/novo/", views.holiday_create, name="holiday_create"),
+    path("feriados/<uuid:pk>/editar/", views.holiday_edit, name="holiday_edit"),
     path("anos-letivos/", views.academic_years_list, name="academic_years_list"),
     path("anos-letivos/novo/", views.academic_year_create, name="academic_year_create"),
+    path("anos-letivos/<uuid:pk>/editar/", views.academic_year_edit, name="academic_year_edit"),
 ]

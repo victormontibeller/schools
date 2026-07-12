@@ -155,3 +155,15 @@ def class_enroll(request, class_id):
         messages.error(request, str(exc))
 
     return redirect("class_detail", pk=class_id)
+
+
+@login_required
+def class_student_search(request, class_id):
+    """Retorna resultados HTMX para matrícula na turma."""
+    cls = ClassSelector().get_by_id(class_id)
+    students = ClassSelector().search_enrollable_students(class_id, request.GET.get("q", ""))
+    return render(
+        request,
+        "classes/partials/student_search_results.html",
+        {"class_obj": cls, "students": students},
+    )

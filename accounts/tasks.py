@@ -44,3 +44,35 @@ def expire_demo_users_task(tenant_schema: str = "demo") -> int:
         from accounts.services import AccountService
 
         return AccountService().expire_demo_users()
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def send_teacher_invitation_task(
+    self, tenant_schema: str, user_id: str, invitation_url: str
+) -> None:
+    """Envia convite do professor pelo transporte centralizado."""
+    with tenant_schema_context(tenant_schema):
+        from core.models import CustomUser
+        from notifications.channels import EmailChannel
+        from notifications.models import MessageTemplate
+        from notifications.transport import MessageTransport
+
+        user = CustomUser.objects.filter(pk=user_id).first()
+        if user is None:
+            return
+        template, _ = MessageTemplate.objects.get_or_create(
+            name="teacher-invitation",
+            channel=MessageTemplate.Channel.EMAIL,
+            defaults={
+                "type": MessageTemplate.Type.WELCOME,
+                "subject": "Ative seu acesso à escola",
+                "body": "Defina sua senha de acesso por este link: {{ invitation_url }}",
+            },
+        )
+        if (
+            MessageTransport(EmailChannel()).send_individual(
+                user, template, {"invitation_url": invitation_url}
+            )
+            == 0
+        ):
+            raise self.retry()

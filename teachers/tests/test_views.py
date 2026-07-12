@@ -123,6 +123,7 @@ class TestTeacherInlineEditing:
             {
                 "first_name": "Ana",
                 "last_name": "Pereira",
+                "email": "inline-teacher@example.com",
                 "registration_number": "INLINE-002",
                 "hire_date": "2025-01-15",
                 "birth_date": "1990-05-20",
@@ -141,7 +142,7 @@ class TestTeacherInlineEditing:
         assert response.status_code == 200
         teacher.refresh_from_db()
         teacher.user.refresh_from_db()
-        assert teacher.registration_number == "INLINE-002"
+        assert teacher.registration_number.startswith("PRO-")
         assert teacher.user.first_name == "Ana"
         assert b"atualizadas com sucesso" in response.content
 

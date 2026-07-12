@@ -58,6 +58,8 @@
             <dd class="col-sm-7 mb-0">
                 {% if teacher.hire_date %}{{ teacher.hire_date|date:"d/m/Y" }}{% else %}—{% endif %}
             </dd>
+            <dt class="col-sm-5 text-muted fw-medium">Notificações</dt>
+            <dd class="col-sm-7 mb-0">E-mail: {{ teacher.accepts_email_notifications|yesno:"Sim,Não" }} · WhatsApp: {{ teacher.accepts_whatsapp_notifications|yesno:"Sim,Não" }}</dd>
         </dl>
     </div>
 </div>

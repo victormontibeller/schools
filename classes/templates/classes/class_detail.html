@@ -26,24 +26,22 @@
         </div>
         <div class="card-body p-0">
             <div class="collapse mb-3" id="enroll-form">
-                <form method="post" action="{% url 'class_enroll' class_obj.pk %}" class="row g-2 p-3">
-                    {% csrf_token %}
-                    <div class="col-auto">
-                        <input type="text" name="student_id" class="form-control" placeholder="UUID do aluno" required>
-                    </div>
-                    <div class="col-auto">
-                        <button type="submit" class="btn btn-primary">Matricular</button>
-                    </div>
-                </form>
+                <div class="p-3">
+                    <input type="search" class="form-control" name="q" placeholder="Buscar por nome ou matrícula"
+                           hx-get="{% url 'class_student_search' class_obj.pk %}"
+                           hx-trigger="keyup changed delay:300ms, search" hx-target="#class-student-results"
+                           aria-label="Buscar aluno para matricular">
+                    <div id="class-student-results" class="mt-2"></div>
+                </div>
             </div>
 
             <div class="table-responsive">
             <table class="table table-hover mb-0">
-                <thead class="table-light"><tr><th>Aluno</th><th>Matrícula</th><th>Data</th></tr></thead>
+                <thead><tr><th>Aluno</th><th>Matrícula</th><th>Data</th></tr></thead>
                 <tbody>
                     {% for e in enrollments %}
                     <tr>
-                        <td>{{ e.student.get_full_name }}</td>
+                        <td><a href="{% url 'student_profile' e.student.pk %}" class="fw-semibold">{{ e.student.get_full_name }}</a></td>
                         <td>{{ e.student.enrollment_number }}</td>
                         <td>{{ e.enrollment_date|date:"d/m/Y" }}</td>
                     </tr>

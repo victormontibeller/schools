@@ -7,3 +7,14 @@
 {% endblock %}
 
 {% block cancel_url %}{% url 'students_list' %}{% endblock %}
+
+{% block form_fields %}
+<div class="sm-profile-hero text-center pb-3 mb-3 border-bottom">
+  <label for="{{ form.photo.id_for_label }}" class="sm-profile-avatar-edit">
+    <span class="avatar-text avatar-xl bg-soft-warning text-warning mx-auto">+</span>
+  </label>
+  {{ form.photo }}
+  {% for error in form.photo.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+</div>
+{% include "partials/person_form_fields.html" with form=form exclude_field="photo" %}
+{% endblock %}

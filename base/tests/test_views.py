@@ -157,7 +157,8 @@ class TestStudentViews:
         assert resp.status_code == 302
         from students.models import Student
 
-        assert Student.objects.filter(enrollment_number="NEW-001").exists()
+        student = Student.objects.get(email="tiago@example.com")
+        assert student.enrollment_number.startswith("ALU-")
 
     def test_student_create_post_validation_error_rerenders_form(self, force_login_client, user):
         # Matrícula duplicada
@@ -231,8 +232,7 @@ class TestGuardianViews:
     def test_guardians_list_renders(self, force_login_client):
         self._make()
         resp = force_login_client.get("/guardians/")
-        assert resp.status_code == 302
-        assert resp["Location"] == "/students/"
+        assert resp.status_code == 200
 
     def test_guardian_detail_redirects_to_students(self, force_login_client):
         from guardians.models import StudentGuardian
@@ -247,15 +247,13 @@ class TestGuardianViews:
         )
         StudentGuardian.objects.create(student=s, guardian=g)
         resp = force_login_client.get(f"/guardians/{g.pk}/")
-        assert resp.status_code == 302
-        assert resp["Location"] == "/students/"
+        assert resp.status_code == 200
 
     def test_guardian_detail_unknown_redirects_to_students(self, force_login_client):
         import uuid
 
         response = force_login_client.get(f"/guardians/{uuid.uuid4()}/")
-        assert response.status_code == 302
-        assert response["Location"] == "/students/"
+        assert response.status_code == 404
 
     def test_guardian_edit_get_redirects_to_students(self, force_login_client):
         from core.models import CustomUser
@@ -266,8 +264,7 @@ class TestGuardianViews:
         )
         g = Guardian.objects.create(user=u, relationship_type="PAI")
         resp = force_login_client.get(f"/guardians/{g.pk}/editar/")
-        assert resp.status_code == 302
-        assert resp["Location"] == "/students/"
+        assert resp.status_code == 200
 
     def test_guardian_edit_post_redirects_to_students(self, force_login_client):
         from core.models import CustomUser
@@ -282,6 +279,7 @@ class TestGuardianViews:
             {
                 "first_name": "GE2",
                 "last_name": "Test",
+                "email": "ge2@test.com",
                 "relationship_type": "MAE",
                 "birth_date": "1980-01-01",
                 "gender": "M",
@@ -296,7 +294,7 @@ class TestGuardianViews:
             },
         )
         assert resp.status_code == 302
-        assert resp["Location"] == "/students/"
+        assert f"/guardians/{g.pk}/editar/" in resp["Location"]
 
     def test_teacher_edit_get_redirects_to_profile(self, force_login_client, user):
         from teachers.models import Teacher
@@ -329,6 +327,7 @@ class TestGuardianViews:
                 "phone_mobile": "11999999999",
                 "first_name": user.first_name,
                 "last_name": user.last_name,
+                "email": user.email,
             },
         )
         assert resp.status_code == 302

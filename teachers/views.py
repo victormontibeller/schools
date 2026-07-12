@@ -3,6 +3,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
+from django.urls import reverse
 
 from base.exceptions import BusinessRuleViolationError, ValidationError
 from base.listing import build_querystring, build_sorting, resolve_listing_state
@@ -92,17 +93,34 @@ def teacher_detail(request, pk):
 @login_required
 def teacher_create(request):
     """Processa o formulário de criação de professor e redireciona em sucesso."""
-    form = TeacherForm(request.POST or None)
+    form = TeacherForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
         try:
-            data = form.cleaned_data.copy()
-            data["user_id"] = str(data["user_id"])
-            TeacherService(user=request.user).create_teacher(data)
+            teacher = TeacherService(user=request.user).create_teacher(form.cleaned_data)
+            if teacher.accepts_email_notifications and not teacher.user.is_active:
+                from django.db import connection, transaction
+
+                from accounts.services import AccountService
+                from accounts.tasks import send_teacher_invitation_task
+
+                token = AccountService().create_teacher_invitation_token(teacher.user_id)
+                invitation_url = request.build_absolute_uri(
+                    reverse("teacher_invitation", kwargs={"token": token})
+                )
+                tenant_schema = connection.schema_name
+                invited_user_id = str(teacher.user_id)
+                transaction.on_commit(
+                    lambda: send_teacher_invitation_task.delay(
+                        tenant_schema, invited_user_id, invitation_url
+                    )
+                )
             return redirect("teachers_list")
         except ValidationError as exc:
             for field, errors in exc.errors.items():
                 for error in errors:
                     form.add_error(field if field != "__all__" else None, error)
+        except BusinessRuleViolationError as exc:
+            form.add_error(None, exc.message)
     return render(request, "teachers/teacher_form.html", {"form": form, "title": "Novo Professor"})
 
 
@@ -138,6 +156,7 @@ def teacher_edit(request, pk):
             initial={
                 "first_name": teacher.user.first_name,
                 "last_name": teacher.user.last_name,
+                "email": teacher.user.email,
                 "registration_number": teacher.registration_number,
                 "hire_date": teacher.hire_date,
                 "birth_date": teacher.birth_date,
@@ -148,6 +167,8 @@ def teacher_edit(request, pk):
                 "rg_issuer": teacher.rg_issuer,
                 "rg_state": teacher.rg_state,
                 "phone_mobile": teacher.phone_mobile,
+                "accepts_email_notifications": teacher.accepts_email_notifications,
+                "accepts_whatsapp_notifications": teacher.accepts_whatsapp_notifications,
             }
         )
 

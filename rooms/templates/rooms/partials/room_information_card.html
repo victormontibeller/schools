@@ -15,12 +15,8 @@
             <dt class="col-sm-3">Capacidade</dt><dd class="col-sm-9">{{ room.capacity }} lugares</dd>
             <dt class="col-sm-3">Prédio</dt><dd class="col-sm-9">{{ room.building|default:"—" }}</dd>
             <dt class="col-sm-3">Andar</dt><dd class="col-sm-9">{{ room.floor|default:"—" }}</dd>
-            <dt class="col-sm-3">Recursos</dt>
-            <dd class="col-sm-9">
-                {% if room.resources %}
-                <ul class="mb-0">{% for key, value in room.resources.items %}<li>{{ key }}: {{ value }}</li>{% endfor %}</ul>
-                {% else %}—{% endif %}
-            </dd>
+            <dt class="col-sm-3">Observações</dt>
+            <dd class="col-sm-9 text-break">{{ room.observations|default:"—"|linebreaksbr }}</dd>
         </dl>
     </div>
 </div>

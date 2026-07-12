@@ -41,6 +41,9 @@ O Soft Delete deverá ser utilizado em todas as entidades do sistema.
 
 ## Convenções
 
+- Matrículas de professores e alunos são geradas por sequência anual isolada no schema do tenant.
+- Preferências de e-mail e WhatsApp são armazenadas separadamente e começam desmarcadas.
+
 - Toda migration deverá ser revisada antes de ser aplicada.
 - Migrations destrutivas (drop de colunas ou tabelas) deverão ser documentadas como ADR.
 - Índices deverão ser criados para todos os campos usados em filtros frequentes.

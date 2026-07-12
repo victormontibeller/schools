@@ -5,6 +5,9 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from django.db import transaction
+from django.utils import timezone
+
 if TYPE_CHECKING:
     from tenancy.models import School
 
@@ -12,6 +15,38 @@ from base.exceptions import ObjectNotFoundError, ValidationError
 from base.services import BaseService
 
 logger = logging.getLogger(__name__)
+
+
+class RegistrationSequenceService(BaseService):
+    """Gera matrículas anuais legíveis com bloqueio pessimista por tenant."""
+
+    PREFIXES = {"teacher": "PRO", "student": "ALU"}
+
+    @transaction.atomic
+    def next_number(self, scope: str) -> str:
+        """Incrementa e retorna a próxima matrícula do escopo no ano corrente."""
+        from core.models import RegistrationSequence
+
+        if scope not in self.PREFIXES:
+            raise ValidationError(errors={"scope": ["Tipo de matrícula inválido."]})
+        year = timezone.localdate().year
+        sequence, created = RegistrationSequence.objects.select_for_update().get_or_create(
+            scope=scope,
+            year=year,
+            defaults={"current_value": 0, "created_by": self.user, "updated_by": self.user},
+        )
+        old = {"current_value": sequence.current_value}
+        sequence.current_value += 1
+        sequence.updated_by = self.user
+        sequence.save(update_fields=["current_value", "updated_by", "updated_at"])
+        self._record_audit("INSERT" if created else "UPDATE", sequence, old_values=old)
+        self._log(
+            "registration_sequence_advanced",
+            sequence_id=str(sequence.pk),
+            scope=scope,
+            year=year,
+        )
+        return f"{self.PREFIXES[scope]}-{year}-{sequence.current_value:06d}"
 
 
 class BusinessUnitService(BaseService):

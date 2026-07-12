@@ -25,8 +25,9 @@ class TestTeacherForm:
     def test_valid(self):
         form = TeacherForm(
             data={
-                "user_id": "00000000-0000-0000-0000-000000000001",
-                "registration_number": "MAT-001",
+                "first_name": "Maria",
+                "last_name": "Souza",
+                "email": "maria@example.com",
                 "hire_date": dt.date(2025, 1, 15),
                 "birth_date": dt.date(1990, 5, 20),
                 "gender": "F",
@@ -40,25 +41,27 @@ class TestTeacherForm:
         )
         assert form.is_valid()
 
-    def test_blank_registration(self):
+    def test_registration_is_optional_and_readonly(self):
         form = TeacherForm(
             data={
-                "user_id": "00000000-0000-0000-0000-000000000001",
-                "registration_number": "",
+                "first_name": "Maria",
+                "last_name": "Souza",
+                "email": "maria@example.com",
+                "hire_date": dt.date(2025, 1, 15),
+                "birth_date": dt.date(1990, 5, 20),
+                "gender": "F",
+                "cpf": "390.533.447-05",
+                "rg_number": "1234567",
+                "phone_mobile": "11999990000",
             }
         )
-        assert not form.is_valid()
-        assert "registration_number" in form.errors
+        assert form.is_valid()
+        assert form.fields["registration_number"].widget.attrs["readonly"] is True
 
-    def test_invalid_user_id(self):
-        form = TeacherForm(
-            data={
-                "user_id": "not-a-uuid",
-                "registration_number": "MAT-003",
-            }
-        )
+    def test_invalid_email(self):
+        form = TeacherForm(data={"email": "invalido"})
         assert not form.is_valid()
-        assert "user_id" in form.errors
+        assert "email" in form.errors
 
 
 @pytest.mark.django_db
@@ -70,7 +73,7 @@ class TestTeacherEditForm:
         for field_name in [
             "first_name",
             "last_name",
-            "registration_number",
+            "email",
             "hire_date",
             "birth_date",
             "gender",
@@ -85,6 +88,7 @@ class TestTeacherEditForm:
             data={
                 "first_name": "Maria",
                 "last_name": "Souza",
+                "email": "maria@example.com",
                 "registration_number": "MAT-010",
                 "hire_date": dt.date(2025, 1, 15),
                 "birth_date": dt.date(1990, 5, 20),

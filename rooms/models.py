@@ -23,6 +23,7 @@ class Room(BaseModel):
         max_length=20, choices=Type.choices, default=Type.CLASSROOM, verbose_name="Tipo"
     )
     resources = models.JSONField(default=dict, blank=True, verbose_name="Recursos")
+    observations = models.TextField(blank=True, default="", verbose_name="Observações")
     floor = models.CharField(max_length=20, blank=True, default="", verbose_name="Andar")
     building = models.CharField(max_length=50, blank=True, default="", verbose_name="Prédio")
 

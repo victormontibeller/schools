@@ -23,7 +23,7 @@ def _role_user(role_name, email):
 @pytest.mark.parametrize(
     ("role_name", "denied_url"),
     [
-        ("SECRETARY", "teachers_list"),
+        ("SECRETARY", "finance_dashboard"),
         ("COORDINATOR", "finance_dashboard"),
         ("TEACHER", "students_list"),
         ("FINANCE", "teachers_list"),
@@ -42,6 +42,14 @@ def test_admin_role_can_access_all_modules(client):
     client.force_login(user)
     assert client.get(reverse("teachers_list")).status_code == 200
     assert client.get(reverse("finance_dashboard")).status_code == 200
+
+
+@pytest.mark.django_db
+def test_secretary_can_access_teacher_registry(client):
+    user = _role_user("SECRETARY", "secretary-teachers@roles.test")
+    client.force_login(user)
+
+    assert client.get(reverse("teachers_list")).status_code == 200
 
 
 @pytest.mark.django_db

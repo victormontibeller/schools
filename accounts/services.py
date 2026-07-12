@@ -6,6 +6,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.core import signing
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import connection, transaction
 from django.utils import timezone
 
@@ -17,9 +18,50 @@ logger = logging.getLogger(__name__)
 _PASSWORD_RE = re.compile(r"^(?=.*[A-Za-z])(?=.*\d).{8,}$")
 DEMO_VERIFY_SALT = "schools.demo-signup.v1"
 DEMO_VERIFY_TTL_SECONDS = 30 * 60
+TEACHER_INVITE_SALT = "schools.teacher-invite.v1"
+TEACHER_INVITE_TTL_SECONDS = 7 * 24 * 60 * 60
 
 
 class AccountService(BaseService):
+
+    def create_teacher_invitation_token(self, user_id) -> str:
+        """Cria token assinado para a definição inicial de senha do professor."""
+        return signing.dumps({"user_id": str(user_id)}, salt=TEACHER_INVITE_SALT, compress=True)
+
+    def activate_teacher_invitation(self, token: str, password: str):
+        """Ativa uma conta de professor pendente após definir senha forte."""
+        from core.models import CustomUser
+
+        self._validate_password(password)
+        try:
+            payload = signing.loads(
+                token, salt=TEACHER_INVITE_SALT, max_age=TEACHER_INVITE_TTL_SECONDS
+            )
+        except signing.BadSignature as exc:
+            raise BusinessRuleViolationError("Convite inválido ou expirado.") from exc
+        try:
+            user = CustomUser.all_objects.select_related("teacher_profile").get(
+                pk=payload.get("user_id"), deleted_at__isnull=True
+            )
+        except CustomUser.DoesNotExist:
+            raise ObjectNotFoundError("CustomUser", str(payload.get("user_id"))) from None
+        try:
+            teacher_profile = user.teacher_profile
+        except ObjectDoesNotExist as exc:
+            raise BusinessRuleViolationError("Convite não pertence a um professor.") from exc
+        if teacher_profile is None:
+            raise BusinessRuleViolationError("Convite não pertence a um professor.")
+        if user.is_active or user.email_verified_at:
+            raise BusinessRuleViolationError("Este convite já foi utilizado.")
+        old = {"is_active": user.is_active, "email_verified_at": None}
+        user.set_password(password)
+        user.is_active = True
+        user.email_verified_at = timezone.now()
+        user.updated_by = user
+        user.save()
+        self._record_audit("UPDATE", user, old_values=old)
+        self._log("teacher_invitation_accepted", user_id=str(user.pk))
+        return user
 
     def create_platform_user(self, data: dict):
         """Cria operador persistente no schema público."""

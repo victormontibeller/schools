@@ -81,6 +81,26 @@ def demo_verify_view(request, token):
     return redirect("login")
 
 
+def teacher_invitation_view(request, token):
+    """Permite ao professor convidado definir senha e ativar sua conta."""
+    from accounts.forms import TeacherInvitationForm
+
+    form = TeacherInvitationForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            AccountService().activate_teacher_invitation(token, form.cleaned_data["password"])
+            messages.success(request, "Conta ativada. Você já pode entrar.")
+            return redirect("login")
+        except (ValidationError, BusinessRuleViolationError) as exc:
+            if isinstance(exc, ValidationError):
+                for errors in exc.errors.values():
+                    for error in errors:
+                        form.add_error("password", error)
+            else:
+                form.add_error(None, exc.message)
+    return render(request, "auth/teacher_invitation.html", {"form": form})
+
+
 def login_view(request):
     """Autentica o usuário e inicia a sessão, redirecionando ao destino."""
     if request.user.is_authenticated:

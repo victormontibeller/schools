@@ -10,7 +10,11 @@ def test_guardian_edit_requires_all_personal_fields_except_optional_avatar():
     form = GuardianContactEditForm(data={})
 
     assert not form.is_valid()
-    for field_name in set(form.fields) - {"avatar"}:
+    for field_name in set(form.fields) - {
+        "avatar",
+        "accepts_email_notifications",
+        "accepts_whatsapp_notifications",
+    }:
         assert field_name in form.errors
 
 

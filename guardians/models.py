@@ -68,6 +68,12 @@ class Guardian(BaseModel):
         max_length=20, blank=True, default="", verbose_name="WhatsApp"
     )
     phone_mobile = models.CharField(max_length=20, blank=True, default="", verbose_name="Celular")
+    accepts_email_notifications = models.BooleanField(
+        default=False, verbose_name="Aceita notificações por e-mail"
+    )
+    accepts_whatsapp_notifications = models.BooleanField(
+        default=False, verbose_name="Aceita notificações por WhatsApp"
+    )
 
     class Meta:
         ordering = ["first_name", "last_name"]

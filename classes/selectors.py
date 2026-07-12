@@ -1,5 +1,7 @@
 """ClassSelector: consultas somente-leitura para turmas e matrículas."""
 
+from django.db.models import Q
+
 from base.selectors import BaseSelector, PageResult
 
 
@@ -61,3 +63,19 @@ class ClassSelector(BaseSelector):
         return Enrollment.objects.filter(
             class_obj_id=class_id, status=Enrollment.Status.ACTIVE
         ).count()
+
+    def search_enrollable_students(self, class_id, query: str, limit: int = 10):
+        """Busca alunos por nome/matrícula, excluindo os já matriculados."""
+        from students.models import Student
+
+        if not query.strip():
+            return Student.objects.none()
+        return (
+            Student.objects.filter(
+                Q(first_name__icontains=query)
+                | Q(last_name__icontains=query)
+                | Q(enrollment_number__icontains=query)
+            )
+            .exclude(enrollments__class_obj_id=class_id, enrollments__status="ACTIVE")
+            .order_by("first_name", "last_name")[:limit]
+        )

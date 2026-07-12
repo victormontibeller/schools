@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from django.db import transaction
+
 if TYPE_CHECKING:
     from students.models import Student
 
@@ -18,7 +20,6 @@ STUDENT_REQUIRED_FIELDS = [
     "first_name",
     "last_name",
     "birth_date",
-    "enrollment_number",
     "gender",
     "blood_type",
     "cpf",
@@ -41,13 +42,18 @@ class _StudentRepo(BaseRepository):
 class StudentService(BaseService):
     """Serviço de regras de negócio para alunos."""
 
-    def create_student(self, data: dict) -> Student:
+    @transaction.atomic
+    def create_student(self, data: dict, *, preserve_enrollment: bool = False) -> Student:
         """Cria um aluno validando obrigatórios e matrícula única, registrando auditoria."""
         from students.models import Student
 
         self.validate_required(data, STUDENT_REQUIRED_FIELDS)
 
-        enrollment = data["enrollment_number"].strip()
+        from core.services import RegistrationSequenceService
+
+        enrollment = (data.get("enrollment_number") or "").strip() if preserve_enrollment else ""
+        if not enrollment:
+            enrollment = RegistrationSequenceService(user=self.user).next_number("student")
         if Student.objects.filter(enrollment_number=enrollment).exists():
             raise ValidationError(errors={"enrollment_number": ["Matrícula já cadastrada."]})
 
@@ -59,12 +65,15 @@ class StudentService(BaseService):
             enrollment_number=enrollment,
             gender=data.get("gender", Student.Gender.NOT_INFORMED),
             blood_type=data.get("blood_type", ""),
-            special_needs=data.get("special_needs", ""),
+            observations=data.get("observations", ""),
             user=data.get("user"),
             cpf=cpf_cleaned,
             rg_number=data.get("rg_number", ""),
             phone_mobile=data.get("phone_mobile", ""),
             email=data.get("email", ""),
+            photo=data.get("photo"),
+            accepts_email_notifications=bool(data.get("accepts_email_notifications")),
+            accepts_whatsapp_notifications=bool(data.get("accepts_whatsapp_notifications")),
             created_by=self.user,
             updated_by=self.user,
         )
@@ -90,22 +99,16 @@ class StudentService(BaseService):
             "birth_date",
             "gender",
             "blood_type",
-            "special_needs",
+            "observations",
             "rg_number",
             "phone_mobile",
             "email",
             "photo",
+            "accepts_email_notifications",
+            "accepts_whatsapp_notifications",
         }
         old = self._snapshot(student, [*allowed, "enrollment_number", "cpf"])
         updates = {k: v for k, v in data.items() if k in allowed}
-
-        if "enrollment_number" in data:
-            enrollment = data["enrollment_number"].strip()
-            from students.models import Student
-
-            if Student.objects.filter(enrollment_number=enrollment).exclude(pk=student_id).exists():
-                raise ValidationError(errors={"enrollment_number": ["Matrícula já cadastrada."]})
-            updates["enrollment_number"] = enrollment
 
         if "cpf" in data:
             from students.models import Student

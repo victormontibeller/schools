@@ -36,9 +36,11 @@ def _make_subject(user):
 
 def _make_teacher(user, registration="ACT-001"):
     target = _make_user(f"act-teacher{registration}@test.com")
-    return Teacher.objects.create(
+    teacher = Teacher.objects.create(
         user=target, registration_number=registration, created_by=user, updated_by=user
     )
+    teacher.subjects.set(Subject.objects.all())
+    return teacher
 
 
 def _make_student(user, enrollment_number="ACT-S001"):

@@ -73,6 +73,9 @@ class AttendanceEntry(BaseModel):
     justification = models.CharField(
         max_length=200, blank=True, default="", verbose_name="Justificativa"
     )
+    note = models.CharField(
+        max_length=250, blank=True, default="", verbose_name="Observação/recado"
+    )
 
     class Meta:
         verbose_name = "Presença"

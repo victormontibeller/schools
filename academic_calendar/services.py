@@ -65,6 +65,25 @@ class CalendarService(BaseService):
         self._log("Ano letivo criado", academic_year_id=str(ay.pk))
         return ay
 
+    def update_academic_year(self, academic_year_id, data: dict):
+        """Atualiza um ano letivo validando sua janela."""
+        from academic_calendar.models import AcademicYear
+
+        try:
+            academic_year = AcademicYear.objects.get(pk=academic_year_id)
+        except AcademicYear.DoesNotExist:
+            raise ObjectNotFoundError("AcademicYear", str(academic_year_id)) from None
+        if data["end_date"] < data["start_date"]:
+            raise ValidationError(errors={"end_date": ["Término deve ser após o início."]})
+        old = self._snapshot(academic_year, ["name", "start_date", "end_date", "status"])
+        for field in ("name", "start_date", "end_date", "status"):
+            setattr(academic_year, field, data[field])
+        academic_year.updated_by = self.user
+        academic_year.save()
+        self._record_audit("UPDATE", academic_year, old_values=old)
+        self._log("Ano letivo atualizado", academic_year_id=str(academic_year.pk))
+        return academic_year
+
     # ── Eventos ───────────────────────────────────────────────────────────────
     def create_event(self, data: dict):
         """Cria um evento de calendário. Público CLASS exige turma informada."""
@@ -203,6 +222,25 @@ class CalendarService(BaseService):
         )
         self._record_audit("INSERT", holiday)
         self._log("Feriado criado", holiday_id=str(holiday.pk))
+        return holiday
+
+    def update_holiday(self, holiday_id, data: dict):
+        """Atualiza um feriado existente."""
+        from academic_calendar.models import Holiday
+
+        try:
+            holiday = Holiday.objects.get(pk=holiday_id)
+        except Holiday.DoesNotExist:
+            raise ObjectNotFoundError("Holiday", str(holiday_id)) from None
+        old = self._snapshot(holiday, ["name", "date", "type", "is_recurring"])
+        holiday.name = data["name"].strip()
+        holiday.date = data["date"]
+        holiday.type = data["type"]
+        holiday.is_recurring = bool(data.get("is_recurring"))
+        holiday.updated_by = self.user
+        holiday.save()
+        self._record_audit("UPDATE", holiday, old_values=old)
+        self._log("Feriado atualizado", holiday_id=str(holiday.pk))
         return holiday
 
     # ── Dias letivos ─────────────────────────────────────────────────────────

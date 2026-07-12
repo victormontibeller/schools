@@ -219,6 +219,19 @@ def holiday_create(request):
 
 
 @login_required
+def holiday_edit(request, pk):
+    """Edita um feriado pela primeira coluna da listagem."""
+    holiday = HolidaySelector().get_by_id(pk)
+    form = HolidayForm(request.POST or None, instance=holiday)
+    if request.method == "POST" and form.is_valid():
+        CalendarService(user=request.user).update_holiday(pk, form.cleaned_data)
+        return redirect("holidays_list")
+    return render(
+        request, "academic_calendar/holiday_form.html", {"form": form, "title": "Editar Feriado"}
+    )
+
+
+@login_required
 def academic_years_list(request):
     """Lista anos letivos seguindo o padrão de listagem compartilhada."""
     page = int(request.GET.get("page", 1))
@@ -263,6 +276,21 @@ def academic_year_create(request):
         request,
         "academic_calendar/academic_year_form.html",
         {"form": form, "title": "Novo Ano Letivo"},
+    )
+
+
+@login_required
+def academic_year_edit(request, pk):
+    """Edita um ano letivo pela primeira coluna da listagem."""
+    academic_year = AcademicYearSelector().get_by_id(pk)
+    form = AcademicYearForm(request.POST or None, instance=academic_year)
+    if request.method == "POST" and form.is_valid():
+        CalendarService(user=request.user).update_academic_year(pk, form.cleaned_data)
+        return redirect("academic_years_list")
+    return render(
+        request,
+        "academic_calendar/academic_year_form.html",
+        {"form": form, "title": "Editar Ano Letivo"},
     )
 
 

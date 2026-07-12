@@ -10,6 +10,7 @@ import logging
 import re
 from typing import TYPE_CHECKING
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 
 from notifications.channels import ChannelResult
@@ -54,6 +55,8 @@ class MessageTransport:
             1 se enviado, 0 se falhou.
         """
         context = context or {}
+        if not self._allows_channel(user):
+            return 0
         subject = render_template(template.subject, context) if template.subject else ""
         body = render_template(template.body, context)
 
@@ -83,6 +86,8 @@ class MessageTransport:
         success = 0
         failed = 0
         for user in recipients:
+            if not self._allows_channel(user):
+                continue
             address = self._resolve_address(user)
             if not address:
                 self._log_failure(
@@ -122,6 +127,21 @@ class MessageTransport:
         if self.channel.channel_name == "WHATSAPP":
             return getattr(user, "phone", "")
         return ""
+
+    def _allows_channel(self, user) -> bool:
+        """Respeita o consentimento do perfil quando o usuário representa uma pessoa."""
+        field = (
+            "accepts_email_notifications"
+            if self.channel.channel_name == "EMAIL"
+            else "accepts_whatsapp_notifications"
+        )
+        for relation in ("teacher_profile", "student_profile", "guardian_profile"):
+            try:
+                profile = getattr(user, relation)
+            except ObjectDoesNotExist:
+                continue
+            return bool(getattr(profile, field, False))
+        return True
 
     def _log_result(self, result: ChannelResult, user=None, announcement=None) -> None:
         """Cria MessageLog a partir de um ChannelResult."""

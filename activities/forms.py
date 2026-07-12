@@ -66,10 +66,6 @@ class ActivityForm(forms.Form):
 class ActivityEditForm(ActivityForm):
     """Formulário dos campos editáveis no card de informações da atividade."""
 
-    class_obj = None
-    subject = None
-    teacher = None
-
 
 class ScoreForm(forms.Form):
     """Formulário para lançar a nota de um aluno numa atividade."""
@@ -86,6 +82,7 @@ class ScoreForm(forms.Form):
         widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
     )
     feedback = forms.CharField(
+        required=False,
         label="Feedback",
         widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
     )

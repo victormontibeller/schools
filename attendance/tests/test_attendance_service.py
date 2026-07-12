@@ -227,6 +227,7 @@ class TestRecordAttendance:
         assert log.old_values == {
             "status": AttendanceEntry.Status.PRESENT,
             "justification": "",
+            "note": "",
         }
 
     def test_invalid_status(self, user):

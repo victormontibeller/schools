@@ -10,4 +10,9 @@ urlpatterns = [
     path("classes/<uuid:pk>/", views.class_detail, name="class_detail"),
     path("classes/<uuid:pk>/editar/", views.class_edit, name="class_edit"),
     path("classes/<uuid:class_id>/enroll/", views.class_enroll, name="class_enroll"),
+    path(
+        "classes/<uuid:class_id>/students/search/",
+        views.class_student_search,
+        name="class_student_search",
+    ),
 ]

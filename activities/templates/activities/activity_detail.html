@@ -23,41 +23,28 @@
     <div class="card sm-detail-card sm-detail-table-card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="card-title mb-0">Notas Lançadas</h6>
-            <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#score-form">Lançar Nota</button>
         </div>
-        <div class="card-body">
-            <div class="collapse mb-3" id="score-form">
-                <form method="post" action="{% url 'activity_record_score' activity.pk %}" class="card border-0 bg-light">
-                    {% csrf_token %}
-                    <div class="card-body">
-                        <div class="row g-2">
-                            {% include "partials/form_field.html" with field=form.student %}
-                            {% include "partials/form_field.html" with field=form.score %}
-                            {% include "partials/form_field.html" with field=form.feedback %}
-                        </div>
-                    </div>
-                    <div class="card-footer bg-transparent d-flex justify-content-end">
-                        <button type="submit" class="btn btn-sm btn-primary">Lançar nota</button>
-                    </div>
-                </form>
-            </div>
-
-            <table class="table table-hover">
-                <thead><tr><th>Aluno</th><th>Nota</th><th>Entregue em</th><th>Feedback</th></tr></thead>
+        <form method="post" action="{% url 'activity_record_score' activity.pk %}">
+            {% csrf_token %}
+            <div class="card-body p-0 table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead><tr><th>Aluno</th><th>Matrícula</th><th>Nota</th><th>Feedback</th></tr></thead>
                 <tbody>
                     {% for s in submissions %}
                     <tr>
-                        <td>{{ s.student }}</td>
-                        <td>{{ s.score|default:"—" }}</td>
-                        <td>{{ s.submitted_at|date:"d/m/Y H:i"|default:"—" }}</td>
-                        <td>{{ s.feedback|default:"—" }}</td>
+                        <td>{{ s.student.get_full_name }}</td>
+                        <td>{{ s.student.enrollment_number }}</td>
+                        <td><input class="form-control form-control-sm" type="number" min="0" max="{{ activity.max_score }}" step="0.01" name="score_{{ s.student_id }}" value="{{ s.score|default_if_none:'' }}" aria-label="Nota de {{ s.student.get_full_name }}"></td>
+                        <td><input class="form-control form-control-sm" type="text" name="feedback_{{ s.student_id }}" value="{{ s.feedback }}" aria-label="Feedback de {{ s.student.get_full_name }}"></td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="4" class="text-center text-muted py-3">Nenhuma nota lançada.</td></tr>
+                    <tr><td colspan="4" class="text-center text-muted py-3">Nenhum aluno matriculado.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
-        </div>
+            </div>
+            {% if submissions %}<div class="card-footer d-flex justify-content-end"><button type="submit" class="btn btn-sm btn-primary">Salvar notas</button></div>{% endif %}
+        </form>
     </div>
         </div>
     </div>

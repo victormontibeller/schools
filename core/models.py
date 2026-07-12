@@ -66,6 +66,25 @@ class BusinessUnit(BaseModel):
         return self.name
 
 
+class RegistrationSequence(BaseModel):
+    """Contador anual, isolado pelo schema do tenant, para matrículas legíveis."""
+
+    scope = models.CharField(max_length=20, verbose_name="Tipo")
+    year = models.PositiveSmallIntegerField(verbose_name="Ano")
+    current_value = models.PositiveIntegerField(default=0, verbose_name="Valor Atual")
+
+    class Meta:
+        verbose_name = "Sequência de Matrícula"
+        verbose_name_plural = "Sequências de Matrícula"
+        constraints = [
+            models.UniqueConstraint(fields=["scope", "year"], name="uniq_reg_sequence_scope_year")
+        ]
+        indexes = [models.Index(fields=["scope", "year"])]
+
+    def __str__(self) -> str:
+        return f"{self.scope}-{self.year}: {self.current_value}"
+
+
 # ── Acesso ─────────────────────────────────────────────────────────────────────
 
 

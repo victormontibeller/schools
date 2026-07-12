@@ -22,10 +22,6 @@ class GuardianForm(forms.Form):
         label="Usuário",
         widget=forms.Select(attrs={"class": "form-select"}),
     )
-    relationship_type = forms.ChoiceField(
-        label="Parentesco",
-        widget=forms.Select(attrs={"class": "form-select"}),
-    )
     birth_date = forms.DateField(
         required=False,
         label="Data de Nascimento",
@@ -148,6 +144,16 @@ class GuardianCreateForm(GuardianLinkForm):
         label="Foto",
         widget=forms.ClearableFileInput(attrs={"class": "form-control"}),
     )
+    accepts_email_notifications = forms.BooleanField(
+        required=False,
+        label="Aceita notificações por e-mail",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
+    accepts_whatsapp_notifications = forms.BooleanField(
+        required=False,
+        label="Aceita notificações por WhatsApp",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -166,7 +172,14 @@ class GuardianCreateForm(GuardianLinkForm):
 
         self.fields["gender"].choices = Guardian.Gender.choices
         for field_name, field in self.fields.items():
-            if field_name not in {"avatar", "is_primary", "has_custody", "can_pickup"}:
+            if field_name not in {
+                "avatar",
+                "is_primary",
+                "has_custody",
+                "can_pickup",
+                "accepts_email_notifications",
+                "accepts_whatsapp_notifications",
+            }:
                 field.required = True
         self.fields["avatar"].widget.attrs["class"] = "sm-profile-avatar-input"
         for field_name, field in self.fields.items():
@@ -183,6 +196,8 @@ class GuardianCreateForm(GuardianLinkForm):
                 "cpf",
                 "rg_number",
                 "phone_mobile",
+                "accepts_email_notifications",
+                "accepts_whatsapp_notifications",
                 "relationship_type",
                 "is_primary",
                 "has_custody",
@@ -225,10 +240,6 @@ class GuardianEditForm(forms.Form):
         label="Foto do Responsável",
         widget=forms.ClearableFileInput(attrs={"class": "sm-profile-avatar-input"}),
     )
-    relationship_type = forms.ChoiceField(
-        label="Parentesco",
-        widget=forms.Select(attrs={"class": "form-select"}),
-    )
     birth_date = forms.DateField(
         required=False,
         label="Data de Nascimento",
@@ -257,12 +268,21 @@ class GuardianEditForm(forms.Form):
         label="Celular",
         widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "(00) 00000-0000"}),
     )
+    accepts_email_notifications = forms.BooleanField(
+        required=False,
+        label="Aceita notificações por e-mail",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
+    accepts_whatsapp_notifications = forms.BooleanField(
+        required=False,
+        label="Aceita notificações por WhatsApp",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from guardians.models import Guardian
 
-        self.fields["relationship_type"].choices = Guardian.Relationship.choices
         self.fields["gender"].choices = Guardian.Gender.choices
         for field_name in self.REQUIRED_FIELDS:
             self.fields[field_name].required = True
@@ -277,7 +297,8 @@ class GuardianEditForm(forms.Form):
                 "cpf",
                 "rg_number",
                 "phone_mobile",
-                "relationship_type",
+                "accepts_email_notifications",
+                "accepts_whatsapp_notifications",
             ]
         )
 
@@ -287,7 +308,7 @@ class GuardianContactEditForm(GuardianEditForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields.pop("relationship_type")
+        self.fields.pop("relationship_type", None)
         for field_name, field in self.fields.items():
             if field_name != "avatar":
                 field.widget.attrs["data_grid"] = "col-12 col-sm-4"

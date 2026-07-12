@@ -74,6 +74,8 @@ class GuardianService(BaseService):
             phone=data.get("phone", ""),
             phone_whatsapp=data.get("phone_whatsapp", ""),
             phone_mobile=data.get("phone_mobile", ""),
+            accepts_email_notifications=bool(data.get("accepts_email_notifications")),
+            accepts_whatsapp_notifications=bool(data.get("accepts_whatsapp_notifications")),
             created_by=self.user,
             updated_by=self.user,
         )
@@ -98,6 +100,8 @@ class GuardianService(BaseService):
             "cpf",
             "rg_number",
             "phone_mobile",
+            "accepts_email_notifications",
+            "accepts_whatsapp_notifications",
         }
         old = self._snapshot(guardian, [*allowed, "cpf"])
         updates = {k: v for k, v in data.items() if k in allowed}

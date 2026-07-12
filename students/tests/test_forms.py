@@ -24,7 +24,7 @@ def test_student_edit_requires_all_personal_fields_except_optional_groups():
     ]:
         assert field_name in form.errors
     for field_name in [
-        "special_needs",
+        "observations",
         "photo",
     ]:
         assert field_name not in form.errors

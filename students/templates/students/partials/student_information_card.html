@@ -46,8 +46,10 @@
             </dd>
             <dt class="col-sm-5 text-muted fw-medium">Celular</dt>
             <dd class="col-sm-7 mb-0">{{ student.phone_mobile|default:"—" }}</dd>
-            <dt class="col-sm-5 text-muted fw-medium">Necessidades especiais</dt>
-            <dd class="col-sm-7 mb-0 text-break">{{ student.special_needs|default:"—" }}</dd>
+            <dt class="col-sm-5 text-muted fw-medium">Observações</dt>
+            <dd class="col-sm-7 mb-0 text-break">{{ student.observations|default:"—" }}</dd>
+            <dt class="col-sm-5 text-muted fw-medium">Notificações</dt>
+            <dd class="col-sm-7 mb-0">E-mail: {{ student.accepts_email_notifications|yesno:"Sim,Não" }} · WhatsApp: {{ student.accepts_whatsapp_notifications|yesno:"Sim,Não" }}</dd>
         </dl>
     </div>
 </div>
