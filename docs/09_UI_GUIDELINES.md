@@ -28,7 +28,7 @@
 
 - No contexto escolar, **Visão geral** permanece como acesso direto e os demais destinos são agrupados por departamento: Acadêmico, Secretaria, Coordenação e Administração.
 - Para funcionários, a taxonomia canônica é:
-  - **Acadêmico:** Turmas, Disciplinas, Grade Horária, Atividades e Frequência;
+  - **Acadêmico:** Turmas, Disciplinas, Grade Horária, Atividades, Frequência e Agenda;
   - **Secretaria:** Professores, Alunos, Responsáveis e Matrículas;
   - **Coordenação:** Calendário, Feriados, Anos Letivos e Comunicados;
   - **Financeiro:** Visão Financeira;
@@ -72,6 +72,8 @@
 ## Formulários
 
 - Formulários de cadastro e edição usam a mesma largura/posição da ficha e grade compacta `row g-2`.
+- Em turmas, `Série` é um seletor estático dependente de `Etapa de Ensino`; não existe cadastro
+  separado de séries, e a validação no service permanece obrigatória sem JavaScript.
 - Campos usam `partials/form_field.html`; erros e asteriscos de obrigatoriedade são exibidos pelo partial.
 - Forms com upload definem `enctype="multipart/form-data"` e, em HTMX, `hx-encoding="multipart/form-data"`.
 - Avatar, foto e logotipo são o objeto editável do topo do formulário: imagem/monograma dentro de um `<label>` associado ao input oculto (`sm-profile-avatar-input`). Não exibir um controle “Choose file” no corpo do formulário.
@@ -87,6 +89,15 @@
 - Responsáveis editam seus vínculos com alunos no card lateral da mesma tela de edição.
 - Grades de notas e frequência pré-carregam os alunos e deixam editáveis apenas os dados do
   lançamento.
+- A Agenda pré-carrega todas as crianças ativas em uma listagem canônica dentro de um único card.
+  A primeira coluna liga ao histórico do aluno; cada linha expande os campos da criança e há um
+  único botão **Salvar Agenda**, que envia a turma inteira atomicamente.
+- Os campos de alimentação e dos aspectos Humor, Descanso, Evacuação e Participação usam botões
+  de opção segmentados e acessíveis. Refeições exibem Café da manhã, Almoço e Café da tarde e
+  incluem a resposta Não estava presente. Editores expandidos usam `row g-2` e permanecem
+  acessíveis sem JavaScript.
+- **Aspectos da rotina** segue a listagem e ficha canônicas. Nomes e opções são fixos; a escola
+  pode apenas ativar ou desativar cada aspecto.
 
 ## HTMX, acessibilidade e feedback
 

@@ -1,0 +1,36 @@
+{% if form.legacy_grade %}
+<div class="alert alert-warning py-2" role="alert">
+    A série “{{ form.legacy_grade }}” é um valor legado. Selecione uma opção válida para salvar.
+</div>
+{% endif %}
+<div class="row g-2">
+    {% for field in form %}
+        {% include "partials/form_field.html" with field=field %}
+    {% endfor %}
+</div>
+<script>
+(function () {
+    var stageSelect = document.querySelector("[data-grade-stage]");
+    var gradeSelect = document.querySelector("[data-grade-select]");
+    if (!stageSelect || !gradeSelect || gradeSelect.dataset.gradeInitialized === "true") {
+        return;
+    }
+    gradeSelect.dataset.gradeInitialized = "true";
+    var optionsByStage = JSON.parse(gradeSelect.dataset.gradeOptions || "{}");
+
+    function updateGradeOptions() {
+        var selectedGrade = gradeSelect.value;
+        var available = optionsByStage[stageSelect.value] || [];
+        gradeSelect.replaceChildren(new Option("---------", ""));
+        available.forEach(function (option) {
+            gradeSelect.add(new Option(option.label, option.value));
+        });
+        if (available.some(function (option) { return option.value === selectedGrade; })) {
+            gradeSelect.value = selectedGrade;
+        }
+    }
+
+    stageSelect.addEventListener("change", updateGradeOptions);
+    updateGradeOptions();
+}());
+</script>

@@ -26,6 +26,7 @@
                         <dt class="col-sm-4">Professor</dt><dd class="col-sm-8">{{ record.teacher }}</dd>
                         <dt class="col-sm-4">Data</dt><dd class="col-sm-8">{{ record.date|date:"d/m/Y" }}</dd>
                         <dt class="col-sm-4">Aula</dt><dd class="col-sm-8">{{ record.lesson_number }}</dd>
+                        <dt class="col-sm-4">Conteúdo ministrado</dt><dd class="col-sm-8">{{ record.lesson_content|default:"—" }}</dd>
                         <dt class="col-sm-4">Observações</dt><dd class="col-sm-8">{{ record.notes|default:"—" }}</dd>
                     </dl>
                 </div>

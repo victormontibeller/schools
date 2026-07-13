@@ -40,13 +40,16 @@ class AttendanceService(BaseService):
     def open_attendance(self, data: dict):
         """Cria o registro de chamada e pré-cadastra entradas para todos os alunos ativos.
 
-        Espera em `data`: class_id, subject_id, teacher_id, date, lesson_number, notes?
+        Espera em `data`: class_id, subject_id, teacher_id, date, lesson_number,
+        lesson_content e notes?.
         """
         from attendance.models import AttendanceEntry, AttendanceRecord
         from classes.models import Class, Enrollment
         from teachers.models import Subject, Teacher
 
         self.validate_required(data, ["class_id", "subject_id", "teacher_id", "date"])
+        if not data.get("lesson_content") and not getattr(self.user, "is_superuser", False):
+            raise ValidationError(errors={"lesson_content": ["Campo obrigatório."]})
 
         try:
             cls = Class.objects.get(pk=data["class_id"])
@@ -61,6 +64,8 @@ class AttendanceService(BaseService):
         except Teacher.DoesNotExist:
             raise ObjectNotFoundError("Teacher", str(data["teacher_id"])) from None
 
+        self._validate_teacher_scope(cls, subject, teacher)
+
         date = data["date"]
         lesson_number = int(data.get("lesson_number", 1) or 1)
         if AttendanceRecord.objects.filter(
@@ -74,6 +79,7 @@ class AttendanceService(BaseService):
             teacher=teacher,
             date=date,
             lesson_number=lesson_number,
+            lesson_content=(data.get("lesson_content") or "Conteúdo não informado").strip(),
             notes=(data.get("notes") or "").strip(),
             created_by=self.user,
             updated_by=self.user,
@@ -105,6 +111,26 @@ class AttendanceService(BaseService):
             students=len(entries),
         )
         return record
+
+    def _validate_teacher_scope(self, class_obj, subject, teacher) -> None:
+        """Valida autoria, disciplina e vínculo do professor com a turma."""
+        from base.exceptions import PermissionDeniedError
+        from core.permissions import role_name
+
+        if not teacher.subjects.filter(pk=subject.pk).exists():
+            raise ValidationError(
+                errors={"subject": ["A disciplina não está vinculada ao professor."]}
+            )
+        linked = (
+            class_obj.class_teacher_id == teacher.pk
+            or class_obj.schedules.filter(teacher=teacher).exists()
+        )
+        if not linked:
+            raise ValidationError(
+                errors={"class_obj": ["O professor não está vinculado a esta turma."]}
+            )
+        if role_name(self.user) == "TEACHER" and teacher.user_id != self.user.pk:
+            raise PermissionDeniedError("Professor não autorizado para esta chamada.")
 
     # ── Parsing de formulário de chamada ─────────────────────────────────────
 

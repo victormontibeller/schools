@@ -26,6 +26,8 @@ def classes_list(request):
             "-name",
             "grade",
             "-grade",
+            "education_stage",
+            "-education_stage",
             "shift",
             "-shift",
             "academic_year",
@@ -49,7 +51,14 @@ def classes_list(request):
         "sorting": build_sorting(
             current_sort=sort,
             search=search,
-            sortable_fields=["name", "grade", "shift", "academic_year", "max_students"],
+            sortable_fields=[
+                "name",
+                "grade",
+                "education_stage",
+                "shift",
+                "academic_year",
+                "max_students",
+            ],
         ),
         "list_query": build_querystring({"q": search, "sort": sort}),
         "breadcrumb_items": [
@@ -125,11 +134,9 @@ def class_edit(request, pk):
         return redirect("class_detail", pk=pk)
     return render(
         request,
-        "partials/information_form_card.html",
+        "classes/partials/class_information_form_card.html",
         {
             "form": form,
-            "component_id": "class-information-card",
-            "component_title": "Informações da Turma",
             "edit_url": request.path,
             "cancel_url": f"{request.path_info.removesuffix('editar/')}?component=information",
         },

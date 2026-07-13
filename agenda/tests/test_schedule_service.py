@@ -49,7 +49,8 @@ def _make_class(user):
     _class_counter[key] = _class_counter.get(key, 0) + 1
     return Class.objects.create(
         name=f"1A-{_class_counter[key]}",
-        grade="1º Ano",
+        grade=Class.Grade.ELEMENTARY_1,
+        education_stage=Class.EducationStage.ELEMENTARY_I,
         academic_year=2025,
         shift=Class.Shift.MORNING,
         created_by=user,

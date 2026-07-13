@@ -142,7 +142,8 @@ class TestCreateAnnouncement:
 
         cls = Class.objects.create(
             name="1A-ANN",
-            grade="1o Ano",
+            grade=Class.Grade.ELEMENTARY_1,
+            education_stage=Class.EducationStage.ELEMENTARY_I,
             academic_year=2025,
             shift=Class.Shift.MORNING,
             created_by=user,
@@ -214,7 +215,8 @@ class TestGetAudienceUsers:
 
         cls = Class.objects.create(
             name="1A-AUD",
-            grade="1o Ano",
+            grade=Class.Grade.ELEMENTARY_1,
+            education_stage=Class.EducationStage.ELEMENTARY_I,
             academic_year=2025,
             shift=Class.Shift.MORNING,
             created_by=user,

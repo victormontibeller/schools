@@ -50,7 +50,8 @@ show(
         reverse("class_create"),
         {
             "name": "6º B",
-            "grade": "6º ano",
+            "grade": Class.Grade.ELEMENTARY_6,
+            "education_stage": Class.EducationStage.ELEMENTARY_II,
             "shift": Class.Shift.AFTERNOON,
             "academic_year": 2026,
             "max_students": 28,

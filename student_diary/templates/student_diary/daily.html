@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Agenda — School Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title"><h5 class="m-b-10">Agenda</h5></div>
+        <ul class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li><li class="breadcrumb-item">Agenda</li></ul>
+    </div>
+</div>
+<div class="main-content">
+    <div class="card sm-detail-card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center gap-2">
+            <h6 class="card-title mb-0">Selecionar turma e data</h6>
+            {% if can_configure_diary %}<a class="btn btn-sm btn-outline-primary" href="{% url 'diary_configuration' %}">Aspectos da rotina</a>{% endif %}
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-2 align-items-end">
+                {% for field in filter_form %}{% include "partials/form_field.html" with field=field %}{% endfor %}
+                <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">Carregar</button></div>
+            </form>
+        </div>
+    </div>
+    {% if sheet %}{% include "student_diary/partials/daily_roster_card.html" %}{% endif %}
+</div>
+{% endblock %}

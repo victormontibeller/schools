@@ -54,9 +54,12 @@ class ObjectAccessSelector:
     @staticmethod
     def teacher_can_access_student(user_id, student_id) -> bool:
         """Confirma matrícula do aluno em turma do professor."""
+        from django.db.models import Q
+
         from classes.models import Enrollment
 
         return Enrollment.objects.filter(
+            Q(class_obj__class_teacher__user_id=user_id)
+            | Q(class_obj__schedules__teacher__user_id=user_id),
             student_id=student_id,
-            class_obj__schedules__teacher__user_id=user_id,
         ).exists()

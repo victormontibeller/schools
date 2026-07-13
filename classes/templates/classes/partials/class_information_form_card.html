@@ -1,0 +1,25 @@
+<div class="card mb-0 sm-detail-card" id="class-information-card">
+    <form method="post"
+          action="{{ edit_url }}"
+          hx-post="{{ edit_url }}"
+          hx-target="#class-information-card"
+          hx-swap="outerHTML">
+        {% csrf_token %}
+        <div class="card-header d-flex align-items-center justify-content-between gap-2">
+            <h6 class="card-title mb-0">Informações da Turma</h6>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary"
+                        hx-get="{{ cancel_url }}"
+                        hx-target="#class-information-card"
+                        hx-swap="outerHTML">Cancelar</button>
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="feather-check me-1"></i> Salvar
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+            {% include "classes/partials/class_form_fields.html" %}
+        </div>
+    </form>
+</div>

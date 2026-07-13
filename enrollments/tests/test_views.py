@@ -29,12 +29,14 @@ def student(db, user):
 
 @pytest.fixture()
 def class_obj(db, user):
+    from classes.models import Class
     from classes.services import ClassService
 
     return ClassService(user=user).create_class(
         {
             "name": "Turma View Test",
-            "grade": "3o Ano",
+            "grade": Class.Grade.ELEMENTARY_3,
+            "education_stage": Class.EducationStage.ELEMENTARY_I,
             "academic_year": 2025,
             "shift": "MORNING",
             "max_students": 30,

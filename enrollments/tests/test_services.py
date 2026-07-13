@@ -30,12 +30,14 @@ def student(db, user):
 
 @pytest.fixture()
 def class_obj(db, user):
+    from classes.models import Class
     from classes.services import ClassService
 
     return ClassService(user=user).create_class(
         {
             "name": "Turma A",
-            "grade": "5o Ano",
+            "grade": Class.Grade.ELEMENTARY_5,
+            "education_stage": Class.EducationStage.ELEMENTARY_I,
             "academic_year": 2025,
             "shift": "MORNING",
             "max_students": 5,
@@ -45,12 +47,14 @@ def class_obj(db, user):
 
 @pytest.fixture()
 def class_obj_full(db, user):
+    from classes.models import Class
     from classes.services import ClassService
 
     return ClassService(user=user).create_class(
         {
             "name": "Turma Cheia",
-            "grade": "5o Ano",
+            "grade": Class.Grade.ELEMENTARY_5,
+            "education_stage": Class.EducationStage.ELEMENTARY_I,
             "academic_year": 2025,
             "shift": "AFTERNOON",
             "max_students": 1,

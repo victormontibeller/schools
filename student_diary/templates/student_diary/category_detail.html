@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+
+{% block title %}{{ category.name }} — School Manager{% endblock %}
+{% block content %}
+<div class="page-header"><div class="page-header-left d-flex align-items-center"><div class="page-header-title"><h5 class="m-b-10">Aspecto da rotina</h5></div><ul class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li><li class="breadcrumb-item"><a href="{% url 'diary_configuration' %}">Aspectos da rotina</a></li><li class="breadcrumb-item active">{{ category.name }}</li></ul></div></div>
+<div class="main-content"><div class="row g-3 align-items-start"><div class="col-12 col-xl-5">{% include "student_diary/partials/category_information_card.html" %}</div><div class="col-12 col-xl-7">{% include "student_diary/partials/category_options_card.html" %}</div></div></div>
+{% endblock %}

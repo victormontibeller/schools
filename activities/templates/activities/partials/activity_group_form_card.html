@@ -1,0 +1,4 @@
+<div class="card sm-detail-card mb-3" id="activity-groups-card">
+    <div class="card-header"><h6 class="card-title mb-0">{{ title }}</h6></div>
+    <form method="post" action="{{ action_url }}" hx-post="{{ action_url }}" hx-target="#activity-groups-card" hx-swap="outerHTML">{% csrf_token %}<div class="card-body">{% if form.non_field_errors %}<div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>{% endif %}<div class="row g-2">{% for field in form %}{% include "partials/form_field.html" with field=field %}{% endfor %}</div></div><div class="card-footer d-flex justify-content-end gap-2"><button class="btn btn-outline-secondary" type="button" hx-get="{% url 'activity_detail' activity.pk %}?component=groups" hx-target="#activity-groups-card" hx-swap="outerHTML">Cancelar</button><button class="btn btn-primary" type="submit">Salvar</button></div></form>
+</div>

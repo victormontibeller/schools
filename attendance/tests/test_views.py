@@ -42,7 +42,8 @@ def test_attendance_fill_post_returns_only_card_for_htmx(client, user):
     client.force_login(user)
     cls = Class.objects.create(
         name="3A",
-        grade="3º Ano",
+        grade=Class.Grade.ELEMENTARY_3,
+        education_stage=Class.EducationStage.ELEMENTARY_I,
         shift=Class.Shift.MORNING,
         academic_year=2026,
         created_by=user,
@@ -59,6 +60,9 @@ def test_attendance_fill_post_returns_only_card_for_htmx(client, user):
         created_by=user,
         updated_by=user,
     )
+    teacher.subjects.add(subject)
+    cls.class_teacher = teacher
+    cls.save(update_fields=["class_teacher"])
     student = Student.objects.create(
         first_name="Aluno",
         last_name="Teste",

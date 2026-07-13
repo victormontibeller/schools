@@ -63,6 +63,7 @@ def test_build_school_navigation_hides_unauthorized_items():
                     "Grade Horária",
                     "Atividades",
                     "Frequência",
+                    "Agenda",
                 ],
                 "Secretaria": ["Professores", "Alunos", "Responsáveis", "Matrículas"],
                 "Coordenação": ["Calendário", "Feriados", "Anos Letivos", "Comunicados"],
@@ -73,13 +74,27 @@ def test_build_school_navigation_hides_unauthorized_items():
         (
             "TEACHER",
             {
-                "Rotina Docente": ["Turmas", "Grade Horária", "Atividades", "Frequência"],
+                "Rotina Docente": [
+                    "Turmas",
+                    "Grade Horária",
+                    "Atividades",
+                    "Frequência",
+                    "Agenda",
+                ],
                 "Planejamento": ["Calendário", "Comunicados"],
             },
         ),
         (
             "GUARDIAN",
-            {"Acompanhamento": ["Aluno", "Atividades", "Frequência", "Calendário"]},
+            {
+                "Acompanhamento": [
+                    "Aluno",
+                    "Atividades",
+                    "Frequência",
+                    "Calendário",
+                    "Agenda",
+                ]
+            },
         ),
     ],
 )
@@ -96,6 +111,7 @@ def test_build_school_navigation_uses_exact_taxonomy(role_name, expected):
         ("billing_detail", "Financeiro", "Visão Financeira"),
         ("attendance_record_fill", "Acadêmico", "Frequência"),
         ("event_detail", "Coordenação", "Calendário"),
+        ("diary_daily", "Acadêmico", "Agenda"),
         ("school_settings_edit", "Administração", "Escola"),
     ],
 )

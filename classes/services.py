@@ -35,14 +35,32 @@ class _EnrollmentRepo(BaseRepository):
 class ClassService(BaseService):
     """Serviço de aplicação para o domínio de turmas."""
 
+    @staticmethod
+    def _validate_grade_for_stage(grade, education_stage) -> str:
+        """Valida e normaliza a série estruturada conforme a etapa."""
+        from classes.models import GRADES_BY_EDUCATION_STAGE, Class
+
+        grade_value = str(grade or "").strip()
+        stage_value = str(education_stage or "").strip()
+        valid_grades = {choice.value for choice in Class.Grade}
+        if grade_value not in valid_grades:
+            raise ValidationError(errors={"grade": ["Selecione uma série válida."]})
+        if grade_value not in GRADES_BY_EDUCATION_STAGE.get(stage_value, ()):
+            raise ValidationError(
+                errors={"grade": ["A série selecionada não pertence à etapa de ensino."]}
+            )
+        return grade_value
+
     def create_class(self, data: dict):
         """Cria uma turma. Não admite (name, academic_year) duplicados."""
         from classes.models import Class
 
-        self.validate_required(data, ["name", "grade", "academic_year"])
+        self.validate_required(data, ["name", "education_stage", "grade", "academic_year"])
 
         year = int(data["academic_year"])
         name = data["name"].strip()
+        education_stage = data["education_stage"]
+        grade = self._validate_grade_for_stage(data["grade"], education_stage)
         if Class.objects.filter(name=name, academic_year=year).exists():
             raise ValidationError(
                 errors={"name": ["Já existe turma com este nome neste ano letivo."]}
@@ -62,7 +80,8 @@ class ClassService(BaseService):
 
         cls = Class.objects.create(
             name=name,
-            grade=data["grade"].strip(),
+            grade=grade,
+            education_stage=education_stage,
             shift=data.get("shift", Class.Shift.MORNING),
             academic_year=year,
             max_students=int(data.get("max_students", 30) or 30),
@@ -78,10 +97,25 @@ class ClassService(BaseService):
         """Atualiza dados de turma existente."""
         repo = _ClassRepo()
         cls = repo.get_by_id(class_id)
-        old = {"name": cls.name, "grade": cls.grade, "shift": cls.shift}
+        education_stage = data.get("education_stage", cls.education_stage)
+        grade = self._validate_grade_for_stage(data.get("grade", cls.grade), education_stage)
+        old = {
+            "name": cls.name,
+            "grade": cls.grade,
+            "education_stage": cls.education_stage,
+            "shift": cls.shift,
+        }
 
-        allowed = {"name", "grade", "shift", "max_students", "academic_year"}
+        allowed = {
+            "name",
+            "grade",
+            "education_stage",
+            "shift",
+            "max_students",
+            "academic_year",
+        }
         updates = {k: v for k, v in data.items() if k in allowed}
+        updates["grade"] = grade
 
         if "class_teacher_id" in data:
             from teachers.models import Teacher

@@ -43,6 +43,17 @@ O Soft Delete deverá ser utilizado em todas as entidades do sistema.
 
 - Matrículas de professores e alunos são geradas por sequência anual isolada no schema do tenant.
 - Preferências de e-mail e WhatsApp são armazenadas separadamente e começam desmarcadas.
+- Turmas possuem etapa de ensino estruturada; registros anteriores à classificação usam `OTHER`.
+- Turmas usam um catálogo fixo e ordenado de séries compatíveis com a etapa de ensino. Valores
+  legados desconhecidos permanecem armazenados até correção manual, mas não podem ser gravados
+  novamente por services.
+- A Agenda mantém um registro ativo por aluno, turma e data, uma resposta por aspecto fixo
+  habilitado e uma situação por refeição aplicável ao turno. `DiaryCategory` e `DiaryOption`
+  preservam categorias livres antigas para histórico, mas novas folhas usam somente registros
+  com código estruturado.
+- Os estados de alimentação são `ATE_WELL`, `ATE_PARTIALLY`, `DID_NOT_EAT` e `NOT_PRESENT`.
+  O responsável pedagógico (`DailyDiary.teacher`) pode ser nulo quando administração ou
+  coordenação registra a turma; autoria e atualização continuam identificadas pelo `BaseModel`.
 
 - Toda migration deverá ser revisada antes de ser aplicada.
 - Migrations destrutivas (drop de colunas ou tabelas) deverão ser documentadas como ADR.

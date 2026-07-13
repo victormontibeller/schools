@@ -8,7 +8,7 @@ from attendance.models import AttendanceEntry, AttendanceJustification
 from attendance.services import AttendanceService
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 from classes.models import Class, Enrollment
-from core.models import CustomUser
+from core.models import CustomUser, Role
 from students.models import Student
 from teachers.models import Subject, Teacher
 
@@ -22,7 +22,8 @@ def _make_user(email="att@test.com"):
 def _make_class(user):
     return Class.objects.create(
         name="1A",
-        grade="1º Ano",
+        grade=Class.Grade.ELEMENTARY_1,
+        education_stage=Class.EducationStage.ELEMENTARY_I,
         academic_year=2025,
         shift=Class.Shift.MORNING,
         created_by=user,
@@ -36,9 +37,12 @@ def _make_subject(user):
 
 def _make_teacher(user, registration="ATT-001"):
     target = _make_user(f"att-teacher{registration}@test.com")
-    return Teacher.objects.create(
+    teacher = Teacher.objects.create(
         user=target, registration_number=registration, created_by=user, updated_by=user
     )
+    teacher.subjects.set(Subject.objects.all())
+    Class.objects.update(class_teacher=teacher)
+    return teacher
 
 
 def _make_student(user, enrollment_number="ATT-S001"):
@@ -112,6 +116,37 @@ class TestOpenAttendance:
     def test_missing_required(self, user):
         with pytest.raises(ValidationError):
             AttendanceService(user=user).open_attendance({})
+
+    def test_teacher_requires_lesson_content(self, user):
+        role, _ = Role.objects.get_or_create(name=Role.Name.TEACHER)
+        teacher_user = CustomUser.objects.create_user(
+            email="attendance-scope@test.com",
+            password="Senha123",
+            role=role,
+        )
+        teacher = Teacher.objects.create(
+            user=teacher_user,
+            registration_number="ATT-SCOPE",
+            created_by=user,
+            updated_by=user,
+        )
+        cls = _make_class(user)
+        cls.class_teacher = teacher
+        cls.save(update_fields=["class_teacher"])
+        subject = _make_subject(user)
+        teacher.subjects.add(subject)
+
+        with pytest.raises(ValidationError) as exc_info:
+            AttendanceService(user=teacher_user).open_attendance(
+                {
+                    "class_id": cls.pk,
+                    "subject_id": subject.pk,
+                    "teacher_id": teacher.pk,
+                    "date": dt.date(2025, 4, 10),
+                }
+            )
+
+        assert "lesson_content" in exc_info.value.errors
 
 
 @pytest.mark.django_db

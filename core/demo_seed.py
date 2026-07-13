@@ -245,6 +245,9 @@ class DemoSeedService(BaseService):
             ("2026008", "Helena", "Cardoso"),
             ("2026009", "Caio", "Martins"),
             ("2026010", "Laura", "Ribeiro"),
+            ("2026011", "Alice", "Campos"),
+            ("2026012", "Miguel", "Duarte"),
+            ("2026013", "Lívia", "Pires"),
         ]
         students: list[Any] = []
         for index, (enrollment, first, last) in enumerate(student_names, start=1):
@@ -254,7 +257,9 @@ class DemoSeedService(BaseService):
                 {
                     "first_name": first,
                     "last_name": last,
-                    "birth_date": dt.date(2013, index, 12),
+                    "birth_date": (
+                        dt.date(2013, index, 12) if index <= 10 else dt.date(2021, index - 10, 12)
+                    ),
                     "gender": Student.Gender.FEMALE if index % 2 == 0 else Student.Gender.MALE,
                     "blood_type": Student.BloodType.O_POS,
                     "observations": "",
@@ -319,9 +324,21 @@ class DemoSeedService(BaseService):
                 )
 
         class_specs = [
-            ("6º A", "6º ano", Class.Shift.MORNING, "MAT", students[:4]),
-            ("6º B", "6º ano", Class.Shift.AFTERNOON, "POR", students[4:7]),
-            ("7º A", "7º ano", Class.Shift.MORNING, "CIE", students[7:]),
+            ("6º A", Class.Grade.ELEMENTARY_6, Class.Shift.MORNING, "MAT", students[:4]),
+            (
+                "6º B",
+                Class.Grade.ELEMENTARY_6,
+                Class.Shift.AFTERNOON,
+                "POR",
+                students[4:7],
+            ),
+            (
+                "7º A",
+                Class.Grade.ELEMENTARY_7,
+                Class.Shift.MORNING,
+                "CIE",
+                students[7:10],
+            ),
         ]
         classes: list[Any] = []
         for name, grade, shift, subject_code, class_students in class_specs:
@@ -330,6 +347,7 @@ class DemoSeedService(BaseService):
                 {"name": name, "academic_year": 2026},
                 {
                     "grade": grade,
+                    "education_stage": Class.EducationStage.ELEMENTARY_II,
                     "shift": shift,
                     "max_students": 30,
                     "class_teacher": teachers[subject_code],
@@ -346,6 +364,28 @@ class DemoSeedService(BaseService):
                         "cancel_reason": "",
                     },
                 )
+
+        early_childhood_class = self._ensure(
+            Class,
+            {"name": "Infantil A", "academic_year": 2026},
+            {
+                "grade": Class.Grade.EARLY_PRE_2,
+                "education_stage": Class.EducationStage.EARLY_CHILDHOOD,
+                "shift": Class.Shift.FULL,
+                "max_students": 20,
+                "class_teacher": teachers["ART"],
+            },
+        )
+        for student in students[10:]:
+            self._ensure(
+                Enrollment,
+                {"student": student, "class_obj": early_childhood_class},
+                {
+                    "enrollment_date": dt.date(2026, 2, 2),
+                    "status": Enrollment.Status.ACTIVE,
+                    "cancel_reason": "",
+                },
+            )
 
         for code, name, capacity, room_type, resources in [
             (
@@ -440,7 +480,11 @@ class DemoSeedService(BaseService):
                             ),
                         },
                     )
-        return {"students": len(students), "teachers": len(teachers), "classes": len(classes)}
+        return {
+            "students": len(students),
+            "teachers": len(teachers),
+            "classes": len(classes) + 1,
+        }
 
     def populate_calendar(self) -> int:
         """Cria ano letivo, 13 feriados e seis eventos da agenda de 2026."""
@@ -573,7 +617,12 @@ class DemoSeedService(BaseService):
             record = self._ensure(
                 AttendanceRecord,
                 {"class_obj": cls, "date": date, "lesson_number": 1},
-                {"subject": subject, "teacher": teacher, "notes": "Chamada DEMO preenchida."},
+                {
+                    "subject": subject,
+                    "teacher": teacher,
+                    "lesson_content": "Conteúdo da aula DEMO.",
+                    "notes": "Chamada DEMO preenchida.",
+                },
             )
             for student_index, student_id in enumerate(
                 Enrollment.objects.filter(

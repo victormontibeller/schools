@@ -19,7 +19,7 @@ class AttendanceRecordAdmin(admin.ModelAdmin):
 
     list_display = ["class_obj", "subject", "teacher", "date", "lesson_number"]
     list_filter = ["date", "class_obj", "subject"]
-    search_fields = ["class_obj__name", "notes"]
+    search_fields = ["class_obj__name", "lesson_content", "notes"]
     date_hierarchy = "date"
     inlines = [AttendanceEntryInline]
     readonly_fields = ["created_at", "updated_at"]

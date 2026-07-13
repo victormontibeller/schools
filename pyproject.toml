@@ -33,7 +33,7 @@ exclude = ["migrations", ".git", ".venv", "build"]
 "scripts/*" = ["T20", "E402", "E501"]
 
 [tool.coverage.run]
-source = ["base", "tenancy", "core", "accounts", "locations", "audit", "teachers", "students", "guardians", "classes", "rooms", "agenda", "activities", "academic_calendar", "attendance", "enrollments", "notifications", "dashboard", "addresses", "financeiro"]
+source = ["base", "tenancy", "core", "accounts", "locations", "audit", "teachers", "students", "guardians", "classes", "rooms", "agenda", "activities", "academic_calendar", "attendance", "student_diary", "enrollments", "notifications", "dashboard", "addresses", "financeiro"]
 omit = ["*/migrations/*", "*/tests/*", "*/conftest.py", "manage.py"]
 
 [tool.coverage.report]

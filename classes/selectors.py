@@ -1,8 +1,8 @@
 """ClassSelector: consultas somente-leitura para turmas e matrículas."""
 
-from django.db.models import Q
+from django.db.models import Case, IntegerField, Q, Value, When
 
-from base.selectors import BaseSelector, PageResult
+from base.selectors import MAX_PAGE_SIZE, BaseSelector, PageResult
 
 
 class ClassSelector(BaseSelector):
@@ -18,6 +18,34 @@ class ClassSelector(BaseSelector):
         self, filters=None, order_by="-academic_year", page=1, page_size=20
     ) -> PageResult:
         """Lista turmas ativas paginadas, com filtros opcionais."""
+        if order_by in {"grade", "-grade"}:
+            from classes.models import GRADE_PEDAGOGICAL_ORDER, Class
+
+            ordered_grades = (
+                GRADE_PEDAGOGICAL_ORDER
+                if order_by == "grade"
+                else tuple(reversed(GRADE_PEDAGOGICAL_ORDER))
+            )
+            page = max(1, page)
+            page_size = min(max(1, page_size), MAX_PAGE_SIZE)
+            queryset = Class.objects.filter(**(filters or {})).annotate(
+                _grade_order=Case(
+                    *[
+                        When(grade=grade, then=Value(index))
+                        for index, grade in enumerate(ordered_grades)
+                    ],
+                    default=Value(len(ordered_grades)),
+                    output_field=IntegerField(),
+                )
+            )
+            total = queryset.count()
+            offset = (page - 1) * page_size
+            return PageResult(
+                items=list(queryset.order_by("_grade_order", "name")[offset : offset + page_size]),
+                total=total,
+                page=page,
+                page_size=page_size,
+            )
         return self.list(filters=filters, order_by=order_by, page=page, page_size=page_size)
 
     def get_class_by_id(self, class_id):
@@ -40,7 +68,7 @@ class ClassSelector(BaseSelector):
 
         qs = Class.objects.all()
         if grade:
-            qs = qs.filter(grade__iexact=grade)
+            qs = qs.filter(grade=grade)
         if shift:
             qs = qs.filter(shift=shift)
         # Mantém só turmas com vagas; calcula enrollment_count inline.

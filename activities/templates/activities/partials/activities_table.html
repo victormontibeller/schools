@@ -6,6 +6,7 @@
                 <th><a href="?{{ sorting.class_obj.query }}" class="sm-sort-link" hx-get="?{{ sorting.class_obj.query }}" hx-target="#activities-table">Turma</a></th>
                 <th><a href="?{{ sorting.subject.query }}" class="sm-sort-link" hx-get="?{{ sorting.subject.query }}" hx-target="#activities-table">Disciplina</a></th>
                 <th><a href="?{{ sorting.type.query }}" class="sm-sort-link" hx-get="?{{ sorting.type.query }}" hx-target="#activities-table">Tipo</a></th>
+                <th><a href="?{{ sorting.modality.query }}" class="sm-sort-link" hx-get="?{{ sorting.modality.query }}" hx-target="#activities-table">Modalidade</a></th>
                 <th><a href="?{{ sorting.due_date.query }}" class="sm-sort-link" hx-get="?{{ sorting.due_date.query }}" hx-target="#activities-table">Entrega</a></th>
                 <th><a href="?{{ sorting.max_score.query }}" class="sm-sort-link" hx-get="?{{ sorting.max_score.query }}" hx-target="#activities-table">Nota Máx.</a></th>
             </tr>
@@ -21,12 +22,13 @@
                 <td>{{ activity.class_obj }}</td>
                 <td>{{ activity.subject }}</td>
                 <td><span class="badge bg-soft-info text-info">{{ activity.get_type_display }}</span></td>
+                <td>{{ activity.get_modality_display }}</td>
                 <td class="text-muted">{{ activity.due_date|date:"d/m/Y" }}</td>
                 <td>{{ activity.max_score }}</td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="6" class="text-center text-muted py-4">Nenhuma atividade encontrada.</td>
+                <td colspan="7" class="text-center text-muted py-4">Nenhuma atividade encontrada.</td>
             </tr>
             {% endfor %}
         </tbody>

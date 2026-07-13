@@ -13,7 +13,8 @@ from teachers.models import Teacher
 
 _BASE_CLASS_DATA = {
     "name": "1A",
-    "grade": "1º Ano",
+    "grade": Class.Grade.ELEMENTARY_1,
+    "education_stage": Class.EducationStage.ELEMENTARY_I,
     "academic_year": 2025,
     "shift": Class.Shift.MORNING,
     "max_students": 30,
@@ -50,7 +51,7 @@ class TestCreateClass:
         cls = ClassService(user=user).create_class(_BASE_CLASS_DATA)
         assert cls.pk is not None
         assert cls.name == "1A"
-        assert cls.grade == "1º Ano"
+        assert cls.grade == Class.Grade.ELEMENTARY_1
 
     def test_duplicate_name_in_same_year(self, user):
         ClassService(user=user).create_class(_BASE_CLASS_DATA)
@@ -81,6 +82,25 @@ class TestCreateClass:
                 {**_BASE_CLASS_DATA, "class_teacher_id": uuid.uuid4()}
             )
 
+    def test_rejects_grade_from_another_education_stage(self, user):
+        with pytest.raises(ValidationError) as exc_info:
+            ClassService(user=user).create_class(
+                {
+                    **_BASE_CLASS_DATA,
+                    "grade": Class.Grade.HIGH_SCHOOL_1,
+                }
+            )
+
+        assert "grade" in exc_info.value.errors
+
+    def test_rejects_unknown_legacy_grade(self, user):
+        with pytest.raises(ValidationError) as exc_info:
+            ClassService(user=user).create_class(
+                {**_BASE_CLASS_DATA, "grade": "Série Experimental"}
+            )
+
+        assert "grade" in exc_info.value.errors
+
 
 @pytest.mark.django_db
 class TestUpdateClass:
@@ -105,6 +125,16 @@ class TestUpdateClass:
         )
         updated = ClassService(user=user).update_class(cls.pk, {"class_teacher_id": None})
         assert updated.class_teacher is None
+
+    def test_rejects_incompatible_stage_change(self, user):
+        cls = ClassService(user=user).create_class({**_BASE_CLASS_DATA, "name": "UPD-STAGE"})
+
+        with pytest.raises(ValidationError) as exc_info:
+            ClassService(user=user).update_class(
+                cls.pk, {"education_stage": Class.EducationStage.HIGH_SCHOOL}
+            )
+
+        assert "grade" in exc_info.value.errors
 
 
 @pytest.mark.django_db

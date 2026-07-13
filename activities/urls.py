@@ -14,4 +14,20 @@ urlpatterns = [
         views.activity_record_score,
         name="activity_record_score",
     ),
+    path("activities/<uuid:pk>/grupos/", views.activity_group_save, name="activity_group_create"),
+    path(
+        "activities/<uuid:pk>/grupos/<uuid:group_id>/",
+        views.activity_group_save,
+        name="activity_group_edit",
+    ),
+    path(
+        "activities/<uuid:pk>/grupos/<uuid:group_id>/resultado/",
+        views.activity_group_apply_result,
+        name="activity_group_apply_result",
+    ),
+    path(
+        "activities/<uuid:pk>/grupos/<uuid:group_id>/desativar/",
+        views.activity_group_deactivate,
+        name="activity_group_deactivate",
+    ),
 ]

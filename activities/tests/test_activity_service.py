@@ -5,8 +5,9 @@ from decimal import Decimal
 
 import pytest
 
+from activities.models import Activity, ActivityGroupMember
 from activities.services import ActivityService
-from base.exceptions import ObjectNotFoundError, ValidationError
+from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 from classes.models import Class, Enrollment
 from core.models import CustomUser
 from students.models import Student
@@ -22,7 +23,8 @@ def _make_user(email="act@test.com"):
 def _make_class(user):
     return Class.objects.create(
         name="1A",
-        grade="1º Ano",
+        grade=Class.Grade.ELEMENTARY_1,
+        education_stage=Class.EducationStage.ELEMENTARY_I,
         academic_year=2025,
         shift=Class.Shift.MORNING,
         created_by=user,
@@ -40,6 +42,7 @@ def _make_teacher(user, registration="ACT-001"):
         user=target, registration_number=registration, created_by=user, updated_by=user
     )
     teacher.subjects.set(Subject.objects.all())
+    Class.objects.update(class_teacher=teacher)
     return teacher
 
 
@@ -306,3 +309,66 @@ class TestBatchRecordScores:
         )
         assert result["created"] == 1
         assert len(result["errors"]) == 1
+
+
+@pytest.mark.django_db
+class TestActivityGroups:
+    def test_save_group_and_apply_result(self, user):
+        cls = _make_class(user)
+        subject = _make_subject(user)
+        teacher = _make_teacher(user)
+        s1 = _make_student(user, "GROUP-001")
+        s2 = _make_student(user, "GROUP-002")
+        _enroll(user, s1, cls)
+        _enroll(user, s2, cls)
+        service = ActivityService(user=user)
+        activity = service.create_activity(
+            {
+                "class_obj_id": cls.pk,
+                "subject_id": subject.pk,
+                "teacher_id": teacher.pk,
+                "title": "Trabalho coletivo",
+                "modality": Activity.Modality.GROUP,
+                "due_date": dt.date(2025, 4, 10),
+                "max_score": 10,
+            }
+        )
+
+        group = service.save_group(
+            activity.pk,
+            {"name": "Grupo A", "student_ids": [s1.pk, s2.pk]},
+        )
+        service.apply_group_result(activity.pk, group.pk, 8, "Bom trabalho em equipe.")
+        service.record_score(activity.pk, s2.pk, 9, "Ajuste individual.")
+
+        assert group.memberships.count() == 2
+        assert activity.submissions.get(student=s1).score == Decimal("8")
+        assert activity.submissions.get(student=s2).score == Decimal("9")
+        assert activity.submissions.get(student=s2).feedback == "Ajuste individual."
+
+    def test_save_group_rejects_student_in_two_groups(self, user):
+        cls = _make_class(user)
+        subject = _make_subject(user)
+        teacher = _make_teacher(user)
+        student = _make_student(user, "GROUP-DUP")
+        _enroll(user, student, cls)
+        service = ActivityService(user=user)
+        activity = service.create_activity(
+            {
+                "class_obj_id": cls.pk,
+                "subject_id": subject.pk,
+                "teacher_id": teacher.pk,
+                "title": "Projeto",
+                "modality": Activity.Modality.GROUP,
+                "due_date": dt.date(2025, 4, 10),
+                "max_score": 10,
+            }
+        )
+        service.save_group(activity.pk, {"name": "Grupo A", "student_ids": [student.pk]})
+
+        with pytest.raises(BusinessRuleViolationError):
+            service.save_group(
+                activity.pk,
+                {"name": "Grupo B", "student_ids": [student.pk]},
+            )
+        assert ActivityGroupMember.objects.filter(activity=activity, student=student).count() == 1

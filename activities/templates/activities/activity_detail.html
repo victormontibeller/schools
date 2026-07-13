@@ -20,6 +20,9 @@
             {% include "activities/partials/activity_information_card.html" %}
         </div>
         <div class="col-12 col-xl-7">
+    {% if activity.modality == 'GROUP' %}
+    {% include "activities/partials/activity_groups_card.html" %}
+    {% endif %}
     <div class="card sm-detail-card sm-detail-table-card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="card-title mb-0">Notas Lançadas</h6>

@@ -28,6 +28,26 @@ class ActivitySelector(BaseSelector):
 
         return ActivitySubmission.objects.filter(activity_id=activity_id).select_related("student")
 
+    def list_groups(self, activity_id):
+        """Lista grupos ativos com seus integrantes."""
+        from activities.models import ActivityGroup
+
+        return ActivityGroup.objects.filter(activity_id=activity_id).prefetch_related(
+            "memberships__student"
+        )
+
+    def get_group(self, activity_id, group_id):
+        """Retorna um grupo ativo da atividade com seus integrantes."""
+        from activities.models import ActivityGroup
+        from base.exceptions import ObjectNotFoundError
+
+        try:
+            return ActivityGroup.objects.prefetch_related("memberships__student").get(
+                pk=group_id, activity_id=activity_id
+            )
+        except ActivityGroup.DoesNotExist:
+            raise ObjectNotFoundError("ActivityGroup", str(group_id)) from None
+
 
 class ActivitySubmissionSelector(BaseSelector):
     """Selector para entregas — consultas paginadas."""

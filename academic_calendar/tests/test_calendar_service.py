@@ -81,7 +81,8 @@ class TestCreateEvent:
     def test_with_class_obj(self, user):
         cls = Class.objects.create(
             name="1A",
-            grade="1º Ano",
+            grade=Class.Grade.ELEMENTARY_1,
+            education_stage=Class.EducationStage.ELEMENTARY_I,
             academic_year=2025,
             shift=Class.Shift.MORNING,
             created_by=user,
@@ -175,7 +176,8 @@ class TestUpdateEventErrors:
         )
         cls = Class.objects.create(
             name="Cal-A",
-            grade="1º Ano",
+            grade=Class.Grade.ELEMENTARY_1,
+            education_stage=Class.EducationStage.ELEMENTARY_I,
             academic_year=2025,
             shift=Class.Shift.MORNING,
             created_by=user,
@@ -187,7 +189,8 @@ class TestUpdateEventErrors:
     def test_unset_class_obj(self, user):
         cls = Class.objects.create(
             name="Cal-B",
-            grade="1º Ano",
+            grade=Class.Grade.ELEMENTARY_1,
+            education_stage=Class.EducationStage.ELEMENTARY_I,
             academic_year=2025,
             shift=Class.Shift.MORNING,
             created_by=user,

@@ -116,6 +116,7 @@ guardians/      → Responsáveis e vínculos com alunos
 classes/        → Turmas, matrículas e ano letivo
 rooms/          → Salas físicas e recursos
 agenda/         → Grade horária e agendamentos
+student_diary/ → Agenda da Educação Infantil, aspectos fixos da rotina e alimentação
 activities/     → Atividades, avaliações e notas
 attendance/     → Frequência e controle de presença
 academic_calendar/ → Calendário acadêmico e eventos

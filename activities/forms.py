@@ -43,6 +43,12 @@ class ActivityForm(forms.Form):
         initial=Activity.Type.HOMEWORK,
         widget=forms.Select(attrs={"class": "form-select"}),
     )
+    modality = forms.ChoiceField(
+        label="Modalidade",
+        choices=Activity.Modality.choices,
+        initial=Activity.Modality.INDIVIDUAL,
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
     due_date = forms.DateField(
         label="Data de Entrega",
         widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
@@ -61,6 +67,21 @@ class ActivityForm(forms.Form):
         decimal_places=2,
         widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
     )
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if user and getattr(getattr(user, "role", None), "name", "") == "TEACHER":
+            teacher = getattr(user, "teacher_profile", None)
+            if teacher:
+                from django.db.models import Q
+
+                self.fields["teacher"].queryset = Teacher.objects.filter(pk=teacher.pk)
+                self.fields["teacher"].initial = teacher
+                self.fields["teacher"].disabled = True
+                self.fields["class_obj"].queryset = Class.objects.filter(
+                    Q(class_teacher=teacher) | Q(schedules__teacher=teacher)
+                ).distinct()
+                self.fields["subject"].queryset = teacher.subjects.all()
 
 
 class ActivityEditForm(ActivityForm):
@@ -85,4 +106,43 @@ class ScoreForm(forms.Form):
         required=False,
         label="Feedback",
         widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )
+
+
+class ActivityGroupForm(forms.Form):
+    """Formulário de composição de um grupo da atividade."""
+
+    name = forms.CharField(
+        label="Nome do grupo",
+        max_length=100,
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    students = forms.ModelMultipleChoiceField(
+        label="Integrantes",
+        queryset=Student.objects.none(),
+        widget=forms.SelectMultiple(attrs={"class": "form-select", "size": 6}),
+    )
+
+    def __init__(self, *args, activity=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if activity:
+            self.fields["students"].queryset = Student.objects.filter(
+                enrollments__class_obj=activity.class_obj,
+                enrollments__status="ACTIVE",
+            ).distinct()
+
+
+class ActivityGroupResultForm(forms.Form):
+    """Formulário do resultado coletivo aplicado aos integrantes."""
+
+    score = forms.DecimalField(
+        label="Nota do grupo",
+        max_digits=5,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0"}),
+    )
+    feedback = forms.CharField(
+        label="Feedback do grupo",
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control"}),
     )

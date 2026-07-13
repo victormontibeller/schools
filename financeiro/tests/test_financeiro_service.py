@@ -27,7 +27,8 @@ def _make_student(user, enrollment_number="FIN-001"):
 def _make_class(user, name="FIN-A"):
     return Class.objects.create(
         name=name,
-        grade="1º Ano",
+        grade=Class.Grade.ELEMENTARY_1,
+        education_stage=Class.EducationStage.ELEMENTARY_I,
         academic_year=2026,
         max_students=30,
         created_by=user,

@@ -12,12 +12,13 @@ class ClassAdmin(admin.ModelAdmin):
     list_display = [
         "name",
         "grade",
+        "education_stage",
         "shift",
         "academic_year",
         "max_students",
         "class_teacher",
     ]
-    list_filter = ["academic_year", "shift"]
+    list_filter = ["academic_year", "education_stage", "shift"]
     search_fields = ["name", "grade"]
 
 

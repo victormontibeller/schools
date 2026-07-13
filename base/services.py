@@ -241,6 +241,7 @@ class BaseService:
         "request_",
         "refresh_",
         "set_",
+        "save_",
         "renegotiate_",
         "suspend_",
         "activate_",

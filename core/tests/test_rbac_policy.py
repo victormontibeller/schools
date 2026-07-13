@@ -1,9 +1,18 @@
 """Testes HTTP das políticas de módulo e propriedade do RBAC."""
 
 import uuid
+from types import SimpleNamespace
 
 import pytest
 from django.urls import reverse
+
+from base import context
+from core.permissions import (
+    can_access_module,
+    can_configure_student_diary,
+    can_execute_service,
+    has_unrestricted_tenant_access,
+)
 
 
 def _role_user(role_name, email):
@@ -64,3 +73,36 @@ def test_teacher_cannot_access_activity_not_owned(client):
     user = _role_user("TEACHER", "teacher-role@roles.test")
     client.force_login(user)
     assert client.get(reverse("activity_detail", kwargs={"pk": uuid.uuid4()})).status_code == 403
+
+
+@pytest.mark.parametrize(
+    ("role_name", "expected"),
+    [("ADMIN", True), ("COORDINATOR", True), ("TEACHER", False), ("GUARDIAN", False)],
+)
+def test_can_configure_student_diary_follows_central_role_policy(role_name, expected):
+    user = SimpleNamespace(
+        is_authenticated=True,
+        is_superuser=False,
+        access_mode="STANDARD",
+        role=SimpleNamespace(name=role_name),
+    )
+
+    assert can_configure_student_diary(user) is expected
+
+
+def test_admin_has_unrestricted_access_only_inside_school_tenant():
+    admin = SimpleNamespace(
+        is_authenticated=True,
+        is_superuser=False,
+        access_mode="DEMO",
+        role=SimpleNamespace(name="ADMIN"),
+    )
+    tenant_token = context.current_tenant.set("school_demo")
+    try:
+        assert has_unrestricted_tenant_access(admin)
+        assert can_access_module(admin, "financeiro")
+        assert can_execute_service(admin, "financeiro", "create_charge")
+    finally:
+        context.current_tenant.reset(tenant_token)
+
+    assert not has_unrestricted_tenant_access(admin)

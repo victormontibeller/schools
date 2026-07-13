@@ -42,6 +42,10 @@ JUSTIFICATION_SORTS = {
 def attendance_records_list(request):
     """Lista registros de chamada com filtros por turma."""
     class_id = request.GET.get("class_obj") or None
+    teacher_id = None
+    if getattr(getattr(request.user, "role", None), "name", "") == "TEACHER":
+        teacher = getattr(request.user, "teacher_profile", None)
+        teacher_id = teacher.pk if teacher else None
     page = int(request.GET.get("page", 1))
     state = resolve_listing_state(
         request,
@@ -62,6 +66,7 @@ def attendance_records_list(request):
     context = {
         "result": AttendanceSelector().list_records(
             class_id=class_id,
+            teacher_id=teacher_id,
             search=search,
             order_by=RECORD_SORTS[sort],
             page=page,
@@ -98,7 +103,7 @@ def attendance_records_list(request):
 @login_required
 def attendance_record_create(request):
     """Abre uma nova chamada (cria entradas pré-presente para todos os alunos)."""
-    form = AttendanceRecordForm(request.POST or None)
+    form = AttendanceRecordForm(request.POST or None, user=request.user)
     if request.method == "POST" and form.is_valid():
         try:
             cd = form.cleaned_data
@@ -109,6 +114,7 @@ def attendance_record_create(request):
                     "teacher_id": cd["teacher"].pk,
                     "date": cd["date"],
                     "lesson_number": cd.get("lesson_number", 1),
+                    "lesson_content": cd["lesson_content"],
                     "notes": cd.get("notes", ""),
                 }
             )

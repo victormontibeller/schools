@@ -138,6 +138,31 @@ class TestTenantSchemaIsolation(TenantTestCase):
         assert isolated_a.check_password("SenhaA123")
         assert not isolated_a.check_password("SenhaB123")
 
+    def test_student_diary_configuration_is_isolated_between_tenants(self):
+        """Aspectos fixos e categorias legadas nunca atravessam schemas escolares."""
+        from student_diary.models import DiaryCategory
+
+        DiaryCategory.objects.create(name="Humor A")
+        assert DiaryCategory.objects.filter(code__isnull=False).count() == 4
+        assert list(
+            DiaryCategory.objects.filter(code__isnull=True).values_list("name", flat=True)
+        ) == ["Humor A"]
+
+        connection.set_tenant(self.tenant_b)
+        context.current_tenant.set("escola_b")
+        assert DiaryCategory.objects.filter(code__isnull=False).count() == 4
+        assert not DiaryCategory.objects.filter(code__isnull=True).exists()
+        DiaryCategory.objects.create(name="Humor B")
+        assert list(
+            DiaryCategory.objects.filter(code__isnull=True).values_list("name", flat=True)
+        ) == ["Humor B"]
+
+        connection.set_tenant(self.tenant)
+        context.current_tenant.set("escola_a")
+        assert list(
+            DiaryCategory.objects.filter(code__isnull=True).values_list("name", flat=True)
+        ) == ["Humor A"]
+
     def test_audit_logs_record_tenant_schema(self):
         from audit.models import AuditLog
         from students.services import StudentService
@@ -167,6 +192,9 @@ class TestTenantSchemaIsolation(TenantTestCase):
             }
         )
 
-        log = AuditLog.objects.get(operation=AuditLog.Operation.INSERT)
+        log = AuditLog.objects.get(
+            operation=AuditLog.Operation.INSERT,
+            model_name="Student",
+        )
         assert log.tenant_schema == "escola_a"
         assert log.model_name == "Student"

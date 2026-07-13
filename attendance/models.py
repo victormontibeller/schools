@@ -31,6 +31,7 @@ class AttendanceRecord(BaseModel):
     lesson_number = models.PositiveSmallIntegerField(
         default=1, verbose_name="Aula nº", help_text="Número da aula no dia."
     )
+    lesson_content = models.TextField(verbose_name="Conteúdo Ministrado")
     notes = models.TextField(blank=True, default="", verbose_name="Observações")
 
     class Meta:

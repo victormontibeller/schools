@@ -5,3 +5,7 @@
 {% endblock %}
 
 {% block cancel_url %}{% url 'classes_list' %}{% endblock %}
+
+{% block form_fields %}
+{% include "classes/partials/class_form_fields.html" %}
+{% endblock %}

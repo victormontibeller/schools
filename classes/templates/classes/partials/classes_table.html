@@ -4,6 +4,7 @@
         <tr>
             <th><a href="?{{ sorting.name.query }}" class="sm-sort-link" hx-get="?{{ sorting.name.query }}" hx-target="#classes-table">Nome</a></th>
             <th><a href="?{{ sorting.grade.query }}" class="sm-sort-link" hx-get="?{{ sorting.grade.query }}" hx-target="#classes-table">Série</a></th>
+            <th><a href="?{{ sorting.education_stage.query }}" class="sm-sort-link" hx-get="?{{ sorting.education_stage.query }}" hx-target="#classes-table">Etapa</a></th>
             <th><a href="?{{ sorting.shift.query }}" class="sm-sort-link" hx-get="?{{ sorting.shift.query }}" hx-target="#classes-table">Turno</a></th>
             <th><a href="?{{ sorting.academic_year.query }}" class="sm-sort-link" hx-get="?{{ sorting.academic_year.query }}" hx-target="#classes-table">Ano</a></th>
             <th><a href="?{{ sorting.max_students.query }}" class="sm-sort-link" hx-get="?{{ sorting.max_students.query }}" hx-target="#classes-table">Vagas</a></th>
@@ -14,7 +15,8 @@
         {% for c in result.items %}
         <tr>
             <td><a href="{% url 'class_detail' c.pk %}" class="fw-semibold">{{ c.name }}</a></td>
-            <td>{{ c.grade }}</td>
+            <td>{{ c.get_grade_display }}</td>
+            <td>{{ c.get_education_stage_display }}</td>
             <td>{{ c.get_shift_display }}</td>
             <td>{{ c.academic_year }}</td>
             <td>
@@ -25,7 +27,7 @@
             <td>{{ c.class_teacher|default:"—" }}</td>
         </tr>
         {% empty %}
-        <tr><td colspan="6" class="text-center text-muted py-4">Nenhuma turma encontrada.</td></tr>
+        <tr><td colspan="7" class="text-center text-muted py-4">Nenhuma turma encontrada.</td></tr>
         {% endfor %}
     </tbody>
 </table>

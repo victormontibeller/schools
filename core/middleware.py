@@ -153,7 +153,12 @@ class PermissionPolicyMiddleware(MiddlewareMixin):
         """Bloqueia módulos e ações incompatíveis com o papel corrente."""
         from django.core.exceptions import PermissionDenied
 
-        from core.permissions import GUARDIAN_VIEW_NAMES, PUBLIC_VIEW_NAMES, can_access_module
+        from core.permissions import (
+            GUARDIAN_VIEW_NAMES,
+            PUBLIC_VIEW_NAMES,
+            can_access_module,
+            has_unrestricted_tenant_access,
+        )
 
         view_name = getattr(request.resolver_match, "url_name", "")
         if view_name in PUBLIC_VIEW_NAMES or not request.user.is_authenticated:
@@ -167,14 +172,19 @@ class PermissionPolicyMiddleware(MiddlewareMixin):
         }:
             return None
         app_label = view_func.__module__.split(".", maxsplit=1)[0]
-        if getattr(request.user, "access_mode", "") == "DEMO" and app_label not in {
-            "agenda",
-            "activities",
-            "attendance",
-            "classes",
-            "enrollments",
-            "dashboard",
-        }:
+        if (
+            getattr(request.user, "access_mode", "") == "DEMO"
+            and not has_unrestricted_tenant_access(request.user)
+            and app_label
+            not in {
+                "agenda",
+                "activities",
+                "attendance",
+                "classes",
+                "enrollments",
+                "dashboard",
+            }
+        ):
             raise PermissionDenied("Ação indisponível no ambiente DEMO.")
         if getattr(getattr(request.user, "role", None), "name", "") == "GUARDIAN":
             if view_name not in GUARDIAN_VIEW_NAMES:
@@ -204,7 +214,15 @@ class PermissionPolicyMiddleware(MiddlewareMixin):
                 request.user.pk, class_id
             ):
                 raise PermissionDenied("Turma fora do escopo do professor.")
-            if view_name in {"activity_detail", "activity_edit", "activity_record_score"}:
+            if view_name in {
+                "activity_detail",
+                "activity_edit",
+                "activity_record_score",
+                "activity_group_create",
+                "activity_group_edit",
+                "activity_group_apply_result",
+                "activity_group_deactivate",
+            }:
                 if not ObjectAccessSelector.teacher_can_access_activity(
                     request.user.pk, view_kwargs.get("pk")
                 ):
@@ -216,6 +234,12 @@ class PermissionPolicyMiddleware(MiddlewareMixin):
                 )
             ):
                 raise PermissionDenied("Chamada fora do escopo do professor.")
+            if view_name in {
+                "diary_configuration",
+                "diary_aspect_detail",
+                "diary_aspect_toggle",
+            }:
+                raise PermissionDenied("Sem permissão para configurar a Agenda.")
             student_id = view_kwargs.get("student_id")
             if student_id and not ObjectAccessSelector.teacher_can_access_student(
                 request.user.pk, student_id

@@ -1,0 +1,4 @@
+<div class="card mb-0 sm-detail-card" id="diary-options-card">
+    <div class="card-header"><h6 class="card-title mb-0">Opções predefinidas</h6></div>
+    <div class="card-body p-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Opção</th><th>Ordem</th></tr></thead><tbody>{% for option in category.options.all %}<tr><td>{{ option.label }}</td><td>{{ option.display_order }}</td></tr>{% empty %}<tr><td colspan="2" class="text-center text-muted py-4">Nenhuma opção predefinida.</td></tr>{% endfor %}</tbody></table></div></div>
+</div>

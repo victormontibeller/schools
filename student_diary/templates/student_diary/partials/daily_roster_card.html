@@ -1,0 +1,40 @@
+<form method="post"
+      action="{% url 'diary_daily' %}"
+      hx-post="{% url 'diary_daily' %}"
+      hx-target="#diary-roster-card"
+      hx-swap="outerHTML"
+      class="card sm-detail-card"
+      id="diary-roster-card">
+    {% csrf_token %}
+    <input type="hidden" name="class_id" value="{{ sheet.class_obj.pk }}">
+    <input type="hidden" name="date" value="{{ sheet.date|date:'Y-m-d' }}">
+    <div class="card-header d-flex justify-content-between align-items-center gap-2">
+        <div><h6 class="card-title mb-0">{{ sheet.class_obj }}</h6><small class="text-muted">{{ sheet.date|date:'d/m/Y' }} · {{ sheet.rows|length }} alunos</small></div>
+        {% if can_edit and sheet.rows %}<button class="btn btn-sm btn-primary" type="submit"><i class="feather-save me-1"></i> Salvar Agenda</button>{% endif %}
+    </div>
+    <div class="card-body p-0">
+        {% if saved %}<div class="alert alert-success m-3 mb-0 py-2">Agenda salva com sucesso.</div>{% endif %}
+        {% if sheet.component_error %}<div class="alert alert-danger m-3 mb-0 py-2">{{ sheet.component_error }}</div>{% endif %}
+        <noscript><style>.diary-student-editor.collapse{display:block!important}</style></noscript>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead><tr><th>Aluno</th><th>Situação</th><th class="d-none d-md-table-cell">Alimentação</th><th class="d-none d-md-table-cell">Como foi o dia</th><th class="text-end">Preenchimento</th></tr></thead>
+                <tbody>{% for row in sheet.rows %}
+                    <tr>
+                        <td><a href="{% url 'diary_student_history' row.student.pk %}" class="fw-semibold">{{ row.student.get_full_name }}</a><div class="text-muted small">{{ row.student.enrollment_number }}</div></td>
+                        <td>{% if row.is_complete %}<span class="badge bg-soft-success text-success">Completa</span>{% else %}<span class="badge bg-soft-warning text-warning">Pendente</span>{% endif %}</td>
+                        <td class="d-none d-md-table-cell">{{ row.meal_summary }}</td>
+                        <td class="d-none d-md-table-cell text-truncate" style="max-width: 260px">{{ row.routine_summary }}</td>
+                        <td class="text-end"><button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#student-editor-{{ row.student.pk }}" aria-controls="student-editor-{{ row.student.pk }}" aria-expanded="{% if row.form.errors %}true{% else %}false{% endif %}">{% if row.is_complete %}Editar{% else %}Preencher{% endif %}</button></td>
+                    </tr>
+                    <tr class="table-light"><td colspan="5" class="p-0 border-0"><div id="student-editor-{{ row.student.pk }}" class="diary-student-editor collapse{% if row.form.errors %} show{% endif %}"><div class="p-3 border-bottom">
+                        {% if row.form.non_field_errors %}<div class="alert alert-danger py-2">{{ row.form.non_field_errors }}</div>{% endif %}
+                        <div class="row g-3"><div class="col-12 col-xl-6"><div class="border rounded p-3 h-100"><h6 class="mb-3">Alimentação</h6><div class="row g-2">{% for meal_type, field in row.form.meal_fields %}{% include "student_diary/partials/segmented_choice_field.html" with field=field %}{% endfor %}</div></div></div>
+                        <div class="col-12 col-xl-6"><div class="border rounded p-3 h-100"><h6 class="mb-3">Como foi o dia</h6><div class="row g-2">{% for category, field in row.form.aspect_fields %}{% include "student_diary/partials/segmented_choice_field.html" with field=field %}{% endfor %}</div></div></div>
+                        <div class="col-12"><div class="row g-2">{% include "partials/form_field.html" with field=row.form.notes full_width=True %}</div></div></div>
+                    </div></div></td></tr>
+                {% empty %}<tr><td colspan="5" class="text-center text-muted py-4">Nenhum aluno ativo nesta turma.</td></tr>{% endfor %}</tbody>
+            </table>
+        </div>
+    </div>
+</form>

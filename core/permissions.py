@@ -27,6 +27,7 @@ ROLE_MODULES: dict[str, frozenset[str]] = {
             "activities",
             "academic_calendar",
             "attendance",
+            "student_diary",
             "notifications",
             "dashboard",
         }
@@ -37,6 +38,7 @@ ROLE_MODULES: dict[str, frozenset[str]] = {
             "agenda",
             "activities",
             "attendance",
+            "student_diary",
             "academic_calendar",
             "notifications",
             "dashboard",
@@ -44,11 +46,21 @@ ROLE_MODULES: dict[str, frozenset[str]] = {
     ),
     "FINANCE": frozenset({"financeiro", "students", "classes", "dashboard"}),
     "GUARDIAN": frozenset(
-        {"students", "activities", "attendance", "academic_calendar", "notifications", "dashboard"}
+        {
+            "students",
+            "activities",
+            "attendance",
+            "student_diary",
+            "academic_calendar",
+            "notifications",
+            "dashboard",
+        }
     ),
 }
 
-DEMO_COMMAND_MODULES = frozenset({"agenda", "activities", "attendance", "classes", "enrollments"})
+DEMO_COMMAND_MODULES = frozenset(
+    {"agenda", "activities", "attendance", "student_diary", "classes", "enrollments"}
+)
 PUBLIC_VIEW_NAMES = frozenset(
     {
         "index",
@@ -85,6 +97,7 @@ GUARDIAN_VIEW_NAMES = frozenset(
         "calendar_month_specific",
         "activities_list",
         "activity_detail",
+        "diary_student_history",
         "notification_list",
         "notification_mark_read",
         "notification_mark_all_read",
@@ -102,11 +115,26 @@ def role_name(user) -> str:
     return getattr(role, "name", "") or ""
 
 
+def has_unrestricted_tenant_access(user) -> bool:
+    """Indica administrador escolar irrestrito, sem ampliar acesso ao schema público."""
+    from base import context
+
+    return (
+        getattr(user, "is_authenticated", False)
+        and role_name(user) == "ADMIN"
+        and context.current_tenant.get() not in {"", "public"}
+    )
+
+
 def can_access_module(user, app_label: str) -> bool:
     """Verifica acesso de alto nível ao módulo informado."""
     if not getattr(user, "is_authenticated", False):
         return False
-    if user.is_superuser or getattr(user, "access_mode", "") == "SUPPORT":
+    if (
+        user.is_superuser
+        or getattr(user, "access_mode", "") == "SUPPORT"
+        or has_unrestricted_tenant_access(user)
+    ):
         return True
     allowed = ROLE_MODULES.get(role_name(user), frozenset())
     return "*" in allowed or app_label in allowed
@@ -116,7 +144,11 @@ def can_execute_service(user, app_label: str, method_name: str) -> bool:
     """Aplica defesa em profundidade aos comandos de services."""
     if user is None or app_label == "audit":
         return True
-    if user.is_superuser or getattr(user, "access_mode", "") == "SUPPORT":
+    if (
+        user.is_superuser
+        or getattr(user, "access_mode", "") == "SUPPORT"
+        or has_unrestricted_tenant_access(user)
+    ):
         return True
     if method_name in SELF_SERVICE_METHODS:
         return True
@@ -127,6 +159,32 @@ def can_execute_service(user, app_label: str, method_name: str) -> bool:
 
 def modules_for_user(user) -> frozenset[str]:
     """Retorna módulos exibíveis na navegação."""
-    if getattr(user, "is_superuser", False) or getattr(user, "access_mode", "") == "SUPPORT":
+    if (
+        getattr(user, "is_superuser", False)
+        or getattr(user, "access_mode", "") == "SUPPORT"
+        or has_unrestricted_tenant_access(user)
+    ):
         return frozenset({"*"})
     return ROLE_MODULES.get(role_name(user), frozenset())
+
+
+def can_configure_student_diary(user) -> bool:
+    """Indica se o usuário administra os aspectos da rotina."""
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if getattr(user, "is_superuser", False) or getattr(user, "access_mode", "") == "SUPPORT":
+        return True
+    return role_name(user) in {"ADMIN", "COORDINATOR"}
+
+
+def can_edit_student_diary(user) -> bool:
+    """Indica se o usuário pode preencher a Agenda no próprio escopo."""
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if (
+        getattr(user, "is_superuser", False)
+        or getattr(user, "access_mode", "") == "SUPPORT"
+        or has_unrestricted_tenant_access(user)
+    ):
+        return True
+    return role_name(user) in {"TEACHER", "COORDINATOR", "ADMIN"}

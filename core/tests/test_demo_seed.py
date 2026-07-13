@@ -39,14 +39,15 @@ def test_populate_demo_seed_creates_complete_and_idempotent_dataset():
 
     assert Subject.objects.count() == 10
     assert Teacher.objects.count() == 10
-    assert Student.objects.count() == 10
-    assert Guardian.objects.count() == 20
-    assert StudentGuardian.objects.count() == 20
-    assert StudentGuardian.objects.filter(is_primary=True).count() == 10
-    assert StudentAddress.objects.count() == 10
+    assert Student.objects.count() == 13
+    assert Guardian.objects.count() == 26
+    assert StudentGuardian.objects.count() == 26
+    assert StudentGuardian.objects.filter(is_primary=True).count() == 13
+    assert StudentAddress.objects.count() == 13
     assert TeacherAddress.objects.count() == 10
-    assert Class.objects.count() == 3
-    assert Enrollment.objects.filter(status=Enrollment.Status.ACTIVE).count() == 10
+    assert Class.objects.count() == 4
+    assert Class.objects.filter(education_stage=Class.EducationStage.EARLY_CHILDHOOD).count() == 1
+    assert Enrollment.objects.filter(status=Enrollment.Status.ACTIVE).count() == 13
     assert Room.objects.count() == 5
     assert Activity.objects.count() == 6
     assert ActivitySubmission.objects.count() == 20
