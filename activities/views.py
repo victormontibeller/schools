@@ -15,6 +15,7 @@ from activities.forms import (
 from activities.selectors import ActivitySelector
 from activities.services import ActivityService
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+from base.forms import apply_validation_errors
 from base.listing import build_querystring, build_sorting, resolve_listing_state
 
 logger = logging.getLogger(__name__)
@@ -136,9 +137,7 @@ def activity_create(request):
             )
             return redirect("activities_list")
         except ValidationError as exc:
-            for field, errors in exc.errors.items():
-                for error in errors:
-                    form.add_error(field if field != "__all__" else None, error)
+            apply_validation_errors(form, exc)
     return render(
         request,
         "activities/activity_form.html",
@@ -202,9 +201,7 @@ def activity_edit(request, pk):
                 )
             return redirect("activity_detail", pk=pk)
         except ValidationError as exc:
-            for field, errors in exc.errors.items():
-                for error in errors:
-                    form.add_error(field if field != "__all__" else None, error)
+            apply_validation_errors(form, exc)
         except BusinessRuleViolationError as exc:
             form.add_error(None, str(exc))
     if not request.headers.get("HX-Request"):

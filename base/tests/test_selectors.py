@@ -184,3 +184,30 @@ class TestAccountSelector:
         result = AccountSelector().list_users()
         assert result.total == 1
         assert result.items[0] == user
+
+
+@pytest.mark.django_db
+def test_paginate_clamps_page_and_page_size() -> None:
+    from students.models import Student
+    from students.selectors import StudentSelector
+
+    Student.objects.bulk_create(
+        [
+            Student(
+                first_name=f"Aluno {index}",
+                last_name="Teste",
+                birth_date="2010-01-01",
+                enrollment_number=f"PAGE-{index:03d}",
+            )
+            for index in range(101)
+        ]
+    )
+
+    minimum = StudentSelector()._paginate(Student.objects.order_by("enrollment_number"), -3, 0)
+    maximum = StudentSelector()._paginate(Student.objects.order_by("enrollment_number"), 1, 500)
+
+    assert minimum.page == 1
+    assert minimum.page_size == 1
+    assert len(minimum.items) == 1
+    assert maximum.page_size == 100
+    assert len(maximum.items) == 100

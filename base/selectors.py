@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Generic, TypeVar
 
+from django.db.models import QuerySet
+
 from base.exceptions import ObjectNotFoundError
 from base.models import BaseModel
 
@@ -59,17 +61,26 @@ class BaseSelector(Generic[ModelT]):
         order_by: str | None = None,
     ) -> PageResult[ModelT]:
         """Lista registros ativos com filtros, ordenação e paginação."""
-        page_size = min(max(1, page_size), MAX_PAGE_SIZE)
-        page = max(1, page)
         qs = self.model_class.objects.all()
         if filters:
             qs = qs.filter(**filters)
         if order_by:
             qs = qs.order_by(order_by)
-        total = qs.count()
+        return self._paginate(qs, page=page, page_size=page_size)
+
+    def _paginate(
+        self,
+        queryset: QuerySet[ModelT],
+        page: int = 1,
+        page_size: int = DEFAULT_PAGE_SIZE,
+    ) -> PageResult[ModelT]:
+        """Pagina um queryset customizado aplicando os limites globais."""
+        page_size = min(max(1, page_size), MAX_PAGE_SIZE)
+        page = max(1, page)
+        total = queryset.count()
         offset = (page - 1) * page_size
         return PageResult(
-            items=list(qs[offset : offset + page_size]),
+            items=list(queryset[offset : offset + page_size]),
             total=total,
             page=page,
             page_size=page_size,

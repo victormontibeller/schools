@@ -10,6 +10,7 @@ from base.exceptions import (
     PermissionDeniedError,
     ValidationError,
 )
+from base.forms import apply_validation_errors
 from base.listing import build_querystring, resolve_listing_state
 from base.media import private_file_response
 from guardians.forms import GuardianEditForm, GuardianLinkForm
@@ -167,8 +168,6 @@ def guardian_student_unlink(request, pk, student_id):
 def _add_service_errors(form, exc) -> None:
     """Converte erros de domínio em erros do formulário."""
     if isinstance(exc, ValidationError):
-        for field, errors in exc.errors.items():
-            for error in errors:
-                form.add_error(field if field in form.fields else None, error)
+        apply_validation_errors(form, exc)
     else:
         form.add_error(None, exc.message)

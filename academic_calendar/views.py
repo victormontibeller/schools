@@ -10,6 +10,7 @@ from academic_calendar.forms import AcademicYearForm, EventForm, HolidayForm
 from academic_calendar.selectors import AcademicYearSelector, CalendarSelector, HolidaySelector
 from academic_calendar.services import CalendarService
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+from base.forms import apply_validation_errors
 from base.listing import build_querystring, build_sorting, resolve_listing_state
 
 logger = logging.getLogger(__name__)
@@ -100,9 +101,7 @@ def event_create(request):
                 return _render_day_agenda(request, event.start_date)
             return redirect(_calendar_url(event.start_date))
         except ValidationError as exc:
-            for field, errors in exc.errors.items():
-                for error in errors:
-                    form.add_error(field if field != "__all__" else None, error)
+            apply_validation_errors(form, exc)
         except BusinessRuleViolationError as exc:
             form.add_error(None, exc.message)
         except ObjectNotFoundError as exc:
@@ -153,9 +152,7 @@ def event_edit(request, pk):
                 return _render_day_agenda(request, selected_date)
             return redirect(_calendar_url(event.start_date))
         except ValidationError as exc:
-            for field, errors in exc.errors.items():
-                for error in errors:
-                    form.add_error(field if field != "__all__" else None, error)
+            apply_validation_errors(form, exc)
     if request.headers.get("HX-Request"):
         return render(
             request,
@@ -218,9 +215,7 @@ def holiday_create(request):
             CalendarService(user=request.user).create_holiday(form.cleaned_data)
             return redirect("holidays_list")
         except ValidationError as exc:
-            for field, errors in exc.errors.items():
-                for error in errors:
-                    form.add_error(field if field != "__all__" else None, error)
+            apply_validation_errors(form, exc)
     return render(
         request, "academic_calendar/holiday_form.html", {"form": form, "title": "Novo Feriado"}
     )
@@ -277,9 +272,7 @@ def academic_year_create(request):
             CalendarService(user=request.user).create_academic_year(form.cleaned_data)
             return redirect("academic_years_list")
         except ValidationError as exc:
-            for field, errors in exc.errors.items():
-                for error in errors:
-                    form.add_error(field if field != "__all__" else None, error)
+            apply_validation_errors(form, exc)
     return render(
         request,
         "academic_calendar/academic_year_form.html",

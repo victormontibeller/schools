@@ -8,6 +8,7 @@ from agenda.forms import ScheduleForm, TimeSlotForm
 from agenda.selectors import ScheduleSelector, TimeSlotSelector
 from agenda.services import ScheduleService
 from base.exceptions import BusinessRuleViolationError, ValidationError
+from base.forms import apply_validation_errors
 from base.listing import build_querystring, build_sorting, resolve_listing_state
 from classes.selectors import ClassSelector
 from teachers.selectors import TeacherSelector
@@ -65,9 +66,7 @@ def time_slot_create(request):
             messages.success(request, "Horário cadastrado com sucesso.")
             return redirect("time_slots_list")
         except ValidationError as exc:
-            for field, errors in exc.errors.items():
-                for error in errors:
-                    form.add_error(field if field != "__all__" else None, error)
+            apply_validation_errors(form, exc)
     return render(request, "agenda/time_slot_form.html", {"form": form, "title": "Novo Horário"})
 
 
@@ -83,9 +82,7 @@ def time_slot_edit(request, pk):
             return redirect("time_slots_list")
         except (ValidationError, BusinessRuleViolationError) as exc:
             if isinstance(exc, ValidationError):
-                for field, errors in exc.errors.items():
-                    for error in errors:
-                        form.add_error(field if field != "__all__" else None, error)
+                apply_validation_errors(form, exc)
             else:
                 form.add_error(None, exc.message)
     return render(request, "agenda/time_slot_form.html", {"form": form, "title": "Editar Horário"})
@@ -138,9 +135,7 @@ def schedule_create(request, class_id):
             ScheduleService(user=request.user).create_schedule(data)
             return redirect("schedule_weekly", class_id=class_id)
         except ValidationError as exc:
-            for field, errors in exc.errors.items():
-                for error in errors:
-                    form.add_error(field if field != "__all__" else None, error)
+            apply_validation_errors(form, exc)
     return render(
         request,
         "agenda/schedule_form.html",

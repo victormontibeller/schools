@@ -4,20 +4,7 @@ import datetime as dt
 
 from django.db.models import Q
 
-from base.selectors import MAX_PAGE_SIZE, BaseSelector, PageResult
-
-
-def _page(queryset, page: int, page_size: int) -> PageResult:
-    page_size = min(max(1, page_size), MAX_PAGE_SIZE)
-    page = max(1, page)
-    total = queryset.count()
-    offset = (page - 1) * page_size
-    return PageResult(
-        items=list(queryset[offset : offset + page_size]),
-        total=total,
-        page=page,
-        page_size=page_size,
-    )
+from base.selectors import BaseSelector
 
 
 class CalendarSelector(BaseSelector):
@@ -86,7 +73,7 @@ class CalendarSelector(BaseSelector):
                 | Q(description__icontains=search)
                 | Q(class_obj__name__icontains=search)
             )
-        return _page(queryset.order_by(order_by, "start_time"), page, page_size)
+        return self._paginate(queryset.order_by(order_by, "start_time"), page, page_size)
 
     def get_month_grid(self, year: int, month: int):
         """Retorna grade mensal 6x7 com eventos e feriados indexados por dia.
@@ -201,7 +188,7 @@ class HolidaySelector(BaseSelector):
             qs = qs.filter(Q(date__year=year) | Q(is_recurring=True))
         if search:
             qs = qs.filter(Q(name__icontains=search) | Q(type__icontains=search))
-        return _page(qs.order_by(order_by), page, page_size)
+        return self._paginate(qs.order_by(order_by), page, page_size)
 
 
 class AcademicYearSelector(BaseSelector):
@@ -220,4 +207,4 @@ class AcademicYearSelector(BaseSelector):
         queryset = AcademicYear.objects.all()
         if search:
             queryset = queryset.filter(Q(name__icontains=search) | Q(status__icontains=search))
-        return _page(queryset.order_by(order_by), page, page_size)
+        return self._paginate(queryset.order_by(order_by), page, page_size)

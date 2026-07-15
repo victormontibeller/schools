@@ -90,27 +90,6 @@ class ActivityEditForm(ActivityForm):
     version = forms.IntegerField(min_value=0, widget=forms.HiddenInput())
 
 
-class ScoreForm(forms.Form):
-    """Formulário para lançar a nota de um aluno numa atividade."""
-
-    student = forms.ModelChoiceField(
-        label="Aluno",
-        queryset=Student.objects.all(),
-        widget=forms.Select(attrs={"class": "form-select"}),
-    )
-    score = forms.DecimalField(
-        label="Nota",
-        max_digits=5,
-        decimal_places=2,
-        widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
-    )
-    feedback = forms.CharField(
-        required=False,
-        label="Feedback",
-        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
-    )
-
-
 class ActivityGroupForm(forms.Form):
     """Formulário de composição de um grupo da atividade."""
 

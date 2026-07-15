@@ -7,6 +7,7 @@ from base.exceptions import (
     PermissionDeniedError,
     ValidationError,
 )
+from base.forms import apply_validation_errors, submitted_form_data
 from base.listing import build_querystring, build_sorting, resolve_listing_state
 from base.media import private_file_response
 from students.forms import StudentEditForm, StudentForm
@@ -93,9 +94,7 @@ def student_create(request):
             StudentService(user=request.user).create_student(form.cleaned_data)
             return redirect("students_list")
         except ValidationError as exc:
-            for field, errors in exc.errors.items():
-                for error in errors:
-                    form.add_error(field if field != "__all__" else None, error)
+            apply_validation_errors(form, exc)
     return render(request, "students/student_form.html", {"form": form, "title": "Novo Aluno"})
 
 
@@ -112,7 +111,7 @@ def student_edit(request, pk):
         form = StudentEditForm(request.POST, request.FILES, instance=student)
         if form.is_valid():
             try:
-                data = _submitted_form_data(form.cleaned_data, request)
+                data = submitted_form_data(form.cleaned_data, request)
                 student = StudentService(user=request.user).update_student(pk, data)
                 if request.headers.get("HX-Request"):
                     return render(
@@ -123,9 +122,7 @@ def student_edit(request, pk):
                 messages.success(request, "Aluno atualizado.")
                 return redirect("student_profile", pk=pk)
             except ValidationError as exc:
-                for field, errors in exc.errors.items():
-                    for error in errors:
-                        form.add_error(field if field != "__all__" else None, error)
+                apply_validation_errors(form, exc)
             except BusinessRuleViolationError as exc:
                 form.add_error(None, exc.message)
     else:
@@ -182,7 +179,7 @@ def student_guardian_create(request, pk):
             GuardianService(user=request.user).create_and_link_student(student.pk, data, data)
             return _render_guardians_card(request, student, saved=True)
         except ValidationError as exc:
-            _add_service_errors(form, exc)
+            apply_validation_errors(form, exc)
         except BusinessRuleViolationError as exc:
             form.add_error(None, exc.message)
     return render(
@@ -294,7 +291,7 @@ def student_guardian_contact_edit(request, pk, link_pk):
             GuardianService(user=request.user).update_guardian(guardian.pk, form.cleaned_data)
             return _render_guardians_card(request, student, saved=True)
         except ValidationError as exc:
-            _add_service_errors(form, exc)
+            apply_validation_errors(form, exc)
     return render(
         request,
         "students/partials/guardian_contact_form.html",
@@ -333,15 +330,3 @@ def _get_student_link(student, link_pk):
     from base.exceptions import ObjectNotFoundError
 
     raise ObjectNotFoundError("StudentGuardian", str(link_pk))
-
-
-def _add_service_errors(form, exc):
-    for field, errors in exc.errors.items():
-        for error in errors:
-            form.add_error(field if field != "__all__" else None, error)
-
-
-def _submitted_form_data(cleaned_data: dict, request) -> dict:
-    """Retorna apenas campos enviados para preservar updates parciais."""
-    submitted = set(request.POST) | set(request.FILES)
-    return {key: value for key, value in cleaned_data.items() if key in submitted}

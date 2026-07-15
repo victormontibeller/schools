@@ -2,36 +2,6 @@
 
 from django import forms
 
-from students.contracts import Student
-
-
-class StudentGuardianForm(forms.Form):
-    """Formulário para vincular um aluno a um responsável."""
-
-    student = forms.ModelChoiceField(
-        queryset=Student.objects.all(),
-        label="Aluno",
-        widget=forms.Select(attrs={"class": "form-select"}),
-        empty_label="Selecione um aluno",
-    )
-    is_primary = forms.BooleanField(
-        required=False,
-        label="Responsável Principal",
-        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
-    )
-    has_custody = forms.BooleanField(
-        required=False,
-        initial=True,
-        label="Possui Guarda Legal",
-        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
-    )
-    can_pickup = forms.BooleanField(
-        required=False,
-        initial=True,
-        label="Autorizado a Buscar",
-        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
-    )
-
 
 class GuardianLinkForm(forms.Form):
     """Campos do vínculo editados no contexto de um aluno."""

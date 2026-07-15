@@ -312,19 +312,9 @@ class AttendanceService(BaseService):
         Considera apenas as chamadas já lançadas. Os ausentes justificados não
         contam como faltas.
         """
-        from attendance.models import AttendanceEntry
+        from attendance.selectors import AttendanceSelector
 
-        entries = AttendanceEntry.objects.filter(
-            student_id=student_id, record__class_obj_id=class_id
-        )
-        total = entries.count()
-        if total == 0:
-            return None  # sem chamadas registradas
-
-        presences = entries.filter(
-            status__in=[AttendanceEntry.Status.PRESENT, AttendanceEntry.Status.JUSTIFIED]
-        ).count()
-        return round((presences / total) * 100, 2)
+        return AttendanceSelector().get_student_attendance_rate(student_id, class_id)
 
     def get_attendance_threshold(self, student_id, class_id):
         """Classifica o aluno: OK / ALERTA (75%) / CRÍTICO (50%)."""

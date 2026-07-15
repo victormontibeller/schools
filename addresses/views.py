@@ -6,6 +6,7 @@ from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect, render
 
 from base.exceptions import BusinessRuleViolationError, ValidationError
+from base.forms import apply_validation_errors
 
 
 @login_required
@@ -44,8 +45,7 @@ def address_create_for_entity(request: HttpRequest, entity_type: str, entity_id)
                 messages.success(request, "Endereco cadastrado com sucesso.")
                 return _redirect_back(entity_type, entity_id, request)
             except ValidationError as exc:
-                for field, errors in exc.errors.items():
-                    form.add_error(field, errors)
+                apply_validation_errors(form, exc)
             except BusinessRuleViolationError as exc:
                 messages.error(request, exc.message)
     else:
@@ -96,8 +96,7 @@ def address_edit(request: HttpRequest, address_id) -> HttpResponse:
                 messages.success(request, "Endereco atualizado com sucesso.")
                 return _redirect_back(None, None, request) or redirect("dashboard")
             except ValidationError as exc:
-                for field, errors in exc.errors.items():
-                    form.add_error(field, errors)
+                apply_validation_errors(form, exc)
             except BusinessRuleViolationError as exc:
                 messages.error(request, exc.message)
     else:
@@ -183,8 +182,7 @@ def address_postal_code_lookup(request: HttpRequest) -> HttpResponse:
             form = AddressForm(initial=merged_data)
         except ValidationError as exc:
             form.cleaned_data = {}
-            for field, errors in exc.errors.items():
-                form.add_error(field, errors)
+            apply_validation_errors(form, exc)
 
     return render(
         request,

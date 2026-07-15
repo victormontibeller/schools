@@ -19,6 +19,7 @@ from base.exceptions import (
     PermissionDeniedError,
     ValidationError,
 )
+from base.forms import apply_validation_errors
 from base.listing import build_querystring, build_sorting, resolve_listing_state
 from base.media import private_file_response
 
@@ -80,9 +81,7 @@ def demo_signup_view(request):
                 )
                 return render(request, "auth/demo_signup_done.html")
             except ValidationError as exc:
-                for field, errors in exc.errors.items():
-                    for error in errors:
-                        form.add_error(field, error)
+                apply_validation_errors(form, exc)
             except BusinessRuleViolationError as exc:
                 form.add_error(None, exc.message)
     return render(request, "auth/demo_signup.html", {"form": form})
@@ -178,9 +177,7 @@ def change_password_view(request):
             messages.success(request, "Senha alterada com sucesso.")
             return redirect("user_detail", pk=request.user.pk)
         except ValidationError as exc:
-            for field, errors in exc.errors.items():
-                for error in errors:
-                    form.add_error(field, error)
+            apply_validation_errors(form, exc)
     return render(request, "accounts/change_password.html", {"form": form})
 
 
@@ -254,9 +251,7 @@ def user_edit_view(request, pk):
         try:
             user_obj = AccountService(user=request.user).update_user(pk, data)
         except ValidationError as exc:
-            for field, errors in exc.errors.items():
-                for error in errors:
-                    form.add_error(field, error)
+            apply_validation_errors(form, exc)
         else:
             if request.headers.get("HX-Request"):
                 return render(

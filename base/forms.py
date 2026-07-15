@@ -1,6 +1,23 @@
-"""Contratos compartilhados para formulários de escrita."""
+"""Contratos e helpers compartilhados para formulários de escrita."""
 
 from django import forms
+from django.http import HttpRequest
+
+from base.exceptions import ValidationError
+
+
+def apply_validation_errors(form: forms.Form, error: ValidationError) -> None:
+    """Adiciona erros de domínio aos campos válidos ou ao formulário."""
+    for field, messages in error.errors.items():
+        target = field if field != "__all__" and field in form.fields else None
+        for message in messages:
+            form.add_error(target, message)
+
+
+def submitted_form_data(cleaned_data: dict[str, object], request: HttpRequest) -> dict[str, object]:
+    """Retorna somente dados limpos cujos campos foram enviados no request."""
+    submitted = set(request.POST) | set(request.FILES)
+    return {key: value for key, value in cleaned_data.items() if key in submitted}
 
 
 class VersionedModelForm(forms.ModelForm):

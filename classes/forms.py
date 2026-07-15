@@ -66,16 +66,3 @@ class ClassForm(VersionedModelForm):
                 "data-grade-options": json.dumps(grade_options, ensure_ascii=False),
             }
         )
-
-
-class EnrollmentForm(forms.Form):
-    """Formulário para matricular aluno em turma (via ID)."""
-
-    student_id = forms.UUIDField(
-        label="ID do aluno",
-        widget=forms.TextInput(attrs={"class": "form-control"}),
-    )
-    class_obj_id = forms.UUIDField(
-        label="ID da turma",
-        widget=forms.TextInput(attrs={"class": "form-control"}),
-    )

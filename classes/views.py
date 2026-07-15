@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+from base.forms import apply_validation_errors
 from base.listing import build_querystring, build_sorting, resolve_listing_state
 from classes.forms import ClassForm
 from classes.selectors import ClassSelector
@@ -87,9 +88,7 @@ def class_create(request):
             ClassService(user=request.user).create_class(form.cleaned_data)
             return redirect("classes_list")
         except ValidationError as exc:
-            for field, errors in exc.errors.items():
-                for error in errors:
-                    form.add_error(field if field != "__all__" else None, error)
+            apply_validation_errors(form, exc)
         except BusinessRuleViolationError as exc:
             form.add_error(None, exc.message)
     return render(
@@ -136,9 +135,7 @@ def class_edit(request, pk):
                 )
             return redirect("class_detail", pk=pk)
         except ValidationError as exc:
-            for field, errors in exc.errors.items():
-                for error in errors:
-                    form.add_error(field if field != "__all__" else None, error)
+            apply_validation_errors(form, exc)
     if not request.headers.get("HX-Request"):
         return redirect("class_detail", pk=pk)
     return render(

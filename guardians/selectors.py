@@ -76,18 +76,3 @@ class GuardianSelector(BaseSelector):
             Q(user__first_name__icontains=query) | Q(user__last_name__icontains=query)
         )
         return self._paginate(qs, page=page)
-
-    def _paginate(self, qs, page: int = 1, page_size: int = 20) -> PageResult:
-        """Paginação interna para querysets customizados."""
-        from base.selectors import MAX_PAGE_SIZE
-
-        page_size = min(max(1, page_size), MAX_PAGE_SIZE)
-        page = max(1, page)
-        total = qs.count()
-        offset = (page - 1) * page_size
-        return PageResult(
-            items=list(qs[offset : offset + page_size]),
-            total=total,
-            page=page,
-            page_size=page_size,
-        )

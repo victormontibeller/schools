@@ -5,6 +5,8 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
+from base.forms import apply_validation_errors
+
 
 @login_required
 def business_unit_list(request: HttpRequest) -> HttpResponse:
@@ -83,9 +85,7 @@ def business_unit_create(request: HttpRequest) -> HttpResponse:
             messages.success(request, "Empresa criada com sucesso.")
             return redirect("business_unit_detail", pk=business_unit.pk)
         except ValidationError as exc:
-            for field, errors in exc.errors.items():
-                for error in errors:
-                    form.add_error(field if field != "__all__" else None, error)
+            apply_validation_errors(form, exc)
         except BusinessRuleViolationError as exc:
             messages.error(request, exc.message)
 
@@ -127,9 +127,7 @@ def business_unit_edit(request: HttpRequest, pk) -> HttpResponse:
                 messages.success(request, "Empresa atualizada com sucesso.")
                 return redirect("business_unit_detail", pk=pk)
             except ValidationError as exc:
-                for field, errors in exc.errors.items():
-                    for error in errors:
-                        form.add_error(field if field != "__all__" else None, error)
+                apply_validation_errors(form, exc)
             except BusinessRuleViolationError as exc:
                 messages.error(request, exc.message)
     else:
@@ -238,8 +236,7 @@ def school_edit(request: HttpRequest) -> HttpResponse:
                 messages.success(request, "Configurações da escola atualizadas com sucesso.")
                 return redirect("school_settings_detail")
             except ValidationError as exc:
-                for field, errors in exc.errors.items():
-                    form.add_error(field, errors)
+                apply_validation_errors(form, exc)
             except BusinessRuleViolationError as exc:
                 messages.error(request, exc.message)
     else:

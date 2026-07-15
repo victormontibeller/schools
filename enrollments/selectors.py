@@ -114,17 +114,3 @@ class EnrollmentApplicationSelector(BaseSelector):
         return StudentDocument.objects.filter(
             student_id=student_id, status=StudentDocument.Status.PENDING
         ).order_by("document_type")
-
-    def _paginate(self, qs, page: int = 1, page_size: int = 20) -> PageResult:
-        from base.selectors import MAX_PAGE_SIZE
-
-        page_size = min(max(1, page_size), MAX_PAGE_SIZE)
-        page = max(1, page)
-        total = qs.count()
-        offset = (page - 1) * page_size
-        return PageResult(
-            items=list(qs[offset : offset + page_size]),
-            total=total,
-            page=page,
-            page_size=page_size,
-        )

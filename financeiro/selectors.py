@@ -56,18 +56,6 @@ class FinancialPlanSelector(BaseSelector):
         except FinancialPlan.DoesNotExist:
             raise ObjectNotFoundError("FinancialPlan", str(plan_id)) from None
 
-    def _paginate(self, qs, page: int = 1, page_size: int = 20) -> PageResult:
-        page_size = min(max(1, page_size), MAX_PAGE_SIZE)
-        page = max(1, page)
-        total = qs.count()
-        offset = (page - 1) * page_size
-        return PageResult(
-            items=list(qs[offset : offset + page_size]),
-            total=total,
-            page=page,
-            page_size=page_size,
-        )
-
 
 class BillingSelector(BaseSelector):
     """Consultas somente-leitura de cobrancas."""
@@ -265,18 +253,6 @@ class BillingSelector(BaseSelector):
         return [
             billing for billing in qs if billing.computed_status(reference_date=reference) == status
         ]
-
-    def _paginate(self, qs, page: int = 1, page_size: int = 20) -> PageResult:
-        page_size = min(max(1, page_size), MAX_PAGE_SIZE)
-        page = max(1, page)
-        total = qs.count()
-        offset = (page - 1) * page_size
-        return PageResult(
-            items=list(qs[offset : offset + page_size]),
-            total=total,
-            page=page,
-            page_size=page_size,
-        )
 
     def _paginate_items(self, items: list, page: int = 1, page_size: int = 20) -> PageResult:
         page_size = min(max(1, page_size), MAX_PAGE_SIZE)

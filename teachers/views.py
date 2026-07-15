@@ -11,6 +11,7 @@ from base.exceptions import (
     PermissionDeniedError,
     ValidationError,
 )
+from base.forms import apply_validation_errors, submitted_form_data
 from base.listing import build_querystring, build_sorting, resolve_listing_state
 from base.media import private_file_response
 from teachers.forms import SubjectForm, TeacherEditForm, TeacherForm, TeacherSubjectsForm
@@ -136,9 +137,7 @@ def teacher_create(request):
                 )
             return redirect("teachers_list")
         except ValidationError as exc:
-            for field, errors in exc.errors.items():
-                for error in errors:
-                    form.add_error(field if field != "__all__" else None, error)
+            apply_validation_errors(form, exc)
         except BusinessRuleViolationError as exc:
             form.add_error(None, exc.message)
     return render(request, "teachers/teacher_form.html", {"form": form, "title": "Novo Professor"})
@@ -155,7 +154,7 @@ def teacher_edit(request, pk):
         form = TeacherEditForm(request.POST, request.FILES)
         if form.is_valid():
             try:
-                data = _submitted_form_data(form.cleaned_data, request)
+                data = submitted_form_data(form.cleaned_data, request)
                 teacher = TeacherService(user=request.user).update_teacher(pk, data)
                 if request.headers.get("HX-Request"):
                     return render(
@@ -166,9 +165,7 @@ def teacher_edit(request, pk):
                 messages.success(request, "Professor atualizado.")
                 return redirect("teacher_detail", pk=pk)
             except ValidationError as exc:
-                for field, errors in exc.errors.items():
-                    for error in errors:
-                        form.add_error(field if field != "__all__" else None, error)
+                apply_validation_errors(form, exc)
             except BusinessRuleViolationError as exc:
                 form.add_error(None, exc.message)
     else:
@@ -238,12 +235,6 @@ def _teacher_subjects_response(request, teacher):
     )
 
 
-def _submitted_form_data(cleaned_data: dict, request) -> dict:
-    """Retorna apenas campos enviados para preservar updates parciais."""
-    submitted = set(request.POST) | set(request.FILES)
-    return {key: value for key, value in cleaned_data.items() if key in submitted}
-
-
 # ── Subjects (Disciplinas) ───────────────────────────────────────────────────
 
 
@@ -298,9 +289,7 @@ def subject_create(request):
             messages.success(request, "Disciplina criada com sucesso.")
             return redirect("subjects_list")
         except ValidationError as exc:
-            for field, errors in exc.errors.items():
-                for error in errors:
-                    form.add_error(field if field != "__all__" else None, error)
+            apply_validation_errors(form, exc)
         except BusinessRuleViolationError as exc:
             messages.error(request, exc.message)
     return render(request, "teachers/subject_form.html", {"form": form, "title": "Nova Disciplina"})
@@ -340,9 +329,7 @@ def subject_edit(request, pk):
             messages.success(request, "Disciplina atualizada.")
             return redirect("subjects_list")
         except ValidationError as exc:
-            for field, errors in exc.errors.items():
-                for error in errors:
-                    form.add_error(field if field != "__all__" else None, error)
+            apply_validation_errors(form, exc)
         except BusinessRuleViolationError as exc:
             messages.error(request, exc.message)
     if request.headers.get("HX-Request"):

@@ -13,6 +13,7 @@ from base.exceptions import (
     PermissionDeniedError,
     ValidationError,
 )
+from base.forms import apply_validation_errors
 from base.listing import build_querystring, resolve_listing_state
 from base.media import private_file_response
 from enrollments.contracts import EnrollmentApplication
@@ -101,9 +102,7 @@ def application_create(request):
             messages.success(request, "Solicitacao de matricula criada com sucesso.")
             return redirect("secretary_dashboard")
         except ValidationError as exc:
-            for field, errors in exc.errors.items():
-                for error in errors:
-                    form.add_error(field if field != "__all__" else None, error)
+            apply_validation_errors(form, exc)
         except (ObjectNotFoundError, BusinessRuleViolationError) as exc:
             messages.error(request, exc.message)
     return render(
@@ -220,7 +219,7 @@ def bulk_reenroll_view(request):
         form = BulkReenrollForm()
     return render(
         request,
-        "enrollments/bulk_reenroll.html",
+        "enrollments/application_form.html",
         {
             "form": form,
             "title": "Rematricula em Lote",
@@ -256,9 +255,7 @@ def document_add(request, application_id=None):
                 return redirect("application_detail", pk=application_id)
             return redirect("secretary_dashboard")
         except ValidationError as exc:
-            for field, errors in exc.errors.items():
-                for error in errors:
-                    form.add_error(field if field != "__all__" else None, error)
+            apply_validation_errors(form, exc)
         except (ObjectNotFoundError, BusinessRuleViolationError) as exc:
             messages.error(request, exc.message)
     return render(

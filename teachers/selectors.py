@@ -56,21 +56,6 @@ class TeacherSelector(BaseSelector):
         )
         return self._paginate(qs, page=page)
 
-    def _paginate(self, qs, page: int = 1, page_size: int = 20) -> PageResult:
-        """Paginação interna para querysets customizados."""
-        from base.selectors import MAX_PAGE_SIZE
-
-        page_size = min(max(1, page_size), MAX_PAGE_SIZE)
-        page = max(1, page)
-        total = qs.count()
-        offset = (page - 1) * page_size
-        return PageResult(
-            items=list(qs[offset : offset + page_size]),
-            total=total,
-            page=page,
-            page_size=page_size,
-        )
-
 
 class SubjectSelector(BaseSelector):
     """Consultas somente-leitura para disciplinas."""
@@ -106,19 +91,3 @@ class SubjectSelector(BaseSelector):
         from teachers.models import Subject
 
         return Subject.objects.filter(pk=subject_id, teachers__user_id=user_id).exists()
-
-    @staticmethod
-    def _paginate(queryset, *, page: int, page_size: int) -> PageResult:
-        """Pagina o queryset restrito sem expor ORM à view."""
-        from base.selectors import MAX_PAGE_SIZE
-
-        page = max(1, page)
-        page_size = min(max(1, page_size), MAX_PAGE_SIZE)
-        total = queryset.count()
-        offset = (page - 1) * page_size
-        return PageResult(
-            items=list(queryset[offset : offset + page_size]),
-            total=total,
-            page=page,
-            page_size=page_size,
-        )

@@ -9,6 +9,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+from base.forms import apply_validation_errors
 from base.listing import build_querystring, resolve_listing_state
 from financeiro.contracts import BillingEntry, FinancialPlan
 from financeiro.forms import (
@@ -94,9 +95,7 @@ def plan_create(request: HttpRequest) -> HttpResponse:
             messages.success(request, "Plano financeiro criado.")
             return redirect("plan_detail", pk=plan.pk)
         except ValidationError as exc:
-            for field, errors in exc.errors.items():
-                for error in errors:
-                    form.add_error(field if field != "__all__" else None, error)
+            apply_validation_errors(form, exc)
         except (ObjectNotFoundError, BusinessRuleViolationError) as exc:
             messages.error(request, exc.message)
     return render(
@@ -239,9 +238,7 @@ def billing_register_payment(request: HttpRequest, pk) -> HttpResponse:
             messages.success(request, "Pagamento registrado.")
             return redirect("billing_detail", pk=pk)
         except ValidationError as exc:
-            for field, errors in exc.errors.items():
-                for error in errors:
-                    form.add_error(field if field != "__all__" else None, error)
+            apply_validation_errors(form, exc)
         except (ObjectNotFoundError, BusinessRuleViolationError) as exc:
             messages.error(request, exc.message)
     return render(
@@ -288,9 +285,7 @@ def billing_renegotiate(request: HttpRequest, pk) -> HttpResponse:
             messages.success(request, "Cobranca renegociada com sucesso.")
             return redirect("billing_list")
         except ValidationError as exc:
-            for field, errors in exc.errors.items():
-                for error in errors:
-                    form.add_error(field if field != "__all__" else None, error)
+            apply_validation_errors(form, exc)
         except (ObjectNotFoundError, BusinessRuleViolationError) as exc:
             messages.error(request, exc.message)
     return render(
@@ -351,9 +346,7 @@ def bulk_generate_billings(request: HttpRequest) -> HttpResponse:
                 return redirect("billing_list")
             except (ObjectNotFoundError, BusinessRuleViolationError, ValidationError) as exc:
                 if isinstance(exc, ValidationError):
-                    for field, errors in exc.errors.items():
-                        for error in errors:
-                            form.add_error(field if field != "__all__" else None, error)
+                    apply_validation_errors(form, exc)
                 else:
                     messages.error(request, exc.message)
     else:

@@ -28,6 +28,19 @@ O projeto mantém helpers no `BaseService` e `BaseSelector` para eliminar repeti
 | `validate_required(data, fields)` | Bloco `required = [...]` + `for/if/raise` | `self.validate_required(data, ["name", "email"])` |
 | `_deactivate(model, id, label)` | 13 linhas de try/except/soft_delete | `self._deactivate(Teacher, tid, "Teacher")` |
 
+### Em `base/selectors.py` (BaseSelector)
+
+| Método | Substitui | Uso |
+|--------|-----------|-----|
+| `_paginate(queryset, page, page_size)` | Contagem, limites, offset e criação manual de `PageResult` | `self._paginate(queryset, page=page)` |
+
+### Em `base/forms.py`
+
+| Helper | Substitui | Uso |
+|--------|-----------|-----|
+| `apply_validation_errors(form, error)` | Loops de `form.add_error()` nas views | `apply_validation_errors(form, exc)` |
+| `submitted_form_data(cleaned_data, request)` | Filtro manual de campos enviados em updates parciais | `submitted_form_data(form.cleaned_data, request)` |
+
 ### Em `base/exceptions.py`
 
 | Exceção | Quando usar |

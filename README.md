@@ -47,9 +47,13 @@ core/           Configuração e modelos tenant-specific (Role, CustomUser, Busi
 accounts/       App de gestão de usuários
 audit/          App de auditoria
 templates/      Templates base e auth
-design_system/  Assets Duralux (Bootstrap)
+static/          Assets locais curados usados em produção
+design_system/  Pacote Duralux mantido somente como referência visual
 docker/         Configs de Traefik, Prometheus, Grafana e Loki
 ```
+
+Somente `static/` participa de `collectstatic`. O conteúdo completo em `design_system/` não é
+publicado e serve como fonte de consulta para evoluções do tema.
 
 ## Documentação
 

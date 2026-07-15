@@ -17,6 +17,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from base.exceptions import BusinessRuleViolationError, ValidationError
+from base.forms import apply_validation_errors
 
 
 # ── Listagem ──────────────────────────────────────────────────────────────────
@@ -45,8 +46,7 @@ def my_model_create(request: HttpRequest) -> HttpResponse:
                 messages.success(request, "Registro criado com sucesso.")
                 return redirect("my_app:list")
             except ValidationError as exc:
-                for field, errors in exc.errors.items():
-                    form.add_error(field, errors)
+                apply_validation_errors(form, exc)
             except BusinessRuleViolationError as exc:
                 messages.error(request, exc.message)
     else:
@@ -73,8 +73,7 @@ def my_model_edit(request: HttpRequest, pk) -> HttpResponse:
                 messages.success(request, "Registro atualizado.")
                 return redirect("my_app:list")
             except ValidationError as exc:
-                for field, errors in exc.errors.items():
-                    form.add_error(field, errors)
+                apply_validation_errors(form, exc)
             except BusinessRuleViolationError as exc:
                 messages.error(request, exc.message)
     else:

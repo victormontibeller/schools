@@ -79,17 +79,3 @@ class ActivitySelector(BaseSelector):
             )
         except ActivityGroup.DoesNotExist:
             raise ObjectNotFoundError("ActivityGroup", str(group_id)) from None
-
-
-class ActivitySubmissionSelector(BaseSelector):
-    """Selector para entregas — consultas paginadas."""
-
-    @property
-    def model_class(self):
-        from activities.models import ActivitySubmission
-
-        return ActivitySubmission
-
-    def list_submissions(self, filters=None, page=1, page_size=50) -> PageResult:
-        """Lista entregas paginadas, com filtros opcionais."""
-        return self.list(filters=filters, page=page, page_size=page_size)
