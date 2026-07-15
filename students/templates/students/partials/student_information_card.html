@@ -1,13 +1,15 @@
+{% load ui_helpers %}
+{% can_access_action "students" "edit" as can_edit_student %}
 <div class="card mb-0 sm-profile-card" id="student-information-card">
     <div class="card-header d-flex align-items-center justify-content-between gap-2">
         <h6 class="card-title mb-0">Informações do Aluno</h6>
-        <button type="button"
+        {% if can_edit_student %}<button type="button"
                 class="btn btn-sm btn-outline-primary"
                 hx-get="{% url 'student_edit' student.pk %}"
                 hx-target="#student-information-card"
                 hx-swap="outerHTML">
             <i class="feather-edit-2 me-1"></i> Editar
-        </button>
+        </button>{% endif %}
     </div>
     <div class="card-body sm-profile-card-body">
         {% if saved %}
@@ -15,7 +17,7 @@
         {% endif %}
         <div class="sm-profile-hero d-flex flex-column flex-sm-row align-items-center text-center text-sm-start gap-3 pb-4 mb-4 border-bottom">
             {% if student.photo %}
-            <img src="{{ student.photo.url }}" class="sm-profile-avatar flex-shrink-0"
+            <img src="{% url 'student_photo' student.pk %}" class="sm-profile-avatar flex-shrink-0"
                  alt="Foto de {{ student.get_full_name }}">
             {% else %}
             <div class="avatar-text avatar-xl bg-soft-warning text-warning flex-shrink-0"

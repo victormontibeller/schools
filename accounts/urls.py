@@ -22,6 +22,7 @@ urlpatterns = [
     path("profile/change-password/", views.change_password_view, name="change_password"),
     path("users/", views.users_list_view, name="users_list"),
     path("users/<uuid:pk>/", views.user_detail_view, name="user_detail"),
+    path("users/<uuid:pk>/avatar/", views.user_avatar, name="user_avatar"),
     path("users/<uuid:pk>/editar/", views.user_edit_view, name="user_edit"),
     path(
         "platform/usuarios/",

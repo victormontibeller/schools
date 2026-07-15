@@ -40,6 +40,6 @@ def charge_via_gateway_task(tenant_schema: str, billing_id: str) -> str:
         if not result.success:
             logger.warning(
                 "Falha ao criar cobranca no gateway",
-                extra={"billing_id": str(billing.pk), "erro": result.error_message},
+                extra={"billing_id": str(billing.pk), "gateway_status": "failed"},
             )
         return result.external_id

@@ -4,6 +4,7 @@ import datetime as dt
 
 import pytest
 
+from agenda.models import Schedule, TimeSlot
 from attendance.models import AttendanceEntry, AttendanceJustification
 from attendance.services import AttendanceService
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
@@ -19,9 +20,9 @@ def _make_user(email="att@test.com"):
     )
 
 
-def _make_class(user):
+def _make_class(user, name="1A"):
     return Class.objects.create(
-        name="1A",
+        name=name,
         grade=Class.Grade.ELEMENTARY_1,
         education_stage=Class.EducationStage.ELEMENTARY_I,
         academic_year=2025,
@@ -35,13 +36,44 @@ def _make_subject(user):
     return Subject.objects.create(name="Matemática", code="MAT", created_by=user, updated_by=user)
 
 
-def _make_teacher(user, registration="ATT-001"):
+def _make_schedule(
+    user,
+    class_obj,
+    subject,
+    teacher,
+    *,
+    valid_from=dt.date(2020, 1, 1),
+    valid_until=None,
+):
+    slot, _ = TimeSlot.objects.get_or_create(
+        day_of_week=TimeSlot.Day.MON,
+        start_time=dt.time(8),
+        end_time=dt.time(9),
+        defaults={"slot_number": 1, "created_by": user, "updated_by": user},
+    )
+    return Schedule.objects.create(
+        class_obj=class_obj,
+        subject=subject,
+        teacher=teacher,
+        time_slot=slot,
+        valid_from=valid_from,
+        valid_until=valid_until,
+        created_by=user,
+        updated_by=user,
+    )
+
+
+def _make_teacher(user, registration="ATT-001", *, schedule_all=True):
     target = _make_user(f"att-teacher{registration}@test.com")
     teacher = Teacher.objects.create(
         user=target, registration_number=registration, created_by=user, updated_by=user
     )
     teacher.subjects.set(Subject.objects.all())
     Class.objects.update(class_teacher=teacher)
+    if schedule_all:
+        for class_obj in Class.objects.all():
+            for subject in Subject.objects.all():
+                _make_schedule(user, class_obj, subject, teacher)
     return teacher
 
 
@@ -147,6 +179,53 @@ class TestOpenAttendance:
             )
 
         assert "lesson_content" in exc_info.value.errors
+
+    def test_rejects_crossed_schedule_combination_for_class_teacher(self, user):
+        first_class = _make_class(user)
+        second_class = _make_class(user, "1B")
+        math = _make_subject(user)
+        science = Subject.objects.create(
+            name="Ciências", code="CIE-ATT-SCOPE", created_by=user, updated_by=user
+        )
+        teacher = _make_teacher(user, schedule_all=False)
+        teacher.subjects.add(math, science)
+        _make_schedule(user, first_class, math, teacher)
+        _make_schedule(user, second_class, science, teacher)
+
+        with pytest.raises(ValidationError) as exc_info:
+            AttendanceService(user=user).open_attendance(
+                {
+                    "class_id": first_class.pk,
+                    "subject_id": science.pk,
+                    "teacher_id": teacher.pk,
+                    "date": dt.date(2025, 4, 10),
+                    "lesson_content": "Conteúdo",
+                }
+            )
+
+        assert "class_obj" in exc_info.value.errors
+
+    def test_rejects_schedule_outside_attendance_date(self, user):
+        cls = _make_class(user)
+        subject = _make_subject(user)
+        teacher = _make_teacher(user, schedule_all=False)
+        _make_schedule(
+            user,
+            cls,
+            subject,
+            teacher,
+            valid_from=dt.date(2025, 4, 11),
+        )
+
+        with pytest.raises(ValidationError):
+            AttendanceService(user=user).open_attendance(
+                {
+                    "class_id": cls.pk,
+                    "subject_id": subject.pk,
+                    "teacher_id": teacher.pk,
+                    "date": dt.date(2025, 4, 10),
+                }
+            )
 
 
 @pytest.mark.django_db

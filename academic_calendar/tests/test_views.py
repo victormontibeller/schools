@@ -3,7 +3,7 @@
 import pytest
 from django.urls import reverse
 
-from academic_calendar.models import CalendarEvent, Holiday
+from academic_calendar.models import AcademicYear, CalendarEvent, Holiday
 
 
 @pytest.mark.django_db
@@ -98,3 +98,130 @@ def test_base_template_renders_accessible_theme_toggle(client, user):
     assert b'id="theme-toggle"' in response.content
     assert b'aria-label="Ativar modo escuro"' in response.content
     assert b"app-skin-dark" in response.content
+
+
+@pytest.mark.django_db
+def test_holiday_create_and_edit_views_persist_changes(client, user):
+    client.force_login(user)
+    create_response = client.post(
+        reverse("holiday_create"),
+        {
+            "name": "Feriado Municipal",
+            "date": "2026-07-20",
+            "type": Holiday.Type.MUNICIPAL,
+            "is_recurring": "on",
+        },
+    )
+    holiday = Holiday.objects.get(name="Feriado Municipal")
+
+    edit_response = client.post(
+        reverse("holiday_edit", args=[holiday.pk]),
+        {
+            "name": "Feriado Local",
+            "date": "2026-07-20",
+            "type": Holiday.Type.SCHOOL,
+            "is_recurring": "on",
+            "version": holiday.version,
+        },
+    )
+
+    holiday.refresh_from_db()
+    assert create_response.status_code == 302
+    assert edit_response.status_code == 302
+    assert holiday.name == "Feriado Local"
+
+
+@pytest.mark.django_db
+def test_academic_year_create_and_edit_views_persist_changes(client, user):
+    client.force_login(user)
+    create_response = client.post(
+        reverse("academic_year_create"),
+        {
+            "name": "Ano 2027",
+            "start_date": "2027-01-20",
+            "end_date": "2027-12-10",
+            "status": AcademicYear.Status.PLANNED,
+        },
+    )
+    academic_year = AcademicYear.objects.get(name="Ano 2027")
+    edit_response = client.post(
+        reverse("academic_year_edit", args=[academic_year.pk]),
+        {
+            "name": "Ano Letivo 2027",
+            "start_date": "2027-01-20",
+            "end_date": "2027-12-10",
+            "status": AcademicYear.Status.IN_PROGRESS,
+            "version": academic_year.version,
+        },
+    )
+
+    academic_year.refresh_from_db()
+    assert create_response.status_code == 302
+    assert edit_response.status_code == 302
+    assert academic_year.status == AcademicYear.Status.IN_PROGRESS
+
+
+@pytest.mark.django_db
+def test_event_create_detail_edit_and_cancel_views(client, user):
+    client.force_login(user)
+    payload = {
+        "title": "Reunião de responsáveis",
+        "description": "Apresentação",
+        "start_date": "2026-08-10",
+        "end_date": "2026-08-10",
+        "type": CalendarEvent.Type.MEETING,
+        "audience": CalendarEvent.Audience.GUARDIANS,
+        "class_obj": "",
+        "is_public": "on",
+    }
+    create_response = client.post(reverse("event_create"), payload, HTTP_HX_REQUEST="true")
+    event = CalendarEvent.objects.get(title="Reunião de responsáveis")
+    detail_response = client.get(
+        reverse("event_detail", args=[event.pk]),
+        {"selected_date": "inválida"},
+        HTTP_HX_REQUEST="true",
+    )
+
+    edit_payload = {
+        **payload,
+        "title": "Reunião pedagógica",
+        "version": event.version,
+    }
+    edit_response = client.post(
+        reverse("event_edit", args=[event.pk]),
+        edit_payload,
+        HTTP_HX_REQUEST="true",
+    )
+    cancel_response = client.post(
+        reverse("event_cancel", args=[event.pk]),
+        {"reason": "Reagendamento"},
+    )
+
+    event.refresh_from_db()
+    assert create_response.status_code == 200
+    assert detail_response.status_code == 200
+    assert edit_response.status_code == 200
+    assert cancel_response.status_code == 302
+    assert event.title == "Reunião pedagógica"
+    assert event.is_cancelled is True
+
+
+@pytest.mark.django_db
+def test_calendar_helpers_handle_invalid_dates_and_component_request(client, user):
+    client.force_login(user)
+    url = reverse("calendar_month_specific", kwargs={"year": 2026, "month": 7})
+
+    response = client.get(
+        url,
+        {"selected_date": "invalid", "component": "agenda"},
+        HTTP_HX_REQUEST="true",
+    )
+    create_response = client.get(
+        reverse("event_create"),
+        {"date": "invalid"},
+        HTTP_HX_REQUEST="true",
+    )
+
+    assert response.status_code == 200
+    assert b"calendar-day-agenda" in response.content
+    assert create_response.status_code == 200

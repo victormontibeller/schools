@@ -28,7 +28,7 @@
                 <div class="sm-profile-avatar-picker flex-shrink-0">
                     <label for="{{ form.avatar.id_for_label }}" class="sm-profile-avatar-edit mb-0">
                         {% if teacher.user.avatar %}
-                        <img src="{{ teacher.user.avatar.url }}"
+                        <img src="{% url 'teacher_avatar' teacher.pk %}"
                              alt="{{ teacher.full_name }}"
                              class="sm-profile-avatar">
                         {% else %}

@@ -1,8 +1,14 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
-from base.exceptions import BusinessRuleViolationError, ValidationError
+from base.exceptions import (
+    BusinessRuleViolationError,
+    ObjectNotFoundError,
+    PermissionDeniedError,
+    ValidationError,
+)
 from base.listing import build_querystring, build_sorting, resolve_listing_state
+from base.media import private_file_response
 from students.forms import StudentEditForm, StudentForm
 from students.selectors import StudentSelector
 from students.services import StudentService
@@ -18,6 +24,26 @@ STUDENT_SORTS = {
 
 
 @login_required
+def student_photo(request, pk):
+    """Entrega foto privada após validar papel e vínculo com o aluno."""
+    student = StudentSelector().get_student_by_id(pk)
+    from core.access_selectors import ObjectAccessSelector
+    from core.permissions import can_access_module, role_name
+
+    role = role_name(request.user)
+    allowed = can_access_module(request.user, "students")
+    if role == "GUARDIAN":
+        allowed = ObjectAccessSelector.guardian_can_access_student(request.user.pk, pk)
+    elif role == "TEACHER":
+        allowed = ObjectAccessSelector.teacher_can_access_student(request.user.pk, pk)
+    if not allowed:
+        raise PermissionDeniedError("Sem permissão para acessar esta foto.")
+    if not student.photo:
+        raise ObjectNotFoundError("StudentPhoto", str(pk))
+    return private_file_response(student.photo, as_attachment=False)
+
+
+@login_required
 def students_list(request):
     """Lista alunos paginados, com busca por nome e suporte a HTMX."""
     page = int(request.GET.get("page", 1))
@@ -29,7 +55,10 @@ def students_list(request):
     )
     search = state["q"]
     sort = state["sort"]
-    result = StudentSelector().list_students(
+    role_name = getattr(getattr(request.user, "role", None), "name", "")
+    result = StudentSelector().list_students_for_user(
+        user_id=request.user.pk,
+        role_name=role_name,
         search=search,
         order_by=STUDENT_SORTS[sort],
         page=page,
@@ -98,7 +127,7 @@ def student_edit(request, pk):
                     for error in errors:
                         form.add_error(field if field != "__all__" else None, error)
             except BusinessRuleViolationError as exc:
-                messages.error(request, exc.message)
+                form.add_error(None, exc.message)
     else:
         form = StudentEditForm(instance=student)
 
@@ -257,6 +286,7 @@ def student_guardian_contact_edit(request, pk, link_pk):
             "phone": guardian.phone,
             "phone_whatsapp": guardian.phone_whatsapp,
             "phone_mobile": guardian.phone_mobile,
+            "version": guardian.version,
         },
     )
     if request.method == "POST" and form.is_valid():

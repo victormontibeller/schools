@@ -17,16 +17,6 @@ def current_school(request):
     return {"current_school": school}
 
 
-def support_access(request):
-    """Expõe o estado de impersonação para o banner global."""
-    session = getattr(request, "session", {})
-    return {
-        "support_access_active": bool(session.get("support_grant_id")),
-        "support_grant_id": session.get("support_grant_id", ""),
-        "support_expires_at": session.get("support_expires_at", ""),
-    }
-
-
 def accessible_modules(request):
     """Disponibiliza módulos autorizados para a navegação."""
     from core.permissions import modules_for_user

@@ -43,7 +43,7 @@ class StudentService(BaseService):
     """Serviço de regras de negócio para alunos."""
 
     @transaction.atomic
-    def create_student(self, data: dict, *, preserve_enrollment: bool = False) -> Student:
+    def create_student(self, data: dict) -> Student:
         """Cria um aluno validando obrigatórios e matrícula única, registrando auditoria."""
         from students.models import Student
 
@@ -51,9 +51,7 @@ class StudentService(BaseService):
 
         from core.services import RegistrationSequenceService
 
-        enrollment = (data.get("enrollment_number") or "").strip() if preserve_enrollment else ""
-        if not enrollment:
-            enrollment = RegistrationSequenceService(user=self.user).next_number("student")
+        enrollment = RegistrationSequenceService(user=self.user).next_number("student")
         if Student.objects.filter(enrollment_number=enrollment).exists():
             raise ValidationError(errors={"enrollment_number": ["Matrícula já cadastrada."]})
 
@@ -85,6 +83,8 @@ class StudentService(BaseService):
         """Atualiza dados do aluno e registra auditoria com valores antigos."""
         repo = _StudentRepo()
         student = repo.get_by_id(student_id)
+        old_photo_name = student.photo.name
+        photo_storage = student.photo.storage
 
         # A edição inline pode enviar somente os campos alterados. Valida o
         # estado resultante, não apenas o fragmento submetido.
@@ -122,7 +122,15 @@ class StudentService(BaseService):
             updates["cpf"] = cpf_cleaned
 
         updates["updated_by"] = self.user
-        student = repo.update(student, **updates)
+        student = repo.update(
+            student,
+            expected_version=data.get("version", student.version),
+            **updates,
+        )
+        if "photo" in updates:
+            from base.media import delete_replaced_file_after_commit
+
+            delete_replaced_file_after_commit(photo_storage, old_photo_name, student.photo.name)
         self._record_audit("UPDATE", student, old_values=old)
         self._log("Aluno atualizado", student_id=str(student.pk))
         return student

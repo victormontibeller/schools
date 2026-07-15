@@ -1,11 +1,13 @@
+{% load ui_helpers %}
+{% can_access_action "activities" "edit" as can_edit_activity %}
 <div class="card mb-0 sm-detail-card" id="activity-information-card">
     <div class="card-header d-flex align-items-center justify-content-between gap-2">
         <h6 class="card-title mb-0">Informações da Atividade</h6>
-        <button type="button" class="btn btn-sm btn-outline-primary"
+        {% if can_edit_activity %}<button type="button" class="btn btn-sm btn-outline-primary"
                 hx-get="{% url 'activity_edit' activity.pk %}"
                 hx-target="#activity-information-card" hx-swap="outerHTML">
             <i class="feather-edit-2 me-1"></i> Editar
-        </button>
+        </button>{% endif %}
     </div>
     <div class="card-body">
         {% if saved %}<div class="alert alert-success py-2">Informações atualizadas com sucesso.</div>{% endif %}

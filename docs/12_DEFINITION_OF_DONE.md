@@ -27,6 +27,7 @@ Um item **só pode ser considerado concluído** quando todos os critérios abaix
 - [ ] Consultas em `selectors.py`
 - [ ] Views apenas com orquestração HTTP
 - [ ] Toda entidade herda de `BaseModel`
+- [ ] Nova tela ou mutação resolve módulo e ação do catálogo; chaves desconhecidas falham no CI
 
 ## Observabilidade
 
@@ -38,7 +39,18 @@ Um item **só pode ser considerado concluído** quando todos os critérios abaix
 
 - [ ] Testes escritos (`test_<verbo>_<condição>()`)
 - [ ] `pytest` verde (nenhum teste quebrado)
-- [ ] Cobertura do módulo ≥ 80%
+- [ ] Cobertura global ≥ 85%
+- [ ] Cobertura ≥ 90% nos fluxos de contas, mídia privada, permissões, auditoria e financeiro
+- [ ] Testes SQLite e PostgreSQL tenant-scoped verdes
+- [ ] Concorrência cobre dois updates com a mesma versão: um sucesso e um conflito
+- [ ] Permissões cobrem rota, botão, service, escopo de objeto, isolamento de tenant e ausência de override individual
+
+## Supply chain e produção
+
+- [ ] Dependências instaladas exclusivamente dos locks com hashes no Docker e no CI
+- [ ] `check --deploy`, `makemigrations --check`, `pip-audit`, Gitleaks e Trivy verdes
+- [ ] Imagens e Actions fixadas por digest/SHA imutável
+- [ ] Migração de mídia, wildcard TLS e duas réplicas validadas em staging quando aplicável
 
 ## Documentação
 

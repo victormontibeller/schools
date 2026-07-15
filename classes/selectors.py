@@ -10,16 +10,29 @@ class ClassSelector(BaseSelector):
 
     @property
     def model_class(self):
-        from classes.models import Class
+        from classes.contracts import Class
 
         return Class
 
     def list_classes(
-        self, filters=None, order_by="-academic_year", page=1, page_size=20
+        self,
+        filters=None,
+        order_by="-academic_year",
+        page=1,
+        page_size=20,
+        user_id=None,
+        role_name: str = "",
     ) -> PageResult:
         """Lista turmas ativas paginadas, com filtros opcionais."""
+        from classes.contracts import Class
+
+        queryset = Class.objects.filter(**(filters or {}))
+        if role_name == "TEACHER":
+            queryset = queryset.filter(
+                Q(class_teacher__user_id=user_id) | Q(schedules__teacher__user_id=user_id)
+            ).distinct()
         if order_by in {"grade", "-grade"}:
-            from classes.models import GRADE_PEDAGOGICAL_ORDER, Class
+            from classes.contracts import GRADE_PEDAGOGICAL_ORDER
 
             ordered_grades = (
                 GRADE_PEDAGOGICAL_ORDER
@@ -28,7 +41,7 @@ class ClassSelector(BaseSelector):
             )
             page = max(1, page)
             page_size = min(max(1, page_size), MAX_PAGE_SIZE)
-            queryset = Class.objects.filter(**(filters or {})).annotate(
+            queryset = queryset.annotate(
                 _grade_order=Case(
                     *[
                         When(grade=grade, then=Value(index))
@@ -46,7 +59,16 @@ class ClassSelector(BaseSelector):
                 page=page,
                 page_size=page_size,
             )
-        return self.list(filters=filters, order_by=order_by, page=page, page_size=page_size)
+        page = max(1, page)
+        page_size = min(max(1, page_size), MAX_PAGE_SIZE)
+        total = queryset.count()
+        offset = (page - 1) * page_size
+        return PageResult(
+            items=list(queryset.order_by(order_by)[offset : offset + page_size]),
+            total=total,
+            page=page,
+            page_size=page_size,
+        )
 
     def get_class_by_id(self, class_id):
         """Retorna a turma com o ID informado."""
@@ -54,7 +76,7 @@ class ClassSelector(BaseSelector):
 
     def get_class_students(self, class_id):
         """Retorna os alunos com matrícula ativa numa turma."""
-        from classes.models import Enrollment
+        from classes.contracts import Enrollment
 
         return (
             Enrollment.objects.filter(class_obj_id=class_id)
@@ -64,7 +86,7 @@ class ClassSelector(BaseSelector):
 
     def get_available_classes(self, grade: str | None = None, shift: str | None = None):
         """Retorna turmas com vagas abertas, opcionalmente filtradas."""
-        from classes.models import Class
+        from classes.contracts import Class
 
         qs = Class.objects.all()
         if grade:
@@ -80,13 +102,13 @@ class ClassSelector(BaseSelector):
 
     def list_ordered(self):
         """Lista todas as turmas ordenadas por ano letivo (decrescente) e nome."""
-        from classes.models import Class
+        from classes.contracts import Class
 
         return Class.objects.all().order_by("-academic_year", "name")
 
     def get_enrollment_count(self, class_id) -> int:
         """Retorna o total de matrículas ativas na turma."""
-        from classes.models import Enrollment
+        from classes.contracts import Enrollment
 
         return Enrollment.objects.filter(
             class_obj_id=class_id, status=Enrollment.Status.ACTIVE
@@ -94,7 +116,7 @@ class ClassSelector(BaseSelector):
 
     def search_enrollable_students(self, class_id, query: str, limit: int = 10):
         """Busca alunos por nome/matrícula, excluindo os já matriculados."""
-        from students.models import Student
+        from students.contracts import Student
 
         if not query.strip():
             return Student.objects.none()

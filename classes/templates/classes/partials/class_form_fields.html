@@ -1,8 +1,3 @@
-{% if form.legacy_grade %}
-<div class="alert alert-warning py-2" role="alert">
-    A série “{{ form.legacy_grade }}” é um valor legado. Selecione uma opção válida para salvar.
-</div>
-{% endif %}
 <div class="row g-2">
     {% for field in form %}
         {% include "partials/form_field.html" with field=field %}

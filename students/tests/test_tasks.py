@@ -61,7 +61,7 @@ class TestImportStudentsCsv:
 
         from students.models import Student
 
-        assert Student.objects.filter(enrollment_number__startswith="IMP-").count() == 2
+        assert Student.objects.filter(enrollment_number__startswith="ALU-").count() == 2
 
     def test_invalid_rows_reported_but_valid_rows_created(self, user):
         # Linha 2: faltando campos obrigatórios (linha em branco / lacks required fields).

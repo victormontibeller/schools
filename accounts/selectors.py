@@ -11,13 +11,13 @@ class AccountSelector(BaseSelector):
     @property
     def model_class(self):
         """Modelo alvo das consultas deste seletor."""
-        from core.models import CustomUser
+        from core.contracts import CustomUser
 
         return CustomUser
 
     def get_user_by_email(self, email: str):
         """Retorna o usuário portador do e-mail informado, ou `None`."""
-        from core.models import CustomUser
+        from core.contracts import CustomUser
 
         return CustomUser.objects.filter(email=email).first()
 
@@ -50,7 +50,7 @@ class AccountSelector(BaseSelector):
         page_size: int = 20,
     ) -> PageResult:
         """Lista operadores persistentes do schema público."""
-        from core.models import CustomUser
+        from core.contracts import CustomUser
 
         page_size = min(max(1, page_size), MAX_PAGE_SIZE)
         page = max(1, page)
@@ -77,7 +77,7 @@ class AccountSelector(BaseSelector):
     def get_platform_user(self, user_id):
         """Retorna operador público persistente pelo ID."""
         from base.exceptions import ObjectNotFoundError
-        from core.models import CustomUser
+        from core.contracts import CustomUser
 
         try:
             return CustomUser.all_objects.get(

@@ -1,6 +1,7 @@
 """Testes de integracao das views de salas."""
 
 import pytest
+from django.urls import reverse
 
 
 @pytest.fixture()
@@ -57,3 +58,45 @@ class TestRoomViews:
         assert resp.status_code == 200
         assert b"Cancelar" in resp.content
         assert b"<html" not in resp.content
+
+    def test_room_detail_components_and_edit_post(self, force_login_client):
+        room = self._make_room(code="SALA02")
+
+        detail = force_login_client.get(reverse("room_detail", args=[room.pk]))
+        component = force_login_client.get(
+            reverse("room_detail", args=[room.pk]),
+            {"component": "information"},
+            HTTP_HX_REQUEST="true",
+        )
+        edited = force_login_client.post(
+            reverse("room_edit", args=[room.pk]),
+            {
+                "name": "Sala Atualizada",
+                "code": "SALA02",
+                "capacity": 25,
+                "type": "CLASSROOM",
+                "floor": "2",
+                "building": "Bloco B",
+                "observations": "",
+                "version": room.version,
+            },
+            HTTP_HX_REQUEST="true",
+        )
+
+        room.refresh_from_db()
+        assert detail.status_code == 200
+        assert component.status_code == 200
+        assert edited.status_code == 200
+        assert room.name == "Sala Atualizada"
+
+    def test_rooms_list_htmx_and_non_htmx_edit_redirect(self, force_login_client):
+        room = self._make_room(code="SALA03")
+
+        partial = force_login_client.get(
+            reverse("rooms_list"), {"q": "Sala"}, HTTP_HX_REQUEST="true"
+        )
+        redirect_response = force_login_client.get(reverse("room_edit", args=[room.pk]))
+
+        assert partial.status_code == 200
+        assert b"<html" not in partial.content
+        assert redirect_response.status_code == 302

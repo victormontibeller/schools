@@ -105,7 +105,7 @@ class CalendarService(BaseService):
 
         class_obj = None
         if class_obj_id:
-            from classes.models import Class
+            from classes.contracts import Class
 
             try:
                 class_obj = Class.objects.get(pk=class_obj_id)
@@ -168,7 +168,7 @@ class CalendarService(BaseService):
 
         if "class_obj_id" in data:
             if data["class_obj_id"]:
-                from classes.models import Class
+                from classes.contracts import Class
 
                 try:
                     updates["class_obj"] = Class.objects.get(pk=data["class_obj_id"])
@@ -180,7 +180,11 @@ class CalendarService(BaseService):
                 updates["class_obj"] = None
 
         updates["updated_by"] = self.user
-        event = repo.update(event, **updates)
+        event = repo.update(
+            event,
+            expected_version=data.get("version", event.version),
+            **updates,
+        )
         self._record_audit("UPDATE", event, old_values=old)
         return event
 

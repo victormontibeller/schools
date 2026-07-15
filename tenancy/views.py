@@ -1,11 +1,9 @@
-"""Views de acesso temporário de operadores da plataforma."""
+"""Views do catálogo público de escolas."""
 
 from django.contrib import messages
-from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
-from django.views.decorators.http import require_POST
 
 from base.exceptions import AppBaseError, PermissionDeniedError
 
@@ -123,52 +121,3 @@ def _apply_form_error(form, exc: AppBaseError) -> None:
                 form.add_error(field, error)
         return
     form.add_error(None, exc.message)
-
-
-@login_required
-def support_access_create(request: HttpRequest) -> HttpResponse:
-    """Exibe e processa a criação de concessão no schema público."""
-    from tenancy.forms import SupportAccessForm
-    from tenancy.services import SupportAccessService, support_target_url
-
-    if not (request.user.is_superuser or request.user.has_perm("tenancy.access_tenant")):
-        raise PermissionDeniedError("Sem permissão para acessar tenants.")
-    form = SupportAccessForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        try:
-            grant, token = SupportAccessService(user=request.user).create_grant(
-                form.cleaned_data["tenant_id"],
-                form.cleaned_data["reason"],
-                request.META.get("REMOTE_ADDR", ""),
-            )
-            return redirect(support_target_url(grant, token))
-        except AppBaseError as exc:
-            messages.error(request, exc.message)
-    return render(request, "tenancy/support_access_form.html", {"form": form})
-
-
-def support_access_consume(request: HttpRequest) -> HttpResponse:
-    """Consome token no domínio do tenant e autentica a conta técnica."""
-    from tenancy.services import SupportAccessService
-
-    tenant = getattr(request, "tenant", None)
-    schema = getattr(tenant, "schema_name", "public")
-    grant, support_user = SupportAccessService().consume_grant(request.GET.get("token", ""), schema)
-    login(request, support_user, backend="core.auth_backends.RolePermissionBackend")
-    request.session["platform_actor_id"] = str(grant.operator_id)
-    request.session["support_grant_id"] = str(grant.pk)
-    request.session["support_expires_at"] = grant.expires_at.isoformat()
-    return redirect("dashboard")
-
-
-@require_POST
-@login_required
-def support_access_end(request: HttpRequest) -> HttpResponse:
-    """Encerra concessão e remove a sessão técnica."""
-    from tenancy.services import SupportAccessService
-
-    grant_id = request.session.get("support_grant_id")
-    if grant_id:
-        SupportAccessService(user=request.user).end_grant(grant_id)
-    logout(request)
-    return redirect("index")

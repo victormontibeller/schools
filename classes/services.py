@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class _ClassRepo(BaseRepository):
     @property
     def model_class(self):
-        from classes.models import Class
+        from classes.contracts import Class
 
         return Class
 
@@ -27,7 +27,7 @@ class _ClassRepo(BaseRepository):
 class _EnrollmentRepo(BaseRepository):
     @property
     def model_class(self):
-        from classes.models import Enrollment
+        from classes.contracts import Enrollment
 
         return Enrollment
 
@@ -38,7 +38,7 @@ class ClassService(BaseService):
     @staticmethod
     def _validate_grade_for_stage(grade, education_stage) -> str:
         """Valida e normaliza a série estruturada conforme a etapa."""
-        from classes.models import GRADES_BY_EDUCATION_STAGE, Class
+        from classes.contracts import GRADES_BY_EDUCATION_STAGE, Class
 
         grade_value = str(grade or "").strip()
         stage_value = str(education_stage or "").strip()
@@ -53,7 +53,7 @@ class ClassService(BaseService):
 
     def create_class(self, data: dict):
         """Cria uma turma. Não admite (name, academic_year) duplicados."""
-        from classes.models import Class
+        from classes.contracts import Class
 
         self.validate_required(data, ["name", "education_stage", "grade", "academic_year"])
 
@@ -68,7 +68,7 @@ class ClassService(BaseService):
 
         class_teacher = None
         if teacher_id := data.get("class_teacher_id"):
-            from teachers.models import Teacher
+            from teachers.contracts import Teacher
 
             try:
                 class_teacher = Teacher.objects.get(pk=teacher_id)
@@ -118,7 +118,7 @@ class ClassService(BaseService):
         updates["grade"] = grade
 
         if "class_teacher_id" in data:
-            from teachers.models import Teacher
+            from teachers.contracts import Teacher
 
             teacher_id = data["class_teacher_id"]
             if teacher_id:
@@ -130,24 +130,31 @@ class ClassService(BaseService):
                 updates["class_teacher"] = None
 
         updates["updated_by"] = self.user
-        cls = repo.update(cls, **updates)
+        cls = repo.update(
+            cls,
+            expected_version=data.get("version", cls.version),
+            **updates,
+        )
         self._record_audit("UPDATE", cls, old_values=old)
         self._log("Turma atualizada", class_id=str(cls.pk))
         return cls
 
     def deactivate_class(self, class_id):
         """Desativa uma turma (soft delete)."""
-        from classes.models import Class
+        from classes.contracts import Class
 
         return self._deactivate(Class, class_id, "Class")
 
     @transaction.atomic
     def enroll_student(self, class_id, student_id):
         """Matrícula um aluno em uma turma — valida vagas e duplicidade."""
-        from classes.models import Enrollment
-        from students.models import Student
+        from classes.contracts import Class, Enrollment
+        from students.contracts import Student
 
-        cls = _ClassRepo().get_by_id(class_id)
+        try:
+            cls = Class.objects.select_for_update().get(pk=class_id)
+        except Class.DoesNotExist:
+            raise ObjectNotFoundError("Class", str(class_id)) from None
         try:
             student = Student.objects.get(pk=student_id)
         except Student.DoesNotExist:
@@ -176,19 +183,31 @@ class ClassService(BaseService):
     @transaction.atomic
     def transfer_student(self, student_id, from_class_id, to_class_id):
         """Transfere aluno de uma turma para outra, mantendo histórico."""
-        from classes.models import Enrollment
-        from students.models import Student
+        from classes.contracts import Enrollment
+        from students.contracts import Student
 
         try:
             student = Student.objects.get(pk=student_id)
         except Student.DoesNotExist:
             raise ObjectNotFoundError("Student", str(student_id)) from None
 
-        from_class = _ClassRepo().get_by_id(from_class_id)
-        to_class = _ClassRepo().get_by_id(to_class_id)
+        from classes.contracts import Class
+
+        locked_classes = {
+            item.pk: item
+            for item in Class.objects.select_for_update()
+            .filter(pk__in=[from_class_id, to_class_id])
+            .order_by("pk")
+        }
+        if from_class_id not in locked_classes:
+            raise ObjectNotFoundError("Class", str(from_class_id))
+        if to_class_id not in locked_classes:
+            raise ObjectNotFoundError("Class", str(to_class_id))
+        from_class = locked_classes[from_class_id]
+        to_class = locked_classes[to_class_id]
 
         try:
-            active = Enrollment.objects.get(
+            active = Enrollment.objects.select_for_update().get(
                 student=student, class_obj=from_class, status=Enrollment.Status.ACTIVE
             )
         except Enrollment.DoesNotExist:
@@ -228,7 +247,7 @@ class ClassService(BaseService):
 
     def unenroll_student(self, enrollment_id, reason: str = ""):
         """Cancela uma matrícula ativa com motivo."""
-        from classes.models import Enrollment
+        from classes.contracts import Enrollment
 
         try:
             enrollment = Enrollment.objects.get(pk=enrollment_id)

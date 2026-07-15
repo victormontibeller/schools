@@ -18,6 +18,38 @@ class ActivitySelector(BaseSelector):
         """Lista atividades paginadas, com filtros opcionais."""
         return self.list(filters=filters, order_by=order_by, page=page, page_size=page_size)
 
+    def list_activities_for_user(
+        self,
+        *,
+        user_id,
+        role_name: str,
+        filters=None,
+        order_by="-due_date",
+        page=1,
+        page_size=20,
+    ) -> PageResult:
+        """Restringe atividades ao professor autor ou aos alunos vinculados."""
+        queryset = self.model_class.objects.filter(**(filters or {}))
+        if role_name == "TEACHER":
+            queryset = queryset.filter(teacher__user_id=user_id)
+        elif role_name == "GUARDIAN":
+            queryset = queryset.filter(
+                class_obj__enrollments__student__guardians__guardian__user_id=user_id
+            )
+        queryset = queryset.distinct().order_by(order_by)
+        from base.selectors import MAX_PAGE_SIZE
+
+        page = max(1, page)
+        page_size = min(max(1, page_size), MAX_PAGE_SIZE)
+        total = queryset.count()
+        offset = (page - 1) * page_size
+        return PageResult(
+            items=list(queryset[offset : offset + page_size]),
+            total=total,
+            page=page,
+            page_size=page_size,
+        )
+
     def get_activity_by_id(self, activity_id):
         """Retorna a atividade pelo ID."""
         return self.get_by_id(activity_id)

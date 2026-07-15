@@ -51,10 +51,14 @@ class EventDispatcher:
         for handler in self._handlers.get(type(event), []):
             try:
                 handler(event)
-            except Exception:
-                logger.exception(
+            except Exception as exc:
+                logger.error(
                     "Event handler failed",
-                    extra={"event": type(event).__name__, "handler": handler.__qualname__},
+                    extra={
+                        "event": type(event).__name__,
+                        "handler": handler.__qualname__,
+                        "exception_type": type(exc).__name__,
+                    },
                 )
 
     def dispatch_type(self, event_type: type[Event], **kwargs) -> None:

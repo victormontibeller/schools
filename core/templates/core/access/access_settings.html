@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Acessos — School Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title">
+            <h5 class="m-b-10">Acessos</h5>
+        </div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item active">Acessos</li>
+        </ul>
+    </div>
+</div>
+
+<div class="main-content">
+    {% include "core/access/partials/access_matrix_card.html" %}
+</div>
+
+<script>
+(function () {
+    if (window.schoolAccessMatrixInitialized) {
+        return;
+    }
+    window.schoolAccessMatrixInitialized = true;
+
+    var shortLabels = {view: "V", create: "C", edit: "E", deactivate: "D"};
+
+    function normalizeSearch(value) {
+        return value
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLocaleLowerCase("pt-BR")
+            .trim();
+    }
+
+    function filterMatrix(input) {
+        var card = input.closest("#access-matrix-card");
+        if (!card) {
+            return;
+        }
+        var query = normalizeSearch(input.value);
+        var visibleDepartments = new Set();
+        var visibleCount = 0;
+        card.querySelectorAll("[data-access-module-row]").forEach(function (row) {
+            var matches = !query || normalizeSearch(row.dataset.accessSearch).includes(query);
+            row.hidden = !matches;
+            if (matches) {
+                visibleDepartments.add(row.dataset.accessDepartment);
+                visibleCount += 1;
+            }
+        });
+        card.querySelectorAll("[data-access-department-row]").forEach(function (row) {
+            row.hidden = !visibleDepartments.has(row.dataset.accessDepartment);
+        });
+        var emptyRow = card.querySelector("[data-access-empty-row]");
+        if (emptyRow) {
+            emptyRow.hidden = visibleCount !== 0;
+        }
+        var clearButton = card.querySelector("[data-access-search-clear]");
+        if (clearButton) {
+            clearButton.classList.toggle("d-none", !input.value);
+        }
+    }
+
+    function updateSummary(cell) {
+        var checked = Array.from(
+            cell.querySelectorAll(".sm-access-action-input:checked")
+        );
+        var summary = cell.querySelector("[data-access-summary]");
+        var accessibleSummary = cell.querySelector("[data-access-summary-label]");
+        if (!summary || !accessibleSummary) {
+            return;
+        }
+        summary.replaceChildren();
+        if (!checked.length) {
+            var empty = document.createElement("span");
+            empty.className = "sm-access-empty";
+            empty.textContent = "Sem acesso";
+            summary.appendChild(empty);
+            accessibleSummary.textContent = "Sem acesso";
+            return;
+        }
+        var labels = [];
+        checked.forEach(function (input) {
+            var badge = document.createElement("span");
+            badge.className = "badge sm-access-action-badge";
+            badge.textContent = shortLabels[input.value];
+            badge.setAttribute("aria-hidden", "true");
+            summary.appendChild(badge);
+            var label = cell.querySelector("label[for='" + input.id + "']");
+            labels.push(label ? label.textContent.trim() : input.value);
+        });
+        accessibleSummary.textContent = labels.join(", ");
+    }
+
+    document.addEventListener("change", function (event) {
+        var input = event.target.closest(".sm-access-action-input");
+        if (!input) {
+            return;
+        }
+        var cell = input.closest("[data-access-cell]");
+        if (!cell) {
+            return;
+        }
+        var viewInput = cell.querySelector(".sm-access-action-input[value='view']");
+        if (input.value !== "view" && input.checked && viewInput) {
+            viewInput.checked = true;
+        }
+        if (input.value === "view" && !input.checked) {
+            cell.querySelectorAll(".sm-access-action-input").forEach(function (candidate) {
+                candidate.checked = false;
+            });
+        }
+        updateSummary(cell);
+    });
+
+    document.addEventListener("input", function (event) {
+        if (event.target.matches("[data-access-search-input]")) {
+            filterMatrix(event.target);
+        }
+    });
+
+    document.addEventListener("click", function (event) {
+        var clearButton = event.target.closest("[data-access-search-clear]");
+        if (!clearButton) {
+            return;
+        }
+        var card = clearButton.closest("#access-matrix-card");
+        var input = card && card.querySelector("[data-access-search-input]");
+        if (!input) {
+            return;
+        }
+        input.value = "";
+        filterMatrix(input);
+        input.focus();
+    });
+}());
+</script>
+{% endblock %}

@@ -3,6 +3,7 @@
 from django.conf import settings
 from django.db import models
 
+from base.media import get_private_storage, student_document_path
 from base.models import BaseModel
 from base.upload_validators import validate_document_upload
 
@@ -149,7 +150,8 @@ class StudentDocument(BaseModel):
         verbose_name="Situacao",
     )
     file = models.FileField(
-        upload_to="documents/students/",
+        upload_to=student_document_path,
+        storage=get_private_storage,
         null=True,
         blank=True,
         verbose_name="Arquivo",

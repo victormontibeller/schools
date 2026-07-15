@@ -31,7 +31,7 @@ def refresh_all_school_dashboards() -> None:
     Ela itera todos os tenants ativos e dispara `update_school_dashboard_cache`
     individualmente, garantindo isolamento de schema.
     """
-    from tenancy.models import School
+    from tenancy.contracts import School
 
     for tenant in School.objects.filter(is_active=True):
         update_school_dashboard_cache.delay(tenant.schema_name)

@@ -18,8 +18,11 @@ def _make_user(email="teacher@test.com"):
 
 
 def _teacher_data(user_id, registration_number, *, cpf="390.533.447-05"):
+    target = CustomUser.objects.get(pk=user_id)
     return {
-        "user_id": user_id,
+        "first_name": target.first_name,
+        "last_name": target.last_name,
+        "email": target.email,
         "registration_number": registration_number,
         "hire_date": dt.date(2020, 1, 15),
         "birth_date": dt.date(1990, 5, 20),
@@ -76,11 +79,9 @@ class TestCreateTeacher:
         teacher = TeacherService(user=user).create_teacher(_teacher_data(target.pk, ""))
         assert teacher.registration_number.startswith("PRO-")
 
-    def test_user_not_found(self, user):
-        import uuid
-
-        with pytest.raises(ObjectNotFoundError):
-            TeacherService(user=user).create_teacher(_teacher_data(uuid.uuid4(), "MAT-Z"))
+    def test_missing_identity_is_rejected(self, user):
+        with pytest.raises(ValidationError):
+            TeacherService(user=user).create_teacher({"hire_date": dt.date(2020, 1, 15)})
 
 
 @pytest.mark.django_db

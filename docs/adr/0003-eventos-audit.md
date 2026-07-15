@@ -45,6 +45,10 @@ Service → BaseService._record_audit → dispatcher.dispatch(DomainEvent)
   colateral bestenável, nunca bloqueante.
 - Isolamento de testes: o `dispatcher` é global; suítes que manipulam handlers
   devem monkeypatch (`tests/base/test_events.py`).
+- Efeitos síncronos continuam no despacho e na transação corrente. Um handler que
+  publica tarefa Celery deve registrar somente essa publicação com
+  `transaction.on_commit()`, capturando schema, payload e Correlation ID. Assim,
+  rollback não envia a tarefa e falha do broker após o commit não desfaz os dados.
 
 ## Riscos
 

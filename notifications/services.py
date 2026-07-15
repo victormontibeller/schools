@@ -15,7 +15,7 @@ from base.repositories import BaseRepository
 from base.services import BaseService
 
 if TYPE_CHECKING:
-    from notifications.models import Announcement, MessageLog, MessageTemplate, Notification
+    from notifications.contracts import Announcement, MessageLog, MessageTemplate, Notification
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class _NotificationRepo(BaseRepository):
     @property
     def model_class(self):
-        from notifications.models import Notification
+        from notifications.contracts import Notification
 
         return Notification
 
@@ -31,7 +31,7 @@ class _NotificationRepo(BaseRepository):
 class _AnnouncementRepo(BaseRepository):
     @property
     def model_class(self):
-        from notifications.models import Announcement
+        from notifications.contracts import Announcement
 
         return Announcement
 
@@ -39,7 +39,7 @@ class _AnnouncementRepo(BaseRepository):
 class _TemplateRepo(BaseRepository):
     @property
     def model_class(self):
-        from notifications.models import MessageTemplate
+        from notifications.contracts import MessageTemplate
 
         return MessageTemplate
 
@@ -57,11 +57,11 @@ class NotificationService(BaseService):
             data: dict com recipient_id, title, message, type? (INFO),
                   source?, action_url?, correlation_id?
         """
-        from notifications.models import Notification
+        from notifications.contracts import Notification
 
         self.validate_required(data, ["recipient_id", "title", "message"])
 
-        from core.models import CustomUser
+        from core.contracts import CustomUser
 
         try:
             recipient = CustomUser.objects.get(pk=data["recipient_id"])
@@ -90,7 +90,7 @@ class NotificationService(BaseService):
             ObjectNotFoundError: se a notificacao nao existir.
             BusinessRuleViolationError: se ja estiver lida.
         """
-        from notifications.models import Notification
+        from notifications.contracts import Notification
 
         try:
             notification = Notification.objects.get(pk=notification_id)
@@ -112,7 +112,7 @@ class NotificationService(BaseService):
         Returns:
             Quantidade de notificacoes marcadas como lidas.
         """
-        from notifications.models import Notification
+        from notifications.contracts import Notification
 
         notifications = list(
             Notification.objects.filter(recipient_id=user_id, read_at__isnull=True)
@@ -132,7 +132,7 @@ class NotificationService(BaseService):
 
     def create_notifications_bulk(self, recipient_ids: list, data: dict) -> int:
         """Cria notificacoes em lote mantendo autoria, auditoria e log estruturado."""
-        from notifications.models import Notification
+        from notifications.contracts import Notification
 
         self.validate_required(data, ["title", "message"])
         notifications = [
@@ -161,7 +161,7 @@ class NotificationService(BaseService):
 
     def get_unread_count(self, user_id) -> int:
         """Retorna o total de notificacoes nao lidas para o usuario."""
-        from notifications.models import Notification
+        from notifications.contracts import Notification
 
         return Notification.objects.filter(recipient_id=user_id, read_at__isnull=True).count()
 
@@ -180,11 +180,11 @@ class AnnouncementService(BaseService):
             data: dict com title, body, author_id, audience? (ALL),
                   class_obj_id?, send_email?, send_whatsapp?, scheduled_at?
         """
-        from notifications.models import Announcement
+        from notifications.contracts import Announcement
 
         self.validate_required(data, ["title", "body", "author_id"])
 
-        from core.models import CustomUser
+        from core.contracts import CustomUser
 
         try:
             author = CustomUser.objects.get(pk=data["author_id"])
@@ -199,7 +199,7 @@ class AnnouncementService(BaseService):
                 raise ValidationError(
                     errors={"class_obj_id": ["Informe a turma para publico 'Turma especifica'."]}
                 )
-            from classes.models import Class
+            from classes.contracts import Class
 
             try:
                 class_obj = Class.objects.get(pk=class_obj_id)
@@ -229,7 +229,7 @@ class AnnouncementService(BaseService):
             ObjectNotFoundError: se o comunicado nao existir.
             BusinessRuleViolationError: se ja foi enviado.
         """
-        from notifications.models import Announcement
+        from notifications.contracts import Announcement
 
         try:
             announcement = Announcement.objects.get(pk=announcement_id)
@@ -276,7 +276,7 @@ class AnnouncementService(BaseService):
             audience: ALL, TEACHERS, STUDENTS, GUARDIANS, ou CLASS.
             class_id: PK da turma (obrigatorio para audience=CLASS).
         """
-        from core.models import CustomUser
+        from core.contracts import CustomUser
 
         audience_map = {
             "ALL": CustomUser.objects.filter(is_active=True),
@@ -285,7 +285,7 @@ class AnnouncementService(BaseService):
             "GUARDIANS": CustomUser.objects.filter(guardian_profile__isnull=False, is_active=True),
         }
         if audience == "CLASS" and class_id:
-            from classes.models import Enrollment
+            from classes.contracts import Enrollment
 
             student_user_ids = Enrollment.objects.filter(
                 class_obj_id=class_id, status=Enrollment.Status.ACTIVE
@@ -301,7 +301,7 @@ class AnnouncementService(BaseService):
             data: dict com name, channel, body, type? (CUSTOM),
                   subject?, variables?
         """
-        from notifications.models import MessageTemplate
+        from notifications.contracts import MessageTemplate
 
         self.validate_required(data, ["name", "channel", "body"])
 
@@ -334,7 +334,7 @@ class AnnouncementService(BaseService):
         error_message: str = "",
     ) -> MessageLog:
         """Registra uma tentativa de envio no log de entrega."""
-        from notifications.models import MessageLog
+        from notifications.contracts import MessageLog
 
         log_entry = MessageLog.objects.create(
             announcement=announcement,

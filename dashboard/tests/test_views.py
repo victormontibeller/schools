@@ -1,7 +1,6 @@
 """Testes das views do dashboard."""
 
 import pytest
-from django.test import override_settings
 from django.urls import reverse
 
 from core.models import Role
@@ -9,12 +8,6 @@ from core.models import Role
 
 @pytest.mark.django_db
 class TestDashboardViews:
-    def test_school_dashboard_redirects_to_canonical_home(self, client, user):
-        client.force_login(user)
-        response = client.get(reverse("school_dashboard"))
-        assert response.status_code == 302
-        assert response.url == reverse("dashboard")
-
     def test_school_dashboard_partial(self, client, user):
         client.force_login(user)
         response = client.get(reverse("school_dashboard_partial"))
@@ -86,14 +79,3 @@ class TestDashboardViews:
         assert response.status_code == 200
         assert "Nenhuma pendência prioritária" in content
         assert "Nenhum evento próximo" in content
-
-    @override_settings(ALLOWED_HOSTS=["platform.localhost"])
-    def test_school_dashboard_redirects_platform_operator(self, client, user):
-        user.is_staff = True
-        user.save(update_fields=["is_staff"])
-        client.force_login(user)
-
-        response = client.get(reverse("school_dashboard"), HTTP_HOST="platform.localhost")
-
-        assert response.status_code == 302
-        assert response.url == reverse("platform_dashboard")

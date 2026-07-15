@@ -124,6 +124,8 @@ class TeacherForm(forms.Form):
 class TeacherEditForm(forms.Form):
     """Formulario de edicao de professor (dados do perfil, nao do usuario)."""
 
+    version = forms.IntegerField(min_value=0, widget=forms.HiddenInput())
+
     REQUIRED_FIELDS = (
         "first_name",
         "last_name",

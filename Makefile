@@ -18,6 +18,7 @@ help:
 	@echo "  make lint       Run ruff and black checks"
 	@echo "  make format     Fix code with ruff and black"
 	@echo "  make migrate    Apply shared multi-tenant migrations"
+	@echo "  make reset-dev  Recreate development databases and local media"
 	@echo "  make makemigrations  Create new migrations"
 	@echo "  make shell      Open Django shell"
 	@echo "  make worker     Start Celery worker"
@@ -35,7 +36,7 @@ help:
 setup:
 	python3.13 -m venv $(VENV)
 	$(VENV_BIN)/python -m pip install --upgrade pip
-	$(VENV_BIN)/python -m pip install -r requirements-dev.txt
+	$(VENV_BIN)/python -m pip install --require-hashes -r requirements-dev.lock
 
 # ============================================================
 # Development
@@ -58,6 +59,10 @@ migrate:
 .PHONY: makemigrations
 makemigrations:
 	$(VENV_BIN)/python manage.py makemigrations
+
+.PHONY: reset-dev
+reset-dev:
+	sh scripts/reset_dev.sh
 
 # ============================================================
 # Tests

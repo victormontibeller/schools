@@ -4,17 +4,23 @@ import logging
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import FileResponse, HttpResponse
+from django.http import HttpResponse
 from django.shortcuts import redirect, render
 
-from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+from base.exceptions import (
+    BusinessRuleViolationError,
+    ObjectNotFoundError,
+    PermissionDeniedError,
+    ValidationError,
+)
 from base.listing import build_querystring, resolve_listing_state
+from base.media import private_file_response
+from enrollments.contracts import EnrollmentApplication
 from enrollments.forms import (
     BulkReenrollForm,
     EnrollmentApplicationForm,
     StudentDocumentForm,
 )
-from enrollments.models import EnrollmentApplication
 from enrollments.selectors import EnrollmentApplicationSelector
 from enrollments.services import EnrollmentApplicationService, StudentDocumentService
 
@@ -295,18 +301,26 @@ def document_reject(request, pk):
 
 @login_required
 def document_download(request, pk):
-    """Entrega documento privado como anexo após autorização tenant/RBAC."""
+    """Entrega documento privado após validar RBAC e vínculo com o aluno."""
     document = EnrollmentApplicationSelector().get_document_by_id(pk)
+    from core.access_selectors import ObjectAccessSelector
+    from core.permissions import can_access_module, role_name
+
+    role = role_name(request.user)
+    allowed = can_access_module(request.user, "enrollments")
+    if role == "GUARDIAN":
+        allowed = ObjectAccessSelector.guardian_can_access_student(
+            request.user.pk, document.student_id
+        )
+    elif role == "TEACHER":
+        allowed = ObjectAccessSelector.teacher_can_access_student(
+            request.user.pk, document.student_id
+        )
+    if not allowed:
+        raise PermissionDeniedError("Sem permissão para acessar este documento.")
     if not document.file:
         raise ObjectNotFoundError("StudentDocumentFile", str(pk))
-    response = FileResponse(
-        document.file.open("rb"),
-        as_attachment=True,
-        filename=document.file.name.rsplit("/", maxsplit=1)[-1],
-    )
-    response["X-Content-Type-Options"] = "nosniff"
-    response["Cache-Control"] = "private, no-store"
-    return response
+    return private_file_response(document.file, as_attachment=True)
 
 
 @login_required
@@ -325,7 +339,10 @@ def notify_pending_documents(request, student_id):
         )
         messages.success(request, "Notificacao de pendencias enviada.")
     except (ConnectionError, OSError) as exc:
-        logger.warning("Falha ao enfileirar notificacao de pendencias: %s", exc)
+        logger.warning(
+            "Falha ao enfileirar notificacao de pendencias",
+            extra={"exception_type": type(exc).__name__},
+        )
         messages.error(request, "Erro ao enviar notificacao. Tente novamente.")
     return _redirect_back(request)
 

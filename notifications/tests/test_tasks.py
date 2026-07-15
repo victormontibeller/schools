@@ -57,7 +57,6 @@ class TestEventHandlers:
         )
         guardian = Guardian.objects.create(
             user=guardian_user,
-            relationship_type="PAI",
             created_by=user,
             updated_by=user,
         )
@@ -98,7 +97,6 @@ class TestEventHandlers:
         )
         guardian = Guardian.objects.create(
             user=guardian_user,
-            relationship_type="MAE",
             created_by=user,
             updated_by=user,
         )

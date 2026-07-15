@@ -10,6 +10,7 @@ from base import context
 from core.permissions import (
     can_access_module,
     can_configure_student_diary,
+    can_edit_student_diary,
     can_execute_service,
     has_unrestricted_tenant_access,
 )
@@ -34,7 +35,7 @@ def _role_user(role_name, email):
     [
         ("SECRETARY", "finance_dashboard"),
         ("COORDINATOR", "finance_dashboard"),
-        ("TEACHER", "students_list"),
+        ("TEACHER", "teachers_list"),
         ("FINANCE", "teachers_list"),
         ("GUARDIAN", "teachers_list"),
     ],
@@ -106,3 +107,19 @@ def test_admin_has_unrestricted_access_only_inside_school_tenant():
         context.current_tenant.reset(tenant_token)
 
     assert not has_unrestricted_tenant_access(admin)
+
+
+def test_anonymous_and_demo_policies_deny_privileged_operations():
+    anonymous = SimpleNamespace(is_authenticated=False, is_superuser=False)
+    assert can_access_module(anonymous, "students") is False
+    assert can_configure_student_diary(anonymous) is False
+    assert can_edit_student_diary(anonymous) is False
+
+    demo_teacher = SimpleNamespace(
+        is_authenticated=True,
+        is_superuser=False,
+        access_mode="DEMO",
+        role=SimpleNamespace(name="TEACHER"),
+    )
+    assert can_execute_service(demo_teacher, "financeiro", "create_plan") is False
+    assert can_execute_service(demo_teacher, "accounts", "change_password") is True

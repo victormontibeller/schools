@@ -1,5 +1,8 @@
 """Testes do AuditService."""
 
+import datetime as dt
+from decimal import Decimal
+
 import pytest
 
 from audit.models import AuditLog
@@ -56,3 +59,45 @@ class TestAuditService:
     def test_excludes_sensitive_fields(self, user):
         result = AuditService._serialize(self._fake())
         assert "password" not in result
+
+    def test_serialize_redacts_pii_and_normalizes_field_values(self):
+        class Field:
+            def __init__(self, attname=None):
+                if attname is not None:
+                    self.attname = attname
+
+        class Fake:
+            pk = "audit-object"
+            email = "sensitive@example.com"
+            created_at = dt.datetime(2026, 7, 13, 12, 0)
+            amount = Decimal("10.25")
+            active = True
+            _meta = type(
+                "Meta",
+                (),
+                {
+                    "get_fields": lambda self: [
+                        Field(),
+                        Field("email"),
+                        Field("created_at"),
+                        Field("amount"),
+                        Field("active"),
+                    ]
+                },
+            )()
+
+        result = AuditService._serialize(Fake())
+
+        assert result == {
+            "email": "[REDACTED]",
+            "created_at": "2026-07-13T12:00:00",
+            "amount": "10.25",
+            "active": True,
+        }
+
+    def test_redact_handles_none_and_sensitive_snapshot_keys(self):
+        assert AuditService._redact(None) is None
+        assert AuditService._redact({"phone_mobile": "secret", "status": "ACTIVE"}) == {
+            "phone_mobile": "[REDACTED]",
+            "status": "ACTIVE",
+        }

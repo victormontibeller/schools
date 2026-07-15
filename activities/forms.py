@@ -5,9 +5,9 @@ from decimal import Decimal
 from django import forms
 
 from activities.models import Activity
-from classes.models import Class
-from students.models import Student
-from teachers.models import Subject, Teacher
+from classes.contracts import Class
+from students.contracts import Student
+from teachers.contracts import Subject, Teacher
 
 
 class ActivityForm(forms.Form):
@@ -73,19 +73,21 @@ class ActivityForm(forms.Form):
         if user and getattr(getattr(user, "role", None), "name", "") == "TEACHER":
             teacher = getattr(user, "teacher_profile", None)
             if teacher:
-                from django.db.models import Q
-
                 self.fields["teacher"].queryset = Teacher.objects.filter(pk=teacher.pk)
                 self.fields["teacher"].initial = teacher
                 self.fields["teacher"].disabled = True
                 self.fields["class_obj"].queryset = Class.objects.filter(
-                    Q(class_teacher=teacher) | Q(schedules__teacher=teacher)
+                    schedules__teacher=teacher
                 ).distinct()
-                self.fields["subject"].queryset = teacher.subjects.all()
+                self.fields["subject"].queryset = teacher.subjects.filter(
+                    schedules__teacher=teacher
+                ).distinct()
 
 
 class ActivityEditForm(ActivityForm):
     """Formulário dos campos editáveis no card de informações da atividade."""
+
+    version = forms.IntegerField(min_value=0, widget=forms.HiddenInput())
 
 
 class ScoreForm(forms.Form):

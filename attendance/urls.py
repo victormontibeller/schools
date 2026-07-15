@@ -31,6 +31,11 @@ urlpatterns = [
     path("justificativas/", views.justifications_list, name="justifications_list"),
     path("justificativas/nova/", views.justification_create, name="justification_create"),
     path(
+        "justificativas/<uuid:pk>/documento/",
+        views.justification_document,
+        name="justification_document",
+    ),
+    path(
         "justificativas/<uuid:pk>/aprovar/",
         views.justification_approve,
         name="justification_approve",

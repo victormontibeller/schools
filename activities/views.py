@@ -71,16 +71,19 @@ def activities_list(request):
     )
     search, sort = state["q"], state["sort"]
     filters = {}
-    if getattr(getattr(request.user, "role", None), "name", "") == "TEACHER":
-        teacher = getattr(request.user, "teacher_profile", None)
-        if teacher:
-            filters["teacher_id"] = teacher.pk
+    role_name = getattr(getattr(request.user, "role", None), "name", "")
     if class_obj_filter:
         filters["class_obj_id"] = class_obj_filter
     if search:
         filters["title__icontains"] = search
 
-    result = ActivitySelector().list_activities(filters=filters, order_by=sort, page=page)
+    result = ActivitySelector().list_activities_for_user(
+        user_id=request.user.pk,
+        role_name=role_name,
+        filters=filters,
+        order_by=sort,
+        page=page,
+    )
     ctx = {
         "result": result,
         "q": search,
@@ -185,6 +188,7 @@ def activity_edit(request, pk):
             "due_date": activity.due_date,
             "max_score": activity.max_score,
             "weight": activity.weight,
+            "version": activity.version,
         },
     )
     if request.method == "POST" and form.is_valid():
@@ -201,6 +205,8 @@ def activity_edit(request, pk):
             for field, errors in exc.errors.items():
                 for error in errors:
                     form.add_error(field if field != "__all__" else None, error)
+        except BusinessRuleViolationError as exc:
+            form.add_error(None, str(exc))
     if not request.headers.get("HX-Request"):
         return redirect("activity_detail", pk=pk)
     return render(
@@ -232,11 +238,18 @@ def activity_record_score(request, pk):
         for submission in submissions
     ]
     try:
-        ActivityService(user=request.user).batch_record_scores(pk, rows)
+        result = ActivityService(user=request.user).batch_record_scores(pk, rows)
+        if result["errors"]:
+            messages.error(
+                request,
+                "Algumas notas não foram salvas. Verifique os valores informados.",
+            )
+        elif result["created"]:
+            messages.success(request, "Notas salvas com sucesso.")
+        else:
+            messages.info(request, "Nenhuma nota foi alterada.")
     except (ValidationError, ObjectNotFoundError, BusinessRuleViolationError) as exc:
         logger.warning("Erro ao lancar notas", extra={"activity_id": str(pk)})
-        from django.contrib import messages
-
         messages.error(request, str(exc))
     return redirect("activity_detail", pk=pk)
 

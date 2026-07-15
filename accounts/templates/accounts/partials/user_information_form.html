@@ -15,7 +15,7 @@
             <div class="sm-profile-hero d-flex flex-column flex-sm-row align-items-center text-center text-sm-start gap-3 pb-4 mb-4 border-bottom">
                 <div class="sm-profile-avatar-picker flex-shrink-0">
                     <label for="{{ form.avatar.id_for_label }}" class="sm-profile-avatar-edit mb-0">
-                        {% if user_obj.avatar %}<img src="{{ user_obj.avatar.url }}" class="sm-profile-avatar" alt="Foto de {{ user_obj.get_full_name }}">{% else %}<div class="avatar-text avatar-xl bg-soft-primary text-primary">{{ user_obj.get_short_name|first|upper }}</div>{% endif %}
+                        {% if user_obj.avatar %}<img src="{% url 'user_avatar' user_obj.pk %}" class="sm-profile-avatar" alt="Foto do usuário">{% else %}<div class="avatar-text avatar-xl bg-soft-primary text-primary">{{ user_obj.get_short_name|first|upper }}</div>{% endif %}
                     </label>
                     {{ form.avatar }}
                     {% for error in form.avatar.errors %}<div class="invalid-feedback d-block text-center mt-2">{{ error }}</div>{% endfor %}

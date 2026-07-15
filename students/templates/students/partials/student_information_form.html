@@ -24,7 +24,7 @@
                 <div class="sm-profile-avatar-picker flex-shrink-0">
                     <label for="{{ form.photo.id_for_label }}" class="sm-profile-avatar-edit mb-0">
                         {% if student.photo %}
-                        <img src="{{ student.photo.url }}" alt="{{ student.get_full_name }}" class="sm-profile-avatar">
+                        <img src="{% url 'student_photo' student.pk %}" alt="Foto do aluno" class="sm-profile-avatar">
                         {% else %}
                         <div class="avatar-text avatar-xl bg-soft-warning text-warning flex-shrink-0"
                              style="width:72px;height:72px;font-size:1.75rem">

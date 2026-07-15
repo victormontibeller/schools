@@ -41,19 +41,28 @@ O Soft Delete deverá ser utilizado em todas as entidades do sistema.
 
 ## Convenções
 
+- `RoleModuleAccess` é único por papel e chave de módulo em cada schema. Seus quatro booleanos
+  representam Visualizar, Cadastrar, Editar e Desativar; mudanças incrementam `version` e são
+  auditadas. O papel Administrador não possui linhas nessa tabela.
+
 - Matrículas de professores e alunos são geradas por sequência anual isolada no schema do tenant.
 - Preferências de e-mail e WhatsApp são armazenadas separadamente e começam desmarcadas.
-- Turmas possuem etapa de ensino estruturada; registros anteriores à classificação usam `OTHER`.
-- Turmas usam um catálogo fixo e ordenado de séries compatíveis com a etapa de ensino. Valores
-  legados desconhecidos permanecem armazenados até correção manual, mas não podem ser gravados
-  novamente por services.
+- Turmas possuem etapa de ensino estruturada, incluindo `OTHER` como opção canônica.
+- Turmas usam um catálogo fixo e ordenado de séries compatíveis com a etapa de ensino.
 - A Agenda mantém um registro ativo por aluno, turma e data, uma resposta por aspecto fixo
   habilitado e uma situação por refeição aplicável ao turno. `DiaryCategory` e `DiaryOption`
-  preservam categorias livres antigas para histórico, mas novas folhas usam somente registros
-  com código estruturado.
+  aceitam somente o catálogo com código estruturado.
 - Os estados de alimentação são `ATE_WELL`, `ATE_PARTIALLY`, `DID_NOT_EAT` e `NOT_PRESENT`.
   O responsável pedagógico (`DailyDiary.teacher`) pode ser nulo quando administração ou
   coordenação registra a turma; autoria e atualização continuam identificadas pelo `BaseModel`.
+- Entregas de atividades são únicas por atividade e aluno enquanto ativas. A turma da atividade
+  pode mudar somente antes de qualquer nota, feedback ou resultado coletivo; entregas ainda
+  vazias acompanham a nova turma por soft delete e restauração auditada.
+- Atividades e chamadas aceitam apenas combinações professor–turma–disciplina existentes e
+  vigentes na grade horária, inclusive quando o professor é o responsável da turma.
+- Toda atualização de `BaseModel` condiciona a escrita à versão lida e incrementa `version`
+  atomicamente. Soft delete, restore e transições seguem a mesma regra; conflitos não
+  sobrescrevem o registro atual. Invariantes agregadas usam `select_for_update` em transação.
 
 - Toda migration deverá ser revisada antes de ser aplicada.
 - Migrations destrutivas (drop de colunas ou tabelas) deverão ser documentadas como ADR.

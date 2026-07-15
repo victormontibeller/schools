@@ -32,7 +32,7 @@
   - **Secretaria:** Professores, Alunos, Responsáveis e Matrículas;
   - **Coordenação:** Calendário, Feriados, Anos Letivos e Comunicados;
   - **Financeiro:** Visão Financeira;
-  - **Administração:** Salas, Unidades, Escola e Usuários.
+  - **Administração:** Salas, Unidades, Escola, Usuários e Acessos.
 - Professores usam os grupos **Rotina Docente** e **Planejamento**. Responsáveis usam somente
   **Acompanhamento**. Permissões auxiliares de módulo não devem criar links fora da taxonomia do
   papel.
@@ -40,6 +40,19 @@
 - Os departamentos usam o accordion nativo do Duralux. Somente o grupo da rota atual inicia expandido e apenas um grupo permanece aberto por vez.
 - Listagens, cadastros, edições e fichas destacam o item principal de sua família de rotas; grupos sem nenhum item autorizado não são renderizados.
 - A composição do menu reutiliza as políticas de `core.permissions`; templates não duplicam regras de acesso.
+- **Acessos** é exclusiva do Administrador e exibe uma matriz completa: módulos nas linhas e
+  Secretaria, Coordenação, Professor, Financeiro e Responsável nas colunas. Cada célula elegível
+  usa um dropdown múltiplo com Visualizar, Cadastrar, Editar e Desativar; a seleção aparece como
+  `V`, `C`, `E`, `D`. Administrador não aparece e combinações incompatíveis exibem `—`.
+  Os escopos de Professor e Responsável permanecem obrigatórios, mas não são exibidos como
+  legendas na matriz nem podem ser configurados nessa tela.
+- A matriz possui um único botão **Salvar acessos**. Cabeçalho e primeira coluna permanecem fixos,
+  com rolagem horizontal em telas estreitas; dropdowns precisam ser operáveis por teclado.
+- A busca da matriz usa o visual padrão de listagem, mas filtra módulos e departamentos localmente,
+  sem HTMX, para preservar todas as alterações ainda não salvas. Os dropdowns exibem somente as
+  opções; o contexto completo da célula permanece disponível apenas para tecnologias assistivas.
+- Controles de criar, editar e desativar só são renderizados quando a mesma capacidade exigida
+  pela rota estiver ativa. Ocultar o controle não substitui a validação no middleware e service.
 - Controles de expansão usam botão, foco visível, `aria-expanded` e `aria-controls`. A preferência de abertura não é persistida.
 - Quando o conteúdo excede a altura disponível, a rolagem permanece interna e acessível por mouse, trackpad, toque e teclado, mas o trilho visual do scrollbar não é exibido.
 - Links do menu escolar usam navegação progressiva: mantêm menu e cabeçalho no DOM, substituem somente `#app-main` e atualizam o estado ativo do menu por metadados do novo conteúdo. URL, título e histórico são preservados; o `href` real é obrigatório como fallback.

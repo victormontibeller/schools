@@ -43,28 +43,20 @@ class GuardianService(BaseService):
     """Serviço de regras de negócio para responsáveis e vínculos com alunos."""
 
     def create_guardian(self, data: dict) -> Guardian:
-        """Cria um responsável como contato, com usuário opcional."""
+        """Cria um responsável como contato; a conta é vinculada por fluxo próprio."""
         from guardians.models import Guardian
 
         data = data.copy()
-        user = self._resolve_legacy_user(data)
-        if user:
-            data.setdefault("first_name", user.first_name)
-            data.setdefault("last_name", user.last_name)
-            data.setdefault("email", user.email)
-            if Guardian.objects.filter(user=user).exists():
-                raise BusinessRuleViolationError("Este usuário já possui perfil de responsável.")
         self.validate_required(data, GUARDIAN_REQUIRED_FIELDS)
 
         cpf_cleaned = self._validate_cpf(data)
 
         guardian = Guardian.objects.create(
-            user=user,
+            user=None,
             first_name=data["first_name"].strip(),
             last_name=data["last_name"].strip(),
             email=data.get("email", "").strip().lower(),
             avatar=data.get("avatar"),
-            relationship_type=data.get("relationship_type", ""),
             birth_date=data.get("birth_date"),
             gender=data.get("gender", Guardian.Gender.NOT_INFORMED),
             cpf=cpf_cleaned if cpf_cleaned else "",
@@ -87,6 +79,8 @@ class GuardianService(BaseService):
         """Atualiza dados do responsável e registra auditoria com valores antigos."""
         repo = _GuardianRepo()
         guardian = repo.get_by_id(guardian_id)
+        old_avatar_name = guardian.avatar.name
+        avatar_storage = guardian.avatar.storage
 
         self.validate_required(data, GUARDIAN_EDIT_REQUIRED_FIELDS)
 
@@ -118,7 +112,15 @@ class GuardianService(BaseService):
             updates["email"] = updates["email"].strip().lower()
 
         updates["updated_by"] = self.user
-        guardian = repo.update(guardian, **updates)
+        guardian = repo.update(
+            guardian,
+            expected_version=data.get("version", guardian.version),
+            **updates,
+        )
+        if "avatar" in updates:
+            from base.media import delete_replaced_file_after_commit
+
+            delete_replaced_file_after_commit(avatar_storage, old_avatar_name, guardian.avatar.name)
         self._record_audit("UPDATE", guardian, old_values=old)
         self._log("Responsavel atualizado", guardian_id=str(guardian.pk))
         return guardian
@@ -144,7 +146,7 @@ class GuardianService(BaseService):
         if data is None:
             data = {}
         from guardians.models import Guardian, StudentGuardian
-        from students.models import Student
+        from students.contracts import Student
 
         try:
             guardian = Guardian.objects.get(pk=guardian_id)
@@ -191,7 +193,6 @@ class GuardianService(BaseService):
         link.has_custody = bool(data.get("has_custody"))
         link.can_pickup = bool(data.get("can_pickup"))
         link.updated_by = self.user
-        link.version += 1
         link.save()
         if link.is_primary:
             self._clear_other_primaries(link.student_id, link.pk)
@@ -226,22 +227,8 @@ class GuardianService(BaseService):
             old = self._snapshot(other, ["is_primary"])
             other.is_primary = False
             other.updated_by = self.user
-            other.version += 1
-            other.save(update_fields=["is_primary", "updated_by", "version", "updated_at"])
+            other.save(update_fields=["is_primary", "updated_by", "updated_at"])
             self._record_audit("UPDATE", other, old_values=old)
-
-    @staticmethod
-    def _resolve_legacy_user(data: dict):
-        """Resolve user_id legado sem o tornar obrigatório no novo fluxo."""
-        user_id = data.get("user_id")
-        if not user_id:
-            return None
-        from core.models import CustomUser
-
-        try:
-            return CustomUser.objects.get(pk=user_id)
-        except CustomUser.DoesNotExist:
-            raise ObjectNotFoundError("CustomUser", str(user_id)) from None
 
     def _validate_cpf(self, data: dict, exclude_id=None) -> str | None:
         """Valida CPF: formato e unicidade. Retorna CPF limpo ou None."""

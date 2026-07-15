@@ -25,6 +25,15 @@ Todo código deverá ser escrito como se fosse ser mantido por outra pessoa no f
 - Toda operação de escrita deverá passar por um `service`.
 - O princípio **DRY** deverá ser aplicado: nenhum trecho de lógica poderá ser duplicado.
 - Os princípios **SOLID** deverão guiar toda decisão de design.
+- Escritas concorrentes usam a versão apresentada pelo cliente e update condicionado à versão
+  esperada. Conflitos nunca sobrescrevem silenciosamente dados atuais.
+- Saldos, pagamentos, sequências e vagas usam bloqueio pessimista (`select_for_update`) dentro
+  da mesma transação da auditoria quando há invariantes agregadas.
+- Dependências entre domínios usam `contracts.py`, selectors ou services públicos. O checker do
+  CI é absoluto: não admite imports de modelos estrangeiros, ORM em views, SQL direto, dependência
+  de `base` para apps nem módulos produtivos acima de 400 linhas.
+- Publicações Celery decorrentes de uma escrita usam `transaction.on_commit()`. Rollback não pode
+  publicar tarefas; indisponibilidade do broker após o commit é registrada sem desfazer os dados.
 
 ### Observabilidade
 

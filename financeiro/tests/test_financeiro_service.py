@@ -1,6 +1,7 @@
 """Testes dos serviços do módulo Financeiro Escolar."""
 
 import datetime as dt
+import uuid
 from decimal import Decimal
 
 import pytest
@@ -113,6 +114,35 @@ class TestFinancePlan:
         assert new_plan.pk is not None
         assert new_plan.status == FinancialPlan.Status.DRAFT
 
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("installment_count", 0),
+            ("installment_count", 61),
+            ("installment_value", 0),
+            ("discount_value", -1),
+        ],
+    )
+    def test_create_plan_rejects_invalid_financial_values(self, user, field, value):
+        student = _make_student(user, enrollment_number=f"FIN-{field}-{value}")
+
+        with pytest.raises(ValidationError):
+            FinanceService(user=user).create_plan(_plan_data(student, **{field: value}))
+
+    def test_create_plan_rejects_missing_class_and_duplicate_draft(self, user):
+        student = _make_student(user, enrollment_number="FIN-DUPLICATE")
+        FinanceService(user=user).create_plan(_plan_data(student))
+
+        with pytest.raises(BusinessRuleViolationError):
+            FinanceService(user=user).create_plan(_plan_data(student, name="Duplicado"))
+        with pytest.raises(ObjectNotFoundError):
+            FinanceService(user=user).create_plan(
+                _plan_data(
+                    _make_student(user, enrollment_number="FIN-MISSING-CLASS"),
+                    class_obj=type("ClassRef", (), {"pk": uuid.uuid4()})(),
+                )
+            )
+
 
 @pytest.mark.django_db
 class TestBillingGeneration:
@@ -162,6 +192,25 @@ class TestBillingGeneration:
             BillingEntry.objects.get(plan=plan, installment_number=1).status
             == BillingEntry.Status.OVERDUE
         )
+
+    def test_generate_billings_rejects_duplicate_and_zero_net_value(self, user):
+        plan = _active_plan(user)
+        FinanceService(user=user).generate_billings(plan.pk)
+        with pytest.raises(BusinessRuleViolationError):
+            FinanceService(user=user).generate_billings(plan.pk)
+
+        zero_plan = _active_plan(
+            user,
+            student=_make_student(user, enrollment_number="FIN-ZERO-NET"),
+            installment_value=Decimal("100.00"),
+            discount_value=Decimal("100.00"),
+        )
+        with pytest.raises(ValidationError):
+            FinanceService(user=user).generate_billings(zero_plan.pk)
+
+    def test_generate_billings_by_class_rejects_missing_class(self, user):
+        with pytest.raises(ObjectNotFoundError):
+            FinanceService(user=user).generate_billings_by_class(uuid.uuid4(), 2026)
 
 
 @pytest.mark.django_db
@@ -257,6 +306,54 @@ class TestPayments:
         assert payment.deleted_at is not None
         assert payment.reconciliation_status == PaymentRecord.ReconciliationStatus.REJECTED
 
+    def test_register_payment_rejects_missing_closed_zero_and_future(self, user):
+        with pytest.raises(ObjectNotFoundError):
+            PaymentService(user=user).register_payment(
+                uuid.uuid4(), amount=1, paid_date=dt.date.today()
+            )
+
+        plan = _active_plan(user)
+        FinanceService(user=user).generate_billings(plan.pk)
+        billing = BillingEntry.objects.get(plan=plan, installment_number=1)
+        billing.status = BillingEntry.Status.CANCELLED
+        billing.save(update_fields=["status", "updated_at"])
+        with pytest.raises(BusinessRuleViolationError):
+            PaymentService(user=user).register_payment(
+                billing.pk, amount=1, paid_date=dt.date.today()
+            )
+
+        billing.status = BillingEntry.Status.OPEN
+        billing.save(update_fields=["status", "updated_at"])
+        with pytest.raises(ValidationError):
+            PaymentService(user=user).register_payment(
+                billing.pk, amount=0, paid_date=dt.date.today()
+            )
+        with pytest.raises(ValidationError):
+            PaymentService(user=user).register_payment(
+                billing.pk,
+                amount=1,
+                paid_date=dt.date.today() + dt.timedelta(days=1),
+            )
+
+    def test_reconcile_rejects_missing_rejected_and_returns_confirmed(self, user):
+        with pytest.raises(ObjectNotFoundError):
+            PaymentService(user=user).reconcile(uuid.uuid4())
+
+        plan = _active_plan(user)
+        FinanceService(user=user).generate_billings(plan.pk)
+        billing = BillingEntry.objects.get(plan=plan, installment_number=1)
+        payment = PaymentService(user=user).register_payment(
+            billing.pk, amount=Decimal("10.00"), paid_date=dt.date.today()
+        )
+        payment.reconciliation_status = PaymentRecord.ReconciliationStatus.REJECTED
+        payment.save(update_fields=["reconciliation_status", "updated_at"])
+        with pytest.raises(BusinessRuleViolationError):
+            PaymentService(user=user).reconcile(payment.pk)
+
+        payment.reconciliation_status = PaymentRecord.ReconciliationStatus.CONFIRMED
+        payment.save(update_fields=["reconciliation_status", "updated_at"])
+        assert PaymentService(user=user).reconcile(payment.pk).pk == payment.pk
+
 
 @pytest.mark.django_db
 class TestBillingPolicies:
@@ -317,6 +414,68 @@ class TestBillingPolicies:
             Decimal("33.33"),
             Decimal("33.34"),
         ]
+
+    def test_cancel_plan_and_billing_validate_state_and_cancel_successfully(self, user):
+        student = _make_student(user, enrollment_number="FIN-CANCEL-DRAFT")
+        draft = FinanceService(user=user).create_plan(_plan_data(student))
+        with pytest.raises(BusinessRuleViolationError):
+            FinanceService(user=user).cancel_plan(draft.pk)
+
+        plan = _active_plan(user)
+        FinanceService(user=user).generate_billings(plan.pk)
+        billing = BillingEntry.objects.get(plan=plan, installment_number=1)
+        cancelled = FinanceService(user=user).cancel_billing(billing.pk, "Solicitação")
+
+        assert cancelled.status == BillingEntry.Status.CANCELLED
+        assert cancelled.cancelled_reason == "Solicitação"
+        with pytest.raises(BusinessRuleViolationError):
+            FinanceService(user=user).cancel_billing(billing.pk)
+        with pytest.raises(ObjectNotFoundError):
+            FinanceService(user=user).cancel_billing(uuid.uuid4())
+
+    def test_renegotiate_rejects_missing_closed_and_invalid_values(self, user):
+        with pytest.raises(ObjectNotFoundError):
+            FinanceService(user=user).renegotiate_billing(
+                uuid.uuid4(), new_due_date=dt.date.today()
+            )
+
+        plan = _active_plan(user)
+        FinanceService(user=user).generate_billings(plan.pk)
+        billing = BillingEntry.objects.get(plan=plan, installment_number=1)
+        billing.status = BillingEntry.Status.PAID
+        billing.save(update_fields=["status", "updated_at"])
+        with pytest.raises(BusinessRuleViolationError):
+            FinanceService(user=user).renegotiate_billing(billing.pk, new_due_date=dt.date.today())
+
+        billing.status = BillingEntry.Status.OPEN
+        billing.save(update_fields=["status", "updated_at"])
+        for kwargs in (
+            {"new_due_date": "2026-01-01"},
+            {"new_due_date": dt.date.today(), "new_value": 0},
+            {"new_due_date": dt.date.today(), "installment_count": 13},
+        ):
+            with pytest.raises(ValidationError):
+                FinanceService(user=user).renegotiate_billing(billing.pk, **kwargs)
+
+        billing.paid_value = billing.original_value
+        billing.save(update_fields=["paid_value", "updated_at"])
+        with pytest.raises(BusinessRuleViolationError):
+            FinanceService(user=user).renegotiate_billing(billing.pk, new_due_date=dt.date.today())
+
+    def test_apply_late_fees_rejects_missing_wrong_state_and_non_late_date(self, user):
+        with pytest.raises(ObjectNotFoundError):
+            FinanceService(user=user).apply_late_fees(uuid.uuid4())
+
+        plan = _active_plan(user)
+        FinanceService(user=user).generate_billings(plan.pk)
+        billing = BillingEntry.objects.get(plan=plan, installment_number=1)
+        with pytest.raises(BusinessRuleViolationError):
+            FinanceService(user=user).apply_late_fees(billing.pk)
+
+        billing.status = BillingEntry.Status.OVERDUE
+        billing.save(update_fields=["status", "updated_at"])
+        with pytest.raises(BusinessRuleViolationError):
+            FinanceService(user=user).apply_late_fees(billing.pk, reference_date=billing.due_date)
 
 
 @pytest.mark.django_db

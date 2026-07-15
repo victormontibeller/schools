@@ -24,7 +24,7 @@
                 <div class="sm-profile-avatar-picker flex-shrink-0">
                     <label for="{{ form.avatar.id_for_label }}" class="sm-profile-avatar-edit mb-0">
                         {% if guardian.user.avatar %}
-                        <img src="{{ guardian.user.avatar.url }}" alt="{{ guardian.full_name }}"
+                        <img src="{% url 'user_avatar' guardian.user.pk %}" alt="Foto do responsável"
                              class="sm-profile-avatar">
                         {% else %}
                         <div class="avatar-text avatar-xl bg-soft-purple text-purple"

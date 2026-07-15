@@ -20,6 +20,7 @@ from base.exceptions import (
     ValidationError,
 )
 from base.listing import build_querystring, build_sorting, resolve_listing_state
+from base.media import private_file_response
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,22 @@ PLATFORM_USER_SORTS = {
     "is_active": "is_active",
     "-is_active": "-is_active",
 }
+
+
+@login_required
+def user_avatar(request, pk):
+    """Entrega avatar privado ao próprio usuário ou a administrador autorizado."""
+    user_obj = AccountSelector().get_by_id(pk)
+    if request.user.pk != user_obj.pk and not request.user.is_superuser:
+        from core.permissions import has_unrestricted_tenant_access
+
+        if not has_unrestricted_tenant_access(request.user):
+            raise PermissionDeniedError("Sem permissão para acessar este avatar.")
+    if not user_obj.avatar:
+        from base.exceptions import ObjectNotFoundError
+
+        raise ObjectNotFoundError("UserAvatar", str(pk))
+    return private_file_response(user_obj.avatar, as_attachment=False)
 
 
 def demo_signup_view(request):

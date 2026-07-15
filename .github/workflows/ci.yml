@@ -12,16 +12,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Python 3.13
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.13"
           cache: "pip"
 
       - name: Install dev dependencies
-        run: pip install -r requirements-dev.txt
+        run: pip install --require-hashes -r requirements-dev.lock
 
       - name: Run ruff (linting)
         run: ruff check .
@@ -30,7 +30,15 @@ jobs:
         run: black --check .
 
       - name: Audit Python dependencies
-        run: pip-audit -r requirements.txt
+        run: pip-audit -r requirements.lock
+
+      - name: Verify dependency locks
+        run: |
+          pip-compile --dry-run --generate-hashes --output-file=requirements.lock requirements.txt
+          pip-compile --dry-run --allow-unsafe --generate-hashes --output-file=requirements-dev.lock requirements-dev.txt
+
+      - name: Check import contracts
+        run: python scripts/check_import_contracts.py
 
   test:
     name: Tests (SQLite)
@@ -38,21 +46,28 @@ jobs:
     needs: quality
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Python 3.13
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.13"
           cache: "pip"
 
       - name: Install dev dependencies
-        run: pip install -r requirements-dev.txt
+        run: pip install --require-hashes -r requirements-dev.lock
 
       - name: Run pytest (SQLite) with coverage
-        run: pytest --cov=. --cov-report=term-missing --cov-fail-under=80
+        run: pytest --cov=. --cov-report=term-missing --cov-fail-under=85
         env:
           DJANGO_SETTINGS_MODULE: core.settings
+
+      - name: Enforce critical-flow coverage
+        run: >-
+          coverage report
+          --include='accounts/*,tenancy/*,core/permissions.py,audit/*,financeiro/*'
+          --fail-under=90
+          --skip-empty
 
   test-tenant:
     name: Tests (PostgreSQL + django_tenants)
@@ -61,7 +76,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:15
+        image: postgres:15@sha256:bcab099bfaab33333a73a2ebe8c1d615c9f4c2402dd43452f989a36c6da9a5ba
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -75,16 +90,16 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Python 3.13
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.13"
           cache: "pip"
 
       - name: Install dev dependencies
-        run: pip install -r requirements-dev.txt
+        run: pip install --require-hashes -r requirements-dev.lock
 
       - name: Run tenant isolation tests
         run: DJANGO_ENV=test_pg pytest -m tenant -v
@@ -100,7 +115,34 @@ jobs:
     name: Secret scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+
+  trivy:
+    name: Dependency and IaC scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Build application image
+        run: docker build --tag schools:ci .
+
+      - name: Scan application image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: schools:ci
+          scan-type: image
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"

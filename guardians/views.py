@@ -4,11 +4,31 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
-from base.exceptions import BusinessRuleViolationError, ValidationError
+from base.exceptions import (
+    BusinessRuleViolationError,
+    ObjectNotFoundError,
+    PermissionDeniedError,
+    ValidationError,
+)
 from base.listing import build_querystring, resolve_listing_state
+from base.media import private_file_response
 from guardians.forms import GuardianEditForm, GuardianLinkForm
 from guardians.selectors import GuardianSelector
 from guardians.services import GuardianService
+
+
+@login_required
+def guardian_avatar(request, pk):
+    """Entrega a foto privada do responsável dentro do escopo autorizado."""
+    guardian = GuardianSelector().get_by_id(pk)
+    from core.permissions import can_access_module
+
+    allowed = guardian.user_id == request.user.pk or can_access_module(request.user, "guardians")
+    if not allowed:
+        raise PermissionDeniedError("Sem permissão para acessar esta foto.")
+    if not guardian.avatar:
+        raise ObjectNotFoundError("GuardianAvatar", str(pk))
+    return private_file_response(guardian.avatar, as_attachment=False)
 
 
 @login_required
@@ -65,8 +85,10 @@ def guardian_create(request):
             guardian = GuardianService(user=request.user).create_guardian(form.cleaned_data)
             messages.success(request, "Responsável criado com sucesso.")
             return redirect("guardian_edit", pk=guardian.pk)
-        except (ValidationError, BusinessRuleViolationError) as exc:
+        except ValidationError as exc:
             _add_service_errors(form, exc)
+        except BusinessRuleViolationError as exc:
+            form.add_error(None, exc.message)
     return render(
         request,
         "guardians/guardian_form.html",
@@ -83,7 +105,12 @@ def guardian_edit(request, pk):
         for name in GuardianEditForm.base_fields
         if name != "avatar" and hasattr(guardian, name)
     }
-    form = GuardianEditForm(request.POST or None, request.FILES or None, initial=initial)
+    form = GuardianEditForm(
+        request.POST or None,
+        request.FILES or None,
+        initial=initial,
+        require_version=True,
+    )
     if request.method == "POST" and form.is_valid():
         try:
             guardian = GuardianService(user=request.user).update_guardian(pk, form.cleaned_data)

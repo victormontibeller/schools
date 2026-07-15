@@ -1,7 +1,6 @@
 """Selectors somente-leitura do catálogo compartilhado de tenants."""
 
 from django.db.models import Q
-from django.utils import timezone
 
 from base.exceptions import ObjectNotFoundError
 from base.selectors import BaseSelector, PageResult
@@ -31,10 +30,9 @@ class SchoolSelector(BaseSelector):
 
     def get_platform_overview(self) -> dict:
         """Retorna indicadores seguros do catálogo compartilhado."""
-        from tenancy.models import Domain, School, SupportAccessGrant
+        from tenancy.models import Domain, School
 
         tenant_scope = School.all_objects.exclude(schema_name="public")
-        now = timezone.now()
         return {
             "total_tenants": tenant_scope.count(),
             "active_tenants": tenant_scope.filter(
@@ -42,11 +40,6 @@ class SchoolSelector(BaseSelector):
                 deleted_at__isnull=True,
             ).count(),
             "total_domains": Domain.objects.exclude(tenant__schema_name="public").count(),
-            "active_support_accesses": SupportAccessGrant.objects.filter(
-                used_at__isnull=False,
-                ended_at__isnull=True,
-                expires_at__gt=now,
-            ).count(),
         }
 
     def list_platform_tenants(

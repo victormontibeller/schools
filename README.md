@@ -35,13 +35,14 @@ Com o ambiente iniciado, acesse:
 | `make lint` | Verificar código |
 | `make format` | Formatar código |
 | `make migrate` | Aplicar migrations compartilhadas multi-tenant |
+| `make reset-dev` | Recriar bancos e mídia local com confirmação `RESET` |
 | `make worker` | Celery worker |
 
 ## Estrutura
 
 ```
 base/           Módulo Python puro (modelos abstratos, serviços, etc.)
-tenancy/        Catálogo compartilhado (School, Domain, acesso de suporte)
+tenancy/        Catálogo compartilhado (School e Domain)
 core/           Configuração e modelos tenant-specific (Role, CustomUser, BusinessUnit)
 accounts/       App de gestão de usuários
 audit/          App de auditoria
@@ -74,7 +75,7 @@ Traefik (HTTPS + Let's Encrypt) e a stack de observabilidade.
 | Prometheus  | http://localhost:9090              | Coleta de métricas                     |
 | Grafana     | http://localhost:3000 (admin/admin) | Dashboards técnicos e de aplicação     |
 | Loki        | interno                            | Logs JSON indexados (via Promtail)     |
-| /metrics/   | https://localhost/metrics/ (basic-auth) | Endpoint Prometheus do Django       |
+| /metrics/   | https://localhost/metrics/ (`Authorization: Bearer <token>`) | Endpoint Prometheus do Django |
 
 ## Desenvolvimento multi-tenant
 
@@ -83,10 +84,14 @@ Traefik (HTTPS + Let's Encrypt) e a stack de observabilidade.
 - `platform-admin@schools.local` no schema `public`, para o painel da plataforma;
 - `admin@demo.com` no schema `demo`, para o desenvolvimento cotidiano.
 
-Operadores públicos só entram em um tenant por concessão temporária e auditada em
-`/platform/support/`. Usuários escolares nunca atravessam schemas automaticamente.
+Operadores públicos administram o catálogo de escolas e operadores, mas não entram em tenants.
+Usuários escolares nunca atravessam schemas automaticamente.
+As sessões usam o backend de banco do Django e, portanto, a tabela `django_session`
+do schema resolvido pelo domínio; Redis é usado para cache, não para sessões.
 
 ## Produção
 
 `docker-stack.yml` é a referência de Docker Swarm. Os secrets declarados no arquivo
-devem existir antes do deploy. O `docker-compose.yml` permanece exclusivo para desenvolvimento.
+devem existir antes do deploy. `SCHOOLS_IMAGE` é obrigatório e deve incluir um digest
+(`registry/imagem@sha256:...`). O `docker-compose.yml` permanece exclusivo para desenvolvimento.
+Consulte `docs/36_PRODUCTION_RUNBOOK.md` antes de migrar mídia ou publicar a stack.

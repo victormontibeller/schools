@@ -15,10 +15,8 @@ from classes.models import Class, Enrollment
 from core.models import CustomUser, Role
 from student_diary.models import (
     DailyDiary,
-    DiaryAnswer,
     DiaryCategory,
     DiaryMeal,
-    DiaryOption,
 )
 from student_diary.selectors import StudentDiarySelector
 from student_diary.services import StudentDiaryService
@@ -251,7 +249,7 @@ def test_admin_without_teacher_profile_saves_inside_tenant(user):
 
 
 @pytest.mark.django_db
-def test_toggle_aspect_is_audited_and_legacy_aspect_is_rejected(user):
+def test_toggle_fixed_aspect_is_audited(user):
     from audit.models import AuditLog
 
     aspect = DiaryCategory.objects.get(code=DiaryCategory.Aspect.MOOD)
@@ -264,9 +262,6 @@ def test_toggle_aspect_is_audited_and_legacy_aspect_is_rejected(user):
     assert AuditLog.objects.filter(
         object_id=str(aspect.pk), operation=AuditLog.Operation.UPDATE
     ).exists()
-    legacy = DiaryCategory.objects.create(name="Aspecto legado", created_by=user, updated_by=user)
-    with pytest.raises(BusinessRuleViolationError):
-        service.set_routine_aspect_enabled(legacy.pk, False)
 
 
 @pytest.mark.django_db
@@ -276,42 +271,6 @@ def test_teacher_cannot_toggle_aspect(user):
 
     with pytest.raises(PermissionDeniedError):
         StudentDiaryService(user=teacher.user).set_routine_aspect_enabled(aspect.pk, False)
-
-
-@pytest.mark.django_db
-def test_selector_excludes_legacy_aspect_from_new_sheet_but_preserves_history(user):
-    teacher = _teacher(user)
-    class_obj = _class(user, teacher)
-    student = _student(user)
-    _enroll(user, class_obj, student)
-    legacy = DiaryCategory.objects.create(name="Categoria antiga", created_by=user, updated_by=user)
-    old_option = DiaryOption.objects.create(
-        category=legacy, label="Resposta antiga", created_by=user, updated_by=user
-    )
-    diary = DailyDiary.objects.create(
-        student=student,
-        class_obj=class_obj,
-        teacher=teacher,
-        date=dt.date(2026, 7, 11),
-        created_by=user,
-        updated_by=user,
-    )
-    DiaryAnswer.objects.create(
-        diary=diary,
-        category=legacy,
-        option=old_option,
-        created_by=user,
-        updated_by=user,
-    )
-    selector = StudentDiarySelector()
-
-    sheet = selector.build_daily_sheet(
-        class_obj.pk, dt.date(2026, 7, 12), (DiaryMeal.MealType.LUNCH,)
-    )
-    history = selector.list_student_history(student.pk).get()
-
-    assert legacy not in sheet["categories"]
-    assert history.answers.get().option == old_option
 
 
 @pytest.mark.django_db

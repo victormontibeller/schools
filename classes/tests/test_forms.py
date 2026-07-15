@@ -12,7 +12,7 @@ def test_class_form_requires_every_field():
     form = ClassForm(data={})
 
     assert not form.is_valid()
-    for field_name in form.fields:
+    for field_name in set(form.fields) - {"version"}:
         assert field_name in form.errors
 
 
@@ -32,19 +32,3 @@ def test_grade_catalog_covers_every_option_once():
 
     assert configured == list(Class.Grade)
     assert len(configured) == 19
-
-
-def test_class_form_exposes_legacy_grade_for_manual_correction():
-    class_obj = Class(
-        name="Legada",
-        grade="Série Experimental",
-        education_stage=Class.EducationStage.OTHER,
-        academic_year=2026,
-    )
-
-    form = ClassForm(instance=class_obj)
-
-    assert form.legacy_grade == "Série Experimental"
-    assert ("Série Experimental", "Valor legado — Série Experimental") in list(
-        form.fields["grade"].choices
-    )

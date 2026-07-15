@@ -2,10 +2,11 @@
 
 from django import forms
 
+from base.forms import VersionedModelForm
 from students.models import Student
 
 
-class StudentForm(forms.ModelForm):
+class StudentForm(VersionedModelForm):
     """Formulário de cadastro e edição de aluno."""
 
     REQUIRED_FIELDS = (

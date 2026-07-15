@@ -3,7 +3,6 @@
         <thead>
             <tr>
                 <th>Responsável</th>
-                <th>Parentesco</th>
                 <th>CPF</th>
                 <th>Alunos</th>
             </tr>
@@ -21,7 +20,6 @@
                         </a>
                     </div>
                 </td>
-                <td><span class="badge bg-soft-info text-info">{{ guardian.get_relationship_type_display }}</span></td>
                 <td class="text-muted">{{ guardian.cpf|default:"—" }}</td>
                 <td>
                     <span class="badge bg-soft-secondary text-secondary">{{ guardian.students.count }}</span>
@@ -29,7 +27,7 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="4" class="text-center text-muted py-4">Nenhum responsável encontrado.</td>
+                <td colspan="3" class="text-center text-muted py-4">Nenhum responsável encontrado.</td>
             </tr>
             {% endfor %}
         </tbody>

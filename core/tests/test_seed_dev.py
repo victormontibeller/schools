@@ -27,6 +27,6 @@ def test_seed_dev_is_idempotent_and_creates_platform_and_demo_accounts():
     assert School.objects.filter(schema_name="public").count() == 1
     assert School.objects.filter(schema_name="demo").count() == 1
     assert Domain.objects.filter(domain="demo.localhost", is_primary=True).count() == 1
-    assert Domain.objects.filter(domain="localhost", tenant__schema_name="demo").count() == 1
+    assert Domain.objects.filter(domain="demo.localhost", tenant__schema_name="demo").count() == 1
     assert CustomUser.objects.filter(email="platform-admin@schools.local").count() == 1
     assert CustomUser.objects.filter(email="admin@demo.com").count() == 1

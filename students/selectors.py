@@ -23,6 +23,30 @@ class StudentSelector(BaseSelector):
         qs = qs.order_by(order_by, "last_name")
         return self._paginate(qs, page=page, page_size=page_size)
 
+    def list_students_for_user(
+        self,
+        *,
+        user_id,
+        role_name: str,
+        search: str = "",
+        order_by: str = "first_name",
+        page: int = 1,
+        page_size: int = 20,
+    ) -> PageResult:
+        """Aplica os escopos obrigatórios de professor e responsável à listagem."""
+        qs = self.model_class.objects.all()
+        if role_name == "TEACHER":
+            qs = qs.filter(
+                Q(enrollments__class_obj__class_teacher__user_id=user_id)
+                | Q(enrollments__class_obj__schedules__teacher__user_id=user_id)
+            )
+        elif role_name == "GUARDIAN":
+            qs = qs.filter(guardians__guardian__user_id=user_id)
+        if search:
+            qs = qs.filter(Q(first_name__icontains=search) | Q(last_name__icontains=search))
+        qs = qs.distinct().order_by(order_by, "last_name")
+        return self._paginate(qs, page=page, page_size=page_size)
+
     def get_student_by_id(self, student_id):
         """Retorna o aluno pelo id ou lança `ObjectNotFoundError`."""
         return self.get_by_id(student_id)

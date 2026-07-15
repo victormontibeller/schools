@@ -18,7 +18,7 @@
             <div class="sm-profile-hero d-flex flex-column flex-sm-row align-items-center text-center text-sm-start gap-3 pb-4 mb-4 border-bottom">
                 <div class="sm-profile-avatar-picker flex-shrink-0">
                     <label for="{{ form.avatar.id_for_label }}" class="sm-profile-avatar-edit mb-0">
-                        {% if link.guardian.avatar %}<img src="{{ link.guardian.avatar.url }}" alt="Foto de {{ link.guardian.full_name }}" class="sm-profile-avatar">{% else %}<div class="avatar-text avatar-xl bg-soft-purple text-purple" style="width:72px;height:72px;font-size:1.75rem">{{ link.guardian.full_name|first|upper }}</div>{% endif %}
+                        {% if link.guardian.avatar %}<img src="{% url 'guardian_avatar' link.guardian.pk %}" alt="Foto do responsável" class="sm-profile-avatar">{% else %}<div class="avatar-text avatar-xl bg-soft-purple text-purple" style="width:72px;height:72px;font-size:1.75rem">{{ link.guardian.full_name|first|upper }}</div>{% endif %}
                     </label>
                     {{ form.avatar }}
                     {% if form.avatar.errors %}<div class="invalid-feedback d-block text-center mt-2">{{ form.avatar.errors }}</div>{% endif %}

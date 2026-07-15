@@ -3,12 +3,37 @@
 from __future__ import annotations
 
 import logging
+from functools import partial
 
 from base.events import DomainEvent, dispatcher
 
 logger = logging.getLogger(__name__)
 
 _HANDLERS_REGISTERED = False
+
+
+def _enqueue_calendar_audience_all(
+    schema_name: str,
+    *,
+    title: str,
+    message: str,
+    correlation_id: str,
+) -> None:
+    """Publica a tarefa após commit e registra indisponibilidade do broker."""
+    from notifications.tasks import notify_audience_all_task
+
+    try:
+        notify_audience_all_task.delay(
+            schema_name,
+            title=title,
+            message=message,
+            correlation_id=correlation_id,
+        )
+    except Exception as exc:  # o commit já ocorreu; não há dado a reverter
+        logger.error(
+            "Falha ao publicar notificacao de calendario",
+            extra={"tenant": schema_name, "exception_type": type(exc).__name__},
+        )
 
 
 # ── Helpers de notificacao DRY ───────────────────────────────────────────────
@@ -56,7 +81,7 @@ def _notify_class_students(
     correlation_id: str,
 ) -> None:
     """Envia notificacao para alunos ativos de uma turma."""
-    from classes.models import Enrollment
+    from classes.contracts import Enrollment
     from notifications.services import NotificationService
 
     student_user_ids = Enrollment.objects.filter(
@@ -155,16 +180,18 @@ def _handle_calendar_event_created(event: DomainEvent) -> None:
     msg = cal_event.description or f"Evento em {cal_event.start_date}."
 
     if audience == "ALL":
-        from django.db import connection
+        from django.db import connection, transaction
 
-        from notifications.tasks import notify_audience_all_task
+        from base import context
 
-        notify_audience_all_task.delay(
-            connection.schema_name,
+        callback = partial(
+            _enqueue_calendar_audience_all,
+            getattr(connection, "schema_name", context.current_tenant.get()),
             title=title,
             message=msg,
             correlation_id=event.correlation_id,
         )
+        transaction.on_commit(callback)
     elif audience == "CLASS" and cal_event.class_obj:
         _notify_class_students(
             cal_event.class_obj,

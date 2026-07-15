@@ -1,7 +1,6 @@
 """Formulários do módulo de frequência."""
 
 from django import forms
-from django.db.models import Q
 
 from attendance.models import AttendanceJustification, AttendanceRecord
 
@@ -50,11 +49,11 @@ class AttendanceRecordForm(forms.ModelForm):
                 self.fields["teacher"].initial = teacher
                 self.fields["teacher"].disabled = True
                 self.fields["class_obj"].queryset = (
-                    self.fields["class_obj"]
-                    .queryset.filter(Q(class_teacher=teacher) | Q(schedules__teacher=teacher))
-                    .distinct()
+                    self.fields["class_obj"].queryset.filter(schedules__teacher=teacher).distinct()
                 )
-                self.fields["subject"].queryset = teacher.subjects.all()
+                self.fields["subject"].queryset = teacher.subjects.filter(
+                    schedules__teacher=teacher
+                ).distinct()
 
 
 class JustificationForm(forms.ModelForm):

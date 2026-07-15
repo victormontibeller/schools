@@ -1,31 +1,6 @@
-"""Formulários de acesso temporário da plataforma."""
+"""Formulários do catálogo público de escolas."""
 
 from django import forms
-
-
-class SupportAccessForm(forms.Form):
-    """Solicita tenant e motivo para uma concessão temporária."""
-
-    tenant_id = forms.ChoiceField(
-        label="Escola",
-        widget=forms.Select(attrs={"class": "form-select"}),
-    )
-    reason = forms.CharField(
-        label="Motivo do acesso",
-        min_length=10,
-        max_length=500,
-        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
-    )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        from tenancy.models import School
-
-        self.fields["tenant_id"].choices = [
-            (str(item.pk), item.name)
-            for item in School.objects.filter(is_active=True).order_by("name")
-            if item.schema_name != "public"
-        ]
 
 
 class PlatformSchoolCreateForm(forms.Form):
@@ -63,10 +38,9 @@ class PlatformSchoolCreateForm(forms.Form):
 
     def clean_domain(self) -> str:
         """Normaliza e valida o host informado."""
-        domain = self.cleaned_data["domain"].strip().lower()
-        if "://" in domain or "/" in domain or " " in domain:
-            raise forms.ValidationError("Informe apenas o domínio, sem protocolo ou caminho.")
-        return domain
+        from tenancy.domain_validation import normalize_domain
+
+        return normalize_domain(self.cleaned_data["domain"])
 
 
 class PlatformSchoolEditForm(forms.Form):
@@ -101,7 +75,6 @@ class PlatformSchoolEditForm(forms.Form):
 
     def clean_domain(self) -> str:
         """Normaliza e valida o host informado."""
-        domain = self.cleaned_data["domain"].strip().lower()
-        if "://" in domain or "/" in domain or " " in domain:
-            raise forms.ValidationError("Informe apenas o domínio, sem protocolo ou caminho.")
-        return domain
+        from tenancy.domain_validation import normalize_domain
+
+        return normalize_domain(self.cleaned_data["domain"])

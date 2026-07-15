@@ -10,6 +10,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.services import AccountService
+from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 
 
 @pytest.mark.django_db
@@ -24,7 +25,7 @@ def test_create_demo_user_starts_inactive_and_schedules_verification(
                     "first_name": "Visitante",
                     "last_name": "Demo",
                     "email": "visitor@example.com",
-                    "password": "Senha123",
+                    "password": "Violeta824",
                 },
                 lambda token: f"https://demo.localhost/demo/verificar/{token}/",
             )
@@ -42,7 +43,7 @@ def test_verify_demo_user_activates_for_seven_days():
                 "first_name": "Visitante",
                 "last_name": "Demo",
                 "email": "verified@example.com",
-                "password": "Senha123",
+                "password": "Violeta824",
             },
             lambda token: token,
         )
@@ -96,3 +97,43 @@ def test_demo_signup_throttles_sixth_attempt(client):
     assert response.status_code == 200
     assert "Limite de cadastros" in str(response.context["form"].non_field_errors())
     create.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_demo_user_rejects_duplicate_and_verification_edge_cases():
+    import uuid
+
+    from django.core import signing
+
+    from accounts.services import DEMO_VERIFY_SALT
+    from core.models import CustomUser
+
+    existing = CustomUser.objects.create_user(
+        email="duplicate-demo@example.com",
+        password="Senha123",
+        access_mode=CustomUser.AccessMode.DEMO,
+    )
+    with pytest.raises(ValidationError):
+        AccountService().create_demo_user(
+            {
+                "first_name": "Demo",
+                "last_name": "Duplicado",
+                "email": existing.email,
+                "password": "Violeta824",
+            },
+            lambda token: token,
+        )
+
+    missing_token = signing.dumps(
+        {"user_id": str(uuid.uuid4())}, salt=DEMO_VERIFY_SALT, compress=True
+    )
+    with pytest.raises(ObjectNotFoundError):
+        AccountService().verify_demo_user(missing_token)
+    with pytest.raises(BusinessRuleViolationError):
+        AccountService().verify_demo_user("invalid")
+
+    existing.email_verified_at = timezone.now()
+    existing.save(update_fields=["email_verified_at", "updated_at"])
+    used_token = signing.dumps({"user_id": str(existing.pk)}, salt=DEMO_VERIFY_SALT, compress=True)
+    with pytest.raises(BusinessRuleViolationError):
+        AccountService().verify_demo_user(used_token)

@@ -1,9 +1,16 @@
 """Testes do AccountService (nova estrutura)."""
 
+import uuid
+
 import pytest
 
 from accounts.services import AccountService
-from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+from base.exceptions import (
+    BusinessRuleViolationError,
+    ObjectNotFoundError,
+    PermissionDeniedError,
+    ValidationError,
+)
 from core.models import CustomUser
 
 
@@ -12,7 +19,7 @@ class TestCreateUser:
     def test_success(self, user):
         data = {
             "email": "novo@test.com",
-            "password": "Senha123",
+            "password": "Violeta824",
             "first_name": "Novo",
             "last_name": "User",
         }
@@ -21,7 +28,7 @@ class TestCreateUser:
         assert new_user.email == "novo@test.com"
 
     def test_duplicate_email(self, user):
-        data = {"email": user.email, "password": "Senha123"}
+        data = {"email": user.email, "password": "Violeta824"}
         with pytest.raises(ValidationError):
             AccountService(user=user).create_user(data)
 
@@ -29,6 +36,37 @@ class TestCreateUser:
         data = {"email": "fraco@test.com", "password": "curta"}
         with pytest.raises(ValidationError):
             AccountService(user=user).create_user(data)
+
+    @pytest.mark.parametrize("password", ["password", "12345678"])
+    def test_rejects_common_or_numeric_password(self, user, password):
+        data = {"email": "politica@test.com", "password": password}
+        with pytest.raises(ValidationError):
+            AccountService(user=user).create_user(data)
+
+    def test_accepts_eight_letters_without_composition_requirement(self, user):
+        created = AccountService(user=user).create_user(
+            {"email": "oito@test.com", "password": "xqzvbnml"}
+        )
+        assert created.check_password("xqzvbnml")
+
+    def test_rejects_password_similar_to_user(self, user):
+        data = {
+            "email": "marcelino@example.com",
+            "first_name": "Marcelino",
+            "password": "marcelino",
+        }
+        with pytest.raises(ValidationError):
+            AccountService(user=user).create_user(data)
+
+    def test_rejects_unknown_role(self, user):
+        with pytest.raises(ObjectNotFoundError):
+            AccountService(user=user).create_user(
+                {
+                    "email": "unknown-role@test.com",
+                    "password": "Violeta824",
+                    "role_id": uuid.uuid4(),
+                }
+            )
 
 
 @pytest.mark.django_db
@@ -82,6 +120,10 @@ class TestChangePassword:
         with pytest.raises(ValidationError):
             AccountService(user=user).change_password(user.pk, "SenhaErrada", "NovaSenha456")
 
+    def test_missing_user(self, user):
+        with pytest.raises(ObjectNotFoundError):
+            AccountService(user=user).change_password(uuid.uuid4(), "old", "Violeta824")
+
 
 @pytest.mark.django_db
 class TestUpdateUser:
@@ -104,3 +146,44 @@ class TestUpdateUser:
             AccountService(user=user).update_user(user.pk, {"email": "EXISTENTE@example.com"})
 
         assert "email" in exc_info.value.errors
+
+    def test_rejects_unknown_role_and_accepts_role_clear(self, user):
+        with pytest.raises(ObjectNotFoundError):
+            AccountService(user=user).update_user(user.pk, {"role_id": uuid.uuid4()})
+
+        updated = AccountService(user=user).update_user(user.pk, {"role_id": None})
+        assert updated.role is None
+
+
+@pytest.mark.django_db
+class TestAccountServiceEdges:
+    def test_platform_management_rejects_common_operator_and_missing_user(self, user):
+        common = CustomUser.objects.create_user(
+            email="common-platform@test.com", password="Senha123", is_superuser=False
+        )
+        with pytest.raises(PermissionDeniedError):
+            AccountService(user=common).create_platform_user(
+                {
+                    "first_name": "Sem",
+                    "last_name": "Permissão",
+                    "email": "denied@test.com",
+                    "password": "Violeta824",
+                }
+            )
+        with pytest.raises(ObjectNotFoundError):
+            AccountService(user=user).update_platform_user(uuid.uuid4(), {})
+
+    def test_platform_user_rejects_duplicate_email(self, user):
+        with pytest.raises(ValidationError):
+            AccountService(user=user).create_platform_user(
+                {
+                    "first_name": "Duplicado",
+                    "last_name": "Operador",
+                    "email": user.email,
+                    "password": "Violeta824",
+                }
+            )
+
+    def test_restore_missing_user(self, user):
+        with pytest.raises(ObjectNotFoundError):
+            AccountService(user=user).restore_user(uuid.uuid4())

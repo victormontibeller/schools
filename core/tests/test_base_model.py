@@ -34,6 +34,7 @@ class TestBaseModelSoftDelete:
         assert s.deleted_at is not None
         assert s.deleted_by == user
         assert s.is_deleted is True
+        assert s.version == 1
 
     def test_restore_clears_deletion_and_reactivates(self, user):
         s = self._make(user)
@@ -45,6 +46,53 @@ class TestBaseModelSoftDelete:
         assert s.is_active is True
         assert s.deleted_at is None
         assert s.deleted_by is None  # restaurar limpa o "deleter"
+        assert s.version == 2
+
+    def test_stale_save_is_rejected_without_overwriting(self, user):
+        from base.exceptions import BusinessRuleViolationError
+
+        first = self._make(user)
+        stale = Student.all_objects.get(pk=first.pk)
+        first.first_name = "Atualizado"
+        first.save(update_fields=["first_name"])
+
+        stale.last_name = "Sobrescrito"
+        with pytest.raises(BusinessRuleViolationError):
+            stale.save(update_fields=["last_name"])
+
+        persisted = Student.all_objects.get(pk=first.pk)
+        assert persisted.first_name == "Atualizado"
+        assert persisted.last_name == "Lima"
+
+    def test_stale_soft_delete_is_rejected(self, user):
+        from base.exceptions import BusinessRuleViolationError
+
+        current = self._make(user)
+        stale = Student.all_objects.get(pk=current.pk)
+        current.last_name = "Atualizado"
+        current.save(update_fields=["last_name"])
+
+        with pytest.raises(BusinessRuleViolationError):
+            stale.soft_delete(user=user)
+
+    def test_two_repository_updates_with_same_version_yield_one_conflict(self, user):
+        from base.exceptions import BusinessRuleViolationError
+        from base.repositories import BaseRepository
+
+        class StudentRepository(BaseRepository):
+            model_class = Student
+
+        first = self._make(user)
+        second = Student.all_objects.get(pk=first.pk)
+        repository = StudentRepository()
+
+        repository.update(first, expected_version=0, first_name="Primeiro")
+        with pytest.raises(BusinessRuleViolationError):
+            repository.update(second, expected_version=0, first_name="Segundo")
+
+        persisted = Student.all_objects.get(pk=first.pk)
+        assert persisted.first_name == "Primeiro"
+        assert persisted.version == 1
 
     def test_active_manager_hides_deleted(self, user):
         s = self._make(user)
@@ -74,7 +122,7 @@ class TestBaseServiceAuditViaEvent:
         AccountService(user=user).create_user(
             {
                 "email": "audit-via-event@test.com",
-                "password": "Senha123",
+                "password": "Violeta824",
                 "first_name": "A",
                 "last_name": "B",
             }

@@ -72,7 +72,7 @@ class StudentDiarySelector(BaseSelector):
 
     def list_eligible_classes(self, user):
         """Lista turmas infantis acessíveis ao usuário."""
-        from classes.models import Class
+        from classes.contracts import Class
         from core.permissions import role_name
 
         qs = Class.objects.filter(
@@ -88,7 +88,7 @@ class StudentDiarySelector(BaseSelector):
     def get_class(self, class_id):
         """Busca uma turma para a folha diária."""
         from base.exceptions import ObjectNotFoundError
-        from classes.models import Class
+        from classes.contracts import Class
 
         try:
             return Class.objects.get(pk=class_id)
@@ -97,7 +97,7 @@ class StudentDiarySelector(BaseSelector):
 
     def build_daily_sheet(self, class_id, diary_date: date, meal_types: tuple[str, ...]) -> dict:
         """Monta a folha com alunos, respostas e refeições pré-carregadas."""
-        from classes.models import Enrollment
+        from classes.contracts import Enrollment
         from student_diary.models import DailyDiary, DiaryMeal
 
         class_obj = self.get_class(class_id)

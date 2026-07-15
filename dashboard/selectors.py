@@ -26,31 +26,31 @@ class DashboardSelector(BaseSelector):
 
     def get_total_students(self) -> int:
         """Total de alunos ativos na escola."""
-        from students.models import Student
+        from students.contracts import Student
 
         return Student.objects.filter(is_active=True).count()
 
     def get_total_teachers(self) -> int:
         """Total de professores ativos na escola."""
-        from teachers.models import Teacher
+        from teachers.contracts import Teacher
 
         return Teacher.objects.filter(is_active=True).count()
 
     def get_total_classes(self) -> int:
         """Total de turmas ativas na escola."""
-        from classes.models import Class
+        from classes.contracts import Class
 
         return Class.objects.filter(is_active=True).count()
 
     def get_total_guardians(self) -> int:
         """Total de responsaveis ativos na escola."""
-        from guardians.models import Guardian
+        from guardians.contracts import Guardian
 
         return Guardian.objects.filter(is_active=True).count()
 
     def get_today_attendance_rate(self) -> dict | None:
         """Frequencia do dia atual: percentual de alunos presentes."""
-        from attendance.models import AttendanceEntry
+        from attendance.contracts import AttendanceEntry
 
         today = dt.date.today()
         entries = AttendanceEntry.objects.filter(record__date=today)
@@ -64,7 +64,7 @@ class DashboardSelector(BaseSelector):
 
     def get_weekly_attendance(self) -> list[dict]:
         """Frequencia dos ultimos 7 dias: [{date, rate, total, present}, ...]."""
-        from attendance.models import AttendanceEntry
+        from attendance.contracts import AttendanceEntry
 
         today = dt.date.today()
         result = []
@@ -93,7 +93,7 @@ class DashboardSelector(BaseSelector):
     def get_students_at_risk_count(self) -> int:
         """Total de alunos com frequencia abaixo de 75%."""
         from attendance.selectors import AttendanceSelector
-        from classes.models import Class
+        from classes.contracts import Class
 
         count = 0
         for cls in Class.objects.filter(is_active=True):
@@ -109,7 +109,7 @@ class DashboardSelector(BaseSelector):
 
     def get_pending_activities(self, days: int = 3) -> list[dict]:
         """Atividades com entrega nos proximos N dias."""
-        from activities.models import Activity
+        from activities.contracts import Activity
 
         today = dt.date.today()
         horizon = today + dt.timedelta(days=days)
@@ -146,7 +146,7 @@ class DashboardSelector(BaseSelector):
 
     def get_recent_announcements(self, limit: int = 5) -> list[dict]:
         """Ultimos comunicados enviados."""
-        from notifications.models import Announcement
+        from notifications.contracts import Announcement
 
         qs = Announcement.objects.filter(sent_at__isnull=False).order_by("-sent_at")[:limit]
         return [
@@ -163,14 +163,14 @@ class DashboardSelector(BaseSelector):
 
     def get_total_tenants(self) -> int:
         """Numero de escolas ativas na plataforma."""
-        from tenancy.models import School
+        from tenancy.contracts import School
 
         return School.objects.filter(is_active=True).count()
 
     def get_platform_users(self) -> dict:
         """Total de usuarios por tipo em toda a plataforma."""
 
-        from core.models import CustomUser
+        from core.contracts import CustomUser
 
         # Nota: em schema public, CustomUser e compartilhado.
         # Dados por tenant requerem iteracao sobre schemas.
@@ -189,7 +189,7 @@ class DashboardSelector(BaseSelector):
         """Crescimento de tenants nos ultimos N meses."""
         from django.db.models.functions import TruncMonth
 
-        from tenancy.models import School
+        from tenancy.contracts import School
 
         since = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         since -= dt.timedelta(days=30 * months)

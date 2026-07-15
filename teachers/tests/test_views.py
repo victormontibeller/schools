@@ -78,7 +78,9 @@ class TestTeacherInlineEditing:
         )
         return TeacherService(user=user).create_teacher(
             {
-                "user_id": target.pk,
+                "first_name": target.first_name,
+                "last_name": target.last_name,
+                "email": target.email,
                 "registration_number": "INLINE-001",
                 "hire_date": "2020-01-15",
                 "birth_date": "1990-05-20",
@@ -135,6 +137,7 @@ class TestTeacherInlineEditing:
                 "rg_state": "SP",
                 "phone_mobile": "(11) 99999-0000",
                 "avatar": avatar,
+                "version": teacher.version,
             },
             HTTP_HX_REQUEST="true",
         )

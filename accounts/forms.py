@@ -134,7 +134,7 @@ class UserEditForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        from core.models import Role
+        from core.contracts import Role
 
         self.fields["role"].queryset = Role.objects.all()
 

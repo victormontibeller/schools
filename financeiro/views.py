@@ -10,15 +10,14 @@ from django.shortcuts import redirect, render
 
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 from base.listing import build_querystring, resolve_listing_state
+from financeiro.contracts import BillingEntry, FinancialPlan
 from financeiro.forms import (
     CancelBillingForm,
     FinancialPlanForm,
     GenerateBillingsByClassForm,
     PaymentForm,
     RenegotiationForm,
-    ReportFilterForm,
 )
-from financeiro.models import BillingEntry, FinancialPlan
 from financeiro.selectors import BillingSelector, FinancialPlanSelector
 from financeiro.services import FinanceService, PaymentService
 
@@ -375,46 +374,5 @@ def bulk_generate_billings(request: HttpRequest) -> HttpResponse:
     )
 
 
-@login_required
-def revenue_report(request: HttpRequest) -> HttpResponse:
-    """Relatorio mensal de receita prevista x recebida."""
-    initial = {
-        "year": request.GET.get("year", dt.date.today().year),
-        "month": request.GET.get("month", ""),
-    }
-    form = ReportFilterForm(initial=initial)
-    year = int(initial["year"]) if initial["year"] else dt.date.today().year
-    month_str = initial["month"]
-    month = int(month_str) if month_str else None
-    report = BillingSelector().relatorio_previsto_x_recebido(year=year, month=month)
-    return render(
-        request,
-        "financeiro/revenue_report.html",
-        {
-            "form": form,
-            "report": report,
-            "breadcrumb_items": [
-                {"label": "Home", "url": "dashboard"},
-                {"label": "Financeiro", "url": "finance_dashboard"},
-                {"label": "Relatorio de Receita", "url": None},
-            ],
-        },
-    )
-
-
-@login_required
-def overdue_report(request: HttpRequest) -> HttpResponse:
-    """Relatorio de inadimplencia por faixa de atraso."""
-    bands = BillingSelector().inadimplencia_por_faixa()
-    return render(
-        request,
-        "financeiro/overdue_report.html",
-        {
-            "bands": bands,
-            "breadcrumb_items": [
-                {"label": "Home", "url": "dashboard"},
-                {"label": "Financeiro", "url": "finance_dashboard"},
-                {"label": "Inadimplencia", "url": None},
-            ],
-        },
-    )
+# Imports públicos preservados durante a divisão interna das views financeiras.
+from financeiro.report_views import overdue_report, revenue_report  # noqa: E402,F401

@@ -25,12 +25,12 @@ class SchoolSelector(BaseSelector):
 
     @property
     def model_class(self):
-        from tenancy.models import School
+        from tenancy.contracts import School
 
         return School
 
     def get_current_school(self):
         """Retorna a escola do tenant ativo, ou None."""
-        from tenancy.models import School
+        from tenancy.contracts import School
 
         return School.objects.order_by("name").first()

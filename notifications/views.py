@@ -48,7 +48,10 @@ def notification_mark_read(request, pk) -> HttpResponse:
     try:
         NotificationService(user=request.user).mark_as_read(notification.pk)
     except (ObjectNotFoundError, BusinessRuleViolationError) as exc:
-        logger.warning("Erro ao marcar notificacao: %s", exc, extra={"pk": str(pk)})
+        logger.warning(
+            "Erro ao marcar notificacao",
+            extra={"pk": str(pk), "exception_type": type(exc).__name__},
+        )
         messages.error(request, str(exc))
     if request.headers.get("HX-Request"):
         return _render_header_notifications(request)

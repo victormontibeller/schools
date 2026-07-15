@@ -67,7 +67,6 @@ class TestSchoolKPIs:
         )
         Guardian.objects.create(
             user=target,
-            relationship_type="PAI",
             created_by=user,
             updated_by=user,
         )

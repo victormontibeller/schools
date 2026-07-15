@@ -15,10 +15,12 @@ def _make_user(email):
     )
 
 
-def _guardian_data(user_id, relationship_type="MAE", *, cpf="390.533.447-05"):
+def _guardian_data(user_id, _relationship_type="MAE", *, cpf="390.533.447-05"):
+    suffix = str(user_id or "contact")[:8]
     return {
-        "user_id": user_id,
-        "relationship_type": relationship_type,
+        "first_name": "Contato",
+        "last_name": suffix,
+        "email": f"contato-{suffix}@test.com",
         "birth_date": "1980-01-01",
         "gender": "F",
         "nationality": "Brasileira",
@@ -71,23 +73,23 @@ class TestCreateGuardian:
         target = _make_user("resp@test.com")
         g = GuardianService(user=user).create_guardian(_guardian_data(target.pk))
         assert g.pk is not None
-        assert g.relationship_type == "MAE"
+        assert g.user is None
 
-    def test_duplicate_user(self, user):
+    def test_duplicate_cpf(self, user):
         target = _make_user("resp2@test.com")
         GuardianService(user=user).create_guardian(_guardian_data(target.pk, "PAI"))
-        with pytest.raises(BusinessRuleViolationError):
+        with pytest.raises(ValidationError):
             GuardianService(user=user).create_guardian(_guardian_data(target.pk))
 
     def test_missing_name(self, user):
         with pytest.raises(ValidationError):
             GuardianService(user=user).create_guardian({"first_name": "", "last_name": ""})
 
-    def test_user_not_found(self, user):
+    def test_unknown_extra_field_does_not_link_account(self, user):
         import uuid
 
-        with pytest.raises(ObjectNotFoundError):
-            GuardianService(user=user).create_guardian(_guardian_data(uuid.uuid4()))
+        guardian = GuardianService(user=user).create_guardian(_guardian_data(uuid.uuid4()))
+        assert guardian.user is None
 
 
 @pytest.mark.django_db
@@ -186,13 +188,12 @@ class TestUpdateGuardian:
                 "phone_mobile": "11988888888",
             },
         )
-        assert updated.relationship_type == "MAE"
         assert updated.phone == "1133334444"
         assert updated.last_name == "Updated"
 
 
 @pytest.mark.django_db
 class TestCreateGuardianEdgeCases:
-    def test_missing_user_id(self, user):
-        with pytest.raises(ValidationError):
-            GuardianService(user=user).create_guardian(_guardian_data(None))
+    def test_user_id_is_not_required(self, user):
+        guardian = GuardianService(user=user).create_guardian(_guardian_data(None))
+        assert guardian.user is None

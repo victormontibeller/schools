@@ -30,8 +30,6 @@ class AuditLog(models.Model):
     old_values = models.JSONField(null=True, blank=True)
     new_values = models.JSONField(null=True, blank=True)
     correlation_id = models.CharField(max_length=36, blank=True, default="", db_index=True)
-    platform_actor_id = models.CharField(max_length=100, blank=True, default="", db_index=True)
-    support_grant_id = models.CharField(max_length=100, blank=True, default="", db_index=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
@@ -41,7 +39,6 @@ class AuditLog(models.Model):
         indexes = [
             models.Index(fields=["model_name", "object_id"]),
             models.Index(fields=["tenant_schema", "created_at"]),
-            models.Index(fields=["support_grant_id", "created_at"]),
         ]
 
     def __str__(self) -> str:

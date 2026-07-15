@@ -21,7 +21,7 @@ class StudentDiaryService(BaseService):
     @staticmethod
     def meals_for_shift(shift: str) -> tuple[str, ...]:
         """Retorna as refeições obrigatórias para o turno informado."""
-        from classes.models import Class
+        from classes.contracts import Class
         from student_diary.models import DiaryMeal
 
         mapping = {
@@ -69,7 +69,7 @@ class StudentDiaryService(BaseService):
     @transaction.atomic
     def save_daily_diaries(self, class_id, diary_date: date, entries_data: dict):
         """Salva atomicamente a agenda de todos os alunos ativos da turma."""
-        from classes.models import Class, Enrollment
+        from classes.contracts import Class, Enrollment
         from student_diary.models import DiaryCategory, DiaryOption
 
         try:

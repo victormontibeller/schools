@@ -31,7 +31,7 @@ class AddressService(BaseService):
     def lookup_postal_code(self, postal_code: str) -> dict[str, str]:
         """Consulta um CEP em provedor externo e normaliza o retorno."""
         from base.validators import validate_cep
-        from locations.models import City
+        from locations.contracts import City
 
         try:
             cleaned_postal_code = validate_cep(postal_code)
@@ -81,7 +81,7 @@ class AddressService(BaseService):
     def _validate_address_data(self, data: dict) -> dict:
         """Valida e normaliza dados de endereco."""
         from base.validators import validate_cep, validate_uf
-        from locations.models import City
+        from locations.contracts import City
 
         self.validate_required(
             data,
@@ -181,7 +181,7 @@ class AddressService(BaseService):
     def create_address_for_school(self, school_id, data: dict) -> Address:
         """Cria endereco e vincula a uma escola."""
         from addresses.models import SchoolAddress
-        from tenancy.models import School
+        from tenancy.contracts import School
 
         return self._create_address_for_entity(
             school_id, data, School, SchoolAddress, "school", "School"
@@ -190,7 +190,7 @@ class AddressService(BaseService):
     def create_address_for_business_unit(self, business_unit_id, data: dict) -> Address:
         """Cria endereco e vincula a uma empresa."""
         from addresses.models import BusinessUnitAddress
-        from core.models import BusinessUnit
+        from core.contracts import BusinessUnit
 
         return self._create_address_for_entity(
             business_unit_id,
@@ -204,7 +204,7 @@ class AddressService(BaseService):
     def create_address_for_teacher(self, teacher_id, data: dict) -> Address:
         """Cria endereco e vincula a um professor."""
         from addresses.models import TeacherAddress
-        from teachers.models import Teacher
+        from teachers.contracts import Teacher
 
         return self._create_address_for_entity(
             teacher_id, data, Teacher, TeacherAddress, "teacher", "Teacher"
@@ -213,7 +213,7 @@ class AddressService(BaseService):
     def create_address_for_student(self, student_id, data: dict) -> Address:
         """Cria endereco e vincula a um aluno."""
         from addresses.models import StudentAddress
-        from students.models import Student
+        from students.contracts import Student
 
         return self._create_address_for_entity(
             student_id, data, Student, StudentAddress, "student", "Student"
@@ -222,7 +222,7 @@ class AddressService(BaseService):
     def create_address_for_guardian(self, guardian_id, data: dict) -> Address:
         """Cria endereco e vincula a um responsavel."""
         from addresses.models import GuardianAddress
-        from guardians.models import Guardian
+        from guardians.contracts import Guardian
 
         return self._create_address_for_entity(
             guardian_id, data, Guardian, GuardianAddress, "guardian", "Guardian"

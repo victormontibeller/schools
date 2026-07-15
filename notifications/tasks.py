@@ -34,8 +34,8 @@ def _get_transport(channel_name: str):
 def send_email_task(self, tenant_schema: str, user_id, template_id, context: dict | None = None):
     """Envia e-mail individual renderizando template com contexto."""
     with tenant_schema_context(tenant_schema):
-        from core.models import CustomUser
-        from notifications.models import MessageTemplate
+        from core.contracts import CustomUser
+        from notifications.contracts import MessageTemplate
 
         user = _fetch_or_log(CustomUser, user_id, "Usuario")
         if user is None:
@@ -56,7 +56,7 @@ def send_whatsapp_task(
 ):
     """Envia WhatsApp individual renderizando template (stub)."""
     with tenant_schema_context(tenant_schema):
-        from notifications.models import MessageTemplate
+        from notifications.contracts import MessageTemplate
 
         template = _fetch_or_log(MessageTemplate, template_id, "Template de WhatsApp")
         if template is None:
@@ -66,7 +66,7 @@ def send_whatsapp_task(
         transport.channel.send(recipient_address=phone, subject="", body="")
 
         # Log via transport mesmo para stub.
-        from notifications.models import MessageLog
+        from notifications.contracts import MessageLog
         from notifications.services import AnnouncementService
 
         AnnouncementService().log_delivery(
@@ -84,7 +84,7 @@ def send_whatsapp_task(
 def send_announcement_email_task(self, tenant_schema: str, announcement_id):
     """Envia comunicado por e-mail em lote para a audiencia."""
     with tenant_schema_context(tenant_schema):
-        from notifications.models import Announcement
+        from notifications.contracts import Announcement
 
         announcement = _fetch_or_log(Announcement, announcement_id, "Comunicado")
         if announcement is None:
@@ -100,7 +100,7 @@ def send_announcement_email_task(self, tenant_schema: str, announcement_id):
 def send_announcement_whatsapp_task(self, tenant_schema: str, announcement_id):
     """Envia comunicado por WhatsApp em lote (stub)."""
     with tenant_schema_context(tenant_schema):
-        from notifications.models import Announcement
+        from notifications.contracts import Announcement
 
         announcement = _fetch_or_log(Announcement, announcement_id, "Comunicado")
         if announcement is None:
@@ -119,7 +119,7 @@ def notify_audience_all_task(
 ):
     """Cria notificacoes in-app em lote para todos os usuarios ativos do tenant."""
     with tenant_schema_context(tenant_schema):
-        from core.models import CustomUser
+        from core.contracts import CustomUser
         from notifications.services import NotificationService
 
         chunk_size = 500

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load l10n %}
 
 {% block title %}{{ activity.title }} — School Manager{% endblock %}
 
@@ -30,14 +31,20 @@
         <form method="post" action="{% url 'activity_record_score' activity.pk %}">
             {% csrf_token %}
             <div class="card-body p-0 table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0 sm-compact-table">
+                <colgroup>
+                    <col>
+                    <col style="width: 8rem">
+                    <col style="width: 6.5rem">
+                    <col style="width: 50%">
+                </colgroup>
                 <thead><tr><th>Aluno</th><th>Matrícula</th><th>Nota</th><th>Feedback</th></tr></thead>
                 <tbody>
                     {% for s in submissions %}
                     <tr>
                         <td>{{ s.student.get_full_name }}</td>
                         <td>{{ s.student.enrollment_number }}</td>
-                        <td><input class="form-control form-control-sm" type="number" min="0" max="{{ activity.max_score }}" step="0.01" name="score_{{ s.student_id }}" value="{{ s.score|default_if_none:'' }}" aria-label="Nota de {{ s.student.get_full_name }}"></td>
+                        <td><input class="form-control form-control-sm" type="number" min="0" max="{{ activity.max_score|unlocalize }}" step="0.01" name="score_{{ s.student_id }}" value="{% if s.score is not None %}{{ s.score|unlocalize }}{% endif %}" aria-label="Nota de {{ s.student.get_full_name }}"></td>
                         <td><input class="form-control form-control-sm" type="text" name="feedback_{{ s.student_id }}" value="{{ s.feedback }}" aria-label="Feedback de {{ s.student.get_full_name }}"></td>
                     </tr>
                     {% empty %}

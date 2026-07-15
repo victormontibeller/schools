@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class _RoomRepo(BaseRepository):
     @property
     def model_class(self):
-        from rooms.models import Room
+        from rooms.contracts import Room
 
         return Room
 
@@ -22,7 +22,7 @@ class RoomService(BaseService):
 
     def create_room(self, data: dict):
         """Cria uma sala a partir dos dados validados."""
-        from rooms.models import Room
+        from rooms.contracts import Room
 
         self.validate_required(data, ["name", "code"])
 
@@ -56,21 +56,25 @@ class RoomService(BaseService):
 
         if "code" in data:
             code = data["code"].strip()
-            from rooms.models import Room
+            from rooms.contracts import Room
 
             if Room.objects.filter(code=code).exclude(pk=room_id).exists():
                 raise ValidationError(errors={"code": ["Código já cadastrado."]})
             updates["code"] = code
 
         updates["updated_by"] = self.user
-        room = repo.update(room, **updates)
+        room = repo.update(
+            room,
+            expected_version=data.get("version", room.version),
+            **updates,
+        )
         self._record_audit("UPDATE", room, old_values=old)
         self._log("Sala atualizada", room_id=str(room.pk))
         return room
 
     def deactivate_room(self, room_id):
         """Desativa uma sala (soft delete)."""
-        from rooms.models import Room
+        from rooms.contracts import Room
 
         return self._deactivate(Room, room_id, "Room")
 
@@ -95,7 +99,7 @@ class RoomService(BaseService):
         try:
             from django.db.models import Q
 
-            from agenda.models import Schedule
+            from agenda.contracts import Schedule
         except ImportError:
             # agenda ainda não instalado — sem conflitos possíveis.
             return True

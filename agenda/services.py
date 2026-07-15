@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class _ScheduleRepo(BaseRepository):
     @property
     def model_class(self):
-        from agenda.models import Schedule
+        from agenda.contracts import Schedule
 
         return Schedule
 
@@ -24,7 +24,7 @@ class _ScheduleRepo(BaseRepository):
 class _TimeSlotRepo(BaseRepository):
     @property
     def model_class(self):
-        from agenda.models import TimeSlot
+        from agenda.contracts import TimeSlot
 
         return TimeSlot
 
@@ -34,16 +34,16 @@ class ScheduleService(BaseService):
 
     def create_schedule(self, data: dict):
         """Cria entrada de grade; valida conflito de professor e sala."""
-        from agenda.models import Schedule
+        from agenda.contracts import Schedule
 
         self.validate_required(
             data,
             ["class_obj_id", "teacher_id", "subject_id", "time_slot_id", "valid_from"],
         )
 
-        from agenda.models import TimeSlot
-        from classes.models import Class
-        from teachers.models import Subject, Teacher
+        from agenda.contracts import TimeSlot
+        from classes.contracts import Class
+        from teachers.contracts import Subject, Teacher
 
         try:
             class_obj = Class.objects.get(pk=data["class_obj_id"])
@@ -67,7 +67,7 @@ class ScheduleService(BaseService):
 
         room = None
         if room_id := data.get("room_id"):
-            from rooms.models import Room
+            from rooms.contracts import Room
 
             try:
                 room = Room.objects.get(pk=room_id)
@@ -98,7 +98,7 @@ class ScheduleService(BaseService):
 
     def update_schedule(self, schedule_id, data: dict):
         """Atualiza uma entrada da grade (validando novos conflitos)."""
-        from agenda.models import TimeSlot
+        from agenda.contracts import TimeSlot
 
         schedule = _ScheduleRepo().get_by_id(schedule_id)
         old = {
@@ -120,7 +120,7 @@ class ScheduleService(BaseService):
                 raise ObjectNotFoundError("TimeSlot", str(data["time_slot_id"])) from None
 
         if "teacher_id" in data:
-            from teachers.models import Teacher
+            from teachers.contracts import Teacher
 
             try:
                 updates["teacher"] = Teacher.objects.get(pk=data["teacher_id"])
@@ -128,7 +128,7 @@ class ScheduleService(BaseService):
                 raise ObjectNotFoundError("Teacher", str(data["teacher_id"])) from None
 
         if "room_id" in data:
-            from rooms.models import Room
+            from rooms.contracts import Room
 
             if data["room_id"]:
                 try:
@@ -157,7 +157,7 @@ class ScheduleService(BaseService):
 
     def create_time_slot(self, data: dict):
         """Cria uma faixa de horário recorrente para a grade escolar."""
-        from agenda.models import TimeSlot
+        from agenda.contracts import TimeSlot
 
         self.validate_required(data, ["day_of_week", "start_time", "end_time"])
 
@@ -188,7 +188,7 @@ class ScheduleService(BaseService):
 
     def update_time_slot(self, time_slot_id, data: dict):
         """Atualiza horário sem alterar grades já vinculadas."""
-        from agenda.models import Schedule, TimeSlot
+        from agenda.contracts import Schedule, TimeSlot
 
         slot = _TimeSlotRepo().get_by_id(time_slot_id)
         if Schedule.objects.filter(time_slot=slot).exists():
@@ -251,7 +251,7 @@ class ScheduleService(BaseService):
         """Verifica conflito de horario para um recurso (professor ou sala)."""
         from django.db.models import Q
 
-        from agenda.models import Schedule
+        from agenda.contracts import Schedule
 
         qs = Schedule.objects.filter(
             **filter_kw,

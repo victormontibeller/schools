@@ -89,8 +89,6 @@ def reset_context_vars():
         "user_id": context.user_id.set(None),
         "request_ip": context.request_ip.set(None),
         "user_agent": context.user_agent.set(""),
-        "platform_actor_id": context.platform_actor_id.set(""),
-        "support_grant_id": context.support_grant_id.set(""),
     }
     yield
     for var_name, token in tokens.items():

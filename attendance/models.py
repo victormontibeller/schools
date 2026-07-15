@@ -2,6 +2,7 @@
 
 from django.db import models
 
+from base.media import attendance_document_path, get_private_storage
 from base.models import BaseModel
 from base.upload_validators import validate_document_upload
 
@@ -107,7 +108,8 @@ class AttendanceJustification(BaseModel):
     end_date = models.DateField(verbose_name="Término")
     reason = models.CharField(max_length=200, verbose_name="Motivo")
     document = models.FileField(
-        upload_to="attendance/justifications/",
+        upload_to=attendance_document_path,
+        storage=get_private_storage,
         null=True,
         blank=True,
         verbose_name="Documento",

@@ -9,7 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 
 if TYPE_CHECKING:
-    from tenancy.models import School
+    from tenancy.contracts import School
 
 from base.exceptions import ObjectNotFoundError, ValidationError
 from base.services import BaseService
@@ -141,9 +141,14 @@ class BusinessUnitService(BaseService):
             raise ObjectNotFoundError("BusinessUnit", str(business_unit_id)) from None
 
         old = self._snapshot(business_unit, ["logo"])
+        old_logo_name = business_unit.logo.name
+        logo_storage = business_unit.logo.storage
         business_unit.logo = logo_file
         business_unit.updated_by = self.user
         business_unit.save(update_fields=["logo", "updated_by", "updated_at"])
+        from base.media import delete_replaced_file_after_commit
+
+        delete_replaced_file_after_commit(logo_storage, old_logo_name, business_unit.logo.name)
 
         self._record_audit("UPDATE", business_unit, old_values=old)
         self._log("logo_empresa_atualizado", business_unit_id=str(business_unit.pk))
@@ -181,7 +186,7 @@ class SchoolService(BaseService):
 
     def create_school(self, data: dict) -> School:
         """Cria uma escola validando CNPJ, nome e registrando auditoria."""
-        from tenancy.models import School
+        from tenancy.contracts import School
 
         self.validate_required(data, ["name"])
 
@@ -213,7 +218,7 @@ class SchoolService(BaseService):
 
     def update_school(self, school_id, data: dict) -> School:
         """Atualiza dados institucionais e de contato da escola."""
-        from tenancy.models import School
+        from tenancy.contracts import School
 
         try:
             school = School.objects.get(pk=school_id)
@@ -263,7 +268,7 @@ class SchoolService(BaseService):
 
     def update_logo(self, school_id, logo_file) -> School:
         """Atualiza o logotipo da escola."""
-        from tenancy.models import School
+        from tenancy.contracts import School
 
         try:
             school = School.objects.get(pk=school_id)
@@ -271,9 +276,14 @@ class SchoolService(BaseService):
             raise ObjectNotFoundError("School", str(school_id)) from None
 
         old = self._snapshot(school, ["logo"])
+        old_logo_name = school.logo.name
+        logo_storage = school.logo.storage
         school.logo = logo_file
         school.updated_by = self.user
         school.save(update_fields=["logo", "updated_by", "updated_at"])
+        from base.media import delete_replaced_file_after_commit
+
+        delete_replaced_file_after_commit(logo_storage, old_logo_name, school.logo.name)
 
         self._record_audit("UPDATE", school, old_values=old)
         self._log("Logo da escola atualizado", school_id=str(school.pk))
@@ -281,14 +291,14 @@ class SchoolService(BaseService):
 
     def deactivate_school(self, school_id) -> School:
         """Aplica exclusao logica na escola."""
-        from tenancy.models import School
+        from tenancy.contracts import School
 
         return self._deactivate(School, school_id, "School")
 
     def _validate_cnpj(self, data: dict, exclude_id=None) -> str | None:
         """Valida CNPJ: formato e unicidade. Retorna CNPJ limpo ou None."""
         from base.validators import validate_cnpj
-        from tenancy.models import School
+        from tenancy.contracts import School
 
         cnpj = data.get("cnpj", "")
         if not cnpj:

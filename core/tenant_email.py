@@ -39,8 +39,11 @@ def get_tenant_from_email() -> str:
             from_email = tenant_email.get("from_email", "").strip()
             if from_email:
                 return from_email
-    except Exception:
-        logger.debug("tenant_email_fallback", exc_info=True)
+    except Exception as exc:
+        logger.debug(
+            "tenant_email_fallback",
+            extra={"exception_type": type(exc).__name__},
+        )
 
     return settings.DEFAULT_FROM_EMAIL
 
@@ -62,7 +65,10 @@ def get_tenant_email_display() -> str:
             email_config = (tenant.settings or {}).get("email", {})
             address = email_config.get("from_email", "").strip() or settings.DEFAULT_FROM_EMAIL
             return f"{name} <{address}>"
-    except Exception:
-        logger.debug("tenant_email_display_fallback", exc_info=True)
+    except Exception as exc:
+        logger.debug(
+            "tenant_email_display_fallback",
+            extra={"exception_type": type(exc).__name__},
+        )
 
     return settings.DEFAULT_FROM_EMAIL

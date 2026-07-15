@@ -41,7 +41,7 @@ class TestTenantSchemaIsolation(TenantTestCase):
 
     @classmethod
     def get_test_tenant_domain(cls) -> str:
-        return "escola_a.test.local"
+        return "escola-a.test.local"
 
     @classmethod
     def setUpClass(cls):
@@ -52,7 +52,7 @@ class TestTenantSchemaIsolation(TenantTestCase):
         cls.setup_tenant(second)
         second.save(verbosity=0)
         cls.tenant_b = second
-        Domain.objects.create(domain="escola_b.test.local", tenant=second, is_primary=True)
+        Domain.objects.create(domain="escola-b.test.local", tenant=second, is_primary=True)
         # Volta a apontar para o primeiro (default do TenantTestCase).
         connection.set_tenant(cls.tenant)
 
@@ -139,29 +139,87 @@ class TestTenantSchemaIsolation(TenantTestCase):
         assert not isolated_a.check_password("SenhaB123")
 
     def test_student_diary_configuration_is_isolated_between_tenants(self):
-        """Aspectos fixos e categorias legadas nunca atravessam schemas escolares."""
+        """A ativação dos aspectos fixos nunca atravessa schemas escolares."""
         from student_diary.models import DiaryCategory
 
-        DiaryCategory.objects.create(name="Humor A")
-        assert DiaryCategory.objects.filter(code__isnull=False).count() == 4
-        assert list(
-            DiaryCategory.objects.filter(code__isnull=True).values_list("name", flat=True)
-        ) == ["Humor A"]
+        assert DiaryCategory.objects.count() == 4
+        mood_a = DiaryCategory.objects.get(code=DiaryCategory.Aspect.MOOD)
+        mood_a.is_enabled = False
+        mood_a.save(update_fields=["is_enabled"])
 
         connection.set_tenant(self.tenant_b)
         context.current_tenant.set("escola_b")
-        assert DiaryCategory.objects.filter(code__isnull=False).count() == 4
-        assert not DiaryCategory.objects.filter(code__isnull=True).exists()
-        DiaryCategory.objects.create(name="Humor B")
-        assert list(
-            DiaryCategory.objects.filter(code__isnull=True).values_list("name", flat=True)
-        ) == ["Humor B"]
+        assert DiaryCategory.objects.count() == 4
+        assert DiaryCategory.objects.get(code=DiaryCategory.Aspect.MOOD).is_enabled is True
 
         connection.set_tenant(self.tenant)
         context.current_tenant.set("escola_a")
-        assert list(
-            DiaryCategory.objects.filter(code__isnull=True).values_list("name", flat=True)
-        ) == ["Humor A"]
+        assert DiaryCategory.objects.get(code=DiaryCategory.Aspect.MOOD).is_enabled is False
+
+    def test_role_access_configuration_is_isolated_between_tenants(self):
+        """Cada escola mantém sua própria matriz de módulos e ações."""
+        from core.access.selectors import AccessConfigurationSelector
+        from core.access.services import AccessConfigurationService
+        from core.models import Role, RoleModuleAccess
+
+        admin_role = Role.objects.get(name="ADMIN")
+        actor = CustomUser.objects.create_user(
+            email="access-admin@escola-a.test",
+            password="Senha123",
+            first_name="Access",
+            last_name="Admin",
+            role=admin_role,
+        )
+        current = AccessConfigurationSelector().get_full_matrix()
+        access_matrix = {
+            role_name: {
+                module_key: {action for action, enabled in values.items() if enabled}
+                for module_key, values in role_values.items()
+            }
+            for role_name, role_values in current.values.items()
+        }
+        versions = {role.name: role.version for role in current.roles}
+        access_matrix["SECRETARY"]["financeiro"].add("view")
+        AccessConfigurationService(user=actor).update_access_matrix(access_matrix, versions)
+
+        connection.set_tenant(self.tenant_b)
+        context.current_tenant.set("escola_b")
+        access_b = RoleModuleAccess.objects.get(
+            role__name="SECRETARY",
+            module_key="financeiro",
+        )
+        assert access_b.can_view is False
+
+        connection.set_tenant(self.tenant)
+        context.current_tenant.set("escola_a")
+        access_a = RoleModuleAccess.objects.get(
+            role__name="SECRETARY",
+            module_key="financeiro",
+        )
+        assert access_a.can_view is True
+
+    def test_demo_seed_is_idempotent_on_postgresql_tenant(self):
+        """O seed canônico pode ser repetido no schema sem duplicar dados."""
+        from core.demo_seed import DemoSeedService
+        from core.models import Role
+        from students.models import Student
+
+        role, _ = Role.objects.get_or_create(name=Role.Name.ADMIN)
+        actor = CustomUser.objects.create_user(
+            email="seed-admin@tenant.test",
+            password="Senha123",
+            first_name="Seed",
+            last_name="Admin",
+            role=role,
+        )
+        service = DemoSeedService(user=actor)
+
+        for _ in range(2):
+            service.populate_core(self.tenant)
+            service.populate_calendar()
+            service.populate_attendance()
+
+        assert Student.objects.count() == 13
 
     def test_audit_logs_record_tenant_schema(self):
         from audit.models import AuditLog

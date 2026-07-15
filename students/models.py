@@ -3,6 +3,7 @@
 from django.conf import settings
 from django.db import models
 
+from base.media import get_private_storage, student_photo_path
 from base.models import BaseModel
 from base.upload_validators import validate_image_upload
 
@@ -52,7 +53,8 @@ class Student(BaseModel):
         max_length=250, blank=True, default="", verbose_name="Observações"
     )
     photo = models.ImageField(
-        upload_to="students/photos/",
+        upload_to=student_photo_path,
+        storage=get_private_storage,
         null=True,
         blank=True,
         verbose_name="Foto",

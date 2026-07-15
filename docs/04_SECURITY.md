@@ -1,5 +1,8 @@
 # Segurança
 
+> **Estado em 2026-07-13:** controles descritos como implementados abaixo estão no código;
+> rate limiting abrangente e remoção total de `unsafe-inline` permanecem planejados.
+
 ## Princípio
 
 O sistema deverá seguir a abordagem **Security First**. Toda nova funcionalidade deverá ser avaliada sob a ótica de segurança antes de ser implementada.
@@ -13,7 +16,10 @@ O sistema deverá seguir a abordagem **Security First**. Toda nova funcionalidad
 - O sistema deverá utilizar **Argon2** como algoritmo de hash de senhas.
 - Sessões deverão utilizar o mecanismo nativo do Django para a interface web.
 - JWT deverá ser utilizado apenas em APIs externas futuras.
-- Política de senha forte deverá ser imposta em todos os formulários de criação e alteração.
+- Toda senha nova ou alterada passa por `validate_password` do Django, com mínimo de 8
+  caracteres e os validadores de similaridade, senha comum e senha totalmente numérica.
+- Maiúscula, número e símbolo não são requisitos isolados. Senhas existentes não são
+  invalidadas retroativamente e serão avaliadas quando forem trocadas.
 
 ### Proteções HTTP
 
@@ -46,12 +52,31 @@ somente para scripts/estilos legados do tema e deverá ser removida conforme for
 - Permissões deverão seguir o princípio do menor privilégio.
 - Todo acesso administrativo deverá ser logado e auditado.
 
-### Acesso de suporte
+### Administração da plataforma
 
-- Exige operador público superuser ou permissão `tenancy.access_tenant`.
-- Exige motivo, token assinado de uso único e expiração em 30 minutos.
-- A sessão exibe banner permanente e registra `platform_actor_id` e `support_grant_id`.
-- Usuários públicos comuns nunca recebem acesso cross-schema.
+- Operadores públicos administram somente escolas, domínios e operadores do schema `public`.
+- Não existe impersonação, conta técnica, grant ou rota de acesso cross-schema.
+- Um eventual fluxo de suporte exigirá novo threat model e ADR antes de ser implementado.
+
+### Controle de acesso escolar
+
+- Administradores escolares possuem acesso total dentro do próprio tenant. Usuários, Escola,
+  Unidades e configuração de Acessos não podem ser delegados.
+- Secretaria, Coordenação, Professor, Financeiro e Responsável recebem somente capacidades
+  persistidas em `RoleModuleAccess`; permissões individuais e grupos do Django são ignorados.
+- Toda autorização combina módulo e ação e é repetida na fronteira HTTP e nos services.
+- Professor acessa somente turmas, alunos e registros atribuídos. Responsável acessa somente
+  alunos vinculados e os dados derivados desses vínculos; a matriz não remove esses filtros.
+- Ausência de registro, módulo desconhecido, ação incompatível ou contrato de escopo ausente
+  resulta em negação. A DEMO aplica ainda seu teto próprio de comandos.
+
+### Logs e tokens
+
+- Gunicorn registra o caminho sem query string e o Traefik descarta query parameters do
+  access log.
+- Logs de aplicação incluem tenant, usuário e correlation ID por identificadores opacos.
+  Mensagens não interpolam exceções nem PII.
+- Secrets e credenciais ACME existem apenas em secrets/variáveis de ambiente.
 
 ### Uploads
 

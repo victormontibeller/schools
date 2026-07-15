@@ -3,6 +3,7 @@
 from django.conf import settings
 from django.db import models
 
+from base.media import get_private_storage, guardian_avatar_path
 from base.models import BaseModel
 from base.upload_validators import validate_image_upload
 
@@ -40,15 +41,11 @@ class Guardian(BaseModel):
     last_name = models.CharField(max_length=150, blank=True, default="", verbose_name="Sobrenome")
     email = models.EmailField(blank=True, default="", verbose_name="E-mail")
     avatar = models.ImageField(
-        upload_to="guardians/avatars/", null=True, blank=True, validators=[validate_image_upload]
-    )
-    # Campo legado: o parentesco passa a pertencer ao vínculo StudentGuardian.
-    relationship_type = models.CharField(
-        max_length=10,
-        choices=Relationship.choices,
+        upload_to=guardian_avatar_path,
+        storage=get_private_storage,
+        null=True,
         blank=True,
-        default="",
-        verbose_name="Parentesco legado",
+        validators=[validate_image_upload],
     )
     birth_date = models.DateField(null=True, blank=True, verbose_name="Data de Nascimento")
     gender = models.CharField(

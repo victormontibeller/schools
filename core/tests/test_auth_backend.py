@@ -4,12 +4,12 @@ import pytest
 from django.contrib.auth.models import Permission
 from django.utils import timezone
 
-from core.auth_backends import DEMO_PERMISSION_ALLOWLIST, RolePermissionBackend
+from core.auth_backends import TenantAuthenticationBackend
 
 
 @pytest.mark.django_db
 def test_backend_rejects_inactive_expired_and_unverified_demo_users(user):
-    backend = RolePermissionBackend()
+    backend = TenantAuthenticationBackend()
     user.is_active = False
     assert backend.user_can_authenticate(user) is False
 
@@ -26,16 +26,15 @@ def test_backend_rejects_inactive_expired_and_unverified_demo_users(user):
 
 
 @pytest.mark.django_db
-def test_backend_merges_role_permissions_and_restricts_demo_allowlist(user):
-    backend = RolePermissionBackend()
+def test_backend_ignores_individual_django_permissions(user):
+    backend = TenantAuthenticationBackend()
     allowed = Permission.objects.get(content_type__app_label="classes", codename="view_class")
-    blocked = Permission.objects.get(content_type__app_label="core", codename="view_customuser")
-    user.role.permissions.set([allowed, blocked])
+    user.is_superuser = False
+    user.user_permissions.add(allowed)
 
-    assert {"classes.view_class", "core.view_customuser"} <= backend.get_user_permissions(user)
+    assert backend.get_user_permissions(user) == set()
+    assert backend.get_group_permissions(user) == set()
+    assert backend.has_perm(user, "classes.view_class") is False
 
-    user.access_mode = "DEMO"
-    demo_permissions = backend.get_user_permissions(user)
-    assert "classes.view_class" in demo_permissions
-    assert "core.view_customuser" not in demo_permissions
-    assert demo_permissions <= DEMO_PERMISSION_ALLOWLIST
+    user.is_superuser = True
+    assert backend.has_perm(user, "classes.view_class") is True

@@ -50,6 +50,13 @@ Toda requisição HTTP deverá possuir um **Correlation ID** único.
 - O Correlation ID deverá ser gerado no início da requisição.
 - Deverá ser propagado em todos os logs, eventos e tarefas Celery originados dessa requisição.
 - Um Middleware dedicado deverá ser responsável por gerar e injetar o Correlation ID no contexto.
+- Sinais de publicação e execução do Celery propagam e restauram o contexto automaticamente.
+- Handlers que publicam efeitos Celery capturam schema, payload mínimo e Correlation ID e registram
+  a publicação com `transaction.on_commit()`. Falhas do broker posteriores ao commit geram log
+  estruturado sem PII e não alteram o resultado da transação já confirmada.
+
+Access logs do Gunicorn registram somente `%U` (caminho) e o Traefik descarta query parameters.
+Tokens, PII e texto bruto de exceções não podem ser incluídos em mensagens ou campos extras.
 
 ---
 

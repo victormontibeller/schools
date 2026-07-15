@@ -18,8 +18,7 @@ class DiaryCategory(BaseModel):
     code = models.CharField(
         max_length=20,
         choices=Aspect.choices,
-        null=True,
-        blank=True,
+        unique=True,
         verbose_name="Aspecto estruturado",
     )
     display_order = models.PositiveSmallIntegerField(default=0, verbose_name="Ordem")
@@ -35,11 +34,6 @@ class DiaryCategory(BaseModel):
                 fields=["name"],
                 condition=models.Q(is_active=True, deleted_at__isnull=True),
                 name="unique_active_diary_category_name",
-            ),
-            models.UniqueConstraint(
-                fields=["code"],
-                condition=models.Q(code__isnull=False, is_active=True, deleted_at__isnull=True),
-                name="unique_active_diary_category_code",
             ),
         ]
         indexes = [models.Index(fields=["display_order", "is_active"])]
@@ -81,8 +75,6 @@ class DiaryOption(BaseModel):
     code = models.CharField(
         max_length=24,
         choices=FixedCode.choices,
-        null=True,
-        blank=True,
         verbose_name="Opção estruturada",
     )
     display_order = models.PositiveSmallIntegerField(default=0, verbose_name="Ordem")
@@ -99,7 +91,7 @@ class DiaryOption(BaseModel):
             ),
             models.UniqueConstraint(
                 fields=["category", "code"],
-                condition=models.Q(code__isnull=False, is_active=True, deleted_at__isnull=True),
+                condition=models.Q(is_active=True, deleted_at__isnull=True),
                 name="unique_active_diary_option_code",
             ),
         ]

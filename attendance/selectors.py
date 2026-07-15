@@ -57,7 +57,7 @@ class AttendanceSelector(BaseSelector):
     def get_class_attendance_summary(self, class_id):
         """Resumo por aluno da turma: presenças, ausências, justificadas, %."""
         from attendance.models import AttendanceEntry
-        from classes.models import Enrollment
+        from classes.contracts import Enrollment
 
         active = Enrollment.objects.filter(
             class_obj_id=class_id, status=Enrollment.Status.ACTIVE

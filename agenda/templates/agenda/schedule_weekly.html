@@ -1,7 +1,9 @@
 {% extends "base.html" %}
+{% load ui_helpers %}
 {% block title %}Grade — {{ class_obj.name }}{% endblock %}
 
 {% block content %}
+{% can_access_action "schedule" "create" as can_create_schedule %}
 <div class="page-header">
     <div class="page-header-left d-flex align-items-center">
         <div class="page-header-title"><h5 class="m-b-10">Grade Horária — {{ class_obj.name }}</h5></div>
@@ -20,9 +22,9 @@
     <div class="card sm-detail-card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="card-title mb-0">Grade semanal</h6>
-            <a href="{% url 'schedule_create' class_obj.pk %}" class="btn btn-primary btn-sm">
+            {% if can_create_schedule %}<a href="{% url 'schedule_create' class_obj.pk %}" class="btn btn-primary btn-sm">
                 <i class="feather-plus me-1"></i> NOVO
-            </a>
+            </a>{% endif %}
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">

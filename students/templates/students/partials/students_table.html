@@ -43,7 +43,7 @@
                 <td>
                     <div class="d-flex align-items-center gap-2">
                         {% if student.photo %}
-                        <img src="{{ student.photo.url }}" class="rounded-circle" width="32" height="32" alt="">
+                        <img src="{% url 'student_photo' student.pk %}" class="rounded-circle" width="32" height="32" alt="">
                         {% else %}
                         <div class="avatar-text avatar-sm bg-soft-warning text-warning">
                             {{ student.first_name|first|upper }}

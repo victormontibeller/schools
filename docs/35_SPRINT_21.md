@@ -9,7 +9,10 @@ resultado final por aluno e criar a agenda diária da Educação Infantil.
 
 - [x] Conteúdo ministrado obrigatório e observações opcionais na chamada.
 - [x] Escopo professor–turma–disciplina validado nos fluxos docentes.
+- [x] Combinação da grade validada pela data da chamada ou de entrega, sem produto cartesiano
+  entre turmas e disciplinas do professor.
 - [x] Modalidade de atividade, grupos, integrantes e reaplicação de resultado coletivo.
+- [x] Turma da atividade imutável após resultados e sincronização auditada das entregas vazias.
 - [x] Etapa de ensino estruturada na turma.
 - [x] Série estruturada em catálogo fixo, filtrada e validada pela etapa de ensino.
 - [x] App `student_diary` com configuração, folha diária, alimentação e histórico.
@@ -21,5 +24,5 @@ resultado final por aluno e criar a agenda diária da Educação Infantil.
 - [x] Administrador escolar irrestrito no tenant e apto a preencher Agenda sem perfil docente.
 - [x] Permissões e navegação para equipe escolar, professores e responsáveis.
 - [x] Migrations e ADR revisados.
-- [x] Pipeline local completo validado (`ruff`, `black`, migrations, 760 testes padrão e 4
+- [x] Pipeline local completo validado (`ruff`, `black`, migrations, 770 testes padrão e 4
   testes PostgreSQL de isolamento tenant).

@@ -3,9 +3,10 @@
 from django import forms
 
 from academic_calendar.models import AcademicYear, CalendarEvent, Holiday
+from base.forms import VersionedModelForm
 
 
-class AcademicYearForm(forms.ModelForm):
+class AcademicYearForm(VersionedModelForm):
     """Formulário ModelForm para criação de ano letivo."""
 
     class Meta:
@@ -25,7 +26,7 @@ class AcademicYearForm(forms.ModelForm):
         }
 
 
-class EventForm(forms.ModelForm):
+class EventForm(VersionedModelForm):
     """Formulário ModelForm para criação/edição de evento."""
 
     class Meta:
@@ -62,7 +63,7 @@ class EventForm(forms.ModelForm):
         }
 
 
-class HolidayForm(forms.ModelForm):
+class HolidayForm(VersionedModelForm):
     """Formulário ModelForm para criação de feriado."""
 
     class Meta:

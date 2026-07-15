@@ -6,8 +6,10 @@ import logging
 from typing import Generic, TypeVar
 
 from django.db import models
+from django.db.models import F
+from django.utils import timezone
 
-from base.exceptions import ObjectNotFoundError
+from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError
 from base.models import BaseModel
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
@@ -44,12 +46,28 @@ class BaseRepository(Generic[ModelT]):
         """Cria um novo registro com os atributos informados."""
         return self.model_class.objects.create(**kwargs)
 
-    def update(self, instance: ModelT, **kwargs) -> ModelT:
-        """Atualiza campos do registro e incrementa a versão otimista."""
-        for field, value in kwargs.items():
-            setattr(instance, field, value)
-        instance.version += 1
-        instance.save(update_fields=list(kwargs.keys()) + ["version", "updated_at"])
+    def update(
+        self,
+        instance: ModelT,
+        *,
+        expected_version: int | None = None,
+        **kwargs,
+    ) -> ModelT:
+        """Executa compare-and-swap por ``id`` e versão, sem perda silenciosa."""
+        expected = instance.version if expected_version is None else int(expected_version)
+        updates = {**kwargs, "version": F("version") + 1, "updated_at": timezone.now()}
+        affected = self.model_class.all_objects.filter(
+            pk=instance.pk,
+            version=expected,
+        ).update(**updates)
+        if affected != 1:
+            if not self.model_class.all_objects.filter(pk=instance.pk).exists():
+                raise ObjectNotFoundError(self.model_class.__name__, str(instance.pk))
+            raise BusinessRuleViolationError(
+                "Este registro foi alterado por outra pessoa. "
+                "Recarregue os dados e tente novamente."
+            )
+        instance.refresh_from_db()
         return instance
 
     def soft_delete(self, instance: ModelT, user=None) -> ModelT:

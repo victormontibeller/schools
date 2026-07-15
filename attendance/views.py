@@ -9,8 +9,14 @@ from django.shortcuts import redirect, render
 from attendance.forms import AttendanceRecordForm, JustificationForm
 from attendance.selectors import AttendanceSelector, JustificationSelector
 from attendance.services import AttendanceService
-from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+from base.exceptions import (
+    BusinessRuleViolationError,
+    ObjectNotFoundError,
+    PermissionDeniedError,
+    ValidationError,
+)
 from base.listing import build_querystring, build_sorting, resolve_listing_state
+from base.media import private_file_response
 from classes.selectors import ClassSelector
 from students.selectors import StudentSelector
 
@@ -36,6 +42,30 @@ JUSTIFICATION_SORTS = {
     "status": "status",
     "-status": "-status",
 }
+
+
+@login_required
+def justification_document(request, pk):
+    """Entrega o anexo privado de uma justificativa após validar escopo do aluno."""
+    justification = JustificationSelector().get_by_id(pk)
+    from core.access_selectors import ObjectAccessSelector
+    from core.permissions import can_access_module, role_name
+
+    role = role_name(request.user)
+    allowed = can_access_module(request.user, "attendance")
+    if role == "GUARDIAN":
+        allowed = ObjectAccessSelector.guardian_can_access_student(
+            request.user.pk, justification.student_id
+        )
+    elif role == "TEACHER":
+        allowed = ObjectAccessSelector.teacher_can_access_student(
+            request.user.pk, justification.student_id
+        )
+    if not allowed:
+        raise PermissionDeniedError("Sem permissão para acessar este documento.")
+    if not justification.document:
+        raise ObjectNotFoundError("AttendanceJustificationDocument", str(pk))
+    return private_file_response(justification.document, as_attachment=True)
 
 
 @login_required
@@ -145,7 +175,8 @@ def attendance_record_fill(request, record_id):
             AttendanceService(user=request.user).record_attendance(record_id, entries_data)
         except (ValidationError, ObjectNotFoundError, BusinessRuleViolationError) as exc:
             logger.warning(
-                "Erro ao registrar chamada: %s", exc, extra={"record_id": str(record_id)}
+                "Erro ao registrar chamada",
+                extra={"record_id": str(record_id), "exception_type": type(exc).__name__},
             )
             messages.error(request, str(exc))
             if request.headers.get("HX-Request"):
@@ -302,7 +333,10 @@ def justification_approve(request, pk):
     try:
         AttendanceService(user=request.user).approve_justification(pk)
     except (ObjectNotFoundError, BusinessRuleViolationError) as exc:
-        logger.warning("Erro ao aprovar justificativa: %s", exc, extra={"pk": str(pk)})
+        logger.warning(
+            "Erro ao aprovar justificativa",
+            extra={"pk": str(pk), "exception_type": type(exc).__name__},
+        )
         messages.error(request, str(exc))
     return redirect("justifications_list")
 
@@ -317,6 +351,9 @@ def justification_reject(request, pk):
             pk, request.POST.get("reason", "")
         )
     except (ObjectNotFoundError, BusinessRuleViolationError) as exc:
-        logger.warning("Erro ao rejeitar justificativa: %s", exc, extra={"pk": str(pk)})
+        logger.warning(
+            "Erro ao rejeitar justificativa",
+            extra={"pk": str(pk), "exception_type": type(exc).__name__},
+        )
         messages.error(request, str(exc))
     return redirect("justifications_list")

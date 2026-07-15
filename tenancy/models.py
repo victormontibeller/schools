@@ -1,12 +1,10 @@
-"""Modelos compartilhados: School, Domain e SupportAccessGrant."""
+"""Modelos compartilhados do catálogo público de escolas."""
 
 import sys
-from datetime import timedelta
 
-from django.conf import settings
 from django.db import models
-from django.utils import timezone
 
+from base.media import get_public_storage, school_logo_path
 from base.models import BaseModel
 from base.upload_validators import validate_image_upload
 
@@ -73,7 +71,8 @@ class School(TenantMixin, BaseModel):
     contact_email = models.EmailField(blank=True, default="", verbose_name="E-mail do Responsavel")
     address = models.JSONField(default=dict, blank=True)
     logo = models.ImageField(
-        upload_to="schools/logos/",
+        upload_to=school_logo_path,
+        storage=get_public_storage,
         null=True,
         blank=True,
         validators=[validate_image_upload],
@@ -105,38 +104,16 @@ class Domain(DomainMixin):
         verbose_name = "Domínio"
         verbose_name_plural = "Domínios"
 
+    def clean(self) -> None:
+        """Normaliza e valida o host conforme o ambiente e o tenant."""
+        from tenancy.domain_validation import normalize_domain
 
-def default_support_expiry():
-    """Retorna a expiração padrão de uma concessão de suporte."""
-    return timezone.now() + timedelta(minutes=30)
+        self.domain = normalize_domain(
+            self.domain,
+            tenant_schema=getattr(self.tenant, "schema_name", None),
+        )
 
-
-class SupportAccessGrant(BaseModel):
-    """Concessão pública, temporária e de uso único para acessar um tenant."""
-
-    operator = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,  # preserva autoria da concessão
-        related_name="support_access_grants",
-    )
-    tenant = models.ForeignKey(
-        School,
-        on_delete=models.PROTECT,  # histórico não pode perder o tenant
-        related_name="support_access_grants",
-    )
-    reason = models.CharField(max_length=500)
-    source_ip = models.GenericIPAddressField(null=True, blank=True)
-    expires_at = models.DateTimeField(default=default_support_expiry, db_index=True)
-    used_at = models.DateTimeField(null=True, blank=True)
-    ended_at = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        verbose_name = "Concessão de Acesso"
-        verbose_name_plural = "Concessões de Acesso"
-        ordering = ["-created_at"]
-        indexes = [models.Index(fields=["tenant", "expires_at"])]
-        permissions = [("access_tenant", "Pode acessar tenant para suporte")]
-
-    def __str__(self) -> str:
-        """Retorna uma identificação não sensível da concessão."""
-        return f"SupportAccessGrant({self.pk}, {self.tenant.schema_name})"
+    def save(self, *args, **kwargs):
+        """Garante que nenhum caminho de escrita contorne a política de host."""
+        self.clean()
+        return super().save(*args, **kwargs)

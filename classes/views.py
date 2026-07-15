@@ -42,7 +42,14 @@ def classes_list(request):
     if search:
         filters["name__icontains"] = search
 
-    result = ClassSelector().list_classes(filters=filters, order_by=sort, page=page)
+    role_name = getattr(getattr(request.user, "role", None), "name", "")
+    result = ClassSelector().list_classes(
+        filters=filters,
+        order_by=sort,
+        page=page,
+        user_id=request.user.pk,
+        role_name=role_name,
+    )
 
     ctx = {
         "result": result,
@@ -83,6 +90,8 @@ def class_create(request):
             for field, errors in exc.errors.items():
                 for error in errors:
                     form.add_error(field if field != "__all__" else None, error)
+        except BusinessRuleViolationError as exc:
+            form.add_error(None, exc.message)
     return render(
         request,
         "classes/class_form.html",
@@ -156,7 +165,10 @@ def class_enroll(request, class_id):
     try:
         ClassService(user=request.user).enroll_student(class_id, student_id)
     except (ValidationError, ObjectNotFoundError, BusinessRuleViolationError) as exc:
-        logger.warning("Erro ao matricular aluno: %s", exc, extra={"class_id": str(class_id)})
+        logger.warning(
+            "Erro ao matricular aluno",
+            extra={"class_id": str(class_id), "exception_type": type(exc).__name__},
+        )
         from django.contrib import messages
 
         messages.error(request, str(exc))

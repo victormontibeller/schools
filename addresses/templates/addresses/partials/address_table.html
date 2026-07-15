@@ -1,10 +1,13 @@
-{% load static %}
+{% load static ui_helpers %}
+{% can_access_entity_action entity_type "create" as can_create_address %}
+{% can_access_entity_action entity_type "edit" as can_edit_address %}
+{% can_access_entity_action entity_type "deactivate" as can_deactivate_address %}
 
 {# partial reutilizavel para exibir enderecos inline #}
 <div class="card mb-3 sm-profile-card" id="addresses-card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h6 class="card-title mb-0">Endereços</h6>
-        {% if entity_type and entity_id %}
+        {% if entity_type and entity_id and can_create_address %}
         <button type="button"
                 class="btn btn-primary btn-sm"
                 hx-get="{% url 'addresses:address_create' entity_type=entity_type entity_id=entity_id %}"
@@ -30,15 +33,15 @@
                     </div>
                     <div class="d-flex align-items-center gap-2 ms-lg-3">
                         <span class="badge bg-soft-secondary text-secondary">{{ addr.postal_code }}</span>
-                        <button type="button"
+                        {% if can_edit_address %}<button type="button"
                            class="btn btn-sm btn-outline-secondary"
                            aria-label="Editar endereço"
                            hx-get="{% url 'addresses:address_edit' addr.pk %}"
                            hx-target="#addresses-card"
                            hx-swap="outerHTML">
                             <i class="feather-edit-2"></i>
-                        </button>
-                        <button type="button"
+                        </button>{% endif %}
+                        {% if can_deactivate_address %}<button type="button"
                                 hx-post="{% url 'addresses:address_deactivate' addr.pk %}"
                                 hx-confirm="Desativar este endereço?"
                                 hx-target="closest .list-group-item"
@@ -46,7 +49,7 @@
                                 class="btn btn-sm btn-outline-danger"
                                 aria-label="Desativar endereço">
                             <i class="feather-trash-2"></i>
-                        </button>
+                        </button>{% endif %}
                     </div>
                 </div>
             </div>

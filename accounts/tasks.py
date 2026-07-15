@@ -11,9 +11,9 @@ def send_demo_verification_task(
 ) -> None:
     """Envia confirmação do DEMO usando o SDK de notificações."""
     with tenant_schema_context(tenant_schema):
-        from core.models import CustomUser
+        from core.contracts import CustomUser
         from notifications.channels import EmailChannel
-        from notifications.models import MessageTemplate
+        from notifications.contracts import MessageTemplate
         from notifications.transport import MessageTransport
 
         user = CustomUser.objects.filter(pk=user_id).first()
@@ -52,9 +52,9 @@ def send_teacher_invitation_task(
 ) -> None:
     """Envia convite do professor pelo transporte centralizado."""
     with tenant_schema_context(tenant_schema):
-        from core.models import CustomUser
+        from core.contracts import CustomUser
         from notifications.channels import EmailChannel
-        from notifications.models import MessageTemplate
+        from notifications.contracts import MessageTemplate
         from notifications.transport import MessageTransport
 
         user = CustomUser.objects.filter(pk=user_id).first()

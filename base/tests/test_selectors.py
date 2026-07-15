@@ -136,7 +136,7 @@ class TestGuardianSelector:
     def _make_guardian(self, email, rel="MAE"):
         from guardians.models import Guardian
 
-        return Guardian.objects.create(user=self._make_user(email), relationship_type=rel)
+        return Guardian.objects.create(user=self._make_user(email))
 
     def test_list_guardians(self):
         from guardians.selectors import GuardianSelector
@@ -158,8 +158,8 @@ class TestGuardianSelector:
 
         from guardians.models import Guardian
 
-        Guardian.objects.create(user=u1, relationship_type="MAE")
-        Guardian.objects.create(user=u2, relationship_type="MAE")
+        Guardian.objects.create(user=u1)
+        Guardian.objects.create(user=u2)
 
         result = GuardianSelector().list_guardians(filters={"user__first_name__icontains": "Mari"})
         assert result.total == 1

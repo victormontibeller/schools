@@ -1,11 +1,13 @@
+{% load ui_helpers %}
+{% can_access_action "rooms" "edit" as can_edit_room %}
 <div class="card mb-0 sm-detail-card" id="room-information-card">
     <div class="card-header d-flex align-items-center justify-content-between gap-2">
         <h6 class="card-title mb-0">Informações da Sala</h6>
-        <button type="button" class="btn btn-sm btn-outline-primary"
+        {% if can_edit_room %}<button type="button" class="btn btn-sm btn-outline-primary"
                 hx-get="{% url 'room_edit' room.pk %}"
                 hx-target="#room-information-card" hx-swap="outerHTML">
             <i class="feather-edit-2 me-1"></i> Editar
-        </button>
+        </button>{% endif %}
     </div>
     <div class="card-body">
         {% if saved %}<div class="alert alert-success py-2">Informações atualizadas com sucesso.</div>{% endif %}

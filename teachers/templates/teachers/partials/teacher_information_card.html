@@ -1,14 +1,16 @@
+{% load ui_helpers %}
+{% can_access_action "teachers" "edit" as can_edit_teacher %}
 <div class="card mb-0 sm-profile-card" id="teacher-information-card">
     <div class="card-header d-flex align-items-center justify-content-between gap-2">
         <h6 class="card-title mb-0">Informações do Professor</h6>
         <div class="d-flex align-items-center gap-2">
-            <button type="button"
+            {% if can_edit_teacher %}<button type="button"
                     class="btn btn-sm btn-outline-primary"
                     hx-get="{% url 'teacher_edit' teacher.pk %}"
                     hx-target="#teacher-information-card"
                     hx-swap="outerHTML">
                 <i class="feather-edit-2 me-1"></i> Editar
-            </button>
+            </button>{% endif %}
         </div>
     </div>
     <div class="card-body sm-profile-card-body">
@@ -17,7 +19,7 @@
         {% endif %}
         <div class="sm-profile-hero d-flex flex-column flex-sm-row align-items-center text-center text-sm-start gap-3 pb-4 mb-4 border-bottom">
             {% if teacher.user.avatar %}
-            <img src="{{ teacher.user.avatar.url }}"
+            <img src="{% url 'teacher_avatar' teacher.pk %}"
                  alt="{{ teacher.full_name }}"
                  class="sm-profile-avatar flex-shrink-0">
             {% else %}

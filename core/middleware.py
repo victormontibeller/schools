@@ -20,11 +20,18 @@ from base.exceptions import (
 
 
 class CorrelationIdFilter(logging.Filter):
-    """Injeta correlation_id em cada log record."""
+    """Injeta identificadores operacionais seguros em cada log record."""
 
     def filter(self, record: logging.LogRecord) -> bool:
-        """Injeta o correlation_id corrente no record de log."""
-        record.correlation_id = context.correlation_id.get() or "-"
+        """Preenche o contexto sem sobrescrever extras definidos pelo chamador."""
+        values = {
+            "correlation_id": context.correlation_id.get() or "-",
+            "tenant": context.current_tenant.get() or "-",
+            "user_id": context.user_id.get() or "-",
+        }
+        for key, value in values.items():
+            if not hasattr(record, key):
+                setattr(record, key, value)
         return True
 
 
@@ -123,8 +130,6 @@ class AuditContextMiddleware:
             context.request_ip.set(ip),
             context.user_agent.set(ua),
             context.user_id.set(uid),
-            context.platform_actor_id.set(str(request.session.get("platform_actor_id", ""))),
-            context.support_grant_id.set(str(request.session.get("support_grant_id", ""))),
         )
         try:
             response = self.get_response(request)
@@ -132,8 +137,6 @@ class AuditContextMiddleware:
             context.request_ip.reset(tokens[0])
             context.user_agent.reset(tokens[1])
             context.user_id.reset(tokens[2])
-            context.platform_actor_id.reset(tokens[3])
-            context.support_grant_id.reset(tokens[4])
         return response
 
     @staticmethod
@@ -156,28 +159,33 @@ class PermissionPolicyMiddleware(MiddlewareMixin):
         from core.permissions import (
             GUARDIAN_VIEW_NAMES,
             PUBLIC_VIEW_NAMES,
-            can_access_module,
+            SELF_SERVICE_VIEW_NAMES,
+            can_access,
+            can_configure_student_diary,
             has_unrestricted_tenant_access,
+            resolve_view_access,
         )
 
         view_name = getattr(request.resolver_match, "url_name", "")
         if view_name in PUBLIC_VIEW_NAMES or not request.user.is_authenticated:
             return None
-        if view_name in {
-            "dashboard",
-            "profile",
-            "change_password",
-            "logout",
-            "support_access_end",
-        }:
+        current_role = getattr(getattr(request.user, "role", None), "name", "")
+        if view_name in SELF_SERVICE_VIEW_NAMES or (
+            view_name == "justification_create" and current_role == "GUARDIAN"
+        ):
             return None
-        app_label = view_func.__module__.split(".", maxsplit=1)[0]
+        module_key, action = resolve_view_access(
+            view_func,
+            view_name,
+            request.method,
+            view_kwargs,
+        )
         if (
             getattr(request.user, "access_mode", "") == "DEMO"
             and not has_unrestricted_tenant_access(request.user)
-            and app_label
+            and module_key
             not in {
-                "agenda",
+                "schedule",
                 "activities",
                 "attendance",
                 "classes",
@@ -186,7 +194,7 @@ class PermissionPolicyMiddleware(MiddlewareMixin):
             }
         ):
             raise PermissionDenied("Ação indisponível no ambiente DEMO.")
-        if getattr(getattr(request.user, "role", None), "name", "") == "GUARDIAN":
+        if current_role == "GUARDIAN":
             if view_name not in GUARDIAN_VIEW_NAMES:
                 raise PermissionDenied("Sem permissão para esta operação.")
             from core.access_selectors import ObjectAccessSelector
@@ -205,15 +213,26 @@ class PermissionPolicyMiddleware(MiddlewareMixin):
                 )
             ):
                 raise PermissionDenied("Atividade fora do escopo do responsável.")
+            if not can_access(request.user, module_key or "", action):
+                raise PermissionDenied("Sem permissão para esta operação.")
             return None
-        if getattr(getattr(request.user, "role", None), "name", "") == "TEACHER":
+        if current_role == "TEACHER":
             from core.access_selectors import ObjectAccessSelector
 
             class_id = view_kwargs.get("class_id")
+            if view_name in {"class_detail", "class_edit"}:
+                class_id = view_kwargs.get("pk")
             if class_id and not ObjectAccessSelector.teacher_can_access_class(
                 request.user.pk, class_id
             ):
                 raise PermissionDenied("Turma fora do escopo do professor.")
+            if (
+                view_name == "teacher_schedule"
+                and not ObjectAccessSelector.teacher_can_access_teacher(
+                    request.user.pk, view_kwargs.get("teacher_id")
+                )
+            ):
+                raise PermissionDenied("Grade fora do escopo do professor.")
             if view_name in {
                 "activity_detail",
                 "activity_edit",
@@ -227,6 +246,11 @@ class PermissionPolicyMiddleware(MiddlewareMixin):
                     request.user.pk, view_kwargs.get("pk")
                 ):
                     raise PermissionDenied("Atividade fora do escopo do professor.")
+            if view_name in {"subject_detail", "subject_edit", "subject_deactivate"}:
+                if not ObjectAccessSelector.teacher_can_access_subject(
+                    request.user.pk, view_kwargs.get("pk")
+                ):
+                    raise PermissionDenied("Disciplina fora do escopo do professor.")
             if (
                 view_name == "attendance_record_fill"
                 and not ObjectAccessSelector.teacher_can_access_attendance(
@@ -238,15 +262,15 @@ class PermissionPolicyMiddleware(MiddlewareMixin):
                 "diary_configuration",
                 "diary_aspect_detail",
                 "diary_aspect_toggle",
-            }:
+            } and not can_configure_student_diary(request.user):
                 raise PermissionDenied("Sem permissão para configurar a Agenda.")
             student_id = view_kwargs.get("student_id")
             if student_id and not ObjectAccessSelector.teacher_can_access_student(
                 request.user.pk, student_id
             ):
                 raise PermissionDenied("Aluno fora do escopo do professor.")
-        if not can_access_module(request.user, app_label):
-            raise PermissionDenied("Sem permissão para acessar este módulo.")
+        if not module_key or not can_access(request.user, module_key, action):
+            raise PermissionDenied("Sem permissão para esta operação.")
         return None
 
 

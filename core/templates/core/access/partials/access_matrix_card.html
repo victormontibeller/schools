@@ -1,0 +1,128 @@
+<div class="card" id="access-matrix-card">
+    <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
+        <h6 class="card-title mb-0">Matriz de acessos</h6>
+        <div class="d-flex align-items-center gap-2 flex-wrap sm-access-search-wrap">
+            <div class="input-group input-group-sm sm-list-search">
+                <span class="input-group-text" aria-hidden="true">
+                    <i class="feather-search"></i>
+                </span>
+                <input type="search"
+                       id="access-matrix-search"
+                       class="form-control"
+                       placeholder="Buscar..."
+                       aria-label="Buscar módulos"
+                       aria-controls="access-matrix-body"
+                       autocomplete="off"
+                       data-access-search-input>
+                <button type="button"
+                        class="input-group-text sm-search-clear d-none"
+                        aria-label="Limpar busca"
+                        title="Limpar busca"
+                        data-access-search-clear>
+                    <i class="feather-x" aria-hidden="true"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <form method="post"
+          action="{% url 'access_settings' %}"
+          hx-post="{% url 'access_settings' %}"
+          hx-target="#access-matrix-card"
+          hx-swap="outerHTML">
+        {% csrf_token %}
+        {% for version_field in form.version_fields %}{{ version_field }}{% endfor %}
+        <div class="card-body p-0">
+        {% if saved %}
+        <div class="alert alert-success m-3 mb-0" role="status">Acessos atualizados com sucesso.</div>
+        {% endif %}
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger m-3 mb-0" role="alert">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="table-responsive sm-access-table-responsive">
+            <table class="table table-hover mb-0 align-middle sm-compact-table sm-access-table">
+                <thead>
+                    <tr>
+                        <th scope="col" class="sm-access-module-column">Módulo</th>
+                        {% for role in form.role_columns %}
+                        <th scope="col" class="text-center sm-access-role-column">{{ role.label }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody id="access-matrix-body">
+                    {% regroup form.matrix_rows by module.department as departments %}
+                    {% for department in departments %}
+                    <tr class="sm-access-department-row"
+                        data-access-department-row
+                        data-access-department="{{ department.grouper }}">
+                        <th colspan="6" scope="colgroup">{{ department.grouper }}</th>
+                    </tr>
+                    {% for row in department.list %}
+                    <tr data-access-module-row
+                        data-access-department="{{ department.grouper }}"
+                        data-access-search="{{ department.grouper }} {{ row.module.label }}">
+                        <th scope="row" class="sm-access-module-column">{{ row.module.label }}</th>
+                        {% for cell in row.cells %}
+                        <td class="text-center sm-access-cell">
+                            {% if cell.available %}
+                            <div class="dropdown sm-access-dropdown" data-access-cell>
+                                <button type="button"
+                                        class="btn btn-outline-secondary sm-access-selector"
+                                        data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"
+                                        data-bs-boundary="viewport"
+                                        aria-expanded="false">
+                                    <span class="visually-hidden">{{ cell.field.label }}: </span>
+                                    <span class="sm-access-summary" data-access-summary aria-hidden="true">
+                                        {% for action in cell.selected_actions %}
+                                        <span class="badge sm-access-action-badge"
+                                              title="{{ action.label }}">{{ action.short_label }}</span>
+                                        {% empty %}
+                                        <span class="sm-access-empty">Sem acesso</span>
+                                        {% endfor %}
+                                    </span>
+                                    <span class="visually-hidden" data-access-summary-label>
+                                        {% for action in cell.selected_actions %}{{ action.label }}{% if not forloop.last %}, {% endif %}{% empty %}Sem acesso{% endfor %}
+                                    </span>
+                                    <i class="feather-chevron-down ms-auto" aria-hidden="true"></i>
+                                </button>
+                                <div class="dropdown-menu sm-access-dropdown-menu p-3">
+                                    {% for option in cell.options %}
+                                    <div class="form-check{% if not forloop.last %} mb-2{% endif %}">
+                                        {{ option.tag }}
+                                        <label class="form-check-label" for="{{ option.id_for_label }}">
+                                            {{ option.choice_label }}
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% if cell.field.errors %}
+                            <div class="invalid-feedback d-block">{{ cell.field.errors }}</div>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted" aria-label="Combinação indisponível">—</span>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                    {% endfor %}
+                    <tr data-access-empty-row hidden>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            Nenhum módulo encontrado.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        </div>
+
+        <div class="card-footer d-flex justify-content-end">
+            <button type="submit" class="btn btn-sm btn-primary">
+                <i class="feather-save me-1" aria-hidden="true"></i> Salvar acessos
+            </button>
+        </div>
+    </form>
+</div>

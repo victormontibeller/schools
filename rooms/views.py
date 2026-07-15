@@ -3,7 +3,7 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
-from base.exceptions import ValidationError
+from base.exceptions import BusinessRuleViolationError, ValidationError
 from base.listing import build_querystring, build_sorting, resolve_listing_state
 from rooms.forms import RoomForm
 from rooms.selectors import RoomSelector
@@ -70,6 +70,8 @@ def room_create(request):
             for field, errors in exc.errors.items():
                 for error in errors:
                     form.add_error(field if field != "__all__" else None, error)
+        except BusinessRuleViolationError as exc:
+            form.add_error(None, exc.message)
     return render(request, "rooms/room_form.html", {"form": form, "title": "Nova Sala"})
 
 

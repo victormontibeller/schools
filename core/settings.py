@@ -25,7 +25,19 @@ DEBUG = TEST_PG or TESTING or config("DEBUG", default=True, cast=bool)
 
 DEV_SECRET_KEY = "dev-secret-key-not-for-production-change-me"  # noqa: S105
 SECRET_KEY = config("SECRET_KEY", default=DEV_SECRET_KEY)
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv())
+PLATFORM_DOMAIN = config("PLATFORM_DOMAIN", default="platform.localhost").strip().lower()
+TENANT_BASE_DOMAIN = config("TENANT_BASE_DOMAIN", default="localhost").strip().lower().lstrip(".")
+_allowed_hosts_default = ",".join(
+    host
+    for host in (
+        "localhost",
+        "127.0.0.1",
+        PLATFORM_DOMAIN,
+        f".{TENANT_BASE_DOMAIN}" if TENANT_BASE_DOMAIN else "",
+    )
+    if host
+)
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default=_allowed_hosts_default, cast=Csv())
 TRUSTED_PROXY_IPS = config("TRUSTED_PROXY_IPS", default="", cast=Csv())
 
 if DJANGO_ENV == "production":
@@ -35,6 +47,8 @@ if DJANGO_ENV == "production":
         raise RuntimeError("SECRET_KEY obrigatória e sem valor padrão em produção.")
     if not ALLOWED_HOSTS:
         raise RuntimeError("ALLOWED_HOSTS obrigatório em produção.")
+    if not PLATFORM_DOMAIN or not TENANT_BASE_DOMAIN:
+        raise RuntimeError("PLATFORM_DOMAIN e TENANT_BASE_DOMAIN são obrigatórios em produção.")
 
 # ── Apps ───────────────────────────────────────────────────────────────────────
 BASE_APPS = [
@@ -151,7 +165,6 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "core.context_processors.current_school",
-                "core.context_processors.support_access",
                 "core.context_processors.accessible_modules",
                 "core.context_processors.school_navigation",
             ],
@@ -210,7 +223,7 @@ LOGIN_URL = "login"
 # round-trip no banco a cada request.
 AUTHENTICATION_BACKENDS = [
     "axes.backends.AxesStandaloneBackend",
-    "core.auth_backends.RolePermissionBackend",
+    "core.auth_backends.TenantAuthenticationBackend",
 ]
 
 AXES_FAILURE_LIMIT = 5
@@ -232,6 +245,21 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "design_system" / "refs" / "duralux"]
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+STORAGES = {
+    "default": {
+        "BACKEND": "base.media.PrivateMediaStorage",
+        "OPTIONS": {"location": MEDIA_ROOT / "private"},
+    },
+    "private": {
+        "BACKEND": "base.media.PrivateMediaStorage",
+        "OPTIONS": {"location": MEDIA_ROOT / "private"},
+    },
+    "public": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "OPTIONS": {"location": MEDIA_ROOT / "public", "base_url": MEDIA_URL},
+    },
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -281,7 +309,10 @@ LOGGING = {
     "formatters": {
         "json": {
             "()": "pythonjsonlogger.json.JsonFormatter",
-            "fmt": "%(asctime)s %(levelname)s %(name)s %(message)s",
+            "fmt": (
+                "%(asctime)s %(levelname)s %(name)s %(message)s %(correlation_id)s "
+                "%(tenant)s %(user_id)s"
+            ),
         },
     },
     "filters": {

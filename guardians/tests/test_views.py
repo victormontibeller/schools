@@ -2,7 +2,6 @@
 
 import pytest
 
-from core.models import CustomUser
 from guardians.services import GuardianService
 
 
@@ -14,16 +13,11 @@ def force_login_client(client, user):
 
 @pytest.fixture()
 def guardian(user):
-    target = CustomUser.objects.create_user(
-        email="guardian-view@example.com",
-        password="Senha123",
-        first_name="Carla",
-        last_name="Listado",
-    )
     return GuardianService(user=user).create_guardian(
         {
-            "user_id": target.pk,
-            "relationship_type": "MAE",
+            "first_name": "Carla",
+            "last_name": "Listado",
+            "email": "guardian-view@example.com",
             "birth_date": "1980-01-01",
             "gender": "F",
             "nationality": "Brasileira",
@@ -40,7 +34,7 @@ def guardian(user):
 
 @pytest.mark.django_db
 def test_guardians_list_renders(force_login_client, guardian):
-    response = force_login_client.get("/guardians/?q=Carla&sort=relationship_type")
+    response = force_login_client.get("/guardians/?q=Carla&sort=name")
 
     assert response.status_code == 200
     assert b"Carla" in response.content
@@ -83,6 +77,7 @@ def test_guardian_post_updates(force_login_client, guardian):
             "phone": "(11) 3333-4444",
             "phone_whatsapp": "(11) 99999-1111",
             "phone_mobile": "(11) 98888-2222",
+            "version": guardian.version,
         },
         HTTP_HX_REQUEST="true",
     )

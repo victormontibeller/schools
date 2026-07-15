@@ -1,6 +1,9 @@
 # Arquitetura do Sistema
 
 > **Escopo:** arquitetura, módulos e fluxo de execução. Regras de implementação ficam em `docs/03_ENGINEERING_RULES.md`; padrões de código em `docs/10_CODING_STANDARDS.md`; interface em `docs/09_UI_GUIDELINES.md`.
+>
+> **Estado em 2026-07-13:** monólito modular, schemas, camadas e contratos estritos de importação
+> estão implementados. Suporte cross-schema foi adiado e não existe no produto atual.
 
 ## Visão Geral
 
@@ -57,7 +60,10 @@ Tarefas assíncronas deverão incluir:
 
 | Tecnologia | Finalidade |
 |---|---|
-| Redis | Cache de consultas, dashboards, sessões e rate limiting |
+| Redis | Cache de consultas, dashboards e rate limiting |
+
+Sessões web usam `django.contrib.sessions.backends.db`; como `sessions` está presente em cada
+schema, a identidade permanece isolada por tenant.
 
 ### Infraestrutura
 
@@ -109,7 +115,7 @@ Cada domínio deverá possuir seu próprio módulo independente:
 
 ```
 accounts/       → Usuários, autenticação, perfis e permissões
-tenancy/        → Catálogo público de escolas, domínios e acessos de suporte
+tenancy/        → Catálogo público de escolas e domínios
 teachers/       → Professores e suas disciplinas
 students/       → Alunos e seus dados
 guardians/      → Responsáveis e vínculos com alunos
@@ -133,20 +139,22 @@ audit/          → Auditoria de todas as ações do sistema
 ```
 base/           → Módulo Python puro: BaseModel, BaseService, BaseRepository,
                    BaseSelector, BaseValidator, exceptions, events, context vars
-tenancy/        → App compartilhado: School, Domain e SupportAccessGrant
+tenancy/        → App compartilhado: School e Domain
 core/           → Configuração e app presente em cada schema: Role, CustomUser,
                    BusinessUnit, settings, middleware, urls, wsgi, asgi, celery
 ```
 
 Cada módulo deverá conter **apenas sua própria responsabilidade**. Dependências entre módulos deverão ocorrer apenas via interfaces explícitas, nunca via acesso direto a modelos internos.
 
-> **Regra de dependência:** `base` não conhece nenhum app Django. Todos os apps importam de `base`. Apenas `audit.services` pode ser importado por `base.services` e somente via import lazy (evita circular dep).
+> **Regra de dependência:** `base` não conhece nenhum app Django. Auditoria e autorização entram
+> por portas registradas pelos adaptadores do `core` durante a inicialização.
 
 ---
 
 ## Estrutura Interna de Cada Módulo
 
-Todo módulo deverá seguir estrutura **plana** — arquivos únicos, sem sub-pacotes:
+Módulos simples seguem estrutura plana. Domínios coesos que excedam 400 linhas podem usar
+pacotes Python internos aprovados no ADR-0009, mantendo os imports públicos como fachada:
 
 ```
 <modulo>/
@@ -168,16 +176,38 @@ Todo módulo deverá seguir estrutura **plana** — arquivos únicos, sem sub-pa
     partials/
 ```
 
-> **Regra:** Nunca criar `services/`, `models/`, `repositories/` como sub-pacote. Um arquivo por camada. Se um arquivo crescer além de 400 linhas, é sinal de que o domínio precisa de um novo app, não de um sub-pacote.
+Pacotes internos autorizados são: financeiro (planos, cobranças, pagamentos e políticas), core
+(páginas públicas, saúde, escolas e unidades), atividades (atividades, notas e grupos) e
+matrículas (solicitações, documentos e rematrículas). Um arquivo novo deve permanecer abaixo de
+400 linhas. Não existem composition roots dispensados das regras de importação.
+
+O CI executa `scripts/check_import_contracts.py` e exige zero violações: ORM em views, SQL direto,
+dependência de `base` para apps e import direto de modelos entre domínios sempre falham.
 
 ## Identidade entre schemas
 
-- `School`, `Domain` e `SupportAccessGrant` existem somente no `public`.
+- `School` e `Domain` existem somente no `public`.
 - `CustomUser`, `Role`, auth e sessions existem no `public` e separadamente em cada tenant.
 - O domínio resolve o schema antes da autenticação; o mesmo e-mail pode existir em escolas
   diferentes sem compartilhar senha, sessão ou permissões.
-- Operadores do `public` acessam tenants apenas por token temporário, de uso único e auditado.
-- A conta técnica de suporte não possui senha utilizável e registra o operador público real.
+- Operadores do `public` administram escolas e operadores sem acesso ou impersonação de tenants.
+
+## Autorização escolar
+
+- `RoleModuleAccess` guarda a matriz tenant-specific dos cinco papéis configuráveis. Administrador
+  permanece irrestrito e não possui configuração própria.
+- O catálogo de `core.access_catalog` é a fonte dos módulos, departamentos, ações suportadas,
+  defaults e limites seguros de Professor e Responsável.
+- `can_access(user, module, action)` é usado por middleware, services, navegação e templates.
+  Visualizar, Cadastrar, Editar e Desativar são as únicas ações públicas; comandos de workflow
+  como aprovar, cancelar, lançar e reconciliar pertencem a Editar.
+- Módulos e ações desconhecidos são negados. O checker exige que novos apps com views ou services
+  estejam ligados ao catálogo de autorização.
+- O bootstrap cria somente papéis e módulos ausentes. Seeds e migrations nunca sobrescrevem
+  configurações existentes do tenant.
+- A Central apresenta todos os grupos em uma única matriz e salva o conjunto atomicamente. As
+  versões dos cinco papéis são verificadas antes da primeira escrita; conflito em qualquer papel
+  impede a atualização completa e reenvio sem mudança não gera versão nem auditoria.
 
 ### Responsabilidades por Camada
 

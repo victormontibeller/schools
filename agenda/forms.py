@@ -2,9 +2,9 @@
 
 from django import forms
 
-from agenda.models import TimeSlot
-from rooms.models import Room
-from teachers.models import Subject, Teacher
+from agenda.contracts import TimeSlot
+from rooms.contracts import Room
+from teachers.contracts import Subject, Teacher
 
 
 class ScheduleForm(forms.Form):

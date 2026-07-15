@@ -19,19 +19,10 @@
     <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
     <link rel="stylesheet" href="{% static 'css/vendors.min.css' %}">
     <link rel="stylesheet" href="{% static 'css/theme.min.css' %}">
-    <link rel="stylesheet" href="{% static 'css/school-manager.css' %}?v=20260713-diary-redesign">
+    <link rel="stylesheet" href="{% static 'css/school-manager.css' %}?v=20260715-access-dark-controls">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    {% if support_access_active %}
-    <div class="alert alert-warning rounded-0 mb-0 d-flex justify-content-between align-items-center" role="alert">
-        <span><i class="feather-shield me-2"></i>Acesso temporário de suporte ativo e auditado.</span>
-        <form method="post" action="{% url 'support_access_end' %}" class="m-0">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-sm btn-warning">Encerrar acesso</button>
-        </form>
-    </div>
-    {% endif %}
     <!--! [Start] Navigation -->
     <nav class="nxl-navigation sm-fixed-sidebar">
         <div class="navbar-wrapper">
@@ -61,12 +52,6 @@
                         <a href="{% url 'platform_user_list' %}" class="nxl-link sm-menu-link">
                             <span class="nxl-micon"><i class="feather-users"></i></span>
                             <span class="nxl-mtext">Operadores</span>
-                        </a>
-                    </li>
-                    <li class="nxl-item">
-                        <a href="{% url 'support_access_create' %}" class="nxl-link sm-menu-link">
-                            <span class="nxl-micon"><i class="feather-shield"></i></span>
-                            <span class="nxl-mtext">Acesso de suporte</span>
                         </a>
                     </li>
                     <li class="nxl-item">
@@ -165,7 +150,7 @@
                            data-bs-offset="0,10"
                            aria-expanded="false">
                             {% if request.user.avatar %}
-                            <img src="{{ request.user.avatar.url }}"
+                            <img src="{% url 'user_avatar' request.user.pk %}"
                                  alt="{{ request.user.get_full_name }}"
                                  class="header-user-avatar">
                             {% else %}

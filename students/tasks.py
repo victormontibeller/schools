@@ -21,12 +21,12 @@ def import_students_csv(
     """
     Importa alunos a partir de conteúdo CSV.
 
-    Colunas obrigatórias: first_name, last_name, birth_date, enrollment_number,
-                          gender, blood_type, cpf, rg_number, phone_mobile e email.
+    Colunas obrigatórias: first_name, last_name, birth_date, gender, blood_type,
+                          cpf, rg_number, phone_mobile e email.
     Retorna: {"created": N, "errors": [{"row": N, "message": "..."}]}
     """
     with tenant_schema_context(tenant_schema):
-        from core.models import CustomUser
+        from core.contracts import CustomUser
         from students.services import StudentService
 
         try:
@@ -49,20 +49,21 @@ def import_students_csv(
                         "first_name": row.get("first_name", "").strip(),
                         "last_name": row.get("last_name", "").strip(),
                         "birth_date": row.get("birth_date", "").strip(),
-                        "enrollment_number": row.get("enrollment_number", "").strip(),
                         "gender": row.get("gender", "").strip(),
                         "blood_type": row.get("blood_type", "").strip(),
                         "cpf": row.get("cpf", "").strip(),
                         "rg_number": row.get("rg_number", "").strip(),
                         "phone_mobile": row.get("phone_mobile", "").strip(),
                         "email": row.get("email", "").strip(),
-                    },
-                    preserve_enrollment=True,
+                    }
                 )
                 created += 1
             except Exception as exc:
-                logger.warning("Falha ao importar linha CSV %d: %s", row_num, exc)
-                errors.append({"row": row_num, "message": str(exc)})
+                logger.warning(
+                    "Falha ao importar linha CSV",
+                    extra={"row": row_num, "exception_type": type(exc).__name__},
+                )
+                errors.append({"row": row_num, "message": "Não foi possível importar a linha."})
 
         logger.info(
             "Importação CSV concluída",

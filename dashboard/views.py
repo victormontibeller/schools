@@ -11,16 +11,6 @@ from dashboard.services import DashboardService
 
 
 @login_required
-def school_dashboard(request: HttpRequest) -> HttpResponse:
-    """Redireciona o dashboard escolar legado para a home canonica."""
-    from core.tenant_routing import is_platform_request
-
-    if is_platform_request(request):
-        return redirect("platform_dashboard")
-    return redirect("dashboard")
-
-
-@login_required
 def school_dashboard_partial(request: HttpRequest) -> HttpResponse:
     """Partial HTMX para atualizacao assincrona do dashboard escolar."""
     from core.tenant_routing import is_platform_request

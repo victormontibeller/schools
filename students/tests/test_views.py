@@ -98,6 +98,7 @@ def test_student_edit_post_updates_and_returns_card_for_htmx(force_login_client,
             "phone_mobile": "(11) 99999-0000",
             "email": "ana@example.com",
             "observations": "Asma; utilizar bombinha quando necessário.",
+            "version": student.version,
         },
         HTTP_HX_REQUEST="true",
     )

@@ -2,7 +2,7 @@
 
 from django import forms
 
-from classes.models import Class
+from classes.contracts import Class
 from student_diary.models import DiaryCategory, DiaryMeal
 
 

@@ -7,5 +7,8 @@ class CoreConfig(AppConfig):
     verbose_name = "Core"
 
     def ready(self) -> None:
-        """Registra o seed idempotente dos papéis fixos."""
+        """Registra adaptadores, handlers e seeds idempotentes."""
+        from core.adapters import register_base_adapters
+
+        register_base_adapters()
         from core import signals  # noqa: F401

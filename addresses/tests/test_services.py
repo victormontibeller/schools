@@ -67,7 +67,6 @@ def guardian(user):
 
     return Guardian.objects.create(
         user=user,
-        relationship_type="MAE",
         created_by=user,
         updated_by=user,
     )

@@ -119,24 +119,13 @@ class TeacherService(BaseService):
         """Cria um professor validando usuário, matrícula única e registra auditoria."""
         from teachers.models import Teacher
 
-        legacy_user_id = data.get("user_id")
-        required = TEACHER_REQUIRED_FIELDS if not legacy_user_id else TEACHER_REQUIRED_FIELDS[3:]
-        self.validate_required(data, required)
+        self.validate_required(data, TEACHER_REQUIRED_FIELDS)
 
-        from core.models import CustomUser, Role
+        from core.contracts import CustomUser, Role
         from core.services import RegistrationSequenceService
 
-        if legacy_user_id:
-            try:
-                user = CustomUser.objects.get(pk=legacy_user_id)
-            except CustomUser.DoesNotExist:
-                raise ObjectNotFoundError("CustomUser", str(legacy_user_id)) from None
-            email = user.email
-        else:
-            email = data["email"].strip().lower()
-            user = CustomUser.all_objects.filter(
-                email__iexact=email, deleted_at__isnull=True
-            ).first()
+        email = data["email"].strip().lower()
+        user = CustomUser.all_objects.filter(email__iexact=email, deleted_at__isnull=True).first()
         if user is None:
             role = Role.objects.filter(name=Role.Name.TEACHER).first()
             if role is None:
@@ -192,6 +181,8 @@ class TeacherService(BaseService):
         """Atualiza dados do professor e registra auditoria com valores antigos."""
         repo = _TeacherRepo()
         teacher = repo.get_by_id(teacher_id)
+        old_avatar_name = teacher.user.avatar.name
+        avatar_storage = teacher.user.avatar.storage
 
         self.validate_required(data, TEACHER_EDIT_REQUIRED_FIELDS)
 
@@ -214,7 +205,7 @@ class TeacherService(BaseService):
 
         user_updates = self._person_user_updates(data)
         if "email" in data:
-            from core.models import CustomUser
+            from core.contracts import CustomUser
 
             email = data["email"].strip().lower()
             if (
@@ -227,9 +218,19 @@ class TeacherService(BaseService):
         for field, value in user_updates.items():
             setattr(teacher.user, field, value)
         teacher.user.save(update_fields=[*user_updates.keys(), "updated_at"])
+        if "avatar" in user_updates:
+            from base.media import delete_replaced_file_after_commit
+
+            delete_replaced_file_after_commit(
+                avatar_storage, old_avatar_name, teacher.user.avatar.name
+            )
 
         updates["updated_by"] = self.user
-        teacher = repo.update(teacher, **updates)
+        teacher = repo.update(
+            teacher,
+            expected_version=data.get("version", teacher.version),
+            **updates,
+        )
         self._record_audit("UPDATE", teacher.user, old_values=user_old)
         self._record_audit("UPDATE", teacher, old_values=old)
         self._log("Professor atualizado", teacher_id=str(teacher.pk))

@@ -103,8 +103,13 @@ def event_create(request):
             for field, errors in exc.errors.items():
                 for error in errors:
                     form.add_error(field if field != "__all__" else None, error)
+        except BusinessRuleViolationError as exc:
+            form.add_error(None, exc.message)
         except ObjectNotFoundError as exc:
-            logger.warning("Entidade nao encontrada ao criar evento: %s", exc)
+            logger.warning(
+                "Entidade nao encontrada ao criar evento",
+                extra={"exception_type": type(exc).__name__},
+            )
             from django.contrib import messages
 
             messages.error(request, str(exc))
@@ -168,7 +173,10 @@ def event_cancel(request, pk):
     try:
         CalendarService(user=request.user).cancel_event(pk, request.POST.get("reason", ""))
     except (ValidationError, ObjectNotFoundError, BusinessRuleViolationError) as exc:
-        logger.warning("Erro ao cancelar evento: %s", exc, extra={"event_id": str(pk)})
+        logger.warning(
+            "Erro ao cancelar evento",
+            extra={"event_id": str(pk), "exception_type": type(exc).__name__},
+        )
         from django.contrib import messages
 
         messages.error(request, str(exc))

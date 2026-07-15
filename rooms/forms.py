@@ -2,10 +2,11 @@
 
 from django import forms
 
+from base.forms import VersionedModelForm
 from rooms.models import Room
 
 
-class RoomForm(forms.ModelForm):
+class RoomForm(VersionedModelForm):
     """Formulário ModelForm para criação/edição de salas.
 
     Expõe observações em texto livre, sem exigir conhecimento de JSON.
@@ -35,6 +36,7 @@ class RoomForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            field.required = True
+        for field_name, field in self.fields.items():
+            if field_name != "version":
+                field.required = True
         self.fields["observations"].required = False

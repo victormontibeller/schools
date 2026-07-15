@@ -1,5 +1,9 @@
 # Multi-Tenant
 
+> **Estado em 2026-07-13:** isolamento por schema, resolução por host, catálogo público,
+> validação de domínio e contexto Celery estão implementados. Apenas subdomínios gerenciados
+> são suportados em produção nesta etapa.
+
 ## Estratégia
 
 O sistema deverá utilizar **isolamento por Schema PostgreSQL**.
@@ -33,6 +37,15 @@ escola-b.plataforma.com  →  Schema: escola_b
 
 Um Middleware dedicado deverá identificar e ativar o Tenant em cada requisição. Caso o Tenant não seja identificado, a requisição deverá ser rejeitada.
 
+Em produção, `PLATFORM_DOMAIN` identifica o schema público e cada escola usa exatamente um nível
+sob `TENANT_BASE_DOMAIN`, por exemplo `escola.<base>`. Hosts são normalizados em minúsculas, sem
+porta, caminho ou ponto final; hosts desconhecidos ou fora da base são recusados. Somente
+`PLATFORM_DOMAIN` e `TENANT_BASE_DOMAIN` compõem a política de hosts.
+
+DNS deve publicar o host da plataforma e o wildcard `*.<base>`. O certificado wildcard é emitido
+por ACME DNS-01, com credencial do provedor armazenada como secret. Veja
+`docs/36_PRODUCTION_RUNBOOK.md`.
+
 ---
 
 ## Estrutura dos Schemas
@@ -63,5 +76,9 @@ sessão escolar não concede identidade em outra escola.
 Toda tarefa Celery deverá receber o identificador do Tenant e ativar o Schema correto no início da execução.
 
 Nenhuma tarefa assíncrona poderá ser executada sem o contexto do Tenant definido.
+
+O correlation ID é propagado automaticamente nos headers Celery. O schema continua argumento
+explícito e obrigatório das tarefas tenant-scoped; sinais apenas transportam observabilidade,
+não inferem autorização nem tenant.
 
 Toda chave Redis que represente dados escolares deve começar com `tenant:<schema>:`.

@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django_tenants.utils import schema_context, tenant_context
 
-from tenancy.models import Domain, School
+from tenancy.contracts import Domain, School
 
 
 class Command(BaseCommand):
@@ -27,7 +27,7 @@ class Command(BaseCommand):
                 defaults={"name": "School Manager Platform"},
             )
             Domain.objects.update_or_create(
-                domain="platform.localhost",
+                domain=settings.PLATFORM_DOMAIN,
                 defaults={"tenant": public_school, "is_primary": True},
             )
             user_model = get_user_model()
@@ -51,16 +51,15 @@ class Command(BaseCommand):
                 defaults={"name": "Escola Demonstração"},
             )
             Domain.objects.update_or_create(
-                domain="demo.localhost",
+                domain=f"{demo.schema_name}.{settings.TENANT_BASE_DOMAIN}",
                 defaults={"tenant": demo, "is_primary": True},
-            )
-            Domain.objects.update_or_create(
-                domain="localhost",
-                defaults={"tenant": demo, "is_primary": False},
             )
 
         with tenant_context(demo):
+            from core.access.services import AccessConfigurationService
             from core.models import CustomUser, Role
+
+            AccessConfigurationService().create_missing_access_defaults()
 
             role, _ = Role.objects.get_or_create(name=Role.Name.ADMIN)
             admin, _ = CustomUser.objects.get_or_create(
@@ -79,6 +78,13 @@ class Command(BaseCommand):
             admin.is_active = True
             admin.set_password(demo_password)
             admin.save()
+
+            from core.demo_seed import DemoSeedService
+
+            demo_seed = DemoSeedService(user=admin)
+            demo_seed.populate_core(demo)
+            demo_seed.populate_calendar()
+            demo_seed.populate_attendance()
 
         self.stdout.write(self.style.SUCCESS("Public e DEMO provisionados com sucesso."))
         self.stdout.write("Public: platform-admin@schools.local")

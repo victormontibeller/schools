@@ -1,6 +1,7 @@
 """Testes das views de consulta de usuários."""
 
 import pytest
+from django.test import override_settings
 from django.urls import reverse
 
 from core.models import CustomUser
@@ -144,3 +145,82 @@ def test_change_password_redirects_to_authenticated_user_detail(force_login_clie
 
     assert response.status_code == 302
     assert response.url == reverse("user_detail", kwargs={"pk": user.pk})
+
+
+@pytest.mark.django_db
+@override_settings(ALLOWED_HOSTS=["platform.localhost"])
+def test_platform_operator_list_renders_full_and_htmx(client, user, listed_user):
+    client.force_login(user)
+    url = reverse("platform_user_list")
+
+    response = client.get(url, HTTP_HOST="platform.localhost")
+    partial = client.get(
+        url,
+        {"q": "Listado", "sort": "-email"},
+        HTTP_HOST="platform.localhost",
+        HTTP_HX_REQUEST="true",
+    )
+
+    assert response.status_code == 200
+    assert partial.status_code == 200
+    assert b"<html" not in partial.content
+    assert str(listed_user.pk).encode() in partial.content
+
+
+@pytest.mark.django_db
+@override_settings(ALLOWED_HOSTS=["platform.localhost"])
+def test_platform_operator_create_rejects_common_password_in_form(client, user):
+    client.force_login(user)
+
+    response = client.post(
+        reverse("platform_user_create"),
+        {
+            "first_name": "Novo",
+            "last_name": "Operador",
+            "email": "novo-platform@example.com",
+            "password": "password",
+            "confirm_password": "password",
+        },
+        HTTP_HOST="platform.localhost",
+    )
+
+    assert response.status_code == 200
+    assert CustomUser.objects.filter(email="novo-platform@example.com").exists() is False
+    assert b"muito comum" in response.content
+
+
+@pytest.mark.django_db
+@override_settings(ALLOWED_HOSTS=["platform.localhost"])
+def test_platform_operator_edit_get_and_post(client, user, listed_user):
+    client.force_login(user)
+    url = reverse("platform_user_edit", args=[listed_user.pk])
+
+    get_response = client.get(url, HTTP_HOST="platform.localhost")
+    post_response = client.post(
+        url,
+        {
+            "first_name": "Operador",
+            "last_name": "Atualizado",
+            "is_active": "on",
+            "is_superuser": "on",
+        },
+        HTTP_HOST="platform.localhost",
+    )
+
+    listed_user.refresh_from_db()
+    assert get_response.status_code == 200
+    assert post_response.status_code == 302
+    assert listed_user.last_name == "Atualizado"
+    assert listed_user.is_superuser is True
+
+
+@pytest.mark.django_db
+@override_settings(ALLOWED_HOSTS=["platform.localhost"])
+def test_platform_operator_management_rejects_non_superuser(client, user):
+    user.is_superuser = False
+    user.save(update_fields=["is_superuser"])
+    client.force_login(user)
+
+    response = client.get(reverse("platform_user_list"), HTTP_HOST="platform.localhost")
+
+    assert response.status_code == 403

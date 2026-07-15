@@ -1,8 +1,11 @@
 {% extends "base.html" %}
+{% load ui_helpers %}
 
 {% block title %}Financeiro — School Manager{% endblock %}
 
 {% block content %}
+{% can_access_action "financeiro" "create" as can_create_finance %}
+{% can_access_action "financeiro" "edit" as can_edit_finance %}
 <div class="page-header">
     <div class="page-header-left d-flex align-items-center">
         <div class="page-header-title"><h5 class="m-b-10">Financeiro</h5></div>
@@ -13,12 +16,12 @@
     </div>
     <div class="page-header-right ms-auto">
         <div class="d-flex align-items-center gap-2">
-            <a href="{% url 'bulk_generate_billings' %}" class="btn btn-outline-primary btn-sm">
+            {% if can_edit_finance %}<a href="{% url 'bulk_generate_billings' %}" class="btn btn-outline-primary btn-sm">
                 <i class="feather-layers me-1"></i> Gerar Lote
-            </a>
-            <a href="{% url 'plan_create' %}" class="btn btn-primary btn-sm">
+            </a>{% endif %}
+            {% if can_create_finance %}<a href="{% url 'plan_create' %}" class="btn btn-primary btn-sm">
                 <i class="feather-plus me-1"></i> NOVO
-            </a>
+            </a>{% endif %}
         </div>
     </div>
 </div>

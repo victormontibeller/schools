@@ -44,8 +44,8 @@ class AttendanceService(BaseService):
         lesson_content e notes?.
         """
         from attendance.models import AttendanceEntry, AttendanceRecord
-        from classes.models import Class, Enrollment
-        from teachers.models import Subject, Teacher
+        from classes.contracts import Class, Enrollment
+        from teachers.contracts import Subject, Teacher
 
         self.validate_required(data, ["class_id", "subject_id", "teacher_id", "date"])
         if not data.get("lesson_content") and not getattr(self.user, "is_superuser", False):
@@ -64,9 +64,9 @@ class AttendanceService(BaseService):
         except Teacher.DoesNotExist:
             raise ObjectNotFoundError("Teacher", str(data["teacher_id"])) from None
 
-        self._validate_teacher_scope(cls, subject, teacher)
-
         date = data["date"]
+        self._validate_teacher_scope(cls, subject, teacher, date)
+
         lesson_number = int(data.get("lesson_number", 1) or 1)
         if AttendanceRecord.objects.filter(
             class_obj=cls, date=date, lesson_number=lesson_number
@@ -112,22 +112,28 @@ class AttendanceService(BaseService):
         )
         return record
 
-    def _validate_teacher_scope(self, class_obj, subject, teacher) -> None:
+    def _validate_teacher_scope(self, class_obj, subject, teacher, attendance_date) -> None:
         """Valida autoria, disciplina e vínculo do professor com a turma."""
         from base.exceptions import PermissionDeniedError
+        from core.access_selectors import ObjectAccessSelector
         from core.permissions import role_name
 
         if not teacher.subjects.filter(pk=subject.pk).exists():
             raise ValidationError(
                 errors={"subject": ["A disciplina não está vinculada ao professor."]}
             )
-        linked = (
-            class_obj.class_teacher_id == teacher.pk
-            or class_obj.schedules.filter(teacher=teacher).exists()
-        )
-        if not linked:
+        if not ObjectAccessSelector.teacher_has_current_class_subject(
+            teacher.pk,
+            class_obj.pk,
+            subject.pk,
+            attendance_date,
+        ):
             raise ValidationError(
-                errors={"class_obj": ["O professor não está vinculado a esta turma."]}
+                errors={
+                    "class_obj": [
+                        "Professor, turma e disciplina não possuem vínculo vigente na grade."
+                    ]
+                }
             )
         if role_name(self.user) == "TEACHER" and teacher.user_id != self.user.pk:
             raise PermissionDeniedError("Professor não autorizado para esta chamada.")
@@ -235,7 +241,7 @@ class AttendanceService(BaseService):
     def submit_justification(self, data: dict):
         """Aluno/responsável envia justificativa de ausência."""
         from attendance.models import AttendanceJustification
-        from students.models import Student
+        from students.contracts import Student
 
         self.validate_required(data, ["student_id", "start_date", "end_date", "reason"])
 

@@ -5,10 +5,16 @@ AUTH_USER_MODEL     = "core.CustomUser"
 School e Domain vivem no app compartilhado `tenancy`.
 """
 
-from django.contrib.auth.models import AbstractBaseUser, Permission, PermissionsMixin
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.db import models
 from django.utils import timezone
 
+from base.media import (
+    business_unit_logo_path,
+    get_private_storage,
+    get_public_storage,
+    user_avatar_path,
+)
 from base.models import BaseModel
 from base.upload_validators import validate_image_upload
 from core.managers import UserManager
@@ -44,7 +50,8 @@ class BusinessUnit(BaseModel):
     )
     contact_email = models.EmailField(blank=True, default="", verbose_name="E-mail do Responsavel")
     logo = models.ImageField(
-        upload_to="business_units/logos/",
+        upload_to=business_unit_logo_path,
+        storage=get_public_storage,
         null=True,
         blank=True,
         validators=[validate_image_upload],
@@ -100,7 +107,6 @@ class Role(BaseModel):
         GUARDIAN = "GUARDIAN", "Responsável"
 
     name = models.CharField(max_length=20, choices=Name.choices, unique=True)
-    permissions = models.ManyToManyField(Permission, blank=True)
 
     class Meta:
         verbose_name = "Perfil de Acesso"
@@ -112,6 +118,37 @@ class Role(BaseModel):
         return self.get_name_display()
 
 
+class RoleModuleAccess(BaseModel):
+    """Permissões de um papel para um módulo funcional do tenant."""
+
+    role = models.ForeignKey(
+        Role,
+        on_delete=models.PROTECT,  # Papéis fixos não podem perder sua política por cascata.
+        related_name="module_accesses",
+    )
+    module_key = models.CharField(max_length=50)
+    can_view = models.BooleanField(default=False)
+    can_create = models.BooleanField(default=False)
+    can_edit = models.BooleanField(default=False)
+    can_deactivate = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = "Acesso de Módulo"
+        verbose_name_plural = "Acessos de Módulo"
+        ordering = ["role__name", "module_key"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["role", "module_key"],
+                name="uniq_role_module_access",
+            )
+        ]
+        indexes = [models.Index(fields=["role", "module_key"])]
+
+    def __str__(self) -> str:
+        """Representa o vínculo sem expor dados pessoais."""
+        return f"{self.role.name}:{self.module_key}"
+
+
 # ── Usuário ────────────────────────────────────────────────────────────────────
 
 
@@ -121,14 +158,14 @@ class CustomUser(AbstractBaseUser, PermissionsMixin, BaseModel):
     class AccessMode(models.TextChoices):
         STANDARD = "STANDARD", "Padrão"
         DEMO = "DEMO", "Demonstração"
-        SUPPORT = "SUPPORT", "Suporte da plataforma"
 
     email = models.EmailField(unique=True, verbose_name="E-mail")
     first_name = models.CharField(max_length=150)
     last_name = models.CharField(max_length=150)
     phone = models.CharField(max_length=20, blank=True, default="")
     avatar = models.ImageField(
-        upload_to="accounts/avatars/",
+        upload_to=user_avatar_path,
+        storage=get_private_storage,
         null=True,
         blank=True,
         validators=[validate_image_upload],

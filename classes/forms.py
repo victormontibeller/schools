@@ -4,10 +4,11 @@ import json
 
 from django import forms
 
+from base.forms import VersionedModelForm
 from classes.models import GRADES_BY_EDUCATION_STAGE, Class
 
 
-class ClassForm(forms.ModelForm):
+class ClassForm(VersionedModelForm):
     """Formulário ModelForm para criação/edição de turmas."""
 
     class Meta:
@@ -44,8 +45,9 @@ class ClassForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            field.required = True
+        for field_name, field in self.fields.items():
+            if field_name != "version":
+                field.required = True
         if not self.is_bound and self.instance._state.adding:
             self.fields["education_stage"].choices = [
                 ("", "---------"),
@@ -64,16 +66,6 @@ class ClassForm(forms.ModelForm):
                 "data-grade-options": json.dumps(grade_options, ensure_ascii=False),
             }
         )
-        current_grade = getattr(self.instance, "grade", "") if self.instance else ""
-        valid_grades = {choice.value for choice in Class.Grade}
-        self.legacy_grade = (
-            current_grade if current_grade and current_grade not in valid_grades else ""
-        )
-        if self.legacy_grade:
-            self.fields["grade"].choices = [
-                *self.fields["grade"].choices,
-                (self.legacy_grade, f"Valor legado — {self.legacy_grade}"),
-            ]
 
 
 class EnrollmentForm(forms.Form):

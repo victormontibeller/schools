@@ -66,8 +66,6 @@ class AuditService(BaseService):
             old_values=self._redact(old_values),
             new_values=self._redact(new_values),
             correlation_id=context.correlation_id.get(),
-            platform_actor_id=context.platform_actor_id.get(),
-            support_grant_id=context.support_grant_id.get(),
         )
 
     @staticmethod

@@ -3,7 +3,7 @@
 # Ver docs/02_ARCHITECTURE.md e docs/07_OBSERVABILITY.md.
 services:
   postgres:
-    image: postgres:15
+    image: postgres:15@sha256:bcab099bfaab33333a73a2ebe8c1d615c9f4c2402dd43452f989a36c6da9a5ba
     environment:
       POSTGRES_DB: schools_db
       POSTGRES_USER: postgres
@@ -18,7 +18,7 @@ services:
     networks: [backend]
 
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -27,7 +27,7 @@ services:
     networks: [backend]
 
   rabbitmq:
-    image: rabbitmq:3-management-alpine
+    image: rabbitmq:3-management-alpine@sha256:606d8c0d6b3c18d1da9afc53bc7cdb2a8d5486df91b5a9830e9e07626c9ae281
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
@@ -45,7 +45,7 @@ services:
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - .:/app
-      - media:/app/media
+      - ./media:/app/media
     env_file:
       - .env
     environment:
@@ -73,6 +73,7 @@ services:
     command: celery -A core.celery worker --loglevel=info
     volumes:
       - .:/app
+      - ./media:/app/media
     env_file:
       - .env
     environment:
@@ -87,6 +88,20 @@ services:
       rabbitmq:
         condition: service_healthy
     networks: [backend]
+
+  media-public:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./media:/srv/media:ro
+      - ./docker/nginx/media.conf:/etc/nginx/conf.d/default.conf:ro
+    networks: [proxy]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=schools_proxy"
+      - "traefik.http.routers.schools-media.rule=HostRegexp(`[a-z0-9.-]+`) && PathPrefix(`/media/`)"
+      - "traefik.http.routers.schools-media.entrypoints=web"
+      - "traefik.http.routers.schools-media.priority=100"
+      - "traefik.http.services.schools-media.loadbalancer.server.port=80"
 
   beat:
     build: .
@@ -110,7 +125,7 @@ services:
 
   # ── Reverse Proxy / TLS ────────────────────────────────────────────────────
   traefik:
-    image: traefik:v2.11
+    image: traefik:v3.5.4@sha256:4df0a50fcf71b454c0d7ad17675776dc8d37359deae3291895bdaa008c1b9972
     command:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
@@ -139,7 +154,7 @@ services:
 
   # ── Observabilidade: Prometheus ──────────────────────────────────────────────
   prometheus:
-    image: prom/prometheus:v2.54.1
+    image: prom/prometheus:v2.54.1@sha256:f6639335d34a77d9d9db382b92eeb7fc00934be8eae81dbc03b31cfe90411a94
     volumes:
       - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
@@ -153,7 +168,7 @@ services:
 
   # ── Observabilidade: Grafana ─────────────────────────────────────────────────
   grafana:
-    image: grafana/grafana:11.2.0
+    image: grafana/grafana:11.2.0@sha256:408afb9726de5122b00a2576763a8a57a3c86d5b0eff5305bc994ceb3eb96c3f
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
@@ -173,7 +188,7 @@ services:
 
   # ── Observabilidade: Loki ──────────────────────────────────────────────────────
   loki:
-    image: grafana/loki:3.1.2
+    image: grafana/loki:3.1.2@sha256:ae0d78305c9c06512dfdee24b518eee82716269707c5e02ce62462c415a2f0c2
     command: -config.file=/etc/loki/loki-config.yml
     volumes:
       - ./docker/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
@@ -184,7 +199,7 @@ services:
 
   # ── Coleta de logs: Promtail ──────────────────────────────────────────────────
   promtail:
-    image: grafana/promtail:3.1.2
+    image: grafana/promtail:3.1.2@sha256:47c3488971ca1e115df050835882399044fbd7c89f3970ae6f8ee8e713774302
     volumes:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -198,7 +213,6 @@ services:
 
 volumes:
   pgdata:
-  media:
   acme:
   prometheus_data:
   grafana_data:

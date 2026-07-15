@@ -1,4 +1,4 @@
-"""Rotas de acesso temporário da plataforma."""
+"""Rotas do catálogo público de escolas."""
 
 from django.urls import path
 
@@ -17,7 +17,4 @@ urlpatterns = [
         views.platform_school_edit,
         name="platform_school_edit",
     ),
-    path("platform/support/", views.support_access_create, name="support_access_create"),
-    path("support/consume/", views.support_access_consume, name="support_access_consume"),
-    path("support/end/", views.support_access_end, name="support_access_end"),
 ]

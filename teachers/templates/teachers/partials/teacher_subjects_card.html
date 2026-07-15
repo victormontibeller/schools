@@ -1,14 +1,16 @@
+{% load ui_helpers %}
+{% can_access_action "teachers" "edit" as can_edit_teacher %}
 <div class="card mb-3 sm-profile-card" id="teacher-subjects-card">
     <div class="card-header d-flex align-items-center justify-content-between gap-2">
         <h6 class="card-title mb-0">Disciplinas</h6>
         <div class="d-flex align-items-center gap-2">
-            <button type="button"
+            {% if can_edit_teacher %}<button type="button"
                     class="btn btn-sm btn-outline-primary"
                     hx-get="{% url 'teacher_edit' teacher.pk %}?component=subjects"
                     hx-target="#teacher-subjects-card"
                     hx-swap="outerHTML">
                 <i class="feather-book-open me-1"></i> Vincular
-            </button>
+            </button>{% endif %}
         </div>
     </div>
     <div class="card-body sm-selection-card-body">

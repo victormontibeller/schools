@@ -177,8 +177,6 @@ class BaseService:
             "user_id": context.user_id.get(),
             "correlation_id": context.correlation_id.get(),
             "tenant": context.current_tenant.get(),
-            "platform_actor_id": context.platform_actor_id.get(),
-            "support_grant_id": context.support_grant_id.get(),
             **extra,
         }
         getattr(logger, level)(message, extra=log_data)
@@ -190,10 +188,11 @@ class BaseService:
         old_values: dict | None = None,
         new_values: dict | None = None,
     ) -> None:
-        from audit.services import AuditService
         from base.events import DomainEvent, dispatcher
+        from base.ports import record_audit
 
-        AuditService(user=self.user).record(
+        record_audit(
+            user=self.user,
             operation=operation,
             instance=instance,
             old_values=old_values,
@@ -256,7 +255,12 @@ class BaseService:
         super().__init_subclass__(**kwargs)
         from django.db import transaction
 
-        for name, method in tuple(cls.__dict__.items()):
+        methods = dict(cls.__dict__)
+        for base_class in cls.__mro__[1:]:
+            for name, method in base_class.__dict__.items():
+                methods.setdefault(name, method)
+
+        for name, method in tuple(methods.items()):
             if not name.startswith(cls._MUTATION_PREFIXES) or not callable(method):
                 continue
             if getattr(method, "_base_service_atomic", False):
@@ -266,9 +270,9 @@ class BaseService:
             @wraps(method)
             def authorized(self, *args, __method=method, __name=name, __app=app_label, **kwargs):
                 from base.exceptions import PermissionDeniedError
-                from core.permissions import can_execute_service
+                from base.ports import can_execute
 
-                if not can_execute_service(self.user, __app, __name):
+                if not can_execute(self.user, __app, __name, type(self).__name__):
                     raise PermissionDeniedError("Sem permissão para executar esta operação.")
                 return __method(self, *args, **kwargs)
 

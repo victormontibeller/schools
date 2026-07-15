@@ -110,8 +110,11 @@ class DashboardService(BaseService):
             else:
                 for prefix in CACHE_TTL:
                     cache.delete(self._cache_key(prefix))
-        except Exception:
-            logger.warning("dashboard_cache_invalidation_failed", exc_info=True)
+        except Exception as exc:
+            logger.warning(
+                "dashboard_cache_invalidation_failed",
+                extra={"exception_type": type(exc).__name__},
+            )
         self._log("Cache de dashboard invalidado", key=key or "all")
 
     # ── Helpers ──────────────────────────────────────────────────────────────
@@ -129,8 +132,11 @@ class DashboardService(BaseService):
         """cache.set com fallback silencioso se Redis indisponivel."""
         try:
             cache.set(key, value, timeout=timeout)
-        except Exception:
-            logger.warning("dashboard_cache_write_failed", exc_info=True)
+        except Exception as exc:
+            logger.warning(
+                "dashboard_cache_write_failed",
+                extra={"exception_type": type(exc).__name__},
+            )
 
     def _cached(self, key: str, fn, *args, tenant_schema: str | None = None, **kwargs):
         """Executa funcao com cache Redis individual."""

@@ -35,7 +35,7 @@ def _labels(navigation):
         ("COORDINATOR", {"Acadêmico", "Secretaria", "Coordenação"}),
         ("SECRETARY", {"Acadêmico", "Secretaria"}),
         ("TEACHER", {"Rotina Docente", "Planejamento"}),
-        ("FINANCE", {"Financeiro"}),
+        ("FINANCE", {"Acadêmico", "Secretaria", "Financeiro"}),
         ("GUARDIAN", {"Acompanhamento"}),
     ],
 )
@@ -48,7 +48,11 @@ def test_build_school_navigation_filters_groups_by_role(role_name, expected_grou
 def test_build_school_navigation_hides_unauthorized_items():
     labels = _labels(build_school_navigation(_user("FINANCE"), "finance_dashboard"))
 
-    assert labels == {"Financeiro": ["Visão Financeira"]}
+    assert labels == {
+        "Acadêmico": ["Turmas"],
+        "Secretaria": ["Alunos"],
+        "Financeiro": ["Visão Financeira"],
+    }
 
 
 @pytest.mark.parametrize(
@@ -68,7 +72,7 @@ def test_build_school_navigation_hides_unauthorized_items():
                 "Secretaria": ["Professores", "Alunos", "Responsáveis", "Matrículas"],
                 "Coordenação": ["Calendário", "Feriados", "Anos Letivos", "Comunicados"],
                 "Financeiro": ["Visão Financeira"],
-                "Administração": ["Salas", "Unidades", "Escola", "Usuários"],
+                "Administração": ["Salas", "Unidades", "Escola", "Usuários", "Acessos"],
             },
         ),
         (
@@ -214,7 +218,7 @@ def test_school_navigation_uses_canonical_overview_link(client, user):
 
     assert response.status_code == 200
     assert f'href="{reverse("dashboard")}"' in content
-    assert f'href="{reverse("school_dashboard")}"' not in content
+    assert 'href="/dashboard/"' not in content
     assert 'id="app-main"' in content
     assert "hx-history-elt" in content
     assert '<ul class="nxl-navbar" id="school-navigation">' in content

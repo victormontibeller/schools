@@ -96,6 +96,7 @@ class TestTeacherEditForm:
                 "cpf": "390.533.447-05",
                 "rg_number": "1234567",
                 "phone_mobile": "(11) 99999-0000",
+                "version": 0,
             }
         )
 

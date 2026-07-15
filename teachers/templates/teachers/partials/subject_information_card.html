@@ -1,16 +1,19 @@
+{% load ui_helpers %}
+{% can_access_action "subjects" "edit" as can_edit_subject %}
+{% can_access_action "subjects" "deactivate" as can_deactivate_subject %}
 <div class="card mb-0 sm-detail-card" id="subject-information-card">
     <div class="card-header d-flex align-items-center justify-content-between gap-2">
         <h6 class="card-title mb-0">Informações da Disciplina</h6>
         <div class="d-flex gap-2">
-            <button type="button" class="btn btn-sm btn-outline-primary"
+            {% if can_edit_subject %}<button type="button" class="btn btn-sm btn-outline-primary"
                     hx-get="{% url 'subject_edit' subject.pk %}"
                     hx-target="#subject-information-card" hx-swap="outerHTML">
                 <i class="feather-edit-2 me-1"></i> Editar
-            </button>
-            <form method="post" action="{% url 'subject_deactivate' subject.pk %}">
+            </button>{% endif %}
+            {% if can_deactivate_subject %}<form method="post" action="{% url 'subject_deactivate' subject.pk %}">
                 {% csrf_token %}
                 <button class="btn btn-sm btn-outline-danger" hx-confirm="Desativar {{ subject.name }}?">Desativar</button>
-            </form>
+            </form>{% endif %}
         </div>
     </div>
     <div class="card-body">

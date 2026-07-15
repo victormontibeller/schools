@@ -1,4 +1,4 @@
-# ADR-0006 — Identidade por schema e acesso temporário de suporte
+# ADR-0006 — Identidade por schema e suporte cross-schema adiado
 
 ## Status
 
@@ -6,23 +6,20 @@ Aceito.
 
 ## Contexto
 
-Usuários no schema público eram visíveis em todos os tenants pelo `search_path`, permitindo
-autenticação e seleção de destinatários fora da escola correta. Ao mesmo tempo, operadores da
-plataforma precisam diagnosticar tenants sem compartilhar credenciais escolares.
+Identidades compartilhadas pelo `search_path` permitiam autenticação e seleção de destinatários
+fora da escola correta. O produto ainda está em desenvolvimento e não necessita de impersonação
+operacional.
 
 ## Decisão
 
-`tenancy.School`, `Domain` e `SupportAccessGrant` são compartilhados. `core.CustomUser`, papéis,
-auth e sessions existem separadamente em cada schema, inclusive no `public`. O login sempre usa
-o domínio atual. Operadores públicos entram num tenant somente por concessão de uso único com
-motivo, expiração, conta técnica sem senha e rastreabilidade do ator público.
-
-Cache escolar inclui o schema na chave. Auditoria é síncrona e participa da mesma transação da
-mutação; eventos não críticos continuam isolando falhas.
+`tenancy.School` e `Domain` são compartilhados. `core.CustomUser`, papéis, autenticação e sessões
+existem separadamente em cada schema, inclusive no `public`. O login sempre usa o domínio atual.
+Operadores públicos administram o catálogo, mas não acessam tenants. Suporte cross-schema foi
+adiado e exigirá novo ADR e revisão de segurança antes de existir.
 
 ## Consequências
 
 - O mesmo e-mail pode existir em escolas diferentes.
 - Usuários escolares não atravessam tenants.
-- Suporte cross-schema é explícito, temporário e auditável.
-- Migrations anteriores foram rebaselineadas antes da entrada em produção.
+- Não existem grants, conta técnica, modo `SUPPORT` ou permissão `access_tenant`.
+- As migrations foram reinicializadas antes da entrada em produção.

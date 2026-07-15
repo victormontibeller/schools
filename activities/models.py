@@ -90,7 +90,14 @@ class ActivitySubmission(BaseModel):
         verbose_name = "Entrega"
         verbose_name_plural = "Entregas"
         ordering = ["-submitted_at"]
-        unique_together = [("activity", "student")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["activity", "student"],
+                condition=models.Q(is_active=True, deleted_at__isnull=True),
+                name="unique_active_activity_student_submission",
+            )
+        ]
+        indexes = [models.Index(fields=["activity", "student"])]
 
     def __str__(self) -> str:
         """Retorna a identificação curta da entrega."""

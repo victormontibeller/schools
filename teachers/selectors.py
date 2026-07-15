@@ -82,6 +82,43 @@ class SubjectSelector(BaseSelector):
 
         return Subject
 
-    def list_subjects(self, filters=None, order_by="name", page=1, page_size=50) -> PageResult:
+    def list_subjects(
+        self,
+        filters=None,
+        order_by="name",
+        page=1,
+        page_size=50,
+        user_id=None,
+        role_name: str = "",
+    ) -> PageResult:
         """Lista disciplinas com filtros e paginação."""
-        return self.list(filters=filters, order_by=order_by, page=page, page_size=page_size)
+        if role_name != "TEACHER":
+            return self.list(filters=filters, order_by=order_by, page=page, page_size=page_size)
+        queryset = self.model_class.objects.filter(
+            teachers__user_id=user_id,
+            **(filters or {}),
+        ).distinct()
+        return self._paginate(queryset.order_by(order_by), page=page, page_size=page_size)
+
+    @staticmethod
+    def teacher_can_access_subject(user_id, subject_id) -> bool:
+        """Confirma atribuição da disciplina ao professor autenticado."""
+        from teachers.models import Subject
+
+        return Subject.objects.filter(pk=subject_id, teachers__user_id=user_id).exists()
+
+    @staticmethod
+    def _paginate(queryset, *, page: int, page_size: int) -> PageResult:
+        """Pagina o queryset restrito sem expor ORM à view."""
+        from base.selectors import MAX_PAGE_SIZE
+
+        page = max(1, page)
+        page_size = min(max(1, page_size), MAX_PAGE_SIZE)
+        total = queryset.count()
+        offset = (page - 1) * page_size
+        return PageResult(
+            items=list(queryset[offset : offset + page_size]),
+            total=total,
+            page=page,
+            page_size=page_size,
+        )

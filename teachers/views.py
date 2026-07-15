@@ -5,8 +5,14 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
-from base.exceptions import BusinessRuleViolationError, ValidationError
+from base.exceptions import (
+    BusinessRuleViolationError,
+    ObjectNotFoundError,
+    PermissionDeniedError,
+    ValidationError,
+)
 from base.listing import build_querystring, build_sorting, resolve_listing_state
+from base.media import private_file_response
 from teachers.forms import SubjectForm, TeacherEditForm, TeacherForm, TeacherSubjectsForm
 from teachers.selectors import SubjectSelector, TeacherSelector
 from teachers.services import SubjectService, TeacherService
@@ -21,6 +27,20 @@ TEACHER_SORTS = {
     "hire_date": "hire_date",
     "-hire_date": "-hire_date",
 }
+
+
+@login_required
+def teacher_avatar(request, pk):
+    """Entrega avatar privado do professor dentro do escopo autorizado."""
+    teacher = TeacherSelector().get_teacher_by_id(pk)
+    from core.permissions import can_access_module
+
+    allowed = teacher.user_id == request.user.pk or can_access_module(request.user, "teachers")
+    if not allowed:
+        raise PermissionDeniedError("Sem permissão para acessar esta foto.")
+    if not teacher.user.avatar:
+        raise ObjectNotFoundError("TeacherAvatar", str(pk))
+    return private_file_response(teacher.user.avatar, as_attachment=False)
 
 
 @login_required
@@ -150,7 +170,7 @@ def teacher_edit(request, pk):
                     for error in errors:
                         form.add_error(field if field != "__all__" else None, error)
             except BusinessRuleViolationError as exc:
-                messages.error(request, exc.message)
+                form.add_error(None, exc.message)
     else:
         form = TeacherEditForm(
             initial={
@@ -169,6 +189,7 @@ def teacher_edit(request, pk):
                 "phone_mobile": teacher.phone_mobile,
                 "accepts_email_notifications": teacher.accepts_email_notifications,
                 "accepts_whatsapp_notifications": teacher.accepts_whatsapp_notifications,
+                "version": teacher.version,
             }
         )
 
@@ -240,7 +261,14 @@ def subjects_list(request):
     filters = {}
     if search:
         filters["name__icontains"] = search
-    result = SubjectSelector().list_subjects(filters=filters, order_by=sort, page=page)
+    role_name = getattr(getattr(request.user, "role", None), "name", "")
+    result = SubjectSelector().list_subjects(
+        filters=filters,
+        order_by=sort,
+        page=page,
+        user_id=request.user.pk,
+        role_name=role_name,
+    )
     ctx = {
         "result": result,
         "q": search,

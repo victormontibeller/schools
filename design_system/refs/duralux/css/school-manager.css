@@ -394,6 +394,23 @@
     padding: 0;
 }
 
+/* Tabelas operacionais compactas: neutraliza o padding amplo do tema Duralux. */
+.table-responsive .table.sm-compact-table > thead > tr > th {
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+}
+
+.table-responsive .table.sm-compact-table > tbody > tr > td {
+    padding-top: 0.3rem;
+    padding-bottom: 0.3rem;
+}
+
+.table.sm-compact-table .form-control-sm {
+    min-height: 1.75rem;
+    padding: 0.2rem 0.5rem;
+    line-height: 1.25;
+}
+
 .address-display {
     line-height: 1.5;
 }
@@ -975,7 +992,7 @@
     font-size: 13px;
 }
 
-.sm-nav-group .nxl-submenu > .nxl-item.active > .nxl-link {
+html.app-skin-dark .sm-nav-group .nxl-submenu > .nxl-item.active > .nxl-link {
     color: #fff;
     background: rgba(255, 255, 255, 0.08);
 }
@@ -1276,4 +1293,225 @@ html.app-skin-dark #calendar-workspace .sm-calendar-summary span {
     }
 
     #calendar-workspace .sm-calendar-summary span { font-size: .58rem; }
+}
+
+/* Central de acessos */
+.sm-access-table-responsive {
+    max-height: min(68vh, 760px);
+    overflow: auto;
+}
+
+.sm-access-table {
+    min-width: 1040px;
+    table-layout: fixed;
+}
+
+.sm-access-table > thead > tr > th {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    background: #f8f9fc;
+    box-shadow: inset 0 -1px 0 #e9ecef;
+}
+
+.sm-access-table .sm-access-module-column {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    width: 190px;
+    min-width: 190px;
+    background: #fff;
+    box-shadow: inset -1px 0 0 #e9ecef;
+}
+
+.sm-access-table > thead .sm-access-module-column {
+    z-index: 5;
+    background: #f8f9fc;
+}
+
+.sm-access-role-column,
+.sm-access-cell {
+    width: 170px;
+    min-width: 170px;
+}
+
+.sm-access-cell {
+    vertical-align: middle;
+}
+
+.sm-access-table > tbody > tr:not(.sm-access-department-row) > .sm-access-module-column {
+    padding-top: .3rem;
+    padding-right: 15px;
+    padding-bottom: .3rem;
+    padding-left: 30px;
+}
+
+.sm-access-department-row > th {
+    padding-top: .4rem;
+    padding-right: 15px;
+    padding-bottom: .4rem;
+    padding-left: 30px;
+    background: #f3f5f9;
+    color: #525b6c;
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.sm-access-dropdown {
+    display: grid;
+    width: 100%;
+    max-width: 158px;
+    gap: .3rem;
+    margin: 0 auto;
+}
+
+.sm-access-selector {
+    display: flex;
+    min-height: 36px;
+    width: 100%;
+    align-items: center;
+    justify-content: flex-start;
+    gap: .3rem;
+    padding: .35rem .55rem;
+    border-color: #d7dce5;
+    background: #fff;
+    color: #283342;
+}
+
+.sm-access-selector:hover,
+.sm-access-selector:focus,
+.sm-access-selector[aria-expanded="true"] {
+    border-color: #4361ee;
+    background: #f6f7ff;
+    color: #283342;
+}
+
+.sm-access-summary {
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
+    gap: .22rem;
+}
+
+.sm-access-action-badge {
+    min-width: 1.45rem;
+    padding: .28rem .35rem;
+    background: #e9edff;
+    color: #364fc7;
+    font-size: .68rem;
+    font-weight: 700;
+}
+
+.sm-access-empty {
+    overflow: hidden;
+    color: #6b7280;
+    font-size: .75rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sm-access-dropdown-menu {
+    min-width: 245px;
+    border-color: #e1e5ec;
+    box-shadow: 0 .5rem 1.4rem rgba(30, 39, 57, .14);
+    text-align: left;
+}
+
+html.app-skin-dark .sm-access-table > thead > tr > th {
+    border-color: #273550;
+    color: #cbd5e1;
+    background: #16213d;
+    box-shadow: inset 0 -1px 0 #273550;
+}
+
+html.app-skin-dark .sm-access-table .sm-access-module-column {
+    border-color: #273550;
+    color: #e2e8f0;
+    background: #0f172a;
+    box-shadow: inset -1px 0 0 #273550;
+}
+
+html.app-skin-dark .sm-access-table > thead .sm-access-module-column {
+    background: #16213d;
+    box-shadow: inset -1px 0 0 #273550, inset 0 -1px 0 #273550;
+}
+
+html.app-skin-dark .sm-access-table > tbody > tr:not(.sm-access-department-row):hover > .sm-access-module-column {
+    background: #1e293b;
+}
+
+html.app-skin-dark .sm-access-department-row > th {
+    border-color: #273550;
+    color: #cbd5e1;
+    background: #16213d;
+    box-shadow: none;
+}
+
+html.app-skin-dark .sm-access-selector {
+    border-color: #273550;
+    color: #e2e8f0;
+    background: #121a2d;
+}
+
+html.app-skin-dark .sm-access-selector:hover,
+html.app-skin-dark .sm-access-selector:focus,
+html.app-skin-dark .sm-access-selector[aria-expanded="true"] {
+    border-color: #3b82f6;
+    color: #fff;
+    background: #1e293b;
+}
+
+html.app-skin-dark .sm-access-action-badge {
+    color: #bfdbfe;
+    background: #1e3a5f;
+}
+
+html.app-skin-dark .sm-access-empty {
+    color: #94a3b8;
+}
+
+html.app-skin-dark .sm-access-dropdown-menu {
+    border-color: #273550;
+    color: #e2e8f0;
+    background: #0f172a;
+    box-shadow: 0 .5rem 1.4rem rgba(0, 0, 0, .35);
+}
+
+html.app-skin-dark .sm-access-dropdown-menu .form-check-label {
+    color: #e2e8f0;
+}
+
+html.app-skin-dark .sm-access-dropdown-menu .form-check-input:not(:checked) {
+    border-color: #64748b !important;
+    background-color: #0f172a !important;
+}
+
+html.app-skin-dark .sm-access-dropdown-menu .form-check-input:checked {
+    border-color: #3454d1 !important;
+    background-color: #3454d1 !important;
+}
+
+@media (max-width: 767.98px) {
+    .sm-access-table-responsive {
+        max-height: 72vh;
+    }
+
+    .sm-access-table .sm-access-module-column {
+        width: 175px;
+        min-width: 175px;
+    }
+
+    .sm-access-role-column,
+    .sm-access-cell {
+        width: 175px;
+        min-width: 175px;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .sm-access-search-wrap {
+        width: 100%;
+    }
 }

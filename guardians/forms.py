@@ -2,68 +2,7 @@
 
 from django import forms
 
-from students.models import Student
-
-
-class GuardianForm(forms.Form):
-    """Formulário de criação de responsável a partir de usuário existente."""
-
-    REQUIRED_FIELDS = (
-        "user_id",
-        "relationship_type",
-        "birth_date",
-        "gender",
-        "cpf",
-        "rg_number",
-        "phone_mobile",
-    )
-
-    user_id = forms.UUIDField(
-        label="Usuário",
-        widget=forms.Select(attrs={"class": "form-select"}),
-    )
-    birth_date = forms.DateField(
-        required=False,
-        label="Data de Nascimento",
-        widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
-    )
-    gender = forms.ChoiceField(
-        required=False,
-        label="Gênero",
-        widget=forms.Select(attrs={"class": "form-select"}),
-    )
-    cpf = forms.CharField(
-        max_length=14,
-        required=False,
-        label="CPF",
-        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "000.000.000-00"}),
-    )
-    rg_number = forms.CharField(
-        max_length=20,
-        required=False,
-        label="RG — Número",
-        widget=forms.TextInput(attrs={"class": "form-control"}),
-    )
-    phone_mobile = forms.CharField(
-        max_length=20,
-        required=False,
-        label="Celular",
-        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "(00) 00000-0000"}),
-    )
-
-    def __init__(self, *args, **kwargs):
-        """Popula choices de parentesco e o queryset lazy de usuários."""
-        super().__init__(*args, **kwargs)
-        from core.models import CustomUser
-        from guardians.models import Guardian
-
-        self.fields["relationship_type"].choices = Guardian.Relationship.choices
-        self.fields["user_id"].widget.choices = CustomUser.objects.filter(
-            is_active=True
-        ).values_list("pk", "email")
-        self.fields["gender"].choices = Guardian.Gender.choices
-        for field_name in self.REQUIRED_FIELDS:
-            self.fields[field_name].required = True
+from students.contracts import Student
 
 
 class StudentGuardianForm(forms.Form):
@@ -157,8 +96,7 @@ class GuardianCreateForm(GuardianLinkForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # O parentesco aparece junto dos dados de vínculo, mas os demais dados
-        # pessoais mantêm o mesmo contrato obrigatório do domínio legado.
+        # O parentesco pertence ao vínculo; os dados pessoais pertencem ao contato.
         for name in (
             "birth_date",
             "gender",
@@ -208,6 +146,8 @@ class GuardianCreateForm(GuardianLinkForm):
 
 class GuardianEditForm(forms.Form):
     """Formulario de edicao de responsavel."""
+
+    version = forms.IntegerField(required=False, min_value=0, widget=forms.HiddenInput())
 
     REQUIRED_FIELDS = (
         "first_name",
@@ -279,8 +219,9 @@ class GuardianEditForm(forms.Form):
         widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, require_version=False, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["version"].required = require_version
         from guardians.models import Guardian
 
         self.fields["gender"].choices = Guardian.Gender.choices
@@ -299,6 +240,7 @@ class GuardianEditForm(forms.Form):
                 "phone_mobile",
                 "accepts_email_notifications",
                 "accepts_whatsapp_notifications",
+                "version",
             ]
         )
 
@@ -307,7 +249,7 @@ class GuardianContactEditForm(GuardianEditForm):
     """Edição da pessoa dentro do perfil do aluno, sem campos do vínculo."""
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, require_version=True, **kwargs)
         self.fields.pop("relationship_type", None)
         for field_name, field in self.fields.items():
             if field_name != "avatar":

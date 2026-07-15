@@ -193,7 +193,7 @@ class TestStudentViews:
         u = CustomUser.objects.create_user(
             email="resp@prof.test", password="Senha123", first_name="R", last_name="L"
         )
-        g = Guardian.objects.create(user=u, relationship_type="PAI")
+        g = Guardian.objects.create(user=u)
         StudentGuardian.objects.create(student=s, guardian=g, is_primary=True)
 
         resp = force_login_client.get(f"/students/{s.pk}/")
@@ -224,7 +224,7 @@ class TestGuardianViews:
     def _make(self, email="g@example.com", rel="MAE"):
         from guardians.models import Guardian
 
-        return Guardian.objects.create(user=self._make_user(email), relationship_type=rel)
+        return Guardian.objects.create(user=self._make_user(email))
 
     def test_guardians_list_requires_login(self, client):
         assert client.get("/guardians/").status_code == 302
@@ -262,7 +262,7 @@ class TestGuardianViews:
         u = CustomUser.objects.create_user(
             email="ge@test.com", password="Senha123", first_name="GE", last_name="Test"
         )
-        g = Guardian.objects.create(user=u, relationship_type="PAI")
+        g = Guardian.objects.create(user=u)
         resp = force_login_client.get(f"/guardians/{g.pk}/editar/")
         assert resp.status_code == 200
 
@@ -273,7 +273,7 @@ class TestGuardianViews:
         u = CustomUser.objects.create_user(
             email="ge2@test.com", password="Senha123", first_name="GE2", last_name="Test"
         )
-        g = Guardian.objects.create(user=u, relationship_type="PAI", phone="111")
+        g = Guardian.objects.create(user=u, phone="111")
         resp = force_login_client.post(
             f"/guardians/{g.pk}/editar/",
             {
@@ -291,6 +291,7 @@ class TestGuardianViews:
                 "phone": "999",
                 "phone_whatsapp": "11999991111",
                 "phone_mobile": "11988882222",
+                "version": g.version,
             },
         )
         assert resp.status_code == 302
@@ -328,6 +329,7 @@ class TestGuardianViews:
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "email": user.email,
+                "version": t.version,
             },
         )
         assert resp.status_code == 302

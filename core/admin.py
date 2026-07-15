@@ -16,7 +16,6 @@ class BusinessUnitAdmin(admin.ModelAdmin):
 @admin.register(Role)
 class RoleAdmin(admin.ModelAdmin):
     list_display = ["name", "created_at"]
-    filter_horizontal = ["permissions"]
     readonly_fields = ["created_at", "updated_at"]
 
 
@@ -34,7 +33,6 @@ class CustomUserAdmin(UserAdmin):
             "Acesso",
             {"fields": ("role", "access_mode", "is_active", "is_staff", "is_superuser")},
         ),
-        ("Permissões", {"fields": ("groups", "user_permissions")}),
         (
             "Datas",
             {
