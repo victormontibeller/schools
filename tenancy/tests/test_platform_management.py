@@ -154,11 +154,19 @@ def test_update_platform_school_changes_catalog_and_primary_domain(platform_admi
             "domain": "atualizada.localhost",
             "email": "contato@example.com",
             "is_active": False,
+            "resend_domain": "mail.example.com",
+            "resend_from_email": "agenda@mail.example.com",
+            "resend_verified": True,
         },
     )
 
     assert updated.name == "Escola Atualizada"
     assert updated.is_active is False
+    assert updated.settings["email"] == {
+        "resend_domain": "mail.example.com",
+        "from_email": "agenda@mail.example.com",
+        "resend_verified": True,
+    }
     assert Domain.objects.get(tenant=school, is_primary=True).domain == "atualizada.localhost"
 
 

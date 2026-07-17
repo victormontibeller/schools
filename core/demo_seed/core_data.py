@@ -66,6 +66,11 @@ class CoreDemoSeedMixin:
         from teachers.contracts import Subject, Teacher
 
         teacher_role, _ = Role.objects.get_or_create(name=Role.Name.TEACHER)
+        merged_settings = dict(school.settings or {})
+        merged_settings.update({"timezone": "America/Sao_Paulo", "locale": "pt_BR"})
+        diary_settings = dict(merged_settings.get("student_diary", {}))
+        diary_settings["interactive_enabled"] = True
+        merged_settings["student_diary"] = diary_settings
         school_data = {
             "name": "Colégio Horizonte Paulista",
             "cnpj": "12.345.678/0001-95",
@@ -89,7 +94,7 @@ class CoreDemoSeedMixin:
                 "state": "SP",
                 "postal_code": "04010-010",
             },
-            "settings": {"timezone": "America/Sao_Paulo", "locale": "pt_BR"},
+            "settings": merged_settings,
         }
         for field, value in school_data.items():
             setattr(school, field, value)

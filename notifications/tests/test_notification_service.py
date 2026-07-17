@@ -113,6 +113,18 @@ class TestCreateAnnouncement:
         assert announcement.title == "Reuniao de Pais"
         assert announcement.sent_at is None
 
+    def test_whatsapp_is_preserved_but_not_enabled(self, user):
+        author = _make_user("whatsapp-author@test.com")
+        announcement = AnnouncementService(user=user).create_announcement(
+            {
+                "title": "Aviso",
+                "body": "Corpo",
+                "author_id": author.pk,
+                "send_whatsapp": True,
+            }
+        )
+        assert announcement.send_whatsapp is False
+
     def test_missing_required(self, user):
         with pytest.raises(ValidationError):
             AnnouncementService(user=user).create_announcement({})
@@ -271,16 +283,3 @@ class TestCreateTemplate:
     def test_missing_required(self, user):
         with pytest.raises(ValidationError):
             AnnouncementService(user=user).create_template({"name": "Sem corpo"})
-
-
-@pytest.mark.django_db
-class TestLogDelivery:
-    def test_success(self, user):
-        from notifications.models import MessageLog
-
-        log = AnnouncementService(user=user).log_delivery(
-            channel=MessageLog.Channel.EMAIL,
-            recipient_address="test@example.com",
-        )
-        assert log.pk is not None
-        assert log.status == MessageLog.Status.PENDING

@@ -1,8 +1,12 @@
 """Views de responsáveis e vínculos com alunos."""
 
+from urllib.parse import urlencode
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
+from django.urls import reverse
+from django.views.decorators.http import require_POST
 
 from base.exceptions import (
     BusinessRuleViolationError,
@@ -75,6 +79,25 @@ def guardian_detail(request, pk):
             "addresses": AddressSelector().get_by_entity("guardian", pk),
         },
     )
+
+
+@login_required
+@require_POST
+def guardian_invite(request, pk):
+    """Envia convite de ativação ao responsável cadastrado."""
+    from guardians.invitation_services import GuardianInvitationService
+
+    try:
+        GuardianInvitationService(user=request.user).send_invitation(
+            pk,
+            lambda token: request.build_absolute_uri(reverse("guardian_invitation"))
+            + "?"
+            + urlencode({"token": token}),
+        )
+        messages.success(request, "Convite de acesso enviado.")
+    except (ValidationError, BusinessRuleViolationError) as exc:
+        messages.error(request, str(exc))
+    return redirect("guardian_detail", pk=pk)
 
 
 @login_required

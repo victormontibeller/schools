@@ -20,6 +20,12 @@ make dev
 As variáveis locais são configuradas pelo ambiente de cada desenvolvedor; o projeto não mantém
 arquivo `.env.example`.
 
+Para habilitar e-mail transacional, configure no `.env` uma única `RESEND_API_KEY`,
+`RESEND_WEBHOOK_SECRET` e, opcionalmente, `RESEND_TIMEOUT_SECONDS`. O domínio e o remetente de
+cada escola são confirmados pelo superusuário da plataforma após a verificação manual na Resend.
+`EMAIL_BACKEND` e as variáveis SMTP continuam sendo usados exclusivamente pela recuperação de
+senha nativa do Django.
+
 Com o ambiente iniciado, acesse:
 
 - `http://demo.localhost:8000/` para o ambiente escolar de demonstração;

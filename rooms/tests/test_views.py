@@ -100,3 +100,49 @@ class TestRoomViews:
         assert partial.status_code == 200
         assert b"<html" not in partial.content
         assert redirect_response.status_code == 302
+
+    def test_secretary_can_list_create_and_edit_rooms(self, client):
+        from core.models import CustomUser, Role
+        from rooms.models import Room
+
+        secretary = CustomUser.objects.create_user(
+            email="secretary-rooms@test.com",
+            password="Senha123",
+            role=Role.objects.get(name=Role.Name.SECRETARY),
+        )
+        client.force_login(secretary)
+
+        listing = client.get(reverse("rooms_list"))
+        created = client.post(
+            reverse("room_create"),
+            {
+                "name": "Sala Secretaria",
+                "code": "SEC01",
+                "capacity": 20,
+                "type": "CLASSROOM",
+                "floor": "1",
+                "building": "Bloco A",
+                "observations": "",
+            },
+        )
+        room = Room.objects.get(code="SEC01")
+        edited = client.post(
+            reverse("room_edit", args=[room.pk]),
+            {
+                "name": "Sala Secretaria Atualizada",
+                "code": "SEC01",
+                "capacity": 22,
+                "type": "CLASSROOM",
+                "floor": "1",
+                "building": "Bloco A",
+                "observations": "",
+                "version": room.version,
+            },
+            HTTP_HX_REQUEST="true",
+        )
+        room.refresh_from_db()
+
+        assert listing.status_code == 200
+        assert created.status_code == 302
+        assert edited.status_code == 200
+        assert room.name == "Sala Secretaria Atualizada"

@@ -7,6 +7,7 @@ from django.contrib.auth.views import (
 from django.urls import path
 
 from accounts import views
+from accounts.invitation_views import guardian_invitation_view
 
 urlpatterns = [
     path("demo/cadastro/", views.demo_signup_view, name="demo_signup"),
@@ -16,6 +17,7 @@ urlpatterns = [
         views.teacher_invitation_view,
         name="teacher_invitation",
     ),
+    path("convite-responsavel/", guardian_invitation_view, name="guardian_invitation"),
     path("login/", views.login_view, name="login"),
     path("logout/", views.logout_view, name="logout"),
     path("profile/", views.profile_view, name="profile"),

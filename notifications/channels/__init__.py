@@ -1,7 +1,7 @@
 """SDK de canais de comunicacao.
 
 Cada canal implementa a interface `BaseChannel` com o metodo `send()`.
-Novos provedores (Twilio, Z-API, Meta Cloud API) devem implementar esta interface.
+Novos provedores de WhatsApp devem implementar esta interface.
 """
 
 from notifications.channels.base import BaseChannel, ChannelResult

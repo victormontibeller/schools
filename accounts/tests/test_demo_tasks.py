@@ -1,6 +1,6 @@
-"""Testes das tasks de confirmação e expiração do DEMO."""
+"""Testes das tasks de confirmação e convites de contas."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -9,6 +9,20 @@ from accounts.tasks import (
     send_demo_verification_task,
     send_teacher_invitation_task,
 )
+from notifications.channels import ChannelResult
+
+
+def _email_transport(*, success: bool, retryable: bool = False):
+    transport = MagicMock()
+    transport.send_individual.return_value = int(success)
+    transport.last_result = ChannelResult(
+        success=success,
+        channel="EMAIL",
+        recipient_address="",
+        retryable=retryable,
+    )
+    transport.last_log_id = "opaque-message-log"
+    return transport
 
 
 @pytest.mark.django_db
@@ -21,19 +35,24 @@ def test_demo_verification_task_ignores_missing_user():
 
 @pytest.mark.django_db
 def test_demo_verification_task_uses_notification_transport(user):
-    with patch("notifications.transport.MessageTransport.send_individual", return_value=1) as send:
+    transport = _email_transport(success=True)
+    with patch("accounts.tasks.get_transport", return_value=transport):
         send_demo_verification_task.run("demo", str(user.pk), "https://demo/verify")
-    send.assert_called_once()
+    transport.send_individual.assert_called_once()
 
 
 @pytest.mark.django_db
 def test_demo_verification_task_retries_when_transport_does_not_send(user):
+    transport = _email_transport(success=False, retryable=True)
     with (
-        patch("notifications.transport.MessageTransport.send_individual", return_value=0),
-        patch.object(send_demo_verification_task, "retry", side_effect=RuntimeError("retry")),
+        patch("accounts.tasks.get_transport", return_value=transport),
+        patch.object(
+            send_demo_verification_task, "retry", side_effect=RuntimeError("retry")
+        ) as retry,
         pytest.raises(RuntimeError, match="retry"),
     ):
         send_demo_verification_task.run("demo", str(user.pk), "https://demo/verify")
+    assert retry.call_args.kwargs["kwargs"]["message_log_id"] == "opaque-message-log"
 
 
 def test_expire_demo_task_delegates_inside_schema():
@@ -52,13 +71,51 @@ def test_teacher_invitation_task_ignores_missing_user():
 
 @pytest.mark.django_db
 def test_teacher_invitation_task_sends_and_retries(user):
-    with patch("notifications.transport.MessageTransport.send_individual", return_value=1) as send:
+    transport = _email_transport(success=True)
+    with patch("accounts.tasks.get_transport", return_value=transport):
         send_teacher_invitation_task.run("demo", str(user.pk), "https://demo/invite")
-    send.assert_called_once()
+    transport.send_individual.assert_called_once()
 
+    transport = _email_transport(success=False, retryable=True)
     with (
-        patch("notifications.transport.MessageTransport.send_individual", return_value=0),
-        patch.object(send_teacher_invitation_task, "retry", side_effect=RuntimeError("retry")),
+        patch("accounts.tasks.get_transport", return_value=transport),
+        patch.object(
+            send_teacher_invitation_task, "retry", side_effect=RuntimeError("retry")
+        ) as retry,
         pytest.raises(RuntimeError, match="retry"),
     ):
         send_teacher_invitation_task.run("demo", str(user.pk), "https://demo/invite")
+    assert retry.call_args.kwargs["kwargs"]["message_log_id"] == "opaque-message-log"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("task", "url"),
+    [
+        (send_demo_verification_task, "https://demo/verify"),
+        (send_teacher_invitation_task, "https://demo/invite"),
+    ],
+)
+def test_account_email_tasks_do_not_retry_permanent_failure(user, task, url):
+    transport = _email_transport(success=False, retryable=False)
+    with (
+        patch("accounts.tasks.get_transport", return_value=transport),
+        patch.object(task, "retry") as retry,
+    ):
+        task.run("demo", str(user.pk), url)
+    retry.assert_not_called()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("task", "url"),
+    [
+        (send_demo_verification_task, "https://demo/verify"),
+        (send_teacher_invitation_task, "https://demo/invite"),
+    ],
+)
+def test_account_email_tasks_forward_message_log_on_retry(user, task, url):
+    transport = _email_transport(success=True)
+    with patch("accounts.tasks.get_transport", return_value=transport):
+        task.run("demo", str(user.pk), url, "existing-message-log")
+    assert transport.send_individual.call_args.kwargs["message_log_id"] == "existing-message-log"

@@ -90,3 +90,37 @@ class TestSchoolKPIs:
 
     def test_recent_announcements_empty(self, user):
         assert DashboardSelector().get_recent_announcements() == []
+
+    def test_diary_kpis_measure_latest_publication_views(self, user, monkeypatch):
+        from student_diary.tests.test_workflow import _guardian, _saved_sheet
+        from student_diary.workflow_services import DiaryWorkflowService
+
+        sheet, student = _saved_sheet(user, user)
+        guardian = _guardian(user, student, suffix="dashboard")
+        monkeypatch.setattr(DiaryWorkflowService, "_schedule_family_delivery", lambda *args: None)
+        workflow = DiaryWorkflowService(user=user)
+        workflow.submit_sheet(sheet.pk)
+        entry = workflow.approve_sheet(sheet.pk).entries.get()
+
+        before_view = DashboardSelector().get_diary_kpis(user)
+        DiaryWorkflowService(user=guardian.user).mark_entry_viewed(entry.pk)
+        after_view = DashboardSelector().get_diary_kpis(user)
+
+        assert before_view["view_rate_24h"] == 0.0
+        assert after_view["view_rate_24h"] == 100.0
+        assert after_view["approval_median_hours"] is not None
+
+    def test_diary_kpis_show_guardian_unread_count(self, user, monkeypatch):
+        from student_diary.tests.test_workflow import _guardian, _saved_sheet
+        from student_diary.workflow_services import DiaryWorkflowService
+
+        sheet, student = _saved_sheet(user, user)
+        guardian = _guardian(user, student, suffix="guardian-dashboard")
+        monkeypatch.setattr(DiaryWorkflowService, "_schedule_family_delivery", lambda *args: None)
+        workflow = DiaryWorkflowService(user=user)
+        workflow.submit_sheet(sheet.pk)
+        workflow.approve_sheet(sheet.pk)
+
+        result = DashboardSelector().get_diary_kpis(guardian.user)
+
+        assert result == {"role": "GUARDIAN", "unread": 1, "published": 1}

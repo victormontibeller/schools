@@ -3,18 +3,21 @@
 from celery import shared_task
 
 from base.context import tenant_schema_context
+from notifications.task_helpers import get_transport, retry_email_if_needed
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def send_demo_verification_task(
-    self, tenant_schema: str, user_id: str, verification_url: str
+    self,
+    tenant_schema: str,
+    user_id: str,
+    verification_url: str,
+    message_log_id: str | None = None,
 ) -> None:
     """Envia confirmação do DEMO usando o SDK de notificações."""
     with tenant_schema_context(tenant_schema):
         from core.contracts import CustomUser
-        from notifications.channels import EmailChannel
         from notifications.contracts import MessageTemplate
-        from notifications.transport import MessageTransport
 
         user = CustomUser.objects.filter(pk=user_id).first()
         if user is None:
@@ -28,13 +31,14 @@ def send_demo_verification_task(
                 "body": "Olá, confirme seu acesso por este link: {{ verification_url }}",
             },
         )
-        result = MessageTransport(EmailChannel()).send_individual(
+        transport = get_transport("EMAIL")
+        result = transport.send_individual(
             user,
             template,
             {"verification_url": verification_url},
+            message_log_id=message_log_id,
         )
-        if result == 0:
-            raise self.retry()
+        retry_email_if_needed(self, transport, result)
 
 
 @shared_task(name="accounts.expire_demo_users")
@@ -48,14 +52,16 @@ def expire_demo_users_task(tenant_schema: str = "demo") -> int:
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def send_teacher_invitation_task(
-    self, tenant_schema: str, user_id: str, invitation_url: str
+    self,
+    tenant_schema: str,
+    user_id: str,
+    invitation_url: str,
+    message_log_id: str | None = None,
 ) -> None:
     """Envia convite do professor pelo transporte centralizado."""
     with tenant_schema_context(tenant_schema):
         from core.contracts import CustomUser
-        from notifications.channels import EmailChannel
         from notifications.contracts import MessageTemplate
-        from notifications.transport import MessageTransport
 
         user = CustomUser.objects.filter(pk=user_id).first()
         if user is None:
@@ -69,10 +75,11 @@ def send_teacher_invitation_task(
                 "body": "Defina sua senha de acesso por este link: {{ invitation_url }}",
             },
         )
-        if (
-            MessageTransport(EmailChannel()).send_individual(
-                user, template, {"invitation_url": invitation_url}
-            )
-            == 0
-        ):
-            raise self.retry()
+        transport = get_transport("EMAIL")
+        result = transport.send_individual(
+            user,
+            template,
+            {"invitation_url": invitation_url},
+            message_log_id=message_log_id,
+        )
+        retry_email_if_needed(self, transport, result)

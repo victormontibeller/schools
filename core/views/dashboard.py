@@ -22,12 +22,14 @@ def _dashboard_quick_actions(role_name: str) -> list[dict[str, str]]:
     """Retorna atalhos prioritarios conforme o perfil do usuario."""
     quick_actions_map = {
         "ADMIN": [
+            {"label": "Revisar agendas", "url": "diary_daily", "icon": "feather-check-square"},
             {"label": "Novo aluno", "url": "student_create", "icon": "feather-user-plus"},
             {"label": "Novo professor", "url": "teacher_create", "icon": "feather-user-check"},
             {"label": "Nova turma", "url": "class_create", "icon": "feather-layers"},
             {"label": "Usuários", "url": "users_list", "icon": "feather-users"},
         ],
         "COORDINATOR": [
+            {"label": "Revisar agendas", "url": "diary_daily", "icon": "feather-check-square"},
             {"label": "Novo aluno", "url": "student_create", "icon": "feather-user-plus"},
             {"label": "Novo professor", "url": "teacher_create", "icon": "feather-user-check"},
             {"label": "Nova turma", "url": "class_create", "icon": "feather-layers"},
@@ -41,7 +43,7 @@ def _dashboard_quick_actions(role_name: str) -> list[dict[str, str]]:
                 "url": "attendance_records_list",
                 "icon": "feather-check-circle",
             },
-            {"label": "Agenda", "url": "time_slots_list", "icon": "feather-clock"},
+            {"label": "Agenda", "url": "diary_daily", "icon": "feather-book-open"},
         ],
         "GUARDIAN": [
             {"label": "Dados do aluno", "url": "students_list", "icon": "feather-user"},
@@ -91,6 +93,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
 
     role_name = _detect_dashboard_role(request.user)
     data = DashboardService(user=request.user).get_school_dashboard_data()
+    diary_kpis = data.get("diary_kpis") or {}
     can_view_financial = can_access_module(request.user, "financeiro")
     return render(
         request,
@@ -104,6 +107,8 @@ def dashboard(request: HttpRequest) -> HttpResponse:
             "has_visible_attention": bool(
                 data["students_at_risk"]
                 or data["pending_activities"]
+                or diary_kpis.get("pending_review")
+                or diary_kpis.get("changes_requested")
                 or (can_view_financial and data["financial_kpis"]["total_vencido"])
             ),
         },

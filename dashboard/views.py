@@ -20,6 +20,7 @@ def school_dashboard_partial(request: HttpRequest) -> HttpResponse:
     from core.permissions import can_access_module
 
     data = DashboardService(user=request.user).get_school_dashboard_data()
+    diary_kpis = data.get("diary_kpis") or {}
     can_view_financial = can_access_module(request.user, "financeiro")
     return render(
         request,
@@ -30,6 +31,8 @@ def school_dashboard_partial(request: HttpRequest) -> HttpResponse:
             "has_visible_attention": bool(
                 data["students_at_risk"]
                 or data["pending_activities"]
+                or diary_kpis.get("pending_review")
+                or diary_kpis.get("changes_requested")
                 or (can_view_financial and data["financial_kpis"]["total_vencido"])
             ),
         },

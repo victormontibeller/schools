@@ -13,7 +13,6 @@ from core.access_catalog import (
     EDIT,
     MODULES,
     MODULES_BY_KEY,
-    TEACHER,
     VIEW,
     action_for_operation,
     default_actions,
@@ -21,7 +20,15 @@ from core.access_catalog import (
 )
 
 DEMO_COMMAND_MODULES = frozenset(
-    {"schedule", "activities", "attendance", "student_diary", "classes", "enrollments"}
+    {
+        "schedule",
+        "activities",
+        "attendance",
+        "student_diary",
+        "diary_configuration",
+        "classes",
+        "enrollments",
+    }
 )
 PUBLIC_VIEW_NAMES = frozenset(
     {
@@ -37,14 +44,21 @@ PUBLIC_VIEW_NAMES = frozenset(
         "demo_signup",
         "demo_verify",
         "teacher_invitation",
+        "guardian_invitation",
+        "web_app_manifest",
+        "service_worker",
+        "offline",
+        "resend_email_webhook",
     }
 )
 SELF_SERVICE_METHODS = frozenset(
     {
         "change_password",
         "mark_as_read",
+        "mark_as_read_for_user",
         "mark_all_as_read",
         "submit_justification",
+        "mark_entry_viewed",
     }
 )
 SELF_SERVICE_VIEW_NAMES = frozenset(
@@ -55,6 +69,7 @@ SELF_SERVICE_VIEW_NAMES = frozenset(
         "notification_mark_read",
         "notification_mark_all_read",
         "unread_count",
+        "diary_publication_mark_viewed",
     }
 )
 GUARDIAN_VIEW_NAMES = frozenset(
@@ -70,6 +85,8 @@ GUARDIAN_VIEW_NAMES = frozenset(
         "activities_list",
         "activity_detail",
         "diary_student_history",
+        "diary_publication_detail",
+        "diary_publication_mark_viewed",
         "notification_list",
         "notification_mark_read",
         "notification_mark_all_read",
@@ -88,6 +105,9 @@ _SERVICE_CLASS_MODULES = {
     "SchoolService": "__admin__",
     "AccountService": "__admin__",
     "PlatformSchoolService": "__admin__",
+}
+_SERVICE_METHOD_MODULES = {
+    ("StudentDiaryService", "set_routine_aspect_enabled"): "diary_configuration",
 }
 _SYSTEM_SERVICE_METHODS = frozenset(
     {"create_notification", "create_notifications_bulk", "log_delivery"}
@@ -218,7 +238,9 @@ def can_execute_service(
     if method_name in SELF_SERVICE_METHODS:
         return True
 
-    module_key = _SERVICE_CLASS_MODULES.get(service_name)
+    module_key = _SERVICE_METHOD_MODULES.get((service_name, method_name))
+    if module_key is None:
+        module_key = _SERVICE_CLASS_MODULES.get(service_name)
     if module_key is None:
         module_key = module_for_app(
             app_label,
@@ -241,8 +263,8 @@ def modules_for_user(user) -> frozenset[str]:
 
 
 def can_configure_student_diary(user) -> bool:
-    """Restringe configuração estrutural da Agenda à coordenação e administração."""
-    return role_name(user) != TEACHER and can_access(user, "student_diary", EDIT)
+    """Indica se o usuário pode configurar os aspectos fixos da rotina."""
+    return can_access(user, "diary_configuration", EDIT)
 
 
 def can_edit_student_diary(user) -> bool:

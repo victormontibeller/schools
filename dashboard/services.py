@@ -48,35 +48,51 @@ class DashboardService(BaseService):
         """
         cache_key = self._cache_key("school_dashboard")
         data = self._safe_cache_get(cache_key)
-        if data is not None:
-            return data
-
         from dashboard.selectors import DashboardSelector
 
         selector = DashboardSelector()
-        data = {
-            "total_students": self._cached("total_students", selector.get_total_students),
-            "total_teachers": self._cached("total_teachers", selector.get_total_teachers),
-            "total_classes": self._cached("total_classes", selector.get_total_classes),
-            "total_guardians": self._cached("total_guardians", selector.get_total_guardians),
-            "today_attendance": self._cached(
-                "today_attendance", selector.get_today_attendance_rate
-            ),
-            "weekly_attendance": self._cached("weekly_attendance", selector.get_weekly_attendance),
-            "students_at_risk": self._cached(
-                "students_at_risk", selector.get_students_at_risk_count
-            ),
-            "financial_kpis": self._cached("financial_kpis", selector.get_financial_kpis),
-            "pending_activities": self._cached(
-                "pending_activities", selector.get_pending_activities
-            ),
-            "upcoming_events": self._cached("upcoming_events", selector.get_upcoming_events),
-            "recent_announcements": self._cached(
-                "recent_announcements", selector.get_recent_announcements
-            ),
-        }
-        self._safe_cache_set(cache_key, data, CACHE_TTL["school_dashboard"])
-        return data
+        if data is None:
+            data = {
+                "total_students": self._cached("total_students", selector.get_total_students),
+                "total_teachers": self._cached("total_teachers", selector.get_total_teachers),
+                "total_classes": self._cached("total_classes", selector.get_total_classes),
+                "total_guardians": self._cached("total_guardians", selector.get_total_guardians),
+                "today_attendance": self._cached(
+                    "today_attendance", selector.get_today_attendance_rate
+                ),
+                "weekly_attendance": self._cached(
+                    "weekly_attendance", selector.get_weekly_attendance
+                ),
+                "students_at_risk": self._cached(
+                    "students_at_risk", selector.get_students_at_risk_count
+                ),
+                "financial_kpis": self._cached("financial_kpis", selector.get_financial_kpis),
+                "pending_activities": self._cached(
+                    "pending_activities", selector.get_pending_activities
+                ),
+                "upcoming_events": self._cached("upcoming_events", selector.get_upcoming_events),
+                "recent_announcements": self._cached(
+                    "recent_announcements", selector.get_recent_announcements
+                ),
+            }
+            self._safe_cache_set(cache_key, data, CACHE_TTL["school_dashboard"])
+        result = dict(data)
+        from django.conf import settings
+
+        from tenancy.selectors import SchoolSelector
+
+        school = None if settings.TESTING else SchoolSelector().get_current_school()
+        publication_enabled = bool(
+            settings.TESTING
+            or (school and school.settings.get("student_diary", {}).get("interactive_enabled"))
+        )
+        result["diary_kpis"] = selector.get_diary_kpis(self.user) if publication_enabled else None
+        result["diary_pending_reviews"] = []
+        if publication_enabled and result["diary_kpis"]["role"] in {"ADMIN", "COORDINATOR"}:
+            from student_diary.selectors import StudentDiarySelector
+
+            result["diary_pending_reviews"] = StudentDiarySelector().list_pending_reviews(limit=10)
+        return result
 
     def get_executive_dashboard_data(self) -> dict:
         """Retorna KPIs agregados de todos os tenants com cache."""

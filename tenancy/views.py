@@ -86,6 +86,9 @@ def platform_school_edit(request: HttpRequest, pk) -> HttpResponse:
         "email": school.email,
         "phone": school.phone,
         "is_active": school.is_active and not school.deleted_at,
+        "resend_domain": (school.settings or {}).get("email", {}).get("resend_domain", ""),
+        "resend_from_email": (school.settings or {}).get("email", {}).get("from_email", ""),
+        "resend_verified": (school.settings or {}).get("email", {}).get("resend_verified", False),
     }
     form = PlatformSchoolEditForm(request.POST or None, initial=initial)
     if request.method == "POST" and form.is_valid():

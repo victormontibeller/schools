@@ -1,40 +1,148 @@
-<form method="post"
-      action="{% url 'diary_daily' %}"
-      hx-post="{% url 'diary_daily' %}"
-      hx-target="#diary-roster-card"
-      hx-swap="outerHTML"
-      class="card sm-detail-card"
-      id="diary-roster-card">
-    {% csrf_token %}
-    <input type="hidden" name="class_id" value="{{ sheet.class_obj.pk }}">
-    <input type="hidden" name="date" value="{{ sheet.date|date:'Y-m-d' }}">
-    <div class="card-header d-flex justify-content-between align-items-center gap-2">
-        <div><h6 class="card-title mb-0">{{ sheet.class_obj }}</h6><small class="text-muted">{{ sheet.date|date:'d/m/Y' }} · {{ sheet.rows|length }} alunos</small></div>
-        {% if can_edit and sheet.rows %}<button class="btn btn-sm btn-primary" type="submit"><i class="feather-save me-1"></i> Salvar Agenda</button>{% endif %}
-    </div>
-    <div class="card-body p-0">
-        {% if saved %}<div class="alert alert-success m-3 mb-0 py-2">Agenda salva com sucesso.</div>{% endif %}
-        {% if sheet.component_error %}<div class="alert alert-danger m-3 mb-0 py-2">{{ sheet.component_error }}</div>{% endif %}
-        <noscript><style>.diary-student-editor.collapse{display:block!important}</style></noscript>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead><tr><th>Aluno</th><th>Situação</th><th class="d-none d-md-table-cell">Alimentação</th><th class="d-none d-md-table-cell">Como foi o dia</th><th class="text-end">Preenchimento</th></tr></thead>
-                <tbody>{% for row in sheet.rows %}
+<div id="diary-roster-card">
+    <form method="post"
+          action="{% url 'diary_daily' %}"
+          hx-post="{% url 'diary_daily' %}"
+          hx-target="#diary-roster-card"
+          hx-swap="outerHTML"
+          id="diary-roster-form">
+        {% csrf_token %}
+        <input type="hidden" name="class_id" value="{{ sheet.class_obj.pk }}">
+        <input type="hidden" name="date" value="{{ sheet.date|date:'Y-m-d' }}">
+
+        <div class="sm-diary-context-bar d-flex align-items-center justify-content-between gap-2 flex-wrap px-3 py-2 border-bottom">
+            <div>
+                <strong>{{ sheet.class_obj }}</strong>
+                <small class="text-muted ms-1">{{ sheet.date|date:'d/m/Y' }} · {{ sheet.rows|length }} alunos</small>
+            </div>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                {% if sheet.workflow %}<span class="badge bg-soft-info text-info">{{ sheet.workflow.get_status_display }}</span>{% endif %}
+                {% if publication_enabled and sheet.workflow %}
+                    {% if can_edit and sheet.workflow.status == "DRAFT" or can_edit and sheet.workflow.status == "CHANGES_REQUESTED" %}
+                    <button class="btn btn-sm btn-success" type="submit" formaction="{% url 'diary_sheet_submit' sheet.workflow.pk %}" formmethod="post">
+                        <i class="feather-send me-1" aria-hidden="true"></i> Enviar para revisão
+                    </button>
+                    {% elif can_review and sheet.workflow.status == "PENDING_REVIEW" %}
+                    <button class="btn btn-sm btn-success" type="submit" formaction="{% url 'diary_sheet_approve' sheet.workflow.pk %}" formmethod="post"><i class="feather-check me-1" aria-hidden="true"></i> Publicar</button>
+                    {% elif can_review and sheet.workflow.status == "PUBLISHED" %}
+                    <button class="btn btn-sm btn-outline-primary" type="submit" formaction="{% url 'diary_sheet_reopen' sheet.workflow.pk %}" formmethod="post">
+                        <i class="feather-edit-3 me-1" aria-hidden="true"></i> Reabrir
+                    </button>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        {% if saved %}<div class="alert alert-success m-3 mb-0 py-2" role="status">Agenda salva com sucesso.</div>{% endif %}
+        {% if sheet.component_error %}<div class="alert alert-danger m-3 mb-0 py-2" role="alert">{{ sheet.component_error }}</div>{% endif %}
+        {% if not publication_enabled %}<div class="alert alert-info m-3 mb-0 py-2">O preenchimento está disponível, mas o fluxo de revisão ainda não foi ativado para esta escola.</div>{% endif %}
+        {% if publication_enabled and sheet.workflow.status == "DRAFT" %}<div class="alert alert-light border m-3 mb-0 py-2"><strong>Próxima etapa:</strong> salve todas as crianças e envie a Agenda para revisão.</div>{% endif %}
+        {% if publication_enabled and sheet.workflow.status == "PENDING_REVIEW" and can_review %}<div class="alert alert-warning m-3 mb-0 py-2"><strong>Ação necessária:</strong> revise o conteúdo abaixo e escolha Publicar ou Devolver para correção.</div>{% endif %}
+        {% if publication_enabled and sheet.workflow.status == "PENDING_REVIEW" and not can_review %}<div class="alert alert-info m-3 mb-0 py-2">Agenda enviada. Aguardando revisão da coordenação ou administração.</div>{% endif %}
+        {% if sheet.workflow.review_feedback %}<div class="alert alert-warning m-3 mb-0 py-2"><strong>Correção solicitada:</strong> {{ sheet.workflow.review_feedback }}</div>{% endif %}
+
+        {% if publication_enabled and can_review and sheet.workflow.status == "PENDING_REVIEW" %}
+        <div class="border-bottom p-3">
+            <label class="form-label" for="{{ review_form.feedback.id_for_label }}">Motivo para devolver</label>
+            {{ review_form.feedback }}
+            <button class="btn btn-sm btn-outline-warning mt-2" type="submit" formaction="{% url 'diary_sheet_request_changes' sheet.workflow.pk %}" formmethod="post">Devolver para correção</button>
+        </div>
+        {% endif %}
+
+        <div class="table-responsive sm-diary-table-responsive">
+            <table class="table table-hover align-middle mb-0 sm-compact-table sm-diary-table">
+                <thead>
                     <tr>
-                        <td><a href="{% url 'diary_student_history' row.student.pk %}" class="fw-semibold">{{ row.student.get_full_name }}</a><div class="text-muted small">{{ row.student.enrollment_number }}</div></td>
-                        <td>{% if row.is_complete %}<span class="badge bg-soft-success text-success">Completa</span>{% else %}<span class="badge bg-soft-warning text-warning">Pendente</span>{% endif %}</td>
-                        <td class="d-none d-md-table-cell">{{ row.meal_summary }}</td>
-                        <td class="d-none d-md-table-cell text-truncate" style="max-width: 260px">{{ row.routine_summary }}</td>
-                        <td class="text-end"><button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#student-editor-{{ row.student.pk }}" aria-controls="student-editor-{{ row.student.pk }}" aria-expanded="{% if row.form.errors %}true{% else %}false{% endif %}">{% if row.is_complete %}Editar{% else %}Preencher{% endif %}</button></td>
+                        <th scope="col" class="sm-diary-student-column">Aluno</th>
+                        <th scope="col" class="sm-diary-status-column">Situação</th>
+                        {% for cell in sheet.rows.0.form.meal_fields %}<th scope="col" class="sm-diary-field-column">{{ cell.label }}</th>{% endfor %}
+                        {% for cell in sheet.rows.0.form.aspect_fields %}<th scope="col" class="sm-diary-field-column">{{ cell.label }}</th>{% endfor %}
+                        <th scope="col" class="sm-diary-notes-column">Observações</th>
                     </tr>
-                    <tr class="table-light"><td colspan="5" class="p-0 border-0"><div id="student-editor-{{ row.student.pk }}" class="diary-student-editor collapse{% if row.form.errors %} show{% endif %}"><div class="p-3 border-bottom">
-                        {% if row.form.non_field_errors %}<div class="alert alert-danger py-2">{{ row.form.non_field_errors }}</div>{% endif %}
-                        <div class="row g-3"><div class="col-12 col-xl-6"><div class="border rounded p-3 h-100"><h6 class="mb-3">Alimentação</h6><div class="row g-2">{% for meal_type, field in row.form.meal_fields %}{% include "student_diary/partials/segmented_choice_field.html" with field=field %}{% endfor %}</div></div></div>
-                        <div class="col-12 col-xl-6"><div class="border rounded p-3 h-100"><h6 class="mb-3">Como foi o dia</h6><div class="row g-2">{% for category, field in row.form.aspect_fields %}{% include "student_diary/partials/segmented_choice_field.html" with field=field %}{% endfor %}</div></div></div>
-                        <div class="col-12"><div class="row g-2">{% include "partials/form_field.html" with field=row.form.notes full_width=True %}</div></div></div>
-                    </div></div></td></tr>
-                {% empty %}<tr><td colspan="5" class="text-center text-muted py-4">Nenhum aluno ativo nesta turma.</td></tr>{% endfor %}</tbody>
+                </thead>
+                <tbody>
+                    {% for row in sheet.rows %}
+                    <tr data-diary-row{% if row.form.errors %} class="sm-diary-row-has-errors"{% endif %}>
+                        <th scope="row" class="sm-diary-student-column">
+                            <a href="{% url 'diary_student_history' row.student.pk %}" class="fw-semibold">{{ row.student.get_full_name }}</a>
+                            <div class="text-muted small">{{ row.student.enrollment_number }}</div>
+                            {% if row.form.non_field_errors %}<div class="invalid-feedback d-block">{{ row.form.non_field_errors }}</div>{% endif %}
+                        </th>
+                        <td class="sm-diary-status-column">
+                            {% if row.is_complete %}
+                            <span class="badge bg-soft-success text-success" data-diary-status>Completa</span>
+                            {% else %}
+                            <span class="badge bg-soft-warning text-warning" data-diary-status>Pendente</span>
+                            {% endif %}
+                        </td>
+                        {% for cell in row.form.meal_fields %}
+                        <td class="sm-diary-field-column">
+                            {% include "student_diary/partials/inline_choice_dropdown.html" with cell=cell student=row.student can_edit=can_edit %}
+                        </td>
+                        {% endfor %}
+                        {% for cell in row.form.aspect_fields %}
+                        <td class="sm-diary-field-column">
+                            {% include "student_diary/partials/inline_choice_dropdown.html" with cell=cell student=row.student can_edit=can_edit %}
+                        </td>
+                        {% endfor %}
+                        <td class="sm-diary-notes-column">
+                            <div class="dropdown sm-diary-dropdown{% if row.form.notes.errors %} is-invalid{% endif %}" data-diary-notes>
+                                <button type="button"
+                                        class="btn btn-outline-secondary sm-diary-selector{% if row.form.notes.errors %} is-invalid{% endif %}"
+                                        data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"
+                                        data-bs-boundary="viewport"
+                                        aria-expanded="false">
+                                    <span class="visually-hidden">{{ row.student.get_full_name }} — Observações: </span>
+                                    <span class="sm-diary-selection" data-diary-notes-summary>{% if row.form.notes.value %}Com observação{% else %}Sem observação{% endif %}</span>
+                                    <i class="feather-chevron-down ms-auto" aria-hidden="true"></i>
+                                </button>
+                                <div class="dropdown-menu dropdown-menu-end sm-diary-dropdown-menu sm-diary-notes-menu p-3">
+                                    <fieldset{% if not can_edit %} disabled{% endif %}>
+                                        <label class="form-label fw-semibold" for="{{ row.form.notes.id_for_label }}">Observações de {{ row.student.get_full_name }}</label>
+                                        {{ row.form.notes }}
+                                    </fieldset>
+                                </div>
+                                {% for error in row.form.notes.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="100" class="text-center text-muted py-4">Nenhum aluno ativo nesta turma.</td></tr>
+                    {% endfor %}
+                </tbody>
             </table>
         </div>
-    </div>
-</form>
+
+        {% if publication_delivery_summaries %}
+        <section class="border-top p-3" aria-labelledby="diary-delivery-title">
+            <h6 id="diary-delivery-title" class="mb-1">Entregas por publicação</h6>
+            <p class="text-muted small">Resumo de e-mails sem exposição dos endereços dos responsáveis.</p>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>Revisão</th><th>Publicada em</th><th>Enviados</th><th>Entregues</th><th>Atrasados</th><th>Falhas</th></tr></thead>
+                    <tbody>
+                        {% for delivery in publication_delivery_summaries %}
+                        <tr>
+                            <td>Revisão {{ delivery.revision_number }}</td>
+                            <td>{{ delivery.published_at|date:'d/m/Y H:i' }}</td>
+                            <td>{{ delivery.sent }}</td>
+                            <td>{{ delivery.delivered }}</td>
+                            <td>{{ delivery.delayed }}</td>
+                            <td>{{ delivery.failed }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if can_edit and sheet.rows %}
+        <div class="card-footer d-flex justify-content-end">
+            <button class="btn btn-sm btn-primary" type="submit">
+                <i class="feather-save me-1" aria-hidden="true"></i> Salvar Agenda
+            </button>
+        </div>
+        {% endif %}
+    </form>
+</div>

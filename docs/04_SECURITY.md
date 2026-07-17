@@ -78,6 +78,33 @@ somente para scripts/estilos legados do tema e deverá ser removida conforme for
   Mensagens não interpolam exceções nem PII.
 - Secrets e credenciais ACME existem apenas em secrets/variáveis de ambiente.
 
+### Agenda, convites e PWA
+
+- Publicações da Agenda são entregues somente após autenticação e nova validação do vínculo ativo
+  de guarda; remover a guarda revoga o acesso mesmo para uma URL conhecida.
+- Convites de responsáveis são assinados, expiram em sete dias e são consumidos na primeira
+  ativação. O token viaja em query string, que é removida dos access logs, e nunca é incluído em
+  logs estruturados.
+- E-mails da Agenda carregam somente texto genérico e URL autenticada, sem nome do aluno ou
+  conteúdo da publicação. Web Push está adiado e não possui endpoint, assinatura ou chave VAPID.
+- O service worker armazena somente assets estáticos públicos e a página offline genérica. HTML
+  autenticado, publicações, mídia e respostas HTTP da aplicação não entram no cache.
+
+### Resend e webhooks de e-mail
+
+- `RESEND_API_KEY` e `RESEND_WEBHOOK_SECRET` existem somente em variáveis de ambiente; escolas
+  compartilham a chave da plataforma e nunca armazenam credenciais próprias.
+- Cada escola informa um remetente cujo domínio foi verificado manualmente por SPF/DKIM na mesma
+  conta Resend. Ausência de confirmação bloqueia o envio sem usar remetente de outro tenant.
+- `/webhooks/resend/email/` aceita chamadas somente no domínio da plataforma e verifica a
+  assinatura Svix sobre o corpo bruto. O `svix-id` é persistido para impedir replay/duplicidade.
+- Tags contêm apenas schema, UUID do log e categoria. Payload bruto, endereço, assunto e conteúdo
+  não são persistidos nem emitidos em logs estruturados.
+- Eventos de abertura e clique não são assinados pelo produto. A abertura autenticada da Agenda
+  permanece a fonte oficial de visualização.
+- O SMTP e `EMAIL_BACKEND` permanecem restritos à recuperação de senha nativa do Django; os
+  demais e-mails transacionais passam por `EmailChannel` e Resend.
+
 ### Uploads
 
 - Imagens: JPEG, PNG ou WebP válidos, até 5 MiB.

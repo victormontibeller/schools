@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Agenda de {{ entry.publication.sheet.date|date:'d/m/Y' }} — School Manager{% endblock %}
+{% block content %}
+<div class="page-header"><div class="page-header-left d-flex align-items-center"><div class="page-header-title"><h5 class="m-b-10">Agenda escolar</h5></div><ul class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li><li class="breadcrumb-item"><a href="{% url 'diary_student_history' entry.student.pk %}">Agenda</a></li><li class="breadcrumb-item">{{ entry.publication.sheet.date|date:'d/m/Y' }}</li></ul></div></div>
+<div class="main-content">
+  <form class="d-none" aria-hidden="true" hx-post="{% url 'diary_publication_mark_viewed' entry.pk %}" hx-trigger="load" hx-swap="none">{% csrf_token %}</form>
+  <div class="card sm-detail-card">
+    <div class="card-header d-flex flex-wrap justify-content-between gap-2"><h6 class="card-title mb-0">{{ entry.publication.sheet.date|date:'d/m/Y' }}</h6><span class="badge bg-soft-info text-info">Revisão {{ entry.publication.revision_number }}</span></div>
+    <div class="card-body"><div class="row g-3">
+      <div class="col-12 col-lg-4"><h6>Como foi o dia</h6><dl>{% for item in entry.routine_snapshot %}<dt>{{ item.category }}</dt><dd>{{ item.option }}</dd>{% empty %}<dd class="text-muted">—</dd>{% endfor %}</dl></div>
+      <div class="col-12 col-lg-4"><h6>Alimentação</h6><dl>{% for item in entry.meals_snapshot %}<dt>{{ item.meal_label }}</dt><dd>{{ item.status_label }}</dd>{% empty %}<dd class="text-muted">—</dd>{% endfor %}</dl></div>
+      <div class="col-12 col-lg-4"><h6>Observações</h6><p>{{ entry.notes|default:"—" }}</p></div>
+    </div></div>
+    <div class="card-footer text-muted small">Esta é uma comunicação da escola. Não é necessário responder.</div>
+  </div>
+</div>
+{% endblock %}

@@ -11,9 +11,12 @@ Ver ADR-0001.
 """
 
 import os
+from concurrent.futures import ThreadPoolExecutor
+from unittest.mock import patch
 
 import pytest
-from django.db import connection
+from django.db import connection, connections
+from django.test import TransactionTestCase
 from django_tenants.test.cases import TenantTestCase
 
 from base import context
@@ -256,3 +259,82 @@ class TestTenantSchemaIsolation(TenantTestCase):
         )
         assert log.tenant_schema == "escola_a"
         assert log.model_name == "Student"
+
+
+@_requires_pg
+class TestDiaryApprovalConcurrency(TransactionTestCase):
+    """Valida lock real em conexões PostgreSQL independentes."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        connection.set_schema_to_public()
+        cls.tenant = School(
+            schema_name="agenda_concorrente",
+            name="Agenda Concorrente",
+            settings={"student_diary": {"interactive_enabled": True}},
+        )
+        cls.tenant.save(verbosity=0)
+        cls.domain = Domain.objects.create(
+            domain="agenda-concorrente.test.local",
+            tenant=cls.tenant,
+            is_primary=True,
+        )
+        connection.set_tenant(cls.tenant)
+
+    @classmethod
+    def tearDownClass(cls):
+        connection.set_schema_to_public()
+        cls.domain.delete()
+        cls.tenant.delete(force_drop=True)
+        super().tearDownClass()
+
+    def setUp(self):
+        connection.set_tenant(self.tenant)
+        self._ctx_token = context.current_tenant.set(self.tenant.schema_name)
+
+    def tearDown(self):
+        context.current_tenant.reset(self._ctx_token)
+
+    def test_concurrent_diary_approval_creates_single_revision(self):
+        """O lock pessimista impede duas publicações para a mesma revisão."""
+        from base.exceptions import BusinessRuleViolationError
+        from core.models import Role
+        from student_diary.tests.test_workflow import _saved_sheet
+        from student_diary.workflow_services import DiaryWorkflowService
+
+        role = Role.objects.get(name=Role.Name.ADMIN)
+        actor = CustomUser.objects.create_user(
+            email="diary-reviewer@tenant.test",
+            password="Senha123",
+            role=role,
+            is_superuser=True,
+        )
+        sheet, _student = _saved_sheet(actor, actor)
+        with patch.object(DiaryWorkflowService, "_schedule_staff_delivery"):
+            DiaryWorkflowService(user=actor).submit_sheet(sheet.pk)
+
+        def approve_in_connection():
+            thread_connection = connections["default"]
+            thread_connection.set_tenant(self.tenant)
+            token = context.current_tenant.set(self.tenant.schema_name)
+            try:
+                thread_actor = CustomUser.objects.get(pk=actor.pk)
+                try:
+                    publication = DiaryWorkflowService(user=thread_actor).approve_sheet(sheet.pk)
+                    return "published", publication.pk
+                except BusinessRuleViolationError:
+                    return "blocked", None
+            finally:
+                context.current_tenant.reset(token)
+                thread_connection.close()
+
+        with (
+            patch.object(DiaryWorkflowService, "_schedule_family_delivery"),
+            ThreadPoolExecutor(max_workers=2) as executor,
+        ):
+            results = list(executor.map(lambda _index: approve_in_connection(), range(2)))
+
+        sheet.refresh_from_db()
+        assert sorted(result[0] for result in results) == ["blocked", "published"]
+        assert sheet.publications.count() == 1

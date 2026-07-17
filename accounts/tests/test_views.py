@@ -1,6 +1,7 @@
 """Testes das views de consulta de usuários."""
 
 import pytest
+from django.core import mail
 from django.test import override_settings
 from django.urls import reverse
 
@@ -145,6 +146,17 @@ def test_change_password_redirects_to_authenticated_user_detail(force_login_clie
 
     assert response.status_code == 302
     assert response.url == reverse("user_detail", kwargs={"pk": user.pk})
+
+
+@pytest.mark.django_db
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+def test_password_reset_uses_django_email_backend(client, listed_user):
+    response = client.post(reverse("password_reset"), {"email": listed_user.email})
+
+    assert response.status_code == 302
+    assert response.url == reverse("password_reset_done")
+    assert len(mail.outbox) == 1
+    assert "/password-reset/confirm/" in mail.outbox[0].body
 
 
 @pytest.mark.django_db

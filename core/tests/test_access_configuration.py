@@ -120,6 +120,8 @@ def test_access_settings_renders_only_configurable_groups(client, user):
     assert "data-access-search-clear" in content
     assert "data-access-module-row" in content
     assert "data-access-department-row" in content
+    assert 'data-access-search="Secretaria Salas"' in content
+    assert 'data-access-search="Secretaria Aspectos da rotina"' in content
     assert "Nenhum módulo encontrado." in content
     assert '<div class="fw-semibold mb-2">' not in content
     assert 'aria-label="Combinação indisponível"' in content
@@ -176,6 +178,27 @@ def test_unknown_module_and_action_are_denied():
 
 
 @pytest.mark.django_db
+def test_users_with_permission_matches_role_matrix_and_admin_overrides():
+    from core.access.selectors import AccessConfigurationSelector
+
+    admin = _create_role_user("ADMIN", "admin-query@test.com")
+    coordinator = _create_role_user("COORDINATOR", "coord-query@test.com")
+    teacher = _create_role_user("TEACHER", "teacher-query@test.com")
+    finance = _create_role_user("FINANCE", "finance-query@test.com")
+
+    users = AccessConfigurationSelector.users_with_permission("student_diary", "edit")
+
+    assert admin in users
+    assert coordinator in users
+    assert teacher in users
+    assert finance not in users
+    assert not AccessConfigurationSelector.users_with_permission("unknown", "edit").exists()
+    assert not AccessConfigurationSelector.users_with_permission(
+        "student_diary", "publish"
+    ).exists()
+
+
+@pytest.mark.django_db
 def test_deactivation_is_denied_by_default(client):
     coordinator = _create_role_user("COORDINATOR", "coord-deactivate@test.com")
     client.force_login(coordinator)
@@ -215,6 +238,70 @@ def test_access_form_normalizes_dependencies_and_builds_rows():
     classes = next(row for row in form.matrix_rows if row["module"].key == "classes")
     assert classes["cells"][-1]["available"] is False
     assert all("scope_label" not in cell for row in form.matrix_rows for cell in row["cells"])
+
+
+def test_diary_configuration_exposes_only_view_and_edit_actions():
+    from core.access.forms import AccessConfigurationForm
+
+    form = AccessConfigurationForm()
+    secretary_field = form.fields[
+        AccessConfigurationForm.field_name("diary_configuration", "SECRETARY")
+    ]
+    coordinator_field = form.fields[
+        AccessConfigurationForm.field_name("diary_configuration", "COORDINATOR")
+    ]
+
+    assert tuple(value for value, _label in secretary_field.choices) == (VIEW, EDIT)
+    assert tuple(value for value, _label in coordinator_field.choices) == (VIEW, EDIT)
+    assert "access__diary_configuration__TEACHER" not in form.fields
+
+
+@pytest.mark.django_db
+def test_access_migration_reconciles_defaults_and_preserves_room_deactivation():
+    import importlib
+
+    from django.apps import apps
+
+    from core.models import RoleModuleAccess
+
+    rooms_access = RoleModuleAccess.objects.get(
+        role__name="SECRETARY",
+        module_key="rooms",
+    )
+    rooms_access.can_view = False
+    rooms_access.can_create = False
+    rooms_access.can_edit = False
+    rooms_access.can_deactivate = True
+    rooms_access.save()
+    RoleModuleAccess.objects.filter(
+        role__name__in=("SECRETARY", "COORDINATOR"),
+        module_key="diary_configuration",
+    ).update(
+        can_view=False,
+        can_create=True,
+        can_edit=False,
+        can_deactivate=True,
+    )
+
+    migration = importlib.import_module(
+        "core.migrations.0003_secretaria_rooms_diary_configuration_access"
+    )
+    migration.reconcile_secretary_access(apps, None)
+
+    rooms_access.refresh_from_db()
+    assert rooms_access.can_view is True
+    assert rooms_access.can_create is True
+    assert rooms_access.can_edit is True
+    assert rooms_access.can_deactivate is True
+    for role_name in ("SECRETARY", "COORDINATOR"):
+        access = RoleModuleAccess.objects.get(
+            role__name=role_name,
+            module_key="diary_configuration",
+        )
+        assert access.can_view is True
+        assert access.can_create is False
+        assert access.can_edit is True
+        assert access.can_deactivate is False
 
 
 def test_access_form_rejects_unknown_module_and_action_tampering():

@@ -1,7 +1,0 @@
-<fieldset class="col-12">
-    <legend class="form-label fw-semibold fs-13">{{ field.label }} <span class="text-danger">*</span></legend>
-    <div class="sm-segmented-choice" role="radiogroup" aria-label="{{ field.label }}">
-        {% for choice in field %}<div class="sm-segmented-choice-item">{{ choice.tag }}<label for="{{ choice.id_for_label }}">{{ choice.choice_label }}</label></div>{% endfor %}
-    </div>
-    {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-</fieldset>

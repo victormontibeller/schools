@@ -5,6 +5,7 @@ import datetime as dt
 import pytest
 from django.urls import reverse
 
+from classes.models import Class
 from core.models import CustomUser, Role
 from guardians.models import Guardian, StudentGuardian
 from student_diary.models import DailyDiary, DiaryCategory, DiaryMeal
@@ -17,7 +18,7 @@ from student_diary.tests.test_services import (
 )
 
 
-def _daily_post(class_obj, students, *, missing_answer=False):
+def _daily_post(class_obj, students, *, missing_answer=False, notes="Registro pela tela"):
     answers = _fixed_answers()
     data = {"class_id": str(class_obj.pk), "date": "2026-07-12"}
     for index, student in enumerate(students):
@@ -28,8 +29,13 @@ def _daily_post(class_obj, students, *, missing_answer=False):
                 data[f"{prefix}-answer_{category_id}"] = option_id
         data[f"{prefix}-meal_MORNING_SNACK"] = DiaryMeal.Status.ATE_WELL
         data[f"{prefix}-meal_LUNCH"] = DiaryMeal.Status.ATE_PARTIALLY
-        data[f"{prefix}-notes"] = "Registro pela tela"
+        data[f"{prefix}-notes"] = notes
     return data
+
+
+def _user_for_role(role_name, email):
+    role = Role.objects.get(name=role_name)
+    return CustomUser.objects.create_user(email=email, password="Senha123", role=role)
 
 
 @pytest.mark.django_db
@@ -46,11 +52,81 @@ def test_diary_daily_renders_canonical_roster_for_admin(client, user):
 
     assert response.status_code == 200
     assert b"Agenda" in response.content
+    assert b"Lista da Agenda" in response.content
+    assert b"sm-diary-filter-form" in response.content
+    assert b"sm-diary-table" in response.content
+    assert b"diary-student-editor" not in response.content
+    assert b'value="2026-07-12"' in response.content
     assert b"diary-roster-card" in response.content
     assert reverse("diary_student_history", args=[student.pk]).encode() in response.content
     assert b"Caf\xc3\xa9 da manh\xc3\xa3" in response.content
     assert b"N\xc3\xa3o estava presente" in response.content
+    assert f'name="student-{student.pk}-meal_MORNING_SNACK"'.encode() in response.content
+    assert f'name="student-{student.pk}-notes"'.encode() in response.content
     assert response.content.count(b"Salvar Agenda") == 1
+    assert response.content.count(reverse("diary_configuration").encode()) == 1
+
+
+@pytest.mark.django_db
+def test_diary_daily_without_filters_renders_compact_empty_state(client, user):
+    client.force_login(user)
+
+    response = client.get(reverse("diary_daily"))
+
+    assert response.status_code == 200
+    assert b"Lista da Agenda" in response.content
+    assert b"form-select form-select-sm" in response.content
+    assert b"form-control form-control-sm" in response.content
+    assert b"Selecione uma turma e uma data" in response.content
+    assert b"sm-diary-table" not in response.content
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("shift", "expected_meal", "unexpected_meal"),
+    [
+        (Class.Shift.MORNING, "Caf\u00e9 da manh\u00e3", "Caf\u00e9 da tarde"),
+        (Class.Shift.AFTERNOON, "Caf\u00e9 da tarde", "Caf\u00e9 da manh\u00e3"),
+        (Class.Shift.FULL, "Caf\u00e9 da manh\u00e3", None),
+    ],
+)
+def test_diary_daily_renders_meal_columns_for_class_shift(
+    client, user, shift, expected_meal, unexpected_meal
+):
+    class_obj = _class(user, shift=shift)
+    student = _student(user)
+    _enroll(user, class_obj, student)
+    client.force_login(user)
+
+    response = client.get(
+        reverse("diary_daily"),
+        {"class_id": class_obj.pk, "date": "2026-07-12"},
+    )
+
+    content = response.content.decode()
+    assert expected_meal in content
+    assert "Almo\u00e7o" in content
+    if unexpected_meal:
+        assert unexpected_meal not in content
+
+
+@pytest.mark.django_db
+def test_diary_daily_renders_only_enabled_aspect_columns(client, user):
+    disabled = DiaryCategory.objects.get(code=DiaryCategory.Aspect.BOWEL_MOVEMENT)
+    disabled.is_enabled = False
+    disabled.save(update_fields=["is_enabled"])
+    class_obj = _class(user)
+    student = _student(user)
+    _enroll(user, class_obj, student)
+    client.force_login(user)
+
+    response = client.get(
+        reverse("diary_daily"),
+        {"class_id": class_obj.pk, "date": "2026-07-12"},
+    )
+
+    assert b"Humor" in response.content
+    assert b"Evacua\xc3\xa7\xc3\xa3o" not in response.content
 
 
 @pytest.mark.django_db
@@ -85,7 +161,26 @@ def test_diary_daily_invalid_student_keeps_card_and_rolls_back(client, user):
 
     assert response.status_code == 200
     assert b"Este campo \xc3\xa9 obrigat\xc3\xb3rio" in response.content
-    assert f"student-editor-{second.pk}".encode() in response.content
+    assert b"sm-diary-row-has-errors" in response.content
+    assert f'name="student-{second.pk}-answer_'.encode() in response.content
+    assert DailyDiary.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_diary_daily_invalid_notes_keeps_error_in_student_row(client, user):
+    class_obj = _class(user)
+    student = _student(user)
+    _enroll(user, class_obj, student)
+    client.force_login(user)
+
+    response = client.post(
+        reverse("diary_daily"),
+        _daily_post(class_obj, [student], notes="x" * 1001),
+    )
+
+    assert response.status_code == 200
+    assert b"1000 caracteres" in response.content
+    assert b"sm-diary-row-has-errors" in response.content
     assert DailyDiary.objects.count() == 0
 
 
@@ -184,6 +279,55 @@ def test_diary_configuration_is_forbidden_to_teacher(client, user):
     response = client.get(reverse("diary_configuration"))
 
     assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_secretary_can_configure_aspects_without_accessing_agenda(client):
+    secretary = _user_for_role("SECRETARY", "secretary-diary-configuration@test.com")
+    aspect = DiaryCategory.objects.get(code=DiaryCategory.Aspect.MOOD)
+    client.force_login(secretary)
+
+    configuration = client.get(reverse("diary_configuration"))
+    toggle = client.post(
+        reverse("diary_aspect_toggle", args=[aspect.pk]),
+        {},
+        HTTP_HX_REQUEST="true",
+    )
+    daily = client.get(reverse("diary_daily"))
+    aspect.refresh_from_db()
+
+    assert configuration.status_code == 200
+    assert toggle.status_code == 200
+    assert aspect.is_enabled is False
+    assert daily.status_code == 403
+
+
+@pytest.mark.django_db
+def test_guardian_cannot_configure_aspects(client):
+    guardian = _user_for_role("GUARDIAN", "guardian-diary-configuration@test.com")
+    client.force_login(guardian)
+
+    assert client.get(reverse("diary_configuration")).status_code == 403
+
+
+@pytest.mark.django_db
+def test_view_only_diary_configuration_hides_edit_control(client):
+    from core.models import RoleModuleAccess
+
+    secretary = _user_for_role("SECRETARY", "secretary-diary-view-only@test.com")
+    RoleModuleAccess.objects.filter(
+        role=secretary.role,
+        module_key="diary_configuration",
+    ).update(can_view=True, can_edit=False)
+    aspect = DiaryCategory.objects.get(code=DiaryCategory.Aspect.MOOD)
+    client.force_login(secretary)
+
+    detail = client.get(reverse("diary_aspect_detail", args=[aspect.pk]))
+    toggle = client.get(reverse("diary_aspect_toggle", args=[aspect.pk]))
+
+    assert detail.status_code == 200
+    assert b"Alterar disponibilidade" not in detail.content
+    assert toggle.status_code == 403
 
 
 @pytest.mark.django_db

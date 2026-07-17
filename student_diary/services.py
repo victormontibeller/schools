@@ -70,7 +70,7 @@ class StudentDiaryService(BaseService):
     def save_daily_diaries(self, class_id, diary_date: date, entries_data: dict):
         """Salva atomicamente a agenda de todos os alunos ativos da turma."""
         from classes.contracts import Class, Enrollment
-        from student_diary.models import DiaryCategory, DiaryOption
+        from student_diary.models import DiaryCategory, DiaryOption, DiarySheet
 
         try:
             class_obj = Class.objects.get(pk=class_id)
@@ -78,6 +78,26 @@ class StudentDiaryService(BaseService):
             raise ObjectNotFoundError("Class", str(class_id)) from None
         self._assert_eligible_class(class_obj)
         teacher = self._get_authorized_teacher(class_obj)
+        sheet = (
+            DiarySheet.objects.select_for_update()
+            .filter(class_obj=class_obj, date=diary_date)
+            .first()
+        )
+        if sheet and sheet.status in {
+            DiarySheet.Status.PENDING_REVIEW,
+            DiarySheet.Status.PUBLISHED,
+        }:
+            raise BusinessRuleViolationError(
+                "A agenda precisa ser devolvida ou reaberta antes de ser editada."
+            )
+        if sheet is None:
+            sheet = DiarySheet.objects.create(
+                class_obj=class_obj,
+                date=diary_date,
+                created_by=self.user,
+                updated_by=self.user,
+            )
+            self._record_audit("INSERT", sheet)
 
         active_ids = {
             str(student_id)
@@ -122,13 +142,10 @@ class StudentDiaryService(BaseService):
         return len(entries_data)
 
     def _assert_configuration_actor(self) -> None:
-        """Restringe configurações a administração e coordenação."""
-        from core.permissions import role_name
+        """Restringe configurações à capacidade dedicada da matriz de acessos."""
+        from core.permissions import can_access
 
-        if not getattr(self.user, "is_superuser", False) and role_name(self.user) not in {
-            "ADMIN",
-            "COORDINATOR",
-        }:
+        if not can_access(self.user, "diary_configuration", "edit"):
             raise PermissionDeniedError("Sem permissão para configurar a Agenda.")
 
     @staticmethod

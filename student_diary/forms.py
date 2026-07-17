@@ -12,12 +12,22 @@ class DiaryDailyFilterForm(forms.Form):
     class_id = forms.ModelChoiceField(
         label="Turma",
         queryset=Class.objects.none(),
-        widget=forms.Select(attrs={"class": "form-select", "data-grid": "col-md-6"}),
+        widget=forms.Select(
+            attrs={
+                "class": "form-select form-select-sm",
+                "aria-label": "Turma",
+            }
+        ),
     )
     date = forms.DateField(
         label="Data",
         widget=forms.DateInput(
-            attrs={"class": "form-control", "type": "date", "data-grid": "col-md-4"}
+            format="%Y-%m-%d",
+            attrs={
+                "class": "form-control form-control-sm",
+                "type": "date",
+                "aria-label": "Data",
+            },
         ),
     )
 
@@ -33,7 +43,13 @@ class DiaryStudentEntryForm(forms.Form):
         label="Observações",
         required=False,
         max_length=1000,
-        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3, "data-grid": "col-12"}),
+        widget=forms.Textarea(
+            attrs={
+                "class": "form-control form-control-sm",
+                "rows": 3,
+                "data-diary-notes-input": "",
+            }
+        ),
     )
 
     def __init__(self, *args, categories, meal_types, initial_payload=None, **kwargs):
@@ -48,21 +64,32 @@ class DiaryStudentEntryForm(forms.Form):
             self.fields[field_name] = forms.ChoiceField(
                 label=category.name,
                 choices=[(str(option.pk), option.label) for option in category.options.all()],
-                widget=forms.RadioSelect(attrs={"class": "sm-segmented-options"}),
+                widget=forms.RadioSelect(attrs={"class": "form-check-input sm-diary-choice-input"}),
             )
             self.initial[field_name] = str(answers.get(str(category.pk), "") or "")
-            self.aspect_fields.append((category, self[field_name]))
+            self.aspect_fields.append(self._choice_cell(field_name))
         meal_labels = dict(DiaryMeal.MealType.choices)
         for meal_type in meal_types:
             field_name = f"meal_{meal_type}"
             self.fields[field_name] = forms.ChoiceField(
                 label=meal_labels[meal_type],
                 choices=DiaryMeal.Status.choices,
-                widget=forms.RadioSelect(attrs={"class": "sm-segmented-options"}),
+                widget=forms.RadioSelect(attrs={"class": "form-check-input sm-diary-choice-input"}),
             )
             self.initial[field_name] = meals.get(str(meal_type), "")
-            self.meal_fields.append((meal_type, self[field_name]))
+            self.meal_fields.append(self._choice_cell(field_name))
         self.initial["notes"] = initial_payload.get("notes", "")
+
+    def _choice_cell(self, field_name: str) -> dict:
+        """Monta os metadados de apresentação de um seletor inline."""
+        bound_field = self[field_name]
+        selected_value = str(bound_field.value() or "")
+        choice_labels = {str(value): label for value, label in self.fields[field_name].choices}
+        return {
+            "field": bound_field,
+            "label": bound_field.label,
+            "selected_label": choice_labels.get(selected_value, "Selecionar"),
+        }
 
     def to_payload(self) -> dict:
         """Converte os campos validados no contrato do service."""
@@ -89,3 +116,13 @@ class RoutineAspectToggleForm(forms.ModelForm):
         fields = ["is_enabled"]
         widgets = {"is_enabled": forms.CheckboxInput(attrs={"class": "form-check-input"})}
         labels = {"is_enabled": "Ativo na rotina"}
+
+
+class DiaryReviewForm(forms.Form):
+    """Coleta somente o motivo textual de uma devolução."""
+
+    feedback = forms.CharField(
+        label="Motivo da devolução",
+        max_length=1000,
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+    )

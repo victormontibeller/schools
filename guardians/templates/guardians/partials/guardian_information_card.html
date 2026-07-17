@@ -3,9 +3,20 @@
 <div class="card mb-0 sm-profile-card" id="guardian-information-card">
     <div class="card-header d-flex align-items-center justify-content-between gap-2">
         <h6 class="card-title mb-0">Informações do Responsável</h6>
-        {% if can_edit_guardian %}<a class="btn btn-sm btn-outline-primary" href="{% url 'guardian_edit' guardian.pk %}">
-            <i class="feather-edit-2 me-1"></i> Editar
-        </a>{% endif %}
+        {% if can_edit_guardian %}<div class="d-flex flex-wrap gap-2">
+            {% if guardian.user and guardian.user.is_active %}
+            <span class="badge bg-soft-success text-success align-self-center">Acesso ativo</span>
+            {% else %}
+            <form method="post" action="{% url 'guardian_invite' guardian.pk %}">
+                {% csrf_token %}<button class="btn btn-sm btn-outline-success" type="submit">
+                    <i class="feather-send me-1"></i> Enviar convite
+                </button>
+            </form>
+            {% endif %}
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'guardian_edit' guardian.pk %}">
+                <i class="feather-edit-2 me-1"></i> Editar
+            </a>
+        </div>{% endif %}
     </div>
     <div class="card-body sm-profile-card-body">
         {% if saved %}

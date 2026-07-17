@@ -3,7 +3,7 @@
 import json
 import logging
 
-from django.http import HttpRequest, HttpResponse
+from django.http import FileResponse, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 
 from base import context
@@ -155,6 +155,47 @@ def health(request: HttpRequest) -> HttpResponse:
         content_type="application/json",
         status=200,
     )
+
+
+def web_app_manifest(request: HttpRequest) -> JsonResponse:
+    """Retorna o manifesto instalável sem qualquer dado do tenant ou usuário."""
+    return JsonResponse(
+        {
+            "name": "School Manager",
+            "short_name": "Schools",
+            "start_url": "/app/",
+            "display": "standalone",
+            "background_color": "#ffffff",
+            "theme_color": "#3454d1",
+            "icons": [
+                {
+                    "src": "/static/icons/school-manager.svg",
+                    "sizes": "any",
+                    "type": "image/svg+xml",
+                    "purpose": "any maskable",
+                }
+            ],
+        },
+        content_type="application/manifest+json",
+    )
+
+
+def service_worker(request: HttpRequest) -> FileResponse:
+    """Entrega o worker na raiz para permitir escopo PWA sobre a aplicação."""
+    from django.contrib.staticfiles import finders
+
+    path = finders.find("js/service-worker.js")
+    if not path:
+        return HttpResponse(status=404)
+    response = FileResponse(open(path, "rb"), content_type="application/javascript")  # noqa: SIM115
+    response["Service-Worker-Allowed"] = "/"
+    response["Cache-Control"] = "no-cache"
+    return response
+
+
+def offline(request: HttpRequest) -> HttpResponse:
+    """Exibe fallback público e genérico, sem dados autenticados em cache."""
+    return render(request, "offline.html")
 
 
 def readiness(request: HttpRequest) -> HttpResponse:

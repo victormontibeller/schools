@@ -331,9 +331,9 @@ LOGGING = {
     },
 }
 
-# ── Email ──────────────────────────────────────────────────────────────────────
-# Em dev: console.EmailBackend (emails aparecem no terminal).
-# Em prod/test_pg: SMTP com credenciais do .env.
+# ── E-mail ─────────────────────────────────────────────────────────────────────
+# Exclusivo da recuperação de senha nativa do Django. Notificações usam Resend.
+# Em dev, os e-mails de senha aparecem no terminal; em produção usam SMTP.
 if TESTING or TEST_PG:
     EMAIL_BACKEND = "django.core.mail.backends.dummy.DummyBackend"
 elif DEBUG:
@@ -349,6 +349,11 @@ EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = True
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@schools.example.com")
+
+# Resend: uma chave global da plataforma; remetentes verificados permanecem por escola.
+RESEND_API_KEY = config("RESEND_API_KEY", default="")
+RESEND_WEBHOOK_SECRET = config("RESEND_WEBHOOK_SECRET", default="")
+RESEND_TIMEOUT_SECONDS = config("RESEND_TIMEOUT_SECONDS", default=15, cast=int)
 
 # ── Segurança ──────────────────────────────────────────────────────────────────
 SECURE_BROWSER_XSS_FILTER = True

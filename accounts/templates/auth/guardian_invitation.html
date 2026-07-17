@@ -1,0 +1,11 @@
+{% extends "auth/login.html" %}
+{% block title %}Ativar acesso — School Manager{% endblock %}
+{% block auth_title %}Ativar acesso de responsável{% endblock %}
+{% block auth_content %}
+<form method="post">{% csrf_token %}
+  <input type="hidden" name="token" value="{{ token }}">
+  {% for field in form %}{% include "partials/form_field.html" with field=field %}{% endfor %}
+  {% for error in form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+  <button type="submit" class="btn btn-primary w-100">Definir senha e ativar</button>
+</form>
+{% endblock %}

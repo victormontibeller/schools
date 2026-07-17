@@ -15,7 +15,7 @@ from base.repositories import BaseRepository
 from base.services import BaseService
 
 if TYPE_CHECKING:
-    from notifications.contracts import Announcement, MessageLog, MessageTemplate, Notification
+    from notifications.contracts import Announcement, MessageTemplate, Notification
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +103,23 @@ class NotificationService(BaseService):
         old = {"read_at": None}
         notification.read_at = timezone.now()
         notification.save(update_fields=["read_at", "updated_at"])
+        self._record_audit("UPDATE", notification, old_values=old)
+        return notification
+
+    def mark_as_read_for_user(self, notification_id, user_id) -> Notification:
+        """Marca como lida somente uma notificação do próprio destinatário."""
+        from notifications.contracts import Notification
+
+        try:
+            notification = Notification.objects.get(pk=notification_id, recipient_id=user_id)
+        except Notification.DoesNotExist:
+            raise ObjectNotFoundError("Notification", str(notification_id)) from None
+        if notification.read_at is not None:
+            return notification
+        old = {"read_at": None}
+        notification.read_at = timezone.now()
+        notification.updated_by = self.user
+        notification.save(update_fields=["read_at", "updated_by", "updated_at"])
         self._record_audit("UPDATE", notification, old_values=old)
         return notification
 
@@ -213,7 +230,7 @@ class AnnouncementService(BaseService):
             class_obj=class_obj,
             author=author,
             send_email=bool(data.get("send_email", False)),
-            send_whatsapp=bool(data.get("send_whatsapp", False)),
+            send_whatsapp=False,
             scheduled_at=data.get("scheduled_at"),
             created_by=self.user,
             updated_by=self.user,
@@ -257,13 +274,10 @@ class AnnouncementService(BaseService):
             )
 
         if announcement.send_whatsapp:
-            from django.db import connection
-
-            from notifications.tasks import send_announcement_whatsapp_task
-
-            schema_name = connection.schema_name
-            transaction.on_commit(
-                lambda: send_announcement_whatsapp_task.delay(schema_name, str(announcement.pk))
+            self._log(
+                "comunicado_whatsapp_ignorado",
+                announcement_id=str(announcement.pk),
+                reason="provider_not_configured",
             )
 
         self._log("Comunicado enviado", announcement_id=str(announcement.pk))
@@ -323,34 +337,3 @@ class AnnouncementService(BaseService):
         self._record_audit("INSERT", template)
         self._log("Template criado", template_id=str(template.pk))
         return template
-
-    def log_delivery(
-        self,
-        announcement=None,
-        recipient=None,
-        channel: str = "",
-        recipient_address: str = "",
-        status: str = "",
-        error_message: str = "",
-    ) -> MessageLog:
-        """Registra uma tentativa de envio no log de entrega."""
-        from notifications.contracts import MessageLog
-
-        log_entry = MessageLog.objects.create(
-            announcement=announcement,
-            recipient=recipient,
-            channel=channel,
-            recipient_address=recipient_address,
-            status=status or MessageLog.Status.PENDING,
-            error_message=error_message,
-            created_by=self.user,
-            updated_by=self.user,
-        )
-        self._record_audit("INSERT", log_entry)
-        self._log(
-            "Entrega de mensagem registrada",
-            message_log_id=str(log_entry.pk),
-            channel=channel,
-            status=log_entry.status,
-        )
-        return log_entry

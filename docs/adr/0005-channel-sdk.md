@@ -1,11 +1,14 @@
 # ADR-0005 — Channel SDK para Comunicação com Provedores Externos
 
-**Status:** Aceito
+**Status:** Aceito; a escolha do provedor de e-mail foi atualizada pelo ADR-0014
 **Data:** 2026-06-29
 
 ## Contexto
 
-O módulo `notifications/` envia mensagens por múltiplos canais (e-mail, WhatsApp, push notifications). Cada canal possui um provedor externo com API diferente (SMTP para e-mail, Twilio/Z-API/Meta Cloud API para WhatsApp). O código inicial continha chamadas diretas a `django.core.mail.send_mail` e stubs de WhatsApp espalhados em tasks Celery, gerando duplicação e dificultando a troca de provedores.
+O módulo `notifications/` envia mensagens por e-mail e mantém o WhatsApp preparado como canal
+futuro. Cada provedor possui API diferente. O código inicial continha chamadas diretas a
+`django.core.mail.send_mail` e stubs espalhados em tasks Celery, gerando duplicação e dificultando
+a troca de provedores. Web Push foi adiado; a PWA permanece apenas instalável e offline.
 
 ## Decisão
 
@@ -17,7 +20,7 @@ O módulo `notifications/` envia mensagens por múltiplos canais (e-mail, WhatsA
 notifications/
 ├── channels/
 │   ├── base.py        — BaseChannel (ABC), ChannelResult (dataclass)
-│   ├── email.py       — EmailChannel → Django SMTP
+│   ├── email.py       — EmailChannel → Resend API
 │   └── whatsapp.py    — WhatsAppChannel → stub (twilio plugável)
 ├── transport.py       — MessageTransport (render + send + log + retry)
 └── tasks.py           — Celery wrappers finos → chamam transport
@@ -44,8 +47,10 @@ class ChannelResult:
 ### Contrato
 
 1. **Todo canal implementa `BaseChannel`** — novo provedor = nova classe, sem alterar tasks ou transport.
-2. **`MessageTransport` é o orquestrador único** de renderização de template, log de entrega e retry. Tasks Celery são wrappers de 5-10 linhas.
-3. **Configuração de provedor via Tenant** — credenciais (API keys, SID, tokens) ficam em `School.settings` (JSON), lidas pelo canal no momento do envio.
+2. **`MessageTransport` é o orquestrador único** de renderização e envio;
+   `MessageDeliveryService` é o único responsável por persistir e reconciliar `MessageLog`.
+3. **Configuração segura do provedor** — secrets ficam em variáveis de ambiente; configurações não
+   secretas e remetentes verificados podem ficar em `School.settings`.
 
 ## Consequências
 
@@ -53,13 +58,14 @@ class ChannelResult:
 
 - **Plugabilidade**: trocar Twilio por Z-API requer apenas implementar `WhatsAppChannel.send()`.
 - **Testabilidade**: `BaseChannel` pode ser mockado; `MessageTransport` testável com canal fake.
-- **Zero duplicação**: `MessageLog.objects.create()` aparece apenas em `transport._log_result()` e `_log_failure()`.
+- **Zero duplicação**: `MessageLog.objects.create()` aparece somente em `MessageDeliveryService`.
 - **Segurança**: credenciais isoladas por Tenant, nunca hardcoded.
 
 ### Negativas
 
 - Abstração adiciona uma camada extra de indireção (3 arquivos vs 1 monolítico).
-- `@transaction.atomic` no `MessageTransport` pode gerar transações longas em lotes grandes — mitigado pelo chunking de 500 registros.
+- O transporte precisa persistir o log antes da rede e reconciliar o resultado depois, sem manter
+  uma transação aberta durante a chamada externa.
 
 ## Alternativas consideradas
 

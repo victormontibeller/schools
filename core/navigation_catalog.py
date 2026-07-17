@@ -56,6 +56,11 @@ STAFF_NAVIGATION = (
                 "url_name": "diary_daily",
                 "module": "student_diary",
                 "prefixes": ("diary_",),
+                "excluded_routes": (
+                    "diary_configuration",
+                    "diary_aspect_detail",
+                    "diary_aspect_toggle",
+                ),
             },
         ),
     },
@@ -93,6 +98,21 @@ STAFF_NAVIGATION = (
                 "module": "enrollments",
                 "routes": ("secretary_dashboard",),
                 "prefixes": ("application_", "document_", "bulk_reenroll", "notify_"),
+            },
+            {
+                "label": "Salas",
+                "icon": "feather-home",
+                "url_name": "rooms_list",
+                "module": "rooms",
+                "prefixes": ("room_", "rooms_"),
+            },
+            {
+                "label": "Aspectos da rotina",
+                "icon": "feather-sliders",
+                "url_name": "diary_configuration",
+                "module": "diary_configuration",
+                "routes": ("diary_configuration",),
+                "prefixes": ("diary_aspect_",),
             },
         ),
     },
@@ -147,13 +167,6 @@ STAFF_NAVIGATION = (
         "label": "Administração",
         "icon": "feather-settings",
         "items": (
-            {
-                "label": "Salas",
-                "icon": "feather-home",
-                "url_name": "rooms_list",
-                "module": "rooms",
-                "prefixes": ("room_", "rooms_"),
-            },
             {
                 "label": "Unidades",
                 "icon": "feather-briefcase",

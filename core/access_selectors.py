@@ -13,7 +13,9 @@ class ObjectAccessSelector:
 
         return StudentGuardian.objects.filter(
             guardian__user_id=user_id,
+            guardian__is_active=True,
             student_id=student_id,
+            has_custody=True,
         ).exists()
 
     @staticmethod

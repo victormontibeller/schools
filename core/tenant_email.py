@@ -1,9 +1,4 @@
-"""Resolvedor de configuracao de e-mail por tenant.
-
-Cada escola (tenant) pode definir seu proprio remetente via
-`School.settings["email"]`. O fallback usa as variaveis globais do .env
-(usado para o schema `public` e emails de sistema).
-"""
+"""Resolve o remetente Resend do tenant atual sem fallback entre escolas."""
 
 from __future__ import annotations
 
@@ -12,63 +7,24 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def get_tenant_from_email() -> str:
-    """Retorna o e-mail do remetente para o tenant atual.
-
-    Resolucao:
-        1. `School.settings["email"]["from_email"]` — especifico do tenant.
-        2. `DEFAULT_FROM_EMAIL` do .env — fallback global.
-
-    Em tarefas Celery sem contexto de tenant, retorna o fallback global.
-    """
-    from django.conf import settings
-
-    try:
-        from django_tenants.utils import get_tenant_model
-
-        tenant = get_tenant_model().objects.filter(schema_name="public").first()
-        # Tenta obter o tenant atual via middleware django-tenants.
-        from django.db import connection
-
-        schema = connection.schema_name
-        if schema and schema != "public":
-            tenant = get_tenant_model().objects.filter(schema_name=schema).first()
-
-        if tenant and tenant.settings:
-            tenant_email = tenant.settings.get("email", {})
-            from_email = tenant_email.get("from_email", "").strip()
-            if from_email:
-                return from_email
-    except Exception as exc:
-        logger.debug(
-            "tenant_email_fallback",
-            extra={"exception_type": type(exc).__name__},
-        )
-
-    return settings.DEFAULT_FROM_EMAIL
-
-
-def get_tenant_email_display() -> str:
-    """Retorna nome + e-mail formatado para o header From (ex: 'Escola ABC <abc@escola.com>')."""
-    from django.conf import settings
-
+def get_tenant_resend_config() -> dict[str, object]:
+    """Retorna a configuração Resend do tenant atual sem aplicar fallback entre escolas."""
     try:
         from django.db import connection
         from django_tenants.utils import get_tenant_model
 
-        schema = connection.schema_name
-        tenant_model = get_tenant_model()
-        tenant = tenant_model.objects.filter(schema_name=schema).first()
-
-        if tenant:
-            name = tenant.name
-            email_config = (tenant.settings or {}).get("email", {})
-            address = email_config.get("from_email", "").strip() or settings.DEFAULT_FROM_EMAIL
-            return f"{name} <{address}>"
+        schema = getattr(connection, "schema_name", "public")
+        tenant = get_tenant_model().objects.filter(schema_name=schema).first()
+        email_config = dict((tenant.settings or {}).get("email", {})) if tenant else {}
+        return {
+            "from_email": str(email_config.get("from_email", "")).strip(),
+            "domain": str(email_config.get("resend_domain", "")).strip().lower(),
+            "verified": bool(email_config.get("resend_verified", False)),
+            "school_name": tenant.name if tenant else "",
+        }
     except Exception as exc:
         logger.debug(
-            "tenant_email_display_fallback",
+            "tenant_resend_config_unavailable",
             extra={"exception_type": type(exc).__name__},
         )
-
-    return settings.DEFAULT_FROM_EMAIL
+        return {"from_email": "", "domain": "", "verified": False, "school_name": ""}

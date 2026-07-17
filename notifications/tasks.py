@@ -7,74 +7,67 @@ Toda a logica de renderizacao, envio, log e retry fica no transport.
 from __future__ import annotations
 
 import logging
+from types import SimpleNamespace
 
 from celery import shared_task
+from django.core.exceptions import ObjectDoesNotExist
 
 from base.context import tenant_schema_context
+from notifications.task_helpers import get_transport, retry_email_if_needed
 
 logger = logging.getLogger(__name__)
 
 
-def _get_transport(channel_name: str):
-    """Factory: retorna MessageTransport para o canal solicitado."""
-    from notifications.channels import EmailChannel, WhatsAppChannel
-    from notifications.transport import MessageTransport
-
-    channels = {
-        "EMAIL": EmailChannel(),
-        "WHATSAPP": WhatsAppChannel(),
-    }
-    return MessageTransport(channels[channel_name])
-
-
-# ── Envio individual via template ────────────────────────────────────────────
-
-
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def send_email_task(self, tenant_schema: str, user_id, template_id, context: dict | None = None):
-    """Envia e-mail individual renderizando template com contexto."""
+def send_diary_email_task(
+    self,
+    tenant_schema: str,
+    user_id: str,
+    event: str,
+    action_url: str,
+    publication_id: str | None = None,
+    message_log_id: str | None = None,
+) -> None:
+    """Envia um evento genérico da Agenda sem incluir conteúdo ou nome do aluno."""
     with tenant_schema_context(tenant_schema):
         from core.contracts import CustomUser
-        from notifications.contracts import MessageTemplate
 
-        user = _fetch_or_log(CustomUser, user_id, "Usuario")
+        user = CustomUser.objects.filter(pk=user_id, is_active=True).first()
         if user is None:
             return
-        template = _fetch_or_log(MessageTemplate, template_id, "Template de email")
-        if template is None:
+        if event == "publication":
+            try:
+                guardian = user.guardian_profile
+            except ObjectDoesNotExist:
+                return
+            if not guardian.accepts_email_notifications:
+                return
+        content = {
+            "publication": (
+                "Agenda escolar disponível",
+                "A escola publicou uma atualização da agenda. Acesse: {{ action_url }}",
+            ),
+            "review_requested": (
+                "Agenda aguardando revisão",
+                "Uma agenda foi enviada para revisão. Acesse: {{ action_url }}",
+            ),
+            "changes_requested": (
+                "Correção solicitada na Agenda",
+                "Uma agenda foi devolvida para correção. Acesse: {{ action_url }}",
+            ),
+        }.get(event)
+        if content is None:
             return
-
-        transport = _get_transport("EMAIL")
-        result = transport.send_individual(user, template, context)
-        if result == 0:
-            raise self.retry()
-
-
-@shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def send_whatsapp_task(
-    self, tenant_schema: str, phone: str, template_id, context: dict | None = None
-):
-    """Envia WhatsApp individual renderizando template (stub)."""
-    with tenant_schema_context(tenant_schema):
-        from notifications.contracts import MessageTemplate
-
-        template = _fetch_or_log(MessageTemplate, template_id, "Template de WhatsApp")
-        if template is None:
-            return
-
-        transport = _get_transport("WHATSAPP")
-        transport.channel.send(recipient_address=phone, subject="", body="")
-
-        # Log via transport mesmo para stub.
-        from notifications.contracts import MessageLog
-        from notifications.services import AnnouncementService
-
-        AnnouncementService().log_delivery(
-            channel=MessageLog.Channel.WHATSAPP,
-            recipient_address=phone,
-            status=MessageLog.Status.FAILED,
-            error_message="Provedor WhatsApp nao configurado (stub).",
+        transport = get_transport("EMAIL")
+        result = transport.send_individual(
+            user,
+            SimpleNamespace(subject=content[0], body=content[1]),
+            {"action_url": action_url},
+            message_log_id=message_log_id,
+            diary_publication_id=publication_id,
+            category=f"student_diary_{event}",
         )
+        retry_email_if_needed(self, transport, result)
 
 
 # ── Envio em lote para comunicado ────────────────────────────────────────────
@@ -90,7 +83,7 @@ def send_announcement_email_task(self, tenant_schema: str, announcement_id):
         if announcement is None:
             return
 
-        transport = _get_transport("EMAIL")
+        transport = get_transport("EMAIL")
         success, failed = transport.send_announcement_batch(announcement)
         if failed > 0 and success == 0:
             raise self.retry()
@@ -106,7 +99,7 @@ def send_announcement_whatsapp_task(self, tenant_schema: str, announcement_id):
         if announcement is None:
             return
 
-        transport = _get_transport("WHATSAPP")
+        transport = get_transport("WHATSAPP")
         transport.send_announcement_batch(announcement)
 
 

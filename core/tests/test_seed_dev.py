@@ -30,3 +30,6 @@ def test_seed_dev_is_idempotent_and_creates_platform_and_demo_accounts():
     assert Domain.objects.filter(domain="demo.localhost", tenant__schema_name="demo").count() == 1
     assert CustomUser.objects.filter(email="platform-admin@schools.local").count() == 1
     assert CustomUser.objects.filter(email="admin@demo.com").count() == 1
+    demo = School.objects.get(schema_name="demo")
+    assert demo.settings["student_diary"]["interactive_enabled"] is True
+    assert demo.settings["timezone"] == "America/Sao_Paulo"

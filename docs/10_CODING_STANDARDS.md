@@ -54,7 +54,7 @@ O projeto mantém helpers no `BaseService` e `BaseSelector` para eliminar repeti
 | Componente | Propósito |
 |-----------|-----------|
 | `channels/BaseChannel` | Interface que todo provedor externo implementa |
-| `channels/EmailChannel` | SDK de e-mail via Django SMTP |
+| `channels/EmailChannel` | SDK de e-mail via Resend API |
 | `channels/WhatsAppChannel` | SDK de WhatsApp (stub — plugar Twilio/Z-API) |
 | `transport/MessageTransport` | Orquestrador: render template + enviar + log + retry |
 
@@ -81,7 +81,7 @@ class WhatsAppChannel(BaseChannel):
 | `selectors.py` | Consultas read-only, paginação, agregação | `ClassSelector.list_ordered()`, `get_month_grid()` |
 | `views.py` | Orquestração HTTP (receber request → chamar service/selector → renderizar) | `class_create(request)` |
 | `forms.py` | Validação de formulário (apenas field-level: required, tipo, choices) | `ClassForm(forms.ModelForm)` |
-| `tasks.py` | Operações assíncronas (Celery wrappers finos) | `send_email_task.delay(user_id, template_id, ctx)` |
+| `tasks.py` | Operações assíncronas (Celery wrappers finos) | `send_diary_email_task.delay(schema, user_id, event, url)` |
 | `handlers.py` | Eventos cross-module (DomainEvent → notificação) | `_handle_student_created(event)` |
 
 ## Regras Invioláveis

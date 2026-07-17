@@ -79,3 +79,19 @@ class TestDashboardViews:
         assert response.status_code == 200
         assert "Nenhuma pendência prioritária" in content
         assert "Nenhum evento próximo" in content
+
+    def test_home_dashboard_lists_pending_diary_reviews(self, client, user):
+        from student_diary.tests.test_workflow import _saved_sheet
+        from student_diary.workflow_services import DiaryWorkflowService
+
+        sheet, _student = _saved_sheet(user, user)
+        DiaryWorkflowService(user=user).submit_sheet(sheet.pk)
+        client.force_login(user)
+
+        response = client.get(reverse("dashboard"))
+
+        content = response.content.decode()
+        assert response.status_code == 200
+        assert "Pendências de revisão" in content
+        assert str(sheet.class_obj) in content
+        assert f"class_id={sheet.class_obj_id}" in content

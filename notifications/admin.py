@@ -1,5 +1,6 @@
 from django.contrib import admin
 
+from notifications.forms import AnnouncementForm
 from notifications.models import Announcement, MessageLog, MessageTemplate, Notification
 
 
@@ -12,6 +13,7 @@ class MessageTemplateAdmin(admin.ModelAdmin):
 
 @admin.register(Announcement)
 class AnnouncementAdmin(admin.ModelAdmin):
+    form = AnnouncementForm
     list_display = ["title", "audience", "author", "sent_at", "created_at"]
     list_filter = ["audience", "send_email", "send_whatsapp"]
     search_fields = ["title"]

@@ -29,10 +29,10 @@
 - No contexto escolar, **Visão geral** permanece como acesso direto e os demais destinos são agrupados por departamento: Acadêmico, Secretaria, Coordenação e Administração.
 - Para funcionários, a taxonomia canônica é:
   - **Acadêmico:** Turmas, Disciplinas, Grade Horária, Atividades, Frequência e Agenda;
-  - **Secretaria:** Professores, Alunos, Responsáveis e Matrículas;
+  - **Secretaria:** Professores, Alunos, Responsáveis, Matrículas, Salas e Aspectos da rotina;
   - **Coordenação:** Calendário, Feriados, Anos Letivos e Comunicados;
   - **Financeiro:** Visão Financeira;
-  - **Administração:** Salas, Unidades, Escola, Usuários e Acessos.
+  - **Administração:** Unidades, Escola, Usuários e Acessos.
 - Professores usam os grupos **Rotina Docente** e **Planejamento**. Responsáveis usam somente
   **Acompanhamento**. Permissões auxiliares de módulo não devem criar links fora da taxonomia do
   papel.
@@ -103,14 +103,31 @@
 - Grades de notas e frequência pré-carregam os alunos e deixam editáveis apenas os dados do
   lançamento.
 - A Agenda pré-carrega todas as crianças ativas em uma listagem canônica dentro de um único card.
-  A primeira coluna liga ao histórico do aluno; cada linha expande os campos da criança e há um
-  único botão **Salvar Agenda**, que envia a turma inteira atomicamente.
-- Os campos de alimentação e dos aspectos Humor, Descanso, Evacuação e Participação usam botões
-  de opção segmentados e acessíveis. Refeições exibem Café da manhã, Almoço e Café da tarde e
-  incluem a resposta Não estava presente. Editores expandidos usam `row g-2` e permanecem
-  acessíveis sem JavaScript.
+  Turma e data usam controles pequenos no cabeçalho da lista e são aplicadas explicitamente pelo
+  botão **Carregar**. A primeira coluna liga ao histórico do aluno e permanece fixa na rolagem.
+- Cada refeição aplicável ao turno e cada aspecto ativo ocupam uma coluna com dropdown de escolha
+  única, seguindo a densidade da Central de Acessos. Observações usam um dropdown próprio com
+  textarea, sem aumentar a altura da linha. Erros aparecem na própria célula e alterações não
+  salvas são indicadas na situação do aluno.
+- Há um único botão **Salvar Agenda** no rodapé, que envia a turma inteira atomicamente. Professores
+  usam **Enviar para revisão**; coordenação e administração usam **Publicar** ou **Devolver para
+  correção** com motivo. Conteúdo em revisão ou publicado é somente leitura, mas seus dropdowns
+  continuam inspecionáveis por teclado.
+- Administração e coordenação recebem notificação com link direto e veem no dashboard as dez
+  pendências mais recentes. A folha destaca a próxima etapa e mantém Publicar/Devolver no topo.
+- Revisores veem um resumo agregado de entrega por revisão; endereços dos responsáveis nunca são
+  exibidos nessa área.
+- O histórico do responsável mostra somente snapshots publicados do aluno para o qual mantém
+  guarda. A ficha da publicação registra a visualização automaticamente por POST com CSRF e não
+  contém campo ou botão para responder, reagir ou confirmar.
+- A instalação PWA e a ativação de notificações Push são opcionais. O estado offline mostra apenas
+  uma página genérica e não sugere que a Agenda possa ser consultada sem conexão.
+- Refeições exibem Café da manhã, Almoço e Café da tarde conforme o turno e incluem a resposta
+  Não estava presente. A grade usa cabeçalho fixo e rolagem horizontal em telas estreitas.
 - **Aspectos da rotina** segue a listagem e ficha canônicas. Nomes e opções são fixos; a escola
-  pode apenas ativar ou desativar cada aspecto.
+  pode apenas ativar ou desativar cada aspecto. Sua capacidade `diary_configuration`, com ações
+  Visualizar e Editar, é independente da capacidade `student_diary` usada para preencher, revisar
+  e publicar a Agenda.
 
 ## HTMX, acessibilidade e feedback
 

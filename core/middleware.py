@@ -161,7 +161,6 @@ class PermissionPolicyMiddleware(MiddlewareMixin):
             PUBLIC_VIEW_NAMES,
             SELF_SERVICE_VIEW_NAMES,
             can_access,
-            can_configure_student_diary,
             has_unrestricted_tenant_access,
             resolve_view_access,
         )
@@ -191,6 +190,8 @@ class PermissionPolicyMiddleware(MiddlewareMixin):
                 "classes",
                 "enrollments",
                 "dashboard",
+                "student_diary",
+                "diary_configuration",
             }
         ):
             raise PermissionDenied("Ação indisponível no ambiente DEMO.")
@@ -258,12 +259,6 @@ class PermissionPolicyMiddleware(MiddlewareMixin):
                 )
             ):
                 raise PermissionDenied("Chamada fora do escopo do professor.")
-            if view_name in {
-                "diary_configuration",
-                "diary_aspect_detail",
-                "diary_aspect_toggle",
-            } and not can_configure_student_diary(request.user):
-                raise PermissionDenied("Sem permissão para configurar a Agenda.")
             student_id = view_kwargs.get("student_id")
             if student_id and not ObjectAccessSelector.teacher_can_access_student(
                 request.user.pk, student_id

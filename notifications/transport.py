@@ -1,8 +1,4 @@
-"""MessageTransport: orquestrador generico de envio de mensagens.
-
-Unifica renderizacao de template, envio via canal SDK, criacao de MessageLog
-e retry. Usado pelas tasks Celery e handlers de evento.
-"""
+"""Orquestrador de templates, canais e rastreabilidade de mensagens."""
 
 from __future__ import annotations
 
@@ -11,7 +7,7 @@ import re
 from typing import TYPE_CHECKING
 
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import transaction
+from django.db import connection
 
 from notifications.channels import ChannelResult
 
@@ -19,65 +15,68 @@ if TYPE_CHECKING:
     from notifications.channels.base import BaseChannel
 
 logger = logging.getLogger(__name__)
-
 _VARIABLE_RE = re.compile(r"\{\{\s*(\w+)\s*\}\}")
 
 
 def render_template(template_body: str, context: dict) -> str:
-    """Renderiza template substituindo variaveis {{ nome }} pelos valores do contexto."""
-    return _VARIABLE_RE.sub(lambda m: str(context.get(m.group(1), m.group(0))), template_body)
+    """Renderiza variáveis simples no formato ``{{ nome }}``."""
+    return _VARIABLE_RE.sub(
+        lambda match: str(context.get(match.group(1), match.group(0))), template_body
+    )
 
 
 class MessageTransport:
-    """Orquestrador de envio de mensagens que abstrai canal, log e template.
-
-    Uso:
-        transport = MessageTransport(EmailChannel())
-        transport.send_individual(user, template, context={"nome": "Joao"})
-        transport.send_announcement_batch(announcement)
-    """
+    """Coordena o canal externo sem manter transações abertas durante a rede."""
 
     def __init__(self, channel: BaseChannel):
-        self.channel: BaseChannel = channel
+        self.channel = channel
+        self.last_result: ChannelResult | None = None
+        self.last_log_id = None
 
-    # ── Envio individual via template ───────────────────────────────────────
-
-    @transaction.atomic
-    def send_individual(self, user, template, context: dict | None = None) -> int:
-        """Envia mensagem individual renderizando template para um usuario.
-
-        Args:
-            user: instancia de CustomUser (deve ter email e/ou phone).
-            template: instancia de MessageTemplate.
-            context: dict de variaveis para o template.
-
-        Returns:
-            1 se enviado, 0 se falhou.
-        """
+    def send_individual(
+        self,
+        user,
+        template,
+        context: dict | None = None,
+        *,
+        force: bool = False,
+        message_log_id=None,
+        diary_publication=None,
+        diary_publication_id=None,
+        category: str = "notification",
+    ) -> int:
+        """Envia uma mensagem individual e reutiliza o log durante retries."""
         context = context or {}
-        if not self._allows_channel(user):
+        if not force and not self._allows_channel(user):
             return 0
         subject = render_template(template.subject, context) if template.subject else ""
         body = render_template(template.body, context)
-
         address = self._resolve_address(user)
         if not address:
-            self._log_failure(user=user, error_message="Endereco de destinatario nao encontrado.")
+            self._record_pre_send_failure(user, diary_publication=diary_publication)
             return 0
 
-        result = self.channel.send(recipient_address=address, subject=subject, body=body)
-        self._log_result(result, user=user)
+        delivery = self._prepare_delivery(
+            user=user,
+            address=address,
+            message_log_id=message_log_id,
+            diary_publication=diary_publication,
+            diary_publication_id=diary_publication_id,
+        )
+        result = self.channel.send(
+            recipient_address=delivery.recipient_address,
+            subject=subject,
+            body=body,
+            tenant_schema=getattr(connection, "schema_name", "public"),
+            message_log_id=str(delivery.pk),
+            idempotency_key=f"message-log/{delivery.pk}",
+            category=category,
+        )
+        self._record_result(delivery.pk, result)
         return 1 if result.success else 0
 
-    # ── Envio em lote para comunicado ───────────────────────────────────────
-
-    @transaction.atomic
     def send_announcement_batch(self, announcement) -> tuple[int, int]:
-        """Envia comunicado para todos os destinatarios da audiencia.
-
-        Returns:
-            (sucessos, falhas).
-        """
+        """Envia comunicado para a audiência respeitando consentimentos."""
         from notifications.services import AnnouncementService
 
         recipients = AnnouncementService().get_audience_users(
@@ -90,38 +89,109 @@ class MessageTransport:
                 continue
             address = self._resolve_address(user)
             if not address:
-                self._log_failure(
-                    user=user,
-                    announcement=announcement,
-                    error_message="Endereco de destinatario nao encontrado.",
-                )
+                self._record_pre_send_failure(user, announcement=announcement)
                 failed += 1
                 continue
-
+            delivery = self._prepare_delivery(
+                user=user,
+                address=address,
+                announcement=announcement,
+            )
             result = self.channel.send(
-                recipient_address=address,
+                recipient_address=delivery.recipient_address,
                 subject=announcement.title,
                 body=announcement.body,
+                tenant_schema=getattr(connection, "schema_name", "public"),
+                message_log_id=str(delivery.pk),
+                idempotency_key=f"message-log/{delivery.pk}",
+                category="announcement",
             )
-            self._log_result(result, user=user, announcement=announcement)
-            if result.success:
-                success += 1
-            else:
-                failed += 1
-
+            self._record_result(delivery.pk, result)
+            success += int(result.success)
+            failed += int(not result.success)
         logger.info(
-            "Lote %s concluido: comunicado=%s sucesso=%d falhas=%d",
-            self.channel.channel_name,
-            announcement.pk,
-            success,
-            failed,
+            "message_batch_completed",
+            extra={
+                "channel": self.channel.channel_name,
+                "announcement_id": str(announcement.pk),
+                "success_count": success,
+                "failure_count": failed,
+            },
         )
         return success, failed
 
-    # ── Helpers internos ────────────────────────────────────────────────────
+    def _prepare_delivery(
+        self,
+        *,
+        user,
+        address: str,
+        message_log_id=None,
+        announcement=None,
+        diary_publication=None,
+        diary_publication_id=None,
+    ):
+        """Cria ou recupera o log que identifica a chamada externa."""
+        from notifications.delivery_services import MessageDeliveryService
+
+        service = MessageDeliveryService(user=None)
+        delivery = (
+            service.get_pending(message_log_id)
+            if message_log_id
+            else service.create_pending(
+                recipient=user,
+                channel=self.channel.channel_name,
+                recipient_address=address,
+                announcement=announcement,
+                diary_publication=diary_publication,
+                diary_publication_id=diary_publication_id,
+            )
+        )
+        self.last_log_id = delivery.pk
+        return delivery
+
+    def _record_result(self, message_log_id, result: ChannelResult) -> None:
+        """Persiste o resultado sanitizado retornado pelo canal."""
+        from notifications.delivery_services import MessageDeliveryService
+
+        self.last_result = result
+        MessageDeliveryService(user=None).record_channel_result(message_log_id, result)
+        level = logging.INFO if result.success else logging.WARNING
+        logger.log(
+            level,
+            "message_channel_result",
+            extra={
+                "channel": self.channel.channel_name,
+                "message_log_id": str(message_log_id),
+                "success": result.success,
+                "retryable": result.retryable,
+                "status_code": result.status_code,
+            },
+        )
+
+    def _record_pre_send_failure(
+        self,
+        user,
+        *,
+        announcement=None,
+        diary_publication=None,
+    ) -> None:
+        """Registra endereço ausente sem realizar chamada externa."""
+        delivery = self._prepare_delivery(
+            user=user,
+            address="",
+            announcement=announcement,
+            diary_publication=diary_publication,
+        )
+        result = ChannelResult(
+            success=False,
+            channel=self.channel.channel_name,
+            recipient_address="",
+            error_message="recipient_address_missing",
+        )
+        self._record_result(delivery.pk, result)
 
     def _resolve_address(self, user) -> str:
-        """Retorna o endereco de destino conforme o canal."""
+        """Retorna o destino correspondente ao canal."""
         if self.channel.channel_name == "EMAIL":
             return getattr(user, "email", "")
         if self.channel.channel_name == "WHATSAPP":
@@ -129,7 +199,7 @@ class MessageTransport:
         return ""
 
     def _allows_channel(self, user) -> bool:
-        """Respeita o consentimento do perfil quando o usuário representa uma pessoa."""
+        """Respeita a preferência do perfil quando ela existe."""
         field = (
             "accepts_email_notifications"
             if self.channel.channel_name == "EMAIL"
@@ -142,35 +212,3 @@ class MessageTransport:
                 continue
             return bool(getattr(profile, field, False))
         return True
-
-    def _log_result(self, result: ChannelResult, user=None, announcement=None) -> None:
-        """Cria MessageLog a partir de um ChannelResult."""
-        from notifications.models import MessageLog
-        from notifications.services import AnnouncementService
-
-        AnnouncementService().log_delivery(
-            announcement=announcement,
-            recipient=user,
-            channel=self.channel.channel_name,
-            recipient_address=result.recipient_address,
-            status=MessageLog.Status.SENT if result.success else MessageLog.Status.FAILED,
-            error_message=result.error_message,
-        )
-        if result.success:
-            logger.debug("Mensagem enviada pelo canal %s", self.channel.channel_name)
-        else:
-            logger.warning("Falha no envio pelo canal %s", self.channel.channel_name)
-
-    def _log_failure(self, user=None, announcement=None, error_message: str = "") -> None:
-        """Cria MessageLog para falha pre-envio (ex: endereco ausente)."""
-        from notifications.models import MessageLog
-        from notifications.services import AnnouncementService
-
-        AnnouncementService().log_delivery(
-            announcement=announcement,
-            recipient=user,
-            channel=self.channel.channel_name,
-            recipient_address="",
-            status=MessageLog.Status.FAILED,
-            error_message=error_message,
-        )

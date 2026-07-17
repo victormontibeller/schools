@@ -6,22 +6,92 @@
 <div class="page-header">
     <div class="page-header-left d-flex align-items-center">
         <div class="page-header-title"><h5 class="m-b-10">Agenda</h5></div>
-        <ul class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li><li class="breadcrumb-item">Agenda</li></ul>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item active">Agenda</li>
+        </ul>
     </div>
 </div>
+
 <div class="main-content">
-    <div class="card sm-detail-card mb-3">
-        <div class="card-header d-flex justify-content-between align-items-center gap-2">
-            <h6 class="card-title mb-0">Selecionar turma e data</h6>
-            {% if can_configure_diary %}<a class="btn btn-sm btn-outline-primary" href="{% url 'diary_configuration' %}">Aspectos da rotina</a>{% endif %}
+    <div class="card sm-list-card" id="diary-workspace-card">
+        <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
+            <h6 class="card-title mb-0">Lista da Agenda</h6>
+            <div class="d-flex align-items-center justify-content-end gap-2 flex-wrap sm-diary-header-controls">
+                <form method="get" class="d-flex align-items-center gap-2 flex-wrap sm-diary-filter-form">
+                    <div class="sm-diary-class-filter">
+                        <label class="visually-hidden" for="{{ filter_form.class_id.id_for_label }}">Turma</label>
+                        {{ filter_form.class_id }}
+                    </div>
+                    <div class="sm-diary-date-filter">
+                        <label class="visually-hidden" for="{{ filter_form.date.id_for_label }}">Data</label>
+                        {{ filter_form.date }}
+                    </div>
+                    <button class="btn btn-primary btn-sm" type="submit">Carregar</button>
+                </form>
+            </div>
         </div>
-        <div class="card-body">
-            <form method="get" class="row g-2 align-items-end">
-                {% for field in filter_form %}{% include "partials/form_field.html" with field=field %}{% endfor %}
-                <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">Carregar</button></div>
-            </form>
+        {% if filter_form.errors %}
+        <div class="alert alert-danger m-3 mb-0 py-2" role="alert">
+            Revise a turma e a data informadas.
         </div>
+        {% endif %}
+        {% if sheet %}
+            {% include "student_diary/partials/daily_roster_card.html" %}
+        {% else %}
+        <div id="diary-roster-card">
+            <div class="card-body text-center text-muted py-5">
+                Selecione uma turma e uma data para carregar a Agenda.
+            </div>
+        </div>
+        {% endif %}
     </div>
-    {% if sheet %}{% include "student_diary/partials/daily_roster_card.html" %}{% endif %}
 </div>
+
+<script>
+(function () {
+    if (window.schoolDiaryInlineInitialized) {
+        return;
+    }
+    window.schoolDiaryInlineInitialized = true;
+
+    function markRowChanged(control) {
+        var row = control.closest("[data-diary-row]");
+        var status = row && row.querySelector("[data-diary-status]");
+        if (!status) {
+            return;
+        }
+        status.className = "badge bg-soft-info text-info";
+        status.textContent = "Alterada";
+    }
+
+    document.addEventListener("change", function (event) {
+        var input = event.target.closest(".sm-diary-choice-input");
+        if (!input) {
+            return;
+        }
+        var dropdown = input.closest("[data-diary-choice]");
+        var summary = dropdown && dropdown.querySelector("[data-diary-selection]");
+        var label = dropdown && dropdown.querySelector("label[for='" + input.id + "']");
+        if (summary && label) {
+            summary.textContent = label.textContent.trim();
+            summary.title = label.textContent.trim();
+        }
+        markRowChanged(input);
+    });
+
+    document.addEventListener("input", function (event) {
+        var input = event.target.closest("[data-diary-notes-input]");
+        if (!input) {
+            return;
+        }
+        var dropdown = input.closest("[data-diary-notes]");
+        var summary = dropdown && dropdown.querySelector("[data-diary-notes-summary]");
+        if (summary) {
+            summary.textContent = input.value.trim() ? "Com observação" : "Sem observação";
+        }
+        markRowChanged(input);
+    });
+}());
+</script>
 {% endblock %}

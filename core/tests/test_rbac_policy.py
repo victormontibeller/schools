@@ -78,7 +78,14 @@ def test_teacher_cannot_access_activity_not_owned(client):
 
 @pytest.mark.parametrize(
     ("role_name", "expected"),
-    [("ADMIN", True), ("COORDINATOR", True), ("TEACHER", False), ("GUARDIAN", False)],
+    [
+        ("ADMIN", True),
+        ("SECRETARY", True),
+        ("COORDINATOR", True),
+        ("TEACHER", False),
+        ("FINANCE", False),
+        ("GUARDIAN", False),
+    ],
 )
 def test_can_configure_student_diary_follows_central_role_policy(role_name, expected):
     user = SimpleNamespace(
@@ -89,6 +96,27 @@ def test_can_configure_student_diary_follows_central_role_policy(role_name, expe
     )
 
     assert can_configure_student_diary(user) is expected
+
+
+def test_secretary_diary_configuration_does_not_grant_agenda_editing():
+    from core.permissions import can_access
+
+    secretary = SimpleNamespace(
+        is_authenticated=True,
+        is_superuser=False,
+        access_mode="STANDARD",
+        role=SimpleNamespace(name="SECRETARY"),
+    )
+
+    assert can_access(secretary, "diary_configuration", "view") is True
+    assert can_access(secretary, "diary_configuration", "edit") is True
+    assert can_access(secretary, "student_diary", "view") is False
+    assert can_access(secretary, "student_diary", "edit") is False
+    assert can_access(secretary, "rooms", "view") is True
+    assert can_access(secretary, "rooms", "create") is True
+    assert can_access(secretary, "rooms", "edit") is True
+    assert can_access(secretary, "rooms", "deactivate") is False
+    assert can_edit_student_diary(secretary) is False
 
 
 def test_admin_has_unrestricted_access_only_inside_school_tenant():

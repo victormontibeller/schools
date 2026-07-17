@@ -1,0 +1,28 @@
+<div class="dropdown sm-diary-dropdown{% if cell.field.errors %} is-invalid{% endif %}"
+     data-diary-choice>
+    <button type="button"
+            class="btn btn-outline-secondary sm-diary-selector{% if cell.field.errors %} is-invalid{% endif %}"
+            data-bs-toggle="dropdown"
+            data-bs-boundary="viewport"
+            aria-expanded="false">
+        <span class="visually-hidden">{{ student.get_full_name }} — {{ cell.label }}: </span>
+        <span class="sm-diary-selection"
+              data-diary-selection
+              title="{{ cell.selected_label }}">{{ cell.selected_label }}</span>
+        <i class="feather-chevron-down ms-auto" aria-hidden="true"></i>
+    </button>
+    <div class="dropdown-menu sm-diary-dropdown-menu p-3">
+        <fieldset{% if not can_edit %} disabled{% endif %}>
+            <legend class="visually-hidden">{{ student.get_full_name }} — {{ cell.label }}</legend>
+            {% for choice in cell.field %}
+            <div class="form-check{% if not forloop.last %} mb-2{% endif %}">
+                {{ choice.tag }}
+                <label class="form-check-label"
+                       for="{{ choice.id_for_label }}"
+                       data-diary-choice-label>{{ choice.choice_label }}</label>
+            </div>
+            {% endfor %}
+        </fieldset>
+    </div>
+    {% for error in cell.field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+</div>

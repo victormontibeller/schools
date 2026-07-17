@@ -67,6 +67,25 @@ class PlatformSchoolEditForm(forms.Form):
         label="Telefone",
         widget=forms.TextInput(attrs={"class": "form-control"}),
     )
+    resend_domain = forms.CharField(
+        required=False,
+        max_length=253,
+        label="Domínio de envio na Resend",
+        help_text="Verifique SPF e DKIM manualmente no painel da Resend.",
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "mail.escola.com"}),
+    )
+    resend_from_email = forms.EmailField(
+        required=False,
+        label="Remetente de e-mail",
+        widget=forms.EmailInput(
+            attrs={"class": "form-control", "placeholder": "agenda@mail.escola.com"}
+        ),
+    )
+    resend_verified = forms.BooleanField(
+        required=False,
+        label="Domínio confirmado como verificado na Resend",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
     is_active = forms.BooleanField(
         required=False,
         label="Escola ativa",

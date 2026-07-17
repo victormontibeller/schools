@@ -48,8 +48,18 @@ class Command(BaseCommand):
 
             demo, _ = School.objects.get_or_create(
                 schema_name=getattr(settings, "DEMO_SCHEMA_NAME", "demo"),
-                defaults={"name": "Escola Demonstração"},
+                defaults={
+                    "name": "Escola Demonstração",
+                    "settings": {"student_diary": {"interactive_enabled": True}},
+                },
             )
+            demo_settings = dict(demo.settings)
+            diary_settings = dict(demo_settings.get("student_diary", {}))
+            diary_settings["interactive_enabled"] = True
+            demo_settings["student_diary"] = diary_settings
+            if demo.settings != demo_settings:
+                demo.settings = demo_settings
+                demo.save(update_fields=["settings", "updated_at"])
             Domain.objects.update_or_create(
                 domain=f"{demo.schema_name}.{settings.TENANT_BASE_DOMAIN}",
                 defaults={"tenant": demo, "is_primary": True},

@@ -3,15 +3,23 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+from django.db.models import Q, QuerySet
 
 from base.exceptions import ObjectNotFoundError
 from core.access_catalog import (
     ACTION_FIELDS,
     ACTIONS,
+    ADMIN,
     CONFIGURABLE_ROLES,
     MODULES,
+    MODULES_BY_KEY,
     ROLE_LABELS,
 )
+
+if TYPE_CHECKING:
+    from core.models import CustomUser
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +41,23 @@ class FullAccessMatrix:
 
 class AccessConfigurationSelector:
     """Lê políticas sem alterar o estado do tenant."""
+
+    @staticmethod
+    def users_with_permission(module_key: str, action: str) -> QuerySet[CustomUser]:
+        """Lista usuários que possuem uma capacidade na matriz central."""
+        from core.models import CustomUser
+
+        module = MODULES_BY_KEY.get(module_key)
+        if module is None or action not in module.supported_actions:
+            return CustomUser.objects.none()
+        configured_access = {
+            "role__name__in": module.eligible_roles,
+            "role__module_accesses__module_key": module_key,
+            f"role__module_accesses__{ACTION_FIELDS[action]}": True,
+        }
+        return CustomUser.objects.filter(
+            Q(is_superuser=True) | Q(role__name=ADMIN) | Q(**configured_access)
+        ).distinct()
 
     def get_full_matrix(self) -> FullAccessMatrix:
         """Carrega os cinco grupos e suas capacidades sem consultas por célula."""

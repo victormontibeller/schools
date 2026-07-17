@@ -91,6 +91,17 @@ Cada módulo deverá expor métricas para o Prometheus:
 - Crescimento de usuários
 - Taxa de utilização da plataforma
 
+### Agenda escolar
+
+- Taxa de visualização em até 24 horas, considerando somente recibos da revisão mais recente.
+- Percentual de dias letivos publicados por turma elegível nos últimos 28 dias.
+- Tempo mediano entre envio para revisão e publicação.
+- Contagem de rascunhos, folhas em revisão, devoluções e publicações.
+- Entregas e falhas por canal disponível, sem registrar e-mail, nome ou conteúdo. Web Push está
+  adiado e não produz métricas nesta versão.
+- E-mail registra os estados aceito, entregue, atrasado, devolvido, suprimido, reclamação e falha
+  recebidos por webhook Resend. Eventos duplicados ou antigos não regressam o estado consolidado.
+
 ---
 
 ## Alertas

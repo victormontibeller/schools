@@ -85,11 +85,42 @@ class PlatformSchoolService(BaseService):
         if Domain.objects.filter(domain=domain_name).exclude(tenant=school).exists():
             raise ValidationError(errors={"domain": ["Este domínio já está cadastrado."]})
 
-        old_school = self._snapshot(school, ["name", "is_active"])
+        resend_domain = (data.get("resend_domain") or "").strip().lower()
+        resend_from_email = (data.get("resend_from_email") or "").strip().lower()
+        resend_verified = bool(data.get("resend_verified", False))
+        if resend_verified and (not resend_domain or not resend_from_email):
+            raise ValidationError(
+                errors={
+                    "resend_verified": [
+                        "Informe o domínio e o remetente antes de confirmar a verificação."
+                    ]
+                }
+            )
+        if resend_from_email and resend_domain:
+            address_domain = resend_from_email.rpartition("@")[2]
+            if address_domain != resend_domain and not address_domain.endswith(f".{resend_domain}"):
+                raise ValidationError(
+                    errors={
+                        "resend_from_email": ["O remetente deve pertencer ao domínio informado."]
+                    }
+                )
+
+        old_school = self._snapshot(school, ["name", "is_active", "settings"])
         school.name = name
         school.email = data.get("email", school.email)
         school.phone = data.get("phone", school.phone)
         school.is_active = bool(data.get("is_active", school.is_active))
+        school_settings = dict(school.settings or {})
+        email_settings = dict(school_settings.get("email", {}))
+        email_settings.update(
+            {
+                "resend_domain": resend_domain,
+                "from_email": resend_from_email,
+                "resend_verified": resend_verified,
+            }
+        )
+        school_settings["email"] = email_settings
+        school.settings = school_settings
         school.updated_by = self.user
         school.save()
         self._record_audit("UPDATE", school, old_values=old_school)

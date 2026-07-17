@@ -16,9 +16,12 @@ from core.views import (
     health,
     index,
     metrics,
+    offline,
     readiness,
     school_detail,
     school_edit,
+    service_worker,
+    web_app_manifest,
 )
 
 handler404 = handler404
@@ -38,6 +41,9 @@ urlpatterns = [
     path("health/", health, name="health"),
     path("ready/", readiness, name="readiness"),
     path("metrics/", metrics, name="metrics"),
+    path("manifest.webmanifest", web_app_manifest, name="web_app_manifest"),
+    path("service-worker.js", service_worker, name="service_worker"),
+    path("offline/", offline, name="offline"),
     path("", include("accounts.urls")),
     path("", include("teachers.urls")),
     path("", include("students.urls")),

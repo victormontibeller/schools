@@ -2,6 +2,47 @@
      hx-get="{% url 'school_dashboard_partial' %}"
      hx-trigger="every 60s"
      hx-swap="outerHTML">
+    {% if data.diary_kpis %}<section class="card mb-3" aria-labelledby="diary-workflow-title">
+        <div class="card-header d-flex justify-content-between align-items-center gap-2">
+            <div><h6 id="diary-workflow-title" class="card-title mb-1">Agenda escolar</h6><p class="text-muted small mb-0">Publicações unidirecionais para as famílias.</p></div>
+            {% if data.diary_kpis.role != "GUARDIAN" %}<a href="{% url 'diary_daily' %}" class="btn btn-outline-primary btn-sm">Abrir agenda</a>{% endif %}
+        </div>
+        <div class="card-body"><div class="sm-dashboard-summary-grid">
+            {% if data.diary_kpis.role == "GUARDIAN" %}
+            <a href="{% url 'notification_list' %}" class="sm-dashboard-summary-item"><span>Novas agendas</span><strong>{{ data.diary_kpis.unread }}</strong></a>
+            <a href="{% url 'notification_list' %}" class="sm-dashboard-summary-item"><span>Publicações recebidas</span><strong>{{ data.diary_kpis.published }}</strong></a>
+            {% else %}
+            {% with first_pending=data.diary_pending_reviews.0 %}<a href="{% url 'diary_daily' %}{% if first_pending %}?class_id={{ first_pending.class_obj_id }}&date={{ first_pending.date|date:'Y-m-d' }}{% endif %}" class="sm-dashboard-summary-item"><span>Em revisão</span><strong>{{ data.diary_kpis.pending_review }}</strong></a>{% endwith %}
+            <a href="{% url 'diary_daily' %}" class="sm-dashboard-summary-item"><span>Devolvidas</span><strong>{{ data.diary_kpis.changes_requested }}</strong></a>
+            <div class="sm-dashboard-summary-item"><span>Visualizadas em 24h</span><strong>{% if data.diary_kpis.view_rate_24h is not None %}{{ data.diary_kpis.view_rate_24h|floatformat:1 }}%{% else %}—{% endif %}</strong></div>
+            <div class="sm-dashboard-summary-item"><span>Dias/turmas publicados</span><strong>{% if data.diary_kpis.publication_completion_rate is not None %}{{ data.diary_kpis.publication_completion_rate|floatformat:1 }}%{% else %}—{% endif %}</strong></div>
+            <div class="sm-dashboard-summary-item"><span>Mediana até publicação</span><strong>{% if data.diary_kpis.approval_median_hours is not None %}{{ data.diary_kpis.approval_median_hours|floatformat:1 }}h{% else %}—{% endif %}</strong></div>
+            {% endif %}
+        </div>
+        {% if data.diary_kpis.role == "ADMIN" or data.diary_kpis.role == "COORDINATOR" %}
+        <div class="border-top">
+            <div class="px-3 pt-3"><h6 class="mb-1">Pendências de revisão</h6><p class="text-muted small mb-2">Abra a turma e a data para publicar ou devolver.</p></div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>Turma</th><th>Data</th><th>Enviada em</th><th>Estado</th></tr></thead>
+                    <tbody>
+                    {% for pending in data.diary_pending_reviews %}
+                    <tr>
+                        <td><a class="fw-semibold" href="{% url 'diary_daily' %}?class_id={{ pending.class_obj_id }}&date={{ pending.date|date:'Y-m-d' }}">{{ pending.class_obj }}</a></td>
+                        <td>{{ pending.date|date:'d/m/Y' }}</td>
+                        <td>{{ pending.submitted_at|date:'d/m/Y H:i'|default:'—' }}</td>
+                        <td><span class="badge bg-soft-warning text-warning">Em revisão</span></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center text-muted py-3">Nenhuma agenda aguardando revisão.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+        </div>
+    </section>{% endif %}
     <section class="row g-3 mb-3" aria-label="Indicadores da escola">
         <div class="col-12 col-sm-6 col-xl-3">
             <a href="{% url 'students_list' %}" class="card sm-dashboard-kpi h-100 text-decoration-none">

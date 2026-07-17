@@ -121,6 +121,14 @@ MODULES = (
     ),
     ModuleDefinition("guardians", "Responsáveis", "Secretaria", STAFF_ROLES),
     ModuleDefinition("enrollments", "Matrículas", "Secretaria", STAFF_ROLES),
+    ModuleDefinition("rooms", "Salas", "Secretaria", STAFF_ROLES),
+    ModuleDefinition(
+        "diary_configuration",
+        "Aspectos da rotina",
+        "Secretaria",
+        frozenset({SECRETARY, COORDINATOR}),
+        supported_actions=frozenset({VIEW, EDIT}),
+    ),
     ModuleDefinition(
         "academic_calendar",
         "Calendário acadêmico",
@@ -136,7 +144,6 @@ MODULES = (
         scoped_roles=frozenset({GUARDIAN}),
     ),
     ModuleDefinition("financeiro", "Financeiro", "Financeiro", STAFF_ROLES),
-    ModuleDefinition("rooms", "Salas", "Administração", STAFF_ROLES),
 )
 
 MODULES_BY_KEY = {module.key: module for module in MODULES}
@@ -189,6 +196,11 @@ DEFAULT_ACCESS: dict[str, dict[str, frozenset[str]]] = {
         COORDINATOR: frozenset({VIEW}),
     },
     "enrollments": {SECRETARY: frozenset({VIEW, CREATE, EDIT})},
+    "rooms": {SECRETARY: frozenset({VIEW, CREATE, EDIT})},
+    "diary_configuration": {
+        SECRETARY: frozenset({VIEW, EDIT}),
+        COORDINATOR: frozenset({VIEW, EDIT}),
+    },
     "academic_calendar": {
         COORDINATOR: frozenset({VIEW, CREATE, EDIT}),
         TEACHER: frozenset({VIEW}),
@@ -200,7 +212,6 @@ DEFAULT_ACCESS: dict[str, dict[str, frozenset[str]]] = {
         GUARDIAN: frozenset({VIEW}),
     },
     "financeiro": {FINANCE: frozenset({VIEW, CREATE, EDIT})},
-    "rooms": {},
 }
 
 APP_MODULES = {

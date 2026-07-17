@@ -164,6 +164,11 @@ class MessageLog(BaseModel):
     class Status(models.TextChoices):
         PENDING = "PENDING", "Pendente"
         SENT = "SENT", "Enviado"
+        DELIVERED = "DELIVERED", "Entregue"
+        DELAYED = "DELAYED", "Entrega atrasada"
+        BOUNCED = "BOUNCED", "Devolvido"
+        SUPPRESSED = "SUPPRESSED", "Suprimido"
+        COMPLAINED = "COMPLAINED", "Marcado como spam"
         FAILED = "FAILED", "Falhou"
 
     announcement: models.ForeignKey | None = models.ForeignKey(
@@ -173,6 +178,14 @@ class MessageLog(BaseModel):
         on_delete=models.SET_NULL,
         related_name="logs",
         verbose_name="Comunicado",
+    )
+    diary_publication = models.ForeignKey(
+        "student_diary.DiaryPublication",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,  # A entrega pode permanecer sem a publicação ativa.
+        related_name="message_logs",
+        verbose_name="Publicação da Agenda",
     )
     recipient: models.ForeignKey | None = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -192,8 +205,25 @@ class MessageLog(BaseModel):
         max_length=20, choices=Status.choices, default=Status.PENDING, verbose_name="Status"
     )
     error_message: str = models.TextField(blank=True, default="", verbose_name="Mensagem de erro")
+    provider: str = models.CharField(max_length=30, blank=True, default="", verbose_name="Provedor")
+    provider_message_id: str | None = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        unique=True,
+        verbose_name="ID da mensagem no provedor",
+    )
+    last_event: str = models.CharField(
+        max_length=40, blank=True, default="", verbose_name="Último evento"
+    )
+    event_occurred_at: models.DateTimeField | None = models.DateTimeField(
+        null=True, blank=True, verbose_name="Evento ocorrido em"
+    )
     sent_at: models.DateTimeField | None = models.DateTimeField(
         null=True, blank=True, verbose_name="Enviado em"
+    )
+    delivered_at: models.DateTimeField | None = models.DateTimeField(
+        null=True, blank=True, verbose_name="Entregue em"
     )
 
     class Meta:
@@ -203,8 +233,31 @@ class MessageLog(BaseModel):
         indexes = [
             models.Index(fields=["channel", "status"]),
             models.Index(fields=["announcement"]),
+            models.Index(fields=["diary_publication", "channel", "status"]),
         ]
 
     def __str__(self) -> str:
         disp = self.get_channel_display()
         return f"{disp} → {self.recipient_address} ({self.get_status_display()})"
+
+
+class WebhookEventReceipt(BaseModel):
+    """Evento de webhook processado sem persistir o payload com dados pessoais."""
+
+    provider = models.CharField(max_length=30, verbose_name="Provedor")
+    external_event_id = models.CharField(
+        max_length=100, unique=True, verbose_name="ID externo do evento"
+    )
+    event_type = models.CharField(max_length=40, verbose_name="Tipo do evento")
+    provider_message_id = models.CharField(max_length=100, verbose_name="ID da mensagem")
+    occurred_at = models.DateTimeField(verbose_name="Ocorrido em")
+
+    class Meta:
+        ordering = ["-occurred_at"]
+        verbose_name = "Evento de Webhook"
+        verbose_name_plural = "Eventos de Webhook"
+        indexes = [models.Index(fields=["provider", "provider_message_id"])]
+
+    def __str__(self) -> str:
+        """Representa o evento somente por identificadores opacos."""
+        return f"WebhookEventReceipt({self.pk})"

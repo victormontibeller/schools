@@ -3,6 +3,7 @@ from django.urls import path
 from notifications import views
 
 urlpatterns = [
+    path("webhooks/resend/email/", views.resend_email_webhook, name="resend_email_webhook"),
     path("notifications/", views.notification_list, name="notification_list"),
     path(
         "notifications/<uuid:pk>/read/",

@@ -17,12 +17,15 @@ class ChannelResult:
     channel: str
     recipient_address: str
     error_message: str = ""
+    status_code: int | None = None
+    provider_message_id: str = ""
+    retryable: bool = False
 
 
 class BaseChannel(ABC):
     """Interface que todo canal de comunicacao deve implementar.
 
-    Cada canal encapsula seu provedor externo (SMTP, Twilio, etc.)
+    Cada canal encapsula seu provedor externo (Resend, futuro provedor WhatsApp, etc.)
     e expoe um unico metodo `send()` com assinatura uniforme.
     """
 

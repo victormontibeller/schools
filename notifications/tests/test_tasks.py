@@ -126,16 +126,37 @@ class TestEventHandlers:
 @pytest.mark.django_db
 class TestTransport:
     def test_email_channel_success(self, user):
+        from unittest.mock import patch
+
+        from django.test import override_settings
+
         from notifications.channels.email import EmailChannel
 
         channel = EmailChannel()
-        result = channel.send(
-            recipient_address="test@example.com",
-            subject="Teste",
-            body="Corpo de teste",
-        )
+        with (
+            override_settings(RESEND_API_KEY="re_test"),
+            patch(
+                "core.tenant_email.get_tenant_resend_config",
+                return_value={
+                    "verified": True,
+                    "from_email": "agenda@mail.example.com",
+                    "domain": "mail.example.com",
+                    "school_name": "Escola",
+                },
+            ),
+            patch("resend.Emails.send", return_value={"id": "email-provider-id"}),
+        ):
+            result = channel.send(
+                recipient_address="test@example.com",
+                subject="Teste",
+                body="Corpo de teste",
+                tenant_schema="demo",
+                message_log_id="opaque-id",
+                idempotency_key="message-log/opaque-id",
+            )
         assert result.success is True
         assert result.channel == "EMAIL"
+        assert result.provider_message_id == "email-provider-id"
 
     def test_whatsapp_channel_stub(self, user):
         from notifications.channels.whatsapp import WhatsAppChannel
@@ -157,6 +178,10 @@ class TestTransport:
         assert result.success is False
 
     def test_transport_send_individual(self, user):
+        from unittest.mock import patch
+
+        from django.test import override_settings
+
         from core.models import CustomUser
         from notifications.channels.email import EmailChannel
         from notifications.models import MessageTemplate
@@ -176,7 +201,20 @@ class TestTransport:
             updated_by=user,
         )
         transport = MessageTransport(EmailChannel())
-        result = transport.send_individual(recipient, template, {"nome": "Joao"})
+        with (
+            override_settings(RESEND_API_KEY="re_test"),
+            patch(
+                "core.tenant_email.get_tenant_resend_config",
+                return_value={
+                    "verified": True,
+                    "from_email": "agenda@mail.example.com",
+                    "domain": "mail.example.com",
+                    "school_name": "Escola",
+                },
+            ),
+            patch("resend.Emails.send", return_value={"id": "transport-provider-id"}),
+        ):
+            result = transport.send_individual(recipient, template, {"nome": "Joao"})
         assert result == 1
 
     def test_transport_logs_do_not_expose_recipient_address(self, user, caplog):

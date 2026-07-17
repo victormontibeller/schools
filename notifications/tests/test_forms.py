@@ -35,6 +35,8 @@ class TestAnnouncementForm:
             }
         )
         assert form.is_valid()
+        assert form.fields["send_whatsapp"].disabled is True
+        assert form.fields["send_whatsapp"].help_text == "Provedor ainda não configurado."
 
     def test_blank_title(self):
         form = AnnouncementForm(data={"title": "", "body": "Corpo", "audience": "ALL"})

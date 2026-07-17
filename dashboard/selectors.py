@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
+import statistics
 
-from django.db.models import Count
+from django.db.models import Count, F, OuterRef, Q, Subquery
 from django.utils import timezone
 
 from base.selectors import BaseSelector
@@ -158,6 +159,115 @@ class DashboardSelector(BaseSelector):
             }
             for a in qs
         ]
+
+    def get_diary_kpis(self, user) -> dict:
+        """Retorna indicadores operacionais da agenda conforme o papel atual."""
+        from core.permissions import role_name
+        from student_diary.contracts import DiaryPublication, DiarySheet, DiaryViewReceipt
+
+        role = role_name(user)
+        if role == "GUARDIAN":
+            receipts = DiaryViewReceipt.objects.filter(
+                guardian__user=user,
+                guardian__is_active=True,
+                entry__student__guardians__guardian__user=user,
+                entry__student__guardians__guardian__is_active=True,
+                entry__student__guardians__has_custody=True,
+            ).distinct()
+            return {
+                "role": role,
+                "unread": receipts.filter(first_viewed_at__isnull=True).count(),
+                "published": receipts.count(),
+            }
+        sheets = DiarySheet.objects.all()
+        if role == "TEACHER":
+            sheets = sheets.filter(
+                Q(class_obj__class_teacher__user=user) | Q(class_obj__schedules__teacher__user=user)
+            ).distinct()
+        latest_publication = (
+            DiaryPublication.objects.filter(sheet_id=OuterRef("entry__publication__sheet_id"))
+            .order_by("-revision_number")
+            .values("pk")[:1]
+        )
+        receipts = (
+            DiaryViewReceipt.objects.filter(entry__publication__sheet__in=sheets)
+            .annotate(latest_publication_id=Subquery(latest_publication))
+            .filter(entry__publication_id=F("latest_publication_id"))
+        )
+        notified = receipts.count()
+        viewed_24h = receipts.filter(
+            first_viewed_at__isnull=False,
+            first_viewed_at__lte=F("entry__publication__published_at") + dt.timedelta(hours=24),
+        ).count()
+        lead_times = [
+            (item.published_at - item.sheet.submitted_at).total_seconds()
+            for item in DiaryPublication.objects.filter(
+                sheet__in=sheets, sheet__submitted_at__isnull=False
+            ).select_related("sheet")
+        ]
+        completion = self._diary_publication_completion(sheets)
+        return {
+            "role": role,
+            "draft": sheets.filter(status=DiarySheet.Status.DRAFT).count(),
+            "pending_review": sheets.filter(status=DiarySheet.Status.PENDING_REVIEW).count(),
+            "changes_requested": sheets.filter(status=DiarySheet.Status.CHANGES_REQUESTED).count(),
+            "view_rate_24h": round(viewed_24h * 100 / notified, 1) if notified else None,
+            "approval_median_hours": (
+                round(statistics.median(lead_times) / 3600, 1) if lead_times else None
+            ),
+            **completion,
+        }
+
+    @staticmethod
+    def _diary_publication_completion(sheets) -> dict:
+        """Calcula conclusão dos últimos 28 dias usando o calendário escolar."""
+        from academic_calendar.contracts import CalendarEvent, Holiday
+        from classes.contracts import Class
+
+        end = timezone.localdate()
+        start = end - dt.timedelta(days=27)
+        holidays = Holiday.objects.filter(Q(date__range=(start, end)) | Q(is_recurring=True))
+        blocked = set()
+        for holiday in holidays:
+            years = {start.year, end.year} if holiday.is_recurring else {holiday.date.year}
+            for year in years:
+                try:
+                    current = holiday.date.replace(year=year)
+                except ValueError:
+                    continue
+                if start <= current <= end:
+                    blocked.add(current)
+        events = CalendarEvent.objects.filter(
+            type__in=[CalendarEvent.Type.HOLIDAY, CalendarEvent.Type.NON_SCHOOL_DAY],
+            is_cancelled=False,
+            start_date__lte=end,
+            end_date__gte=start,
+        )
+        for event in events:
+            current = max(start, event.start_date)
+            while current <= min(end, event.end_date):
+                blocked.add(current)
+                current += dt.timedelta(days=1)
+        working_days = sum(
+            1
+            for offset in range(28)
+            if (start + dt.timedelta(days=offset)).weekday() < 5
+            and start + dt.timedelta(days=offset) not in blocked
+        )
+        class_count = Class.objects.filter(
+            education_stage=Class.EducationStage.EARLY_CHILDHOOD
+        ).count()
+        expected = class_count * working_days
+        published = (
+            sheets.filter(date__range=(start, end), publications__isnull=False).distinct().count()
+        )
+        return {
+            "publication_completion_rate": (
+                round(published * 100 / expected, 1) if expected else None
+            ),
+            "published_class_days": published,
+            "expected_class_days": expected,
+        }
 
     # ── KPIs executivos (multi-tenant — schema public) ───────────────────────
 

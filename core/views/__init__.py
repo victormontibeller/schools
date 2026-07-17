@@ -10,7 +10,17 @@ from core.views.organization import (
     school_detail,
     school_edit,
 )
-from core.views.public import handler404, handler500, health, index, metrics, readiness
+from core.views.public import (
+    handler404,
+    handler500,
+    health,
+    index,
+    metrics,
+    offline,
+    readiness,
+    service_worker,
+    web_app_manifest,
+)
 
 __all__ = [
     "access_settings",
@@ -24,7 +34,10 @@ __all__ = [
     "health",
     "index",
     "metrics",
+    "offline",
     "readiness",
     "school_detail",
     "school_edit",
+    "service_worker",
+    "web_app_manifest",
 ]

@@ -81,3 +81,16 @@ class SchoolSelector(BaseSelector):
             )
         except School.DoesNotExist:
             raise ObjectNotFoundError("School", str(school_id)) from None
+
+    def get_active_by_schema(self, schema_name: str):
+        """Resolve um tenant ativo para integrações assinadas no schema público."""
+        from tenancy.models import School
+
+        try:
+            return School.objects.get(
+                schema_name=schema_name,
+                is_active=True,
+                deleted_at__isnull=True,
+            )
+        except School.DoesNotExist:
+            raise ObjectNotFoundError("School", schema_name) from None

@@ -8,6 +8,12 @@ from notifications.models import Announcement, MessageTemplate
 class AnnouncementForm(forms.ModelForm):
     """Formulário de criação/edição de comunicado institucional."""
 
+    def __init__(self, *args, **kwargs):
+        """Mantém WhatsApp visível, porém indisponível até a integração do provedor."""
+        super().__init__(*args, **kwargs)
+        self.fields["send_whatsapp"].disabled = True
+        self.fields["send_whatsapp"].help_text = "Provedor ainda não configurado."
+
     class Meta:
         model = Announcement
         fields = [
