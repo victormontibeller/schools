@@ -1,7 +1,4 @@
-{% extends "base.html" %}
-{% block title %}Anos Letivos — School Manager{% endblock %}
-{% block content %}
-{% include "partials/list_header.html" with list_title="Anos Letivos" breadcrumb_items=breadcrumb_items create_url="academic_year_create" search_url="academic_years_list" search_target="#academic-years-table" search_value=q sort=sort total_count=result.total %}
+{% extends "list_page_base.html" %}
+{% block list_body %}
 {% include "academic_calendar/partials/academic_years_table.html" %}
-{% include "partials/list_footer.html" %}
 {% endblock %}

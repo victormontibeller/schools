@@ -28,11 +28,26 @@ def test_service_worker_does_not_cache_authenticated_routes(client):
     assert "showNotification" not in content
 
 
-def test_pwa_script_only_registers_service_worker():
+@pytest.mark.django_db
+def test_service_worker_refreshes_custom_css_before_using_cache(client):
+    response = client.get(reverse("service_worker"))
+    content = b"".join(response.streaming_content).decode()
+    shell = content.split("const SHELL", 1)[1].split("];", 1)[0]
+
+    assert 'CACHE_NAME = "schools-shell-v3"' in content
+    assert "school-manager.css" not in shell
+    assert "school-manager(?:\\.[0-9a-f]{12})?\\.css" in content
+    assert 'fetch(event.request, {cache: "no-store"})' in content
+    assert "cache.put(event.request, response.clone())" in content
+
+
+def test_pwa_script_registers_worker_and_refreshes_existing_clients():
     path = finders.find("js/pwa.js")
     with open(path, encoding="utf-8") as script:
         content = script.read()
 
     assert 'register("/service-worker.js")' in content
+    assert 'addEventListener("controllerchange"' in content
+    assert "hadController && !refreshing" in content
     assert "PushManager" not in content
     assert "requestPermission" not in content

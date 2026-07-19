@@ -1,21 +1,16 @@
-{% extends "base.html" %}
+{% extends "page_shell_base.html" %}
 
 {% block title %}Chamada — {{ record }}{% endblock %}
+{% block page_heading %}Chamada · {{ record.class_obj }}{% endblock %}
+{% block page_breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+<li class="breadcrumb-item"><a href="{% url 'attendance_records_list' %}">Frequência</a></li>
+<li class="breadcrumb-item active">{{ record.date|date:"d/m/Y" }}</li>
+{% endblock %}
+{% block page_content_class %}sm-page-content--viewport{% endblock %}
 
-{% block content %}
-<div class="page-header">
-    <div class="page-header-left d-flex align-items-center">
-        <div class="page-header-title"><h5 class="m-b-10">Chamada · {{ record.class_obj }}</h5></div>
-        <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
-            <li class="breadcrumb-item"><a href="{% url 'attendance_records_list' %}">Frequência</a></li>
-            <li class="breadcrumb-item">{{ record.date|date:"d/m/Y" }}</li>
-        </ul>
-    </div>
-</div>
-
-<div class="main-content">
-    <div class="row g-3 align-items-start">
+{% block page_content %}
+    <div class="row g-3 sm-workspace-row sm-workspace-row--mobile-scroll" tabindex="0" aria-label="Preenchimento da chamada">
         <div class="col-12 col-xl-5">
             <div class="card mb-0 sm-detail-card">
                 <div class="card-header"><h6 class="card-title mb-0">Informações da Chamada</h6></div>
@@ -32,9 +27,8 @@
                 </div>
             </div>
         </div>
-        <div class="col-12 col-xl-7">
+        <div class="col-12 col-xl-7 sm-workspace-column">
             {% include "attendance/partials/attendance_fill_card.html" %}
         </div>
     </div>
-</div>
 {% endblock %}

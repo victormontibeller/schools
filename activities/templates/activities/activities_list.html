@@ -1,9 +1,4 @@
-{% extends "base.html" %}
-
-{% block title %}Atividades — School Manager{% endblock %}
-
-{% block content %}
-{% include "partials/list_header.html" with list_title="Atividades" breadcrumb_items=breadcrumb_items create_url="activity_create" create_label="Nova Atividade" search_url="activities_list" search_target="#activities-table" search_value=q total_count=result.total %}
+{% extends "list_page_base.html" %}
+{% block list_body %}
 {% include "activities/partials/activities_table.html" %}
-{% include "partials/list_footer.html" %}
 {% endblock %}

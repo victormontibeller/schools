@@ -1,4 +1,4 @@
-<div class="card" id="access-matrix-card">
+<div class="card sm-viewport-card" id="access-matrix-card" data-sm-layout="workspace">
     <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
         <h6 class="card-title mb-0">Matriz de acessos</h6>
         <div class="d-flex align-items-center gap-2 flex-wrap sm-access-search-wrap">
@@ -29,10 +29,11 @@
           action="{% url 'access_settings' %}"
           hx-post="{% url 'access_settings' %}"
           hx-target="#access-matrix-card"
-          hx-swap="outerHTML">
+          hx-swap="outerHTML"
+          class="sm-viewport-body">
         {% csrf_token %}
         {% for version_field in form.version_fields %}{{ version_field }}{% endfor %}
-        <div class="card-body p-0">
+        <div class="card-body p-0 sm-viewport-body">
         {% if saved %}
         <div class="alert alert-success m-3 mb-0" role="status">Acessos atualizados com sucesso.</div>
         {% endif %}
@@ -40,8 +41,10 @@
         <div class="alert alert-danger m-3 mb-0" role="alert">{{ form.non_field_errors }}</div>
         {% endif %}
 
-        <div class="table-responsive sm-access-table-responsive">
-            <table class="table table-hover mb-0 align-middle sm-compact-table sm-access-table">
+        <div class="table-responsive sm-scroll-region"
+             tabindex="0"
+             aria-label="Matriz de acessos">
+            <table class="table table-hover mb-0 align-middle sm-compact-table sm-sticky-table sm-sticky-table--first-column sm-access-table">
                 <thead>
                     <tr>
                         <th scope="col" class="sm-access-module-column">Módulo</th>

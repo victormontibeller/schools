@@ -28,6 +28,9 @@ Um item **só pode ser considerado concluído** quando todos os critérios abaix
 - [ ] Views apenas com orquestração HTTP
 - [ ] Toda entidade herda de `BaseModel`
 - [ ] Nova tela ou mutação resolve módulo e ação do catálogo; chaves desconhecidas falham no CI
+- [ ] Nova listagem usa `list_page_base.html` e consta em `LIST_PAGE_CATALOG`
+- [ ] Nova grade primária usa `page_shell_base.html` e os utilitários canônicos de viewport,
+      rolagem acessível, cabeçalho e primeira coluna fixos
 
 ## Observabilidade
 
@@ -44,6 +47,9 @@ Um item **só pode ser considerado concluído** quando todos os critérios abaix
 - [ ] Testes SQLite e PostgreSQL tenant-scoped verdes
 - [ ] Concorrência cobre dois updates com a mesma versão: um sucesso e um conflito
 - [ ] Permissões cobrem rota, botão, service, escopo de objeto, isolamento de tenant e ausência de override individual
+- [ ] `python scripts/check_ui_contracts.py` verde
+- [ ] Testes HTTP preservam a herança do shell e respostas HTMX contêm apenas o fragmento alvo
+- [ ] `pytest -m ui --browser chromium` verde quando houver alteração de shell, listagem, grade ou CSS
 
 ## Supply chain e produção
 
@@ -51,6 +57,7 @@ Um item **só pode ser considerado concluído** quando todos os critérios abaix
 - [ ] `check --deploy`, `makemigrations --check`, `pip-audit`, Gitleaks e Trivy verdes
 - [ ] Imagens e Actions fixadas por digest/SHA imutável
 - [ ] Migração de mídia, wildcard TLS e duas réplicas validadas em staging quando aplicável
+- [ ] `collectstatic` gera manifesto e resolve o CSS customizado pelo nome com hash
 
 ## Documentação
 

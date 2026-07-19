@@ -1,31 +1,28 @@
-{% extends "base.html" %}
+{% extends "page_shell_base.html" %}
 
 {% block title %}Frequência — {{ student.get_full_name }}{% endblock %}
-
-{% block content %}
-<div class="page-header">
-    <div class="page-header-left d-flex align-items-center">
-        <div class="page-header-title"><h5 class="m-b-10">Frequência — {{ student.get_full_name }}</h5></div>
-        <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
-            <li class="breadcrumb-item"><a href="{% url 'attendance_records_list' %}">Frequência</a></li>
-            <li class="breadcrumb-item">{{ student.get_full_name }}</li>
-        </ul>
-    </div>
-    {% if rate is not None %}
-    <div class="page-header-right ms-auto">
-        {% if rate < 50 %}<span class="badge bg-danger fs-6">{{ rate }}% · Crítico</span>
-        {% elif rate < 75 %}<span class="badge bg-warning text-dark fs-6">{{ rate }}% · Alerta</span>
-        {% else %}<span class="badge bg-success fs-6">{{ rate }}%</span>{% endif %}
-    </div>
-    {% endif %}
+{% block page_heading %}Frequência — {{ student.get_full_name }}{% endblock %}
+{% block page_breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+<li class="breadcrumb-item"><a href="{% url 'attendance_records_list' %}">Frequência</a></li>
+<li class="breadcrumb-item active">{{ student.get_full_name }}</li>
+{% endblock %}
+{% block page_header_actions %}
+{% if rate is not None %}
+<div class="page-header-right ms-auto">
+    {% if rate < 50 %}<span class="badge bg-danger fs-6">{{ rate }}% · Crítico</span>
+    {% elif rate < 75 %}<span class="badge bg-warning text-dark fs-6">{{ rate }}% · Alerta</span>
+    {% else %}<span class="badge bg-success fs-6">{{ rate }}%</span>{% endif %}
 </div>
+{% endif %}
+{% endblock %}
+{% block page_content_class %}sm-page-content--viewport{% endblock %}
 
-<div class="main-content">
-    <div class="card sm-detail-card sm-detail-table-card">
+{% block page_content %}
+    <div class="card sm-detail-card sm-detail-table-card sm-viewport-card" data-sm-layout="workspace">
         <div class="card-header"><h6 class="card-title mb-0">Histórico de presença</h6></div>
-        <div class="card-body p-0">
-            <div class="table-responsive"><table class="table table-hover mb-0">
+        <div class="card-body p-0 sm-viewport-body">
+            <div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Histórico de presença"><table class="table table-hover mb-0 sm-sticky-table sm-sticky-table--first-column">
                 <thead><tr><th>Data</th><th>Turma</th><th>Disciplina</th><th>Aula</th><th>Situação</th><th>Justificativa</th></tr></thead>
                 <tbody>
                     {% for e in entries %}
@@ -48,5 +45,4 @@
             </table></div>
         </div>
     </div>
-</div>
 {% endblock %}

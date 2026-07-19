@@ -1,8 +1,7 @@
-const CACHE_NAME = "schools-shell-v1";
+const CACHE_NAME = "schools-shell-v3";
 const SHELL = [
     "/offline/",
     "/static/css/bootstrap.min.css",
-    "/static/css/school-manager.css",
     "/static/icons/school-manager.svg"
 ];
 
@@ -25,6 +24,15 @@ self.addEventListener("fetch", function (event) {
     const url = new URL(event.request.url);
     if (url.origin !== self.location.origin) { return; }
     if (url.pathname.startsWith("/static/")) {
+        if (/\/css\/school-manager(?:\.[0-9a-f]{12})?\.css$/.test(url.pathname)) {
+            event.respondWith(fetch(event.request, {cache: "no-store"}).then(function (response) {
+                return caches.open(CACHE_NAME).then(function (cache) {
+                    cache.put(event.request, response.clone());
+                    return response;
+                });
+            }).catch(function () { return caches.match(event.request); }));
+            return;
+        }
         event.respondWith(caches.match(event.request).then(function (cached) {
             return cached || fetch(event.request);
         }));

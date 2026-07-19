@@ -1,0 +1,89 @@
+{% extends "page_shell_base.html" %}
+{% load ui_helpers %}
+
+{% block title %}{{ list_page.browser_title }}{% endblock %}
+{% block page_heading %}{{ list_page.title }}{% endblock %}
+
+{% block page_breadcrumbs %}
+    {% for item in breadcrumb_items %}
+        {% if item.url and not forloop.last %}
+        <li class="breadcrumb-item"><a href="{% url item.url %}">{{ item.label }}</a></li>
+        {% else %}
+        <li class="breadcrumb-item active">{{ item.label }}</li>
+        {% endif %}
+    {% endfor %}
+{% endblock %}
+
+{% block page_header_actions %}
+<div class="page-header-right ms-auto">
+    <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-soft-secondary text-secondary">
+            {{ result.total }} {{ list_page.count_label }}
+        </span>
+        {% can_access_url list_page.create_url as show_create %}
+        {% if list_page.create_url and show_create %}
+        <a href="{% url list_page.create_url %}" class="btn btn-primary btn-sm">
+            <i class="feather-plus me-1"></i> NOVO
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block page_content_class %}sm-page-content--viewport{% endblock %}
+
+{% block page_content %}
+<div class="card sm-viewport-card" data-sm-layout="list">
+    <div class="card-header d-flex justify-content-between align-items-center gap-2 flex-wrap">
+        <h6 class="card-title mb-0">Lista de {{ list_page.title }}</h6>
+        <form id="{{ list_page.search_target|cut:'#' }}-filters"
+              class="d-flex align-items-center gap-2 flex-wrap"
+              method="get"
+              action="{% url list_page.search_url %}">
+            <input type="hidden" name="sort" value="{{ sort|default:'' }}">
+            {% if tab %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
+            {% if status and not status_choices %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+            <div class="input-group input-group-sm sm-list-search">
+                <span class="input-group-text" aria-hidden="true"><i class="feather-search"></i></span>
+                <input type="search"
+                       name="q"
+                       value="{{ q|default:'' }}"
+                       class="form-control"
+                       placeholder="Buscar..."
+                       aria-label="Buscar {{ list_page.title|lower }}"
+                       hx-get="{% url list_page.search_url %}"
+                       hx-target="{{ list_page.search_target }}"
+                       hx-include="#{{ list_page.search_target|cut:'#' }}-filters"
+                       hx-trigger="keyup changed delay:300ms, search">
+                {% if q %}
+                <a href="?{% if sort %}sort={{ sort }}{% endif %}{% if tab %}{% if sort %}&{% endif %}tab={{ tab }}{% endif %}{% if status %}{% if sort or tab %}&{% endif %}status={{ status }}{% endif %}"
+                   class="input-group-text sm-search-clear"
+                   aria-label="Limpar busca"
+                   title="Limpar busca"
+                   hx-get="?{% if sort %}sort={{ sort }}{% endif %}{% if tab %}{% if sort %}&{% endif %}tab={{ tab }}{% endif %}{% if status %}{% if sort or tab %}&{% endif %}status={{ status }}{% endif %}"
+                   hx-target="{{ list_page.search_target }}"
+                   hx-swap="innerHTML"><i class="feather-x" aria-hidden="true"></i></a>
+                {% endif %}
+            </div>
+            {% if status_choices %}
+            <select name="status"
+                    class="form-select form-select-sm"
+                    aria-label="Filtrar por situação"
+                    hx-get="{% url list_page.search_url %}"
+                    hx-target="{{ list_page.search_target }}"
+                    hx-include="#{{ list_page.search_target|cut:'#' }}-filters"
+                    hx-trigger="change">
+                <option value="">Todas</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+        </form>
+    </div>
+    {% block list_before_body %}{% endblock %}
+    <div class="card-body p-0 sm-viewport-body" id="{{ list_page.search_target|cut:'#' }}">
+        {% block list_body %}{% endblock %}
+    </div>
+</div>
+{% endblock %}

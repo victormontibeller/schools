@@ -1,10 +1,4 @@
-{% extends "base.html" %}
-{% load static %}
-
-{% block title %}Planos Financeiros — School Manager{% endblock %}
-
-{% block content %}
-{% include "partials/list_header.html" with list_title="Planos Financeiros" breadcrumb_items=breadcrumb_items create_url="plan_create" search_url="plan_list" search_target="#plans-table" search_value=q total_count=result.total status=status status_choices=status_choices %}
+{% extends "list_page_base.html" %}
+{% block list_body %}
 {% include "financeiro/partials/plans_table.html" %}
-{% include "partials/list_footer.html" %}
 {% endblock %}

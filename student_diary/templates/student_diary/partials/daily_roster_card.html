@@ -1,10 +1,11 @@
-<div id="diary-roster-card">
+<div id="diary-roster-card" class="sm-viewport-body">
     <form method="post"
           action="{% url 'diary_daily' %}"
           hx-post="{% url 'diary_daily' %}"
           hx-target="#diary-roster-card"
           hx-swap="outerHTML"
-          id="diary-roster-form">
+          id="diary-roster-form"
+          class="sm-viewport-body">
         {% csrf_token %}
         <input type="hidden" name="class_id" value="{{ sheet.class_obj.pk }}">
         <input type="hidden" name="date" value="{{ sheet.date|date:'Y-m-d' }}">
@@ -48,8 +49,10 @@
         </div>
         {% endif %}
 
-        <div class="table-responsive sm-diary-table-responsive">
-            <table class="table table-hover align-middle mb-0 sm-compact-table sm-diary-table">
+        <div class="table-responsive sm-scroll-region"
+             tabindex="0"
+             aria-label="Alunos da Agenda">
+            <table class="table table-hover align-middle mb-0 sm-compact-table sm-sticky-table sm-sticky-table--first-column sm-diary-table">
                 <thead>
                     <tr>
                         <th scope="col" class="sm-diary-student-column">Aluno</th>

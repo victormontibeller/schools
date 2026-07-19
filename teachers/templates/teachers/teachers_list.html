@@ -1,10 +1,4 @@
-{% extends "base.html" %}
-{% load static %}
-
-{% block title %}Professores — School Manager{% endblock %}
-
-{% block content %}
-{% include "partials/list_header.html" with list_title="Professores" breadcrumb_items=breadcrumb_items create_url="teacher_create" search_url="teachers_list" search_target="#teachers-table" search_value=q sort=sort clear_query=clear_query total_count=result.total %}
+{% extends "list_page_base.html" %}
+{% block list_body %}
 {% include "teachers/partials/teachers_table.html" %}
-{% include "partials/list_footer.html" %}
 {% endblock %}

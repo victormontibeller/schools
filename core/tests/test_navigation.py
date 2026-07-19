@@ -321,4 +321,4 @@ def test_school_navigation_does_not_change_component_htmx_responses(client, user
     assert response.status_code == 200
     assert "<!DOCTYPE html>" not in content
     assert 'id="app-main"' not in content
-    assert 'class="table table-hover mb-0"' in content
+    assert 'class="table table-hover mb-0 sm-sticky-table sm-sticky-table--first-column"' in content

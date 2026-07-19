@@ -1,8 +1,20 @@
-{% extends "base.html" %}
+{% extends "page_shell_base.html" %}
 {% load ui_helpers %}
 {% block title %}Calendário — School Manager{% endblock %}
-{% block content %}
+{% block page_heading %}Calendário{% endblock %}
+{% block page_breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+<li class="breadcrumb-item active">Calendário</li>
+{% endblock %}
+{% block page_header_actions %}
 {% can_access_action "academic_calendar" "create" as can_create_calendar %}
-<div class="page-header"><div class="page-header-left d-flex align-items-center"><div class="page-header-title"><h5 class="m-b-10">Calendário</h5></div><ul class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li><li class="breadcrumb-item active">Calendário</li></ul></div><div class="page-header-right ms-auto d-flex gap-2">{% if can_create_calendar %}<a href="{% url 'event_create' %}?date={{ selected_date|date:'Y-m-d' }}" hx-get="{% url 'event_create' %}?date={{ selected_date|date:'Y-m-d' }}" hx-target="#calendar-day-agenda" hx-swap="outerHTML" class="btn btn-primary btn-sm"><i class="feather-plus me-1"></i> NOVO</a>{% endif %}<a href="{% url 'holidays_list' %}" class="btn btn-outline-secondary btn-sm">Feriados</a><a href="{% url 'academic_years_list' %}" class="btn btn-outline-secondary btn-sm">Anos Letivos</a></div></div>
-<div class="main-content" id="calendar-workspace">{% include "academic_calendar/partials/calendar_workspace_content.html" %}</div>
+<div class="page-header-right ms-auto d-flex gap-2">
+    {% if can_create_calendar %}<a href="{% url 'event_create' %}?date={{ selected_date|date:'Y-m-d' }}" hx-get="{% url 'event_create' %}?date={{ selected_date|date:'Y-m-d' }}" hx-target="#calendar-day-agenda" hx-swap="outerHTML" class="btn btn-primary btn-sm"><i class="feather-plus me-1"></i> NOVO</a>{% endif %}
+    <a href="{% url 'holidays_list' %}" class="btn btn-outline-secondary btn-sm">Feriados</a>
+    <a href="{% url 'academic_years_list' %}" class="btn btn-outline-secondary btn-sm">Anos Letivos</a>
+</div>
+{% endblock %}
+{% block page_content_class %}sm-page-content--viewport{% endblock %}
+{% block page_content %}
+<div id="calendar-workspace" class="sm-viewport-body">{% include "academic_calendar/partials/calendar_workspace_content.html" %}</div>
 {% endblock %}

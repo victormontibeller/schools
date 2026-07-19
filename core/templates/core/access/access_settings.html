@@ -1,23 +1,15 @@
-{% extends "base.html" %}
+{% extends "page_shell_base.html" %}
 
 {% block title %}Acessos — School Manager{% endblock %}
+{% block page_heading %}Acessos{% endblock %}
+{% block page_breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+<li class="breadcrumb-item active">Acessos</li>
+{% endblock %}
+{% block page_content_class %}sm-page-content--viewport{% endblock %}
 
-{% block content %}
-<div class="page-header">
-    <div class="page-header-left d-flex align-items-center">
-        <div class="page-header-title">
-            <h5 class="m-b-10">Acessos</h5>
-        </div>
-        <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
-            <li class="breadcrumb-item active">Acessos</li>
-        </ul>
-    </div>
-</div>
-
-<div class="main-content">
+{% block page_content %}
     {% include "core/access/partials/access_matrix_card.html" %}
-</div>
 
 <script>
 (function () {

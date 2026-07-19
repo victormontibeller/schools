@@ -1,10 +1,4 @@
-{% extends "base.html" %}
-{% load static %}
-
-{% block title %}Turmas — School Manager{% endblock %}
-
-{% block content %}
-{% include "partials/list_header.html" with list_title="Turmas" breadcrumb_items=breadcrumb_items create_url="class_create" create_label="Nova Turma" search_url="classes_list" search_target="#classes-table" search_value=q total_count=result.total %}
+{% extends "list_page_base.html" %}
+{% block list_body %}
 {% include "classes/partials/classes_table.html" %}
-{% include "partials/list_footer.html" %}
 {% endblock %}

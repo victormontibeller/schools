@@ -1,7 +1,4 @@
-{% extends "base.html" %}
-{% block title %}Comunicados — School Manager{% endblock %}
-{% block content %}
-{% include "partials/list_header.html" with list_title="Comunicados" breadcrumb_items=breadcrumb_items search_url="announcement_list" search_target="#announcements-table" search_value=q sort=sort total_count=result.total %}
+{% extends "list_page_base.html" %}
+{% block list_body %}
 {% include "notifications/partials/announcements_table.html" %}
-{% include "partials/list_footer.html" %}
 {% endblock %}

@@ -49,3 +49,12 @@ def school_navigation(request):
     resolver_match = getattr(request, "resolver_match", None)
     view_name = getattr(resolver_match, "url_name", "") or ""
     return {"school_navigation": build_school_navigation(user, view_name)}
+
+
+def canonical_page_layout(request):
+    """Disponibiliza a definição da listagem canônica correspondente à rota."""
+    from core.ui_catalog import get_list_page_definition
+
+    resolver_match = getattr(request, "resolver_match", None)
+    url_name = getattr(resolver_match, "url_name", "") or ""
+    return {"list_page": get_list_page_definition(url_name)}

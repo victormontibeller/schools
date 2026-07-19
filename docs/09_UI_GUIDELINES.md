@@ -8,6 +8,12 @@
 - O tema é Duralux sobre Bootstrap 5. Assets são locais via `{% static %}`; não usar Bootstrap por CDN.
 - Usar Feather Icons e evitar JavaScript customizado complexo. Alpine.js só pode controlar estado local.
 - Telas autenticadas herdam de `base.html`; formulários herdam de `form_base.html`, `person_form_base.html` ou `entity_form_base.html` conforme o caso. Páginas públicas podem seguir a exceção standalone definida abaixo.
+- `page_shell_base.html` é o shell obrigatório de páginas operacionais com grade primária;
+  `list_page_base.html` é o shell obrigatório das listagens. Eles fornecem breadcrumb e cabeçalho
+  aderentes, margens, card vertical e a divisão entre conteúdo fixo e região rolável.
+- Os tokens canônicos são: cabeçalho global de 80px, cabeçalho da página de 65px, margens
+  laterais de 30px no desktop e 20px no mobile, e recuo interno de registros de 30px à esquerda
+  e 15px à direita.
 
 ## Páginas públicas e landing pages
 
@@ -60,12 +66,22 @@
 
 ## Listagens
 
-- Usar `partials/list_header.html`: título, breadcrumb, contador, busca e botão `+ NOVO`.
+- Herdar de `list_page_base.html`. Título, breadcrumb, contador, busca, botão `+ NOVO`, card,
+  área rolável e paginação são fornecidos pelo shell; blocos existem apenas para conteúdo de
+  domínio e extensões registradas, como as abas de Cobranças.
+- Registrar cada listagem no catálogo tipado `core.ui_catalog.LIST_PAGE_CATALOG`, indexado pelo
+  nome da rota. Título, rota de criação, alvo HTMX, busca e rótulo do contador não podem ser
+  duplicados em templates.
 - O card sempre exibe **Lista de &lt;domínio&gt;**.
-- Toda lista usa `table-responsive`, `table table-hover mb-0`, `{% empty %}` e paginação HTMX centralizada.
+- Toda lista usa região `table-responsive sm-scroll-region`, `tabindex="0"`, nome acessível,
+  foco visível, `sm-sticky-table sm-sticky-table--first-column`, `{% empty %}` e paginação HTMX
+  centralizada. Mouse, trackpad, toque e teclado devem operar a mesma região.
 - A primeira coluna identifica o registro e é o link para ficha/detalhe; sem ficha, aponta para a tela operacional principal.
 - Colunas ordenáveis usam `resolve_listing_state`, `build_sorting` e links HTMX. Busca, ordenação, filtros e página devem ser preservados na query string.
 - Não criar coluna **Ações** apenas para repetir Ver ou Editar. Ações administrativas ficam na ficha; ações operacionais (aprovar, preencher chamada, lançar nota) ficam no contexto do fluxo.
+- O documento não rola nem cria overflow horizontal em listagens e grades primárias. Cabeçalho,
+  filtros, contexto e rodapé permanecem fora da rolagem; somente `.sm-scroll-region` ocupa o
+  espaço restante e altera `scrollTop`. Cabeçalho da tabela e primeira coluna permanecem fixos.
 
 ```html
 <a href="?{{ sorting.name.query }}" class="sm-sort-link{% if sorting.name.active %} is-active{% endif %}"
@@ -145,6 +161,19 @@
 - Paginação e ordenação: `hx-target` aponta para a tabela/fragmento e preserva a query string.
 - Botões exclusivamente com ícone exigem `aria-label`; imagens exigem `alt`; navegação de página exige `aria-label`.
 - `base.html` renderiza mensagens Django. Views usam `messages.success()` e `messages.error()` sem duplicar alertas nos templates.
+
+## CSS, contrato e regressão visual
+
+- `design_system/refs/duralux/css/school-manager.css` é a única fonte do CSS customizado. O
+  diretório é publicado por `STATICFILES_DIRS`; é proibida uma cópia em `static/css`.
+- `base.html` referencia o asset com `{% static %}` sem versão manual. Desenvolvimento tolera a
+  URL simples e produção usa o nome com hash de conteúdo gerado pelo manifesto não estrito.
+- `python scripts/check_ui_contracts.py` bloqueia listagens e grades fora dos shells, composição
+  manual de `page-header`/`main-content`, regiões sem acessibilidade ou coluna fixa, rotas de
+  catálogo inválidas e exceções não registradas.
+- O marcador `ui` executa no Chromium, em job próprio, asserções geométricas nos viewports
+  1280x720, 1280x480 e 390x844. Screenshots e traces são diagnósticos de falha, não baselines
+  pixel a pixel.
 
 ## Referências
 

@@ -1,10 +1,4 @@
-{% extends "base.html" %}
-{% load static %}
-
-{% block title %}Responsáveis — School Manager{% endblock %}
-
-{% block content %}
-{% include "partials/list_header.html" with list_title="Responsáveis" breadcrumb_items=breadcrumb_items create_url="guardian_create" search_url="guardians_list" search_target="#guardians-table" search_value=q sort=sort clear_query=clear_query total_count=result.total %}
+{% extends "list_page_base.html" %}
+{% block list_body %}
 {% include "guardians/partials/guardians_table.html" %}
-{% include "partials/list_footer.html" %}
 {% endblock %}

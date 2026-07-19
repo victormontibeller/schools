@@ -1,20 +1,16 @@
-{% extends "base.html" %}
+{% extends "page_shell_base.html" %}
 
 {% block title %}Alunos em Risco — School Manager{% endblock %}
+{% block page_heading %}Alunos em Risco{% endblock %}
+{% block page_breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+<li class="breadcrumb-item"><a href="{% url 'attendance_records_list' %}">Frequência</a></li>
+<li class="breadcrumb-item active">Alunos em risco</li>
+{% endblock %}
+{% block page_content_class %}sm-page-content--viewport{% endblock %}
 
-{% block content %}
-<div class="page-header">
-    <div class="page-header-left d-flex align-items-center">
-        <div class="page-header-title"><h5 class="m-b-10">Alunos em Risco</h5></div>
-        <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
-            <li class="breadcrumb-item"><a href="{% url 'attendance_records_list' %}">Frequência</a></li>
-            <li class="breadcrumb-item">Alunos em risco</li>
-        </ul>
-    </div>
-</div>
-
-<div class="main-content">
+{% block page_content %}
+<div class="sm-workspace-stack">
     <div class="card mb-3 sm-detail-card">
         <div class="card-body">
             <form method="get" class="row g-2 align-items-end">
@@ -32,15 +28,15 @@
         </div>
     </div>
 
-    <div class="card sm-detail-card sm-detail-table-card">
+    <div class="card sm-detail-card sm-detail-table-card sm-viewport-card" data-sm-layout="workspace">
         <div class="card-header">
             <h6 class="card-title mb-0">
                 Alunos com frequência abaixo de 75%
                 {% if cls %} — {{ cls.name }}{% endif %}
             </h6>
         </div>
-        <div class="card-body p-0">
-            <div class="table-responsive"><table class="table table-hover mb-0">
+        <div class="card-body p-0 sm-viewport-body">
+            <div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Alunos com frequência abaixo de 75%"><table class="table table-hover mb-0 sm-sticky-table sm-sticky-table--first-column">
                 <thead><tr><th>Aluno</th><th>Presentes</th><th>Ausentes</th><th>Justificados</th><th>Frequência</th><th>Histórico</th></tr></thead>
                 <tbody>
                     {% for s in at_risk %}

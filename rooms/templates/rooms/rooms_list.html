@@ -1,10 +1,4 @@
-{% extends "base.html" %}
-{% load static %}
-
-{% block title %}Salas — School Manager{% endblock %}
-
-{% block content %}
-{% include "partials/list_header.html" with list_title="Salas" breadcrumb_items=breadcrumb_items create_url="room_create" create_label="Nova Sala" search_url="rooms_list" search_target="#rooms-table" search_value=q total_count=result.total %}
+{% extends "list_page_base.html" %}
+{% block list_body %}
 {% include "rooms/partials/rooms_table.html" %}
-{% include "partials/list_footer.html" %}
 {% endblock %}

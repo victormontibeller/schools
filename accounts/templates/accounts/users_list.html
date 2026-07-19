@@ -1,9 +1,4 @@
-{% extends "base.html" %}
-
-{% block title %}Usuários — School Manager{% endblock %}
-
-{% block content %}
-{% include "partials/list_header.html" with list_title="Usuários" breadcrumb_items=breadcrumb_items search_url="users_list" search_target="#users-table" search_value=q sort=sort clear_query=clear_query total_count=result.total %}
+{% extends "list_page_base.html" %}
+{% block list_body %}
 {% include "accounts/partials/users_table.html" %}
-{% include "partials/list_footer.html" %}
 {% endblock %}

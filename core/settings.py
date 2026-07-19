@@ -167,6 +167,7 @@ TEMPLATES = [
                 "core.context_processors.current_school",
                 "core.context_processors.accessible_modules",
                 "core.context_processors.school_navigation",
+                "core.context_processors.canonical_page_layout",
             ],
         },
     },
@@ -174,12 +175,19 @@ TEMPLATES = [
 
 # ── Banco de dados ─────────────────────────────────────────────────────────────
 if TESTING:
+    # O live_server do Playwright atende requisições em outra thread. SQLite em
+    # memória compartilha uma única conexão nesse cenário e perde isolamento
+    # quando a página dispara requisições HTMX concorrentes. A suíte visual pode
+    # optar por um arquivo temporário sem alterar o perfil rápido padrão.
+    _ui_test_db = config("DJANGO_UI_TEST_DB", default="")
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": ":memory:",
+            "NAME": _ui_test_db or ":memory:",
         }
     }
+    if _ui_test_db:
+        DATABASES["default"]["TEST"] = {"NAME": _ui_test_db}
 else:
     # Perfil "full" (dev, prod e TEST_PG): django_tenants + PostgreSQL.
     _db_name = config("DB_NAME", default="schools_db")
@@ -242,7 +250,10 @@ USE_TZ = True
 # ── Static / Media ─────────────────────────────────────────────────────────────
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_DIRS = [BASE_DIR / "static"]
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+    ("css", BASE_DIR / "design_system" / "refs" / "duralux" / "css"),
+]
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 STORAGES = {
@@ -258,7 +269,7 @@ STORAGES = {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
         "OPTIONS": {"location": MEDIA_ROOT / "public", "base_url": MEDIA_URL},
     },
-    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    "staticfiles": {"BACKEND": "base.staticfiles.SchoolManagerManifestStaticFilesStorage"},
 }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

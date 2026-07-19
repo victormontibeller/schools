@@ -1,6 +1,6 @@
-<div class="row g-3 align-items-start">
-    <div class="col-12 col-xl-8">
-        <div class="card sm-detail-card">
+<div class="row g-3 sm-workspace-row">
+    <div class="col-12 col-xl-8 sm-workspace-column">
+        <div class="card sm-detail-card sm-viewport-card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <div class="btn-group">
                     <a class="btn btn-outline-secondary btn-sm" hx-get="{% url 'calendar_month_specific' prev_year prev_month %}?selected_date={{ selected_date|date:'Y-m-d' }}" hx-target="#calendar-workspace" hx-swap="innerHTML" aria-label="Mês anterior"><i class="feather-chevron-left"></i></a>
@@ -9,8 +9,8 @@
                 </div>
                 <a href="{% url 'calendar_month' %}" class="btn btn-link btn-sm">Hoje</a>
             </div>
-            <div class="card-body p-2">{% include "academic_calendar/partials/calendar_grid.html" %}</div>
+            <div class="card-body p-2 table-responsive sm-scroll-region" tabindex="0" aria-label="Calendário mensal">{% include "academic_calendar/partials/calendar_grid.html" %}</div>
         </div>
     </div>
-    <div class="col-12 col-xl-4">{% include "academic_calendar/partials/day_agenda.html" %}</div>
+    <div class="col-12 col-xl-4 sm-workspace-column">{% include "academic_calendar/partials/day_agenda.html" %}</div>
 </div>

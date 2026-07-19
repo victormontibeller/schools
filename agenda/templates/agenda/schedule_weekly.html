@@ -1,34 +1,29 @@
-{% extends "base.html" %}
+{% extends "page_shell_base.html" %}
 {% load ui_helpers %}
 {% block title %}Grade — {{ class_obj.name }}{% endblock %}
+{% block page_heading %}Grade Horária — {{ class_obj.name }}{% endblock %}
+{% block page_breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+<li class="breadcrumb-item"><a href="{% url 'classes_list' %}">Turmas</a></li>
+<li class="breadcrumb-item"><a href="{% url 'class_detail' class_obj.pk %}">{{ class_obj.name }}</a></li>
+<li class="breadcrumb-item active">Grade</li>
+{% endblock %}
+{% block page_content_class %}sm-page-content--viewport{% endblock %}
 
-{% block content %}
+{% block page_content %}
 {% can_access_action "schedule" "create" as can_create_schedule %}
-<div class="page-header">
-    <div class="page-header-left d-flex align-items-center">
-        <div class="page-header-title"><h5 class="m-b-10">Grade Horária — {{ class_obj.name }}</h5></div>
-        <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
-            <li class="breadcrumb-item"><a href="{% url 'classes_list' %}">Turmas</a></li>
-            <li class="breadcrumb-item"><a href="{% url 'class_detail' class_obj.pk %}">{{ class_obj.name }}</a></li>
-            <li class="breadcrumb-item">Grade</li>
-        </ul>
-    </div>
-</div>
-
-<div class="main-content">
-    <div class="row g-3 align-items-start">
-    <div class="col-12 col-xl-7">
-    <div class="card sm-detail-card">
+    <div class="row g-3 sm-workspace-row">
+    <div class="col-12 col-xl-7 sm-workspace-column">
+    <div class="card sm-detail-card sm-viewport-card" data-sm-layout="workspace">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="card-title mb-0">Grade semanal</h6>
             {% if can_create_schedule %}<a href="{% url 'schedule_create' class_obj.pk %}" class="btn btn-primary btn-sm">
                 <i class="feather-plus me-1"></i> NOVO
             </a>{% endif %}
         </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
+        <div class="card-body p-0 sm-viewport-body">
+            <div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Grade semanal da turma">
+                <table class="table table-hover mb-0 sm-sticky-table sm-sticky-table--first-column">
                     <thead><tr><th>Dia</th><th>Horário</th><th>Disciplina</th><th>Professor</th><th>Sala</th></tr></thead>
                     <tbody>
                         {% if has_schedules %}
@@ -47,5 +42,4 @@
     </div>
     </div>
     </div>
-</div>
 {% endblock %}

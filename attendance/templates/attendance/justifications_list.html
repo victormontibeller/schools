@@ -1,9 +1,4 @@
-{% extends "base.html" %}
-
-{% block title %}Justificativas — School Manager{% endblock %}
-
-{% block content %}
-{% include "partials/list_header.html" with list_title="Justificativas" breadcrumb_items=breadcrumb_items create_url="justification_create" search_url="justifications_list" search_target="#justifications-table" search_value=q total_count=result.total status=status status_choices=status_choices %}
+{% extends "list_page_base.html" %}
+{% block list_body %}
 {% include "attendance/partials/justifications_table.html" %}
-{% include "partials/list_footer.html" %}
 {% endblock %}

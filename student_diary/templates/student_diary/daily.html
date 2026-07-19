@@ -1,20 +1,15 @@
-{% extends "base.html" %}
+{% extends "page_shell_base.html" %}
 
 {% block title %}Agenda — School Manager{% endblock %}
+{% block page_heading %}Agenda{% endblock %}
+{% block page_breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+<li class="breadcrumb-item active">Agenda</li>
+{% endblock %}
+{% block page_content_class %}sm-page-content--viewport{% endblock %}
 
-{% block content %}
-<div class="page-header sm-diary-page-header">
-    <div class="page-header-left d-flex align-items-center">
-        <div class="page-header-title"><h5 class="m-b-10">Agenda</h5></div>
-        <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
-            <li class="breadcrumb-item active">Agenda</li>
-        </ul>
-    </div>
-</div>
-
-<div class="main-content sm-diary-main-content">
-    <div class="card sm-list-card" id="diary-workspace-card">
+{% block page_content %}
+    <div class="card sm-viewport-card" id="diary-workspace-card" data-sm-layout="workspace">
         <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
             <h6 class="card-title mb-0">Lista da Agenda</h6>
             <div class="d-flex align-items-center justify-content-end gap-2 flex-wrap sm-diary-header-controls">
@@ -46,7 +41,6 @@
         </div>
         {% endif %}
     </div>
-</div>
 
 <script>
 (function () {

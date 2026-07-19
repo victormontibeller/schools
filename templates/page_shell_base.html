@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header sm-page-header">
+    <div class="page-header-left d-flex align-items-center">
+        <div class="page-header-title"><h5 class="m-b-10">{% block page_heading %}{% endblock %}</h5></div>
+        <ul class="breadcrumb">{% block page_breadcrumbs %}{% endblock %}</ul>
+    </div>
+    {% block page_header_actions %}{% endblock %}
+</div>
+
+<div class="main-content sm-page-content {% block page_content_class %}{% endblock %}">
+    {% block page_content %}{% endblock %}
+</div>
+{% endblock %}

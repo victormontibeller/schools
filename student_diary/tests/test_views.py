@@ -53,7 +53,8 @@ def test_diary_daily_renders_canonical_roster_for_admin(client, user):
     assert response.status_code == 200
     assert b"Agenda" in response.content
     assert b"Lista da Agenda" in response.content
-    assert b"page-header sm-diary-page-header" in response.content
+    assert b"page-header sm-page-header" in response.content
+    assert b"sm-page-content--viewport" in response.content
     assert b"sm-diary-filter-form" in response.content
     assert b"sm-diary-context-bar" in response.content
     assert b"sm-diary-table" in response.content

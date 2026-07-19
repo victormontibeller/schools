@@ -184,6 +184,24 @@ matrículas (solicitações, documentos e rematrículas). Um arquivo novo deve p
 O CI executa `scripts/check_import_contracts.py` e exige zero violações: ORM em views, SQL direto,
 dependência de `base` para apps e import direto de modelos entre domínios sempre falham.
 
+## Arquitetura de interface autenticada
+
+- `page_shell_base.html` centraliza o cabeçalho aderente, breadcrumb, margens e viewport das
+  páginas operacionais. `list_page_base.html` o especializa com card, filtros, tabela rolável e
+  paginação.
+- `core.ui_catalog.LIST_PAGE_CATALOG` é o catálogo tipado das listagens e tem o nome da rota como
+  chave. Metadados incompletos e rotas inválidas são erros de contrato.
+- `core.ui_contracts` registra grades primárias e as allowlists explícitas de páginas que seguem
+  outro padrão. `scripts/check_ui_contracts.py` impede shells manuais e tabelas primárias sem
+  rolagem acessível, cabeçalho fixo ou primeira coluna canônica.
+- Os utilitários de layout vivem exclusivamente em
+  `design_system/refs/duralux/css/school-manager.css`, publicado pelo pipeline de staticfiles.
+  Produção usa nomes com hash de conteúdo; desenvolvimento mantém resolução simples e tolerante
+  antes de `collectstatic`.
+- A regressão de layout usa Playwright com Django `live_server` em job separado do SQLite comum.
+  Chromium é bloqueante; asserções geométricas validam viewport, margens e elementos fixos, e os
+  artefatos do navegador são retidos apenas quando há falha.
+
 ## Identidade entre schemas
 
 - `School` e `Domain` existem somente no `public`.

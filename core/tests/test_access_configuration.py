@@ -108,7 +108,7 @@ def test_access_settings_renders_only_configurable_groups(client, user):
     assert "Vinculados" not in content
     assert "sm-access-scope-note" not in content
     assert "sm-access-scope-badge" not in content
-    assert "sm-compact-table sm-access-table" in content
+    assert "sm-sticky-table--first-column sm-access-table" in content
     assert '<h6 class="card-title mb-0">Matriz de acessos</h6>' in content
     assert 'class="btn btn-sm btn-primary"' in content
     assert "feather-save" in content

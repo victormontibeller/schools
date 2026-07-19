@@ -1,7 +1,4 @@
-{% extends "base.html" %}
-{% block title %}Eventos — School Manager{% endblock %}
-{% block content %}
-{% include "partials/list_header.html" with list_title="Eventos" breadcrumb_items=breadcrumb_items create_url="event_create" search_url="events_list" search_target="#events-table" search_value=q sort=sort total_count=result.total %}
+{% extends "list_page_base.html" %}
+{% block list_body %}
 {% include "academic_calendar/partials/events_table.html" %}
-{% include "partials/list_footer.html" %}
 {% endblock %}

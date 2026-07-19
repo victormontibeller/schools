@@ -40,6 +40,9 @@ jobs:
       - name: Check import contracts
         run: python scripts/check_import_contracts.py
 
+      - name: Check canonical UI contracts
+        run: python scripts/check_ui_contracts.py
+
   test:
     name: Tests (SQLite)
     runs-on: ubuntu-latest
@@ -110,6 +113,45 @@ jobs:
           DB_USER: postgres
           DB_PASSWORD: postgres
           DB_TEST_NAME: schools_test_db
+
+  test-ui:
+    name: UI geometry (Chromium)
+    runs-on: ubuntu-latest
+    needs: quality
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install dev dependencies
+        run: pip install --require-hashes -r requirements-dev.lock
+
+      - name: Install Chromium
+        run: playwright install --with-deps chromium
+
+      - name: Run deterministic UI tests
+        run: >-
+          pytest -m ui --browser chromium
+          --tracing=retain-on-failure
+          --screenshot=only-on-failure
+        env:
+          DJANGO_SETTINGS_MODULE: core.settings
+          DJANGO_ALLOW_ASYNC_UNSAFE: "true"
+          DJANGO_UI_TEST_DB: /tmp/school-manager-playwright.sqlite3
+
+      - name: Preserve Playwright diagnostics
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: playwright-diagnostics
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
 
   secrets:
     name: Secret scan

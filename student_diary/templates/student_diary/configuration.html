@@ -1,8 +1,4 @@
-{% extends "base.html" %}
-
-{% block title %}Aspectos da rotina — School Manager{% endblock %}
-{% block content %}
-{% include "partials/list_header.html" with list_title="Aspectos da rotina" breadcrumb_items=breadcrumb_items create_url="diary_aspect_create" search_url="diary_configuration" search_target="#diary-categories-table" search_value=q sort=sort total_count=result.total count_label="aspectos" %}
+{% extends "list_page_base.html" %}
+{% block list_body %}
 {% include "student_diary/partials/categories_table.html" %}
-{% include "partials/list_footer.html" %}
 {% endblock %}

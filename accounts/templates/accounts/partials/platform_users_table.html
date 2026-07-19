@@ -1,5 +1,5 @@
-<div class="table-responsive">
-    <table class="table table-hover mb-0">
+<div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Lista de {{ list_page.title }}">
+    <table class="table table-hover mb-0 sm-sticky-table sm-sticky-table--first-column">
         <thead>
             <tr>
                 <th aria-sort="{{ sorting.name.aria_sort }}"><a href="?{{ sorting.name.query }}" class="sm-sort-link{% if sorting.name.active %} is-active{% endif %}" hx-get="?{{ sorting.name.query }}" hx-target="#platform-users-table" hx-swap="innerHTML">Operador</a></th>

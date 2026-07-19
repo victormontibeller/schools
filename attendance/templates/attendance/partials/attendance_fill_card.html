@@ -1,7 +1,7 @@
-<div class="card sm-detail-card" id="attendance-fill-card">
+<div class="card sm-detail-card sm-viewport-card" id="attendance-fill-card" data-sm-layout="workspace">
     <form id="attendance-fill-form" method="post"
           hx-post="{% url 'attendance_record_fill' record.pk %}"
-          hx-target="#attendance-fill-card" hx-swap="outerHTML">
+          hx-target="#attendance-fill-card" hx-swap="outerHTML" class="sm-viewport-body">
         {% csrf_token %}
         <div class="card-header d-flex justify-content-between align-items-center gap-2">
             <div>
@@ -17,11 +17,11 @@
             </div>
             {% endif %}
         </div>
-        <div class="card-body sm-profile-card-body">
+        <div class="card-body sm-profile-card-body sm-viewport-body">
             {% if saved %}<div class="alert alert-success py-2">Chamada salva com sucesso.</div>{% endif %}
             <p class="text-muted small mb-3">Marque a presença de cada aluno. Use <b>Justificado</b> com motivo para faltas amparadas por atestado.</p>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+            <div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Presença dos alunos">
+                <table class="table table-hover align-middle mb-0 sm-sticky-table sm-sticky-table--first-column">
                     <thead><tr><th>Aluno</th><th>Presença</th><th>Observação/recado</th></tr></thead>
                     <tbody>
                         {% for entry in entries %}

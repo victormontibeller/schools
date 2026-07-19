@@ -15,6 +15,8 @@ help:
 	@echo "  make dev        Start Django development server"
 	@echo "  make test       Run all tests with coverage (SQLite)"
 	@echo "  make test-tenant Run PostgreSQL multi-tenant isolation tests"
+	@echo "  make test-ui    Run Chromium visual contract tests"
+	@echo "  make check-ui   Validate canonical page and grid contracts"
 	@echo "  make lint       Run ruff and black checks"
 	@echo "  make format     Fix code with ruff and black"
 	@echo "  make migrate    Apply shared multi-tenant migrations"
@@ -78,6 +80,14 @@ test-fast:
 .PHONY: test-tenant
 test-tenant:
 	DJANGO_ENV=test_pg $(VENV_BIN)/pytest -m tenant -v
+
+.PHONY: test-ui
+test-ui:
+	DJANGO_ALLOW_ASYNC_UNSAFE=true DJANGO_UI_TEST_DB=/tmp/school-manager-playwright.sqlite3 $(VENV_BIN)/pytest -m ui --browser chromium --tracing=retain-on-failure --screenshot=only-on-failure
+
+.PHONY: check-ui
+check-ui:
+	$(VENV_BIN)/python scripts/check_ui_contracts.py
 
 # ============================================================
 # Lint & Format
