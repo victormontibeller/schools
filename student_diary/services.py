@@ -13,9 +13,10 @@ from base.exceptions import (
     ValidationError,
 )
 from base.services import BaseService
+from student_diary.configuration_services import RoutineConfigurationServiceMixin
 
 
-class StudentDiaryService(BaseService):
+class StudentDiaryService(RoutineConfigurationServiceMixin, BaseService):
     """Gerencia configurações e registros diários infantis."""
 
     @staticmethod
@@ -43,34 +44,18 @@ class StudentDiaryService(BaseService):
             raise BusinessRuleViolationError("A Agenda não está disponível para este turno.")
         return mapping[shift]
 
-    def set_routine_aspect_enabled(self, category_id, enabled: bool):
-        """Ativa ou desativa um aspecto fixo sem alterar seu catálogo."""
-        from student_diary.models import DiaryCategory
-
-        self._assert_configuration_actor()
-        try:
-            category = DiaryCategory.objects.get(pk=category_id)
-        except DiaryCategory.DoesNotExist:
-            raise ObjectNotFoundError("DiaryCategory", str(category_id)) from None
-        if not category.code:
-            raise BusinessRuleViolationError("Somente aspectos predefinidos podem ser alterados.")
-        old = self._snapshot(category, ["is_enabled"])
-        category.is_enabled = bool(enabled)
-        category.updated_by = self.user
-        category.save(update_fields=["is_enabled", "updated_by", "updated_at"])
-        self._record_audit("UPDATE", category, old_values=old)
-        self._log(
-            "aspecto_rotina_alterado",
-            category_id=str(category.pk),
-            enabled=category.is_enabled,
-        )
-        return category
-
     @transaction.atomic
     def save_daily_diaries(self, class_id, diary_date: date, entries_data: dict):
         """Salva atomicamente a agenda de todos os alunos ativos da turma."""
+        from django.db.models import Q
+
         from classes.contracts import Class, Enrollment
-        from student_diary.models import DiaryCategory, DiaryOption, DiarySheet
+        from student_diary.models import (
+            DiaryAnswer,
+            DiaryCategory,
+            DiaryOption,
+            DiarySheet,
+        )
 
         try:
             class_obj = Class.objects.get(pk=class_id)
@@ -110,19 +95,35 @@ class StudentDiaryService(BaseService):
                 errors={"students": ["A agenda deve contemplar todos os alunos ativos da turma."]}
             )
 
+        existing_answers = {
+            (str(student_id), str(category_id)): str(option_id)
+            for student_id, category_id, option_id in DiaryAnswer.objects.filter(
+                diary__class_obj=class_obj,
+                diary__date=diary_date,
+            ).values_list("diary__student_id", "category_id", "option_id")
+        }
+        existing_category_ids = {category_id for _, category_id in existing_answers}
+        existing_option_ids = set(existing_answers.values())
         categories = list(
-            DiaryCategory.objects.filter(code__isnull=False, is_enabled=True).prefetch_related(
-                "options"
-            )
+            DiaryCategory.objects.filter(Q(is_enabled=True) | Q(pk__in=existing_category_ids))
         )
         category_map = {str(category.pk): category for category in categories}
         option_pairs = {
             (str(option.category_id), str(option.pk)): option
-            for option in DiaryOption.objects.filter(category__in=categories)
+            for option in DiaryOption.objects.filter(category__in=categories).filter(
+                Q(is_enabled=True) | Q(pk__in=existing_option_ids)
+            )
         }
         meal_types = self.meals_for_shift(class_obj.shift)
         for student_id, payload in entries_data.items():
-            self._validate_daily_payload(payload, category_map, option_pairs, meal_types)
+            current_answers = {
+                category_id: option_id
+                for (answer_student_id, category_id), option_id in existing_answers.items()
+                if answer_student_id == student_id
+            }
+            self._validate_daily_payload(
+                payload, category_map, option_pairs, meal_types, current_answers
+            )
             self._save_student_diary(
                 class_obj,
                 teacher,
@@ -140,13 +141,6 @@ class StudentDiaryService(BaseService):
             student_count=len(entries_data),
         )
         return len(entries_data)
-
-    def _assert_configuration_actor(self) -> None:
-        """Restringe configurações à capacidade dedicada da matriz de acessos."""
-        from core.permissions import can_access
-
-        if not can_access(self.user, "diary_configuration", "edit"):
-            raise PermissionDeniedError("Sem permissão para configurar a Agenda.")
 
     @staticmethod
     def _assert_eligible_class(class_obj) -> None:
@@ -174,15 +168,27 @@ class StudentDiaryService(BaseService):
         return class_obj.class_teacher
 
     @staticmethod
-    def _validate_daily_payload(payload, categories, option_pairs, meal_types) -> None:
+    def _validate_daily_payload(
+        payload, categories, option_pairs, meal_types, current_answers=None
+    ) -> None:
         """Valida respostas e refeições de um aluno."""
         errors: dict[str, list[str]] = {}
         answers = payload.get("answers", {})
+        current_answers = current_answers or {}
+        if set(answers) - set(categories):
+            errors.setdefault("answers", []).append(
+                "Um dos aspectos informados não está disponível."
+            )
         for category_id, category in categories.items():
             option_id = str(answers.get(category_id, ""))
-            if category.is_required and not option_id:
+            if category.is_enabled and category.is_required and not option_id:
                 errors.setdefault("answers", []).append(f"O aspecto {category.name} é obrigatório.")
-            if option_id and (category_id, option_id) not in option_pairs:
+            option = option_pairs.get((category_id, option_id)) if option_id else None
+            if option_id and (
+                option is None
+                or (not category.is_enabled and current_answers.get(category_id) != option_id)
+                or (not option.is_enabled and current_answers.get(category_id) != option_id)
+            ):
                 errors.setdefault("answers", []).append("Resposta inválida para o aspecto.")
         from student_diary.models import DiaryMeal
 

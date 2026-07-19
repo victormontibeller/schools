@@ -12,14 +12,11 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from base.exceptions import BusinessRuleViolationError, PermissionDeniedError, ValidationError
-from base.listing import build_querystring, build_sorting, resolve_listing_state
-from core.access_catalog import EDIT, VIEW
-from core.permissions import access_policy, can_edit_student_diary
+from core.permissions import can_edit_student_diary
 from student_diary.forms import (
     DiaryDailyFilterForm,
     DiaryReviewForm,
     DiaryStudentEntryForm,
-    RoutineAspectToggleForm,
 )
 from student_diary.selectors import StudentDiarySelector
 from student_diary.services import StudentDiaryService
@@ -240,96 +237,4 @@ def _workflow_redirect(sheet):
     """Retorna à turma e data da folha processada."""
     return redirect(
         f"{reverse('diary_daily')}?class_id={sheet.class_obj_id}&date={sheet.date.isoformat()}"
-    )
-
-
-@login_required
-@access_policy("diary_configuration", VIEW)
-def diary_configuration(request):
-    """Lista os quatro aspectos predefinidos da rotina."""
-    state = resolve_listing_state(
-        request,
-        scope="diary_configuration",
-        allowed_sorts={
-            "name",
-            "-name",
-            "display_order",
-            "-display_order",
-            "is_enabled",
-            "-is_enabled",
-        },
-        default_sort="display_order",
-    )
-    result = StudentDiarySelector().list_categories_page(
-        search=state["q"],
-        order_by=state["sort"],
-        page=int(request.GET.get("page", 1)),
-    )
-    context = {
-        "result": result,
-        "q": state["q"],
-        "sort": state["sort"],
-        "sorting": build_sorting(
-            current_sort=state["sort"],
-            search=state["q"],
-            sortable_fields=["name", "display_order", "is_enabled"],
-        ),
-        "list_query": build_querystring({"q": state["q"], "sort": state["sort"]}),
-        "breadcrumb_items": [
-            {"label": "Home", "url": "dashboard"},
-            {"label": "Aspectos da rotina", "url": None},
-        ],
-    }
-    if request.headers.get("HX-Request"):
-        return render(request, "student_diary/partials/categories_table.html", context)
-    return render(request, "student_diary/configuration.html", context)
-
-
-@login_required
-@access_policy("diary_configuration", VIEW)
-def diary_aspect_detail(request, category_id):
-    """Exibe a ficha imutável de um aspecto e suas opções."""
-    category = StudentDiarySelector().get_category_with_options(category_id)
-    if request.headers.get("HX-Request") and request.GET.get("component") == "information":
-        return render(
-            request,
-            "student_diary/partials/category_information_card.html",
-            {"category": category},
-        )
-    return render(request, "student_diary/category_detail.html", {"category": category})
-
-
-@login_required
-@access_policy("diary_configuration", EDIT)
-def diary_aspect_toggle(request, category_id):
-    """Altera apenas a disponibilidade do aspecto na rotina."""
-    category = StudentDiarySelector().get_category_with_options(category_id)
-    form = RoutineAspectToggleForm(
-        request.POST if request.method == "POST" else None,
-        instance=category,
-    )
-    if request.method == "POST" and form.is_valid():
-        category = StudentDiaryService(user=request.user).set_routine_aspect_enabled(
-            category_id, form.cleaned_data["is_enabled"]
-        )
-        if request.headers.get("HX-Request"):
-            return render(
-                request,
-                "student_diary/partials/category_information_card.html",
-                {"category": category, "saved": True},
-            )
-        messages.success(request, "Aspecto da rotina atualizado.")
-        return redirect("diary_aspect_detail", category_id=category_id)
-    if not request.headers.get("HX-Request"):
-        return redirect("diary_aspect_detail", category_id=category_id)
-    return render(
-        request,
-        "partials/information_form_card.html",
-        {
-            "form": form,
-            "component_id": "diary-category-information-card",
-            "component_title": "Disponibilidade do aspecto",
-            "edit_url": request.path,
-            "cancel_url": (f"{request.path_info.removesuffix('ativacao/')}?component=information"),
-        },
     )

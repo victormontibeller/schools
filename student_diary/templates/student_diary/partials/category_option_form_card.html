@@ -1,0 +1,16 @@
+<div class="card mb-0 sm-detail-card" id="diary-options-card">
+    <form method="post" hx-post="{{ edit_url }}" hx-target="#diary-options-card" hx-swap="outerHTML">
+        {% csrf_token %}
+        <div class="card-header d-flex align-items-center justify-content-between gap-2">
+            <h6 class="card-title mb-0">{{ component_title }}</h6>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" hx-get="{% url 'diary_aspect_detail' category.pk %}?component=options" hx-target="#diary-options-card" hx-swap="outerHTML">Cancelar</button>
+                <button type="submit" class="btn btn-sm btn-primary"><i class="feather-check me-1"></i> Salvar</button>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if form.non_field_errors %}<div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>{% endif %}
+            <div class="row g-2">{% for field in form %}{% include "partials/form_field.html" with field=field %}{% endfor %}</div>
+        </div>
+    </form>
+</div>

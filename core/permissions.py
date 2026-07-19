@@ -107,7 +107,12 @@ _SERVICE_CLASS_MODULES = {
     "PlatformSchoolService": "__admin__",
 }
 _SERVICE_METHOD_MODULES = {
+    ("StudentDiaryService", "create_routine_aspect"): "diary_configuration",
+    ("StudentDiaryService", "update_routine_aspect"): "diary_configuration",
     ("StudentDiaryService", "set_routine_aspect_enabled"): "diary_configuration",
+    ("StudentDiaryService", "create_routine_option"): "diary_configuration",
+    ("StudentDiaryService", "update_routine_option"): "diary_configuration",
+    ("StudentDiaryService", "set_routine_option_enabled"): "diary_configuration",
 }
 _SYSTEM_SERVICE_METHODS = frozenset(
     {"create_notification", "create_notifications_bulk", "log_delivery"}

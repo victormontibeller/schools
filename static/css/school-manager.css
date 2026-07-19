@@ -3,6 +3,42 @@
     --sm-sidebar-mini-width: 76px;
 }
 
+.sm-segmented-choice {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.sm-segmented-choice-item input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.sm-segmented-choice-item label {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 0.35rem 0.7rem;
+    border: 1px solid #d9dee7;
+    border-radius: 999px;
+    color: #52616f;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.sm-segmented-choice-item input:checked + label {
+    border-color: #3454d1;
+    color: #2844ad;
+    background: #ebeefa;
+}
+
+.sm-segmented-choice-item input:focus-visible + label {
+    outline: 3px solid rgba(52, 84, 209, 0.2);
+    outline-offset: 2px;
+}
+
 @media (min-width: 1200px) {
     .nxl-navigation {
         width: var(--sm-sidebar-width);
@@ -1260,6 +1296,49 @@ html.app-skin-dark #calendar-workspace .sm-calendar-summary span {
 }
 
 /* Agenda Infantil */
+.sm-diary-page-header {
+    position: sticky;
+    top: 80px;
+    z-index: 1023;
+}
+
+.nxl-container .nxl-content .main-content.sm-diary-main-content {
+    box-sizing: border-box;
+    height: calc(100vh - 145px);
+    height: calc(100dvh - 145px);
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    padding-right: 30px;
+    padding-left: 30px;
+}
+
+#diary-workspace-card {
+    height: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin-bottom: 0;
+    overflow: hidden;
+}
+
+#diary-workspace-card > .card-header {
+    flex: 0 0 auto;
+}
+
+#diary-roster-card,
+#diary-roster-form {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+#diary-roster-form > :not(.sm-diary-table-responsive) {
+    flex: 0 0 auto;
+}
+
 .sm-diary-filter-form .sm-diary-class-filter {
     width: 250px;
 }
@@ -1270,11 +1349,14 @@ html.app-skin-dark #calendar-workspace .sm-calendar-summary span {
 
 .sm-diary-context-bar {
     min-height: 48px;
+    padding: .4rem 15px .4rem 30px;
     background: #fbfcfe;
 }
 
 .sm-diary-table-responsive {
-    max-height: min(68vh, 760px);
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
     overflow: auto;
 }
 
@@ -1332,6 +1414,13 @@ html.app-skin-dark #calendar-workspace .sm-calendar-summary span {
     vertical-align: middle;
 }
 
+.sm-diary-table > tbody > tr > .sm-diary-student-column {
+    padding-top: .3rem;
+    padding-right: 15px;
+    padding-bottom: .3rem;
+    padding-left: 30px;
+}
+
 .sm-diary-table > tbody > tr.sm-diary-row-has-errors > td,
 .sm-diary-table > tbody > tr.sm-diary-row-has-errors > th {
     background-color: #fff8f8;
@@ -1386,11 +1475,16 @@ html.app-skin-dark #calendar-workspace .sm-calendar-summary span {
 }
 
 .sm-diary-notes-menu {
-    width: min(320px, calc(100vw - 2rem));
+    width: min(520px, calc(100vw - 2rem));
 }
 
 .sm-diary-notes-menu textarea {
+    min-height: 156px;
     resize: vertical;
+}
+
+.sm-diary-notes-menu fieldset > .d-flex {
+    flex-wrap: wrap;
 }
 
 .sm-diary-dropdown.is-invalid .sm-diary-selector,
@@ -1483,13 +1577,16 @@ html.app-skin-dark .sm-diary-dropdown-menu .form-check-input:checked {
         flex: 1 0 auto;
     }
 
-    .sm-diary-table-responsive {
-        max-height: 72vh;
-    }
-
     .sm-diary-table .sm-diary-student-column {
         width: 180px;
         min-width: 180px;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .nxl-container .nxl-content .main-content.sm-diary-main-content {
+        padding-right: 20px;
+        padding-left: 20px;
     }
 }
 

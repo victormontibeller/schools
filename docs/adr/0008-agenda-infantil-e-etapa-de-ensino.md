@@ -2,7 +2,8 @@
 
 ## Status
 
-Aceito em 2026-07-12. Atualizado e renumerado em 2026-07-13.
+Aceito em 2026-07-12. Atualizado e renumerado em 2026-07-13. Parcialmente superado em
+2026-07-17 pela ADR-0015 quanto à decisão de manter aspectos e opções fixos.
 
 ## Contexto
 
@@ -18,10 +19,10 @@ permissões e ciclo de dados distintos e não pode depender de inferência pelo 
 - Estruturar `Class.grade` como catálogo fixo por etapa, sem entidade configurável, normalizando
   apenas grafias legadas reconhecidas e exigindo correção manual das demais.
 - Manter o app `agenda` exclusivamente responsável por grade horária.
-- Adotar quatro aspectos estruturados: Humor, Descanso, Evacuação e Participação, com opções
-  fixas. A escola controla somente a ativação de cada aspecto.
-- Preservar `DiaryCategory` e `DiaryOption` para compatibilidade: registros livres anteriores não
-  aparecem em novos preenchimentos, mas suas respostas continuam no histórico.
+- Adotar inicialmente quatro aspectos estruturados: Humor, Descanso, Evacuação e Participação.
+  A restrição posterior a nomes e opções fixos foi superada pela ADR-0015.
+- Preservar `DiaryCategory` e `DiaryOption` para compatibilidade. A ADR-0015 passou a utilizá-los
+  também para itens personalizados, mantendo o histórico de respostas.
 - Salvar toda a turma em transação única e permitir responsável pedagógico nulo quando o autor
   real for administração ou coordenação.
 - Reconhecer o papel `ADMIN` como irrestrito apenas dentro do schema da própria escola; acesso à
@@ -29,8 +30,7 @@ permissões e ciclo de dados distintos e não pode depender de inferência pelo 
 
 ## Consequências
 
-A escola não cria nomenclaturas próprias para a rotina, reduzindo ambiguidade entre professores
-e responsáveis. As regras de alimentação permanecem estruturadas por turno e incluem o estado
-`NOT_PRESENT`. Turmas legadas precisam ser classificadas explicitamente antes de usar a Agenda.
-Novas gravações de turma aceitam somente combinações de etapa e série previstas no catálogo
-pedagógico comum a todos os tenants.
+As regras de alimentação permanecem estruturadas por turno e incluem o estado `NOT_PRESENT`.
+Turmas legadas precisam ser classificadas explicitamente antes de usar a Agenda. Novas gravações
+de turma aceitam somente combinações de etapa e série previstas no catálogo pedagógico comum a
+todos os tenants. As consequências do catálogo configurável estão na ADR-0015.

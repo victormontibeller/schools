@@ -1,4 +1,17 @@
+{% load ui_helpers %}
+{% can_access_action "diary_configuration" "create" as can_create_diary_option %}
+{% can_access_action "diary_configuration" "edit" as can_edit_diary_option %}
 <div class="card mb-0 sm-detail-card" id="diary-options-card">
-    <div class="card-header"><h6 class="card-title mb-0">Opções predefinidas</h6></div>
-    <div class="card-body p-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Opção</th><th>Ordem</th></tr></thead><tbody>{% for option in category.options.all %}<tr><td>{{ option.label }}</td><td>{{ option.display_order }}</td></tr>{% empty %}<tr><td colspan="2" class="text-center text-muted py-4">Nenhuma opção predefinida.</td></tr>{% endfor %}</tbody></table></div></div>
+    <div class="card-header d-flex align-items-center justify-content-between gap-2">
+        <h6 class="card-title mb-0">Opções de resposta</h6>
+        {% if can_create_diary_option %}<button type="button" class="btn btn-sm btn-primary" hx-get="{% url 'diary_option_create' category.pk %}" hx-target="#diary-options-card" hx-swap="outerHTML"><i class="feather-plus me-1"></i> Adicionar opção</button>{% endif %}
+    </div>
+    {% if saved %}<div class="alert alert-success m-3 mb-0 py-2">Opções atualizadas com sucesso.</div>{% endif %}
+    {% if component_error %}<div class="alert alert-danger m-3 mb-0 py-2">{{ component_error }}</div>{% endif %}
+    <div class="card-body p-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Opção</th><th>Disponibilidade</th><th>Ordem</th>{% if can_edit_diary_option %}<th class="text-end">Configuração</th>{% endif %}</tr></thead><tbody>{% for option in category.options.all %}<tr>
+        <td>{% if can_edit_diary_option %}<button type="button" class="btn btn-link p-0 fw-semibold text-start" hx-get="{% url 'diary_option_edit' category.pk option.pk %}" hx-target="#diary-options-card" hx-swap="outerHTML">{{ option.label }}</button>{% else %}{{ option.label }}{% endif %}</td>
+        <td>{% if option.is_enabled %}<span class="badge bg-soft-success text-success">Disponível</span>{% else %}<span class="badge bg-soft-secondary text-secondary">Indisponível</span>{% endif %}</td>
+        <td>{{ option.display_order }}</td>
+        {% if can_edit_diary_option %}<td class="text-end"><form class="d-inline" method="post" hx-post="{% url 'diary_option_toggle' category.pk option.pk %}" hx-target="#diary-options-card" hx-swap="outerHTML">{% csrf_token %}<input type="hidden" name="version" value="{{ option.version }}">{% if not option.is_enabled %}<input type="hidden" name="is_enabled" value="on">{% endif %}<button type="submit" class="btn btn-sm btn-outline-secondary">{% if option.is_enabled %}Desativar{% else %}Ativar{% endif %}</button></form></td>{% endif %}
+    </tr>{% empty %}<tr><td colspan="4" class="text-center text-muted py-4">Nenhuma opção cadastrada. Adicione uma opção antes de ativar o aspecto.</td></tr>{% endfor %}</tbody></table></div></div>
 </div>

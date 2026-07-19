@@ -104,11 +104,14 @@
   lançamento.
 - A Agenda pré-carrega todas as crianças ativas em uma listagem canônica dentro de um único card.
   Turma e data usam controles pequenos no cabeçalho da lista e são aplicadas explicitamente pelo
-  botão **Carregar**. A primeira coluna liga ao histórico do aluno e permanece fixa na rolagem.
+  botão **Carregar**. O cabeçalho da página, os filtros, a identificação da turma e o rodapé ficam
+  fora da rolagem; somente a grade rola. A primeira coluna liga ao histórico do aluno e permanece
+  fixa, e a identificação da turma usa o mesmo recuo esquerdo de 30px da Central de Acessos.
 - Cada refeição aplicável ao turno e cada aspecto ativo ocupam uma coluna com dropdown de escolha
   única, seguindo a densidade da Central de Acessos. Observações usam um dropdown próprio com
-  textarea, sem aumentar a altura da linha. Erros aparecem na própria célula e alterações não
-  salvas são indicadas na situação do aluno.
+  textarea de seis linhas e largura de até 520px, limitada ao viewport, sem aumentar a altura da
+  linha. O painel exibe **Melhorar com IA — em breve** desabilitado enquanto não houver integração.
+  Erros aparecem na própria célula e alterações não salvas são indicadas na situação do aluno.
 - Há um único botão **Salvar Agenda** no rodapé, que envia a turma inteira atomicamente. Professores
   usam **Enviar para revisão**; coordenação e administração usam **Publicar** ou **Devolver para
   correção** com motivo. Conteúdo em revisão ou publicado é somente leitura, mas seus dropdowns
@@ -123,11 +126,18 @@
 - A instalação PWA e a ativação de notificações Push são opcionais. O estado offline mostra apenas
   uma página genérica e não sugere que a Agenda possa ser consultada sem conexão.
 - Refeições exibem Café da manhã, Almoço e Café da tarde conforme o turno e incluem a resposta
-  Não estava presente. A grade usa cabeçalho fixo e rolagem horizontal em telas estreitas.
-- **Aspectos da rotina** segue a listagem e ficha canônicas. Nomes e opções são fixos; a escola
-  pode apenas ativar ou desativar cada aspecto. Sua capacidade `diary_configuration`, com ações
-  Visualizar e Editar, é independente da capacidade `student_diary` usada para preencher, revisar
-  e publicar a Agenda.
+  Não estava presente. A grade usa cabeçalho e primeira coluna fixos e concentra sua rolagem
+  vertical e horizontal no card, sem criar overflow horizontal no documento. Seus menus são
+  anexados temporariamente ao `body` e posicionados pelo Popper com estratégia fixa, `flip` e
+  `preventOverflow`; ao fechar, retornam à célula de origem. A inicialização é repetida após HTMX.
+- **Aspectos da rotina** segue a listagem e ficha canônicas e permite cadastrar e editar aspectos
+  e opções. Aspectos novos começam inativos; a ficha cadastra suas opções antes da ativação.
+  Nome/rótulo, ordem, obrigatoriedade e disponibilidade ficam explícitos. A edição do aspecto
+  substitui somente o card de informações e opções são criadas ou editadas no próprio card.
+- A Agenda oferece somente itens disponíveis para novas escolhas. Uma resposta já salva continua
+  visível quando seu aspecto ou opção se torna indisponível, mas não pode ser escolhida por outro
+  registro. A capacidade `diary_configuration`, com ações Visualizar, Cadastrar e Editar, é
+  independente de `student_diary`, usada para preencher, revisar e publicar a Agenda.
 
 ## HTMX, acessibilidade e feedback
 

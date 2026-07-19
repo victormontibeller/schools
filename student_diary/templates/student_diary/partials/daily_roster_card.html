@@ -9,7 +9,7 @@
         <input type="hidden" name="class_id" value="{{ sheet.class_obj.pk }}">
         <input type="hidden" name="date" value="{{ sheet.date|date:'Y-m-d' }}">
 
-        <div class="sm-diary-context-bar d-flex align-items-center justify-content-between gap-2 flex-wrap px-3 py-2 border-bottom">
+        <div class="sm-diary-context-bar d-flex align-items-center justify-content-between gap-2 flex-wrap border-bottom">
             <div>
                 <strong>{{ sheet.class_obj }}</strong>
                 <small class="text-muted ms-1">{{ sheet.date|date:'d/m/Y' }} · {{ sheet.rows|length }} alunos</small>
@@ -98,7 +98,10 @@
                                 </button>
                                 <div class="dropdown-menu dropdown-menu-end sm-diary-dropdown-menu sm-diary-notes-menu p-3">
                                     <fieldset{% if not can_edit %} disabled{% endif %}>
-                                        <label class="form-label fw-semibold" for="{{ row.form.notes.id_for_label }}">Observações de {{ row.student.get_full_name }}</label>
+                                        <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                                            <label class="form-label fw-semibold mb-0" for="{{ row.form.notes.id_for_label }}">Observações de {{ row.student.get_full_name }}</label>
+                                            <button type="button" class="btn btn-sm btn-outline-primary text-nowrap" disabled aria-disabled="true" title="Recurso de melhoria de texto em preparação"><i class="feather-zap me-1" aria-hidden="true"></i> Melhorar com IA <span class="badge bg-soft-secondary text-secondary ms-1">Em breve</span></button>
+                                        </div>
                                         {{ row.form.notes }}
                                     </fieldset>
                                 </div>

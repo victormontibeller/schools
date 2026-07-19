@@ -240,7 +240,7 @@ def test_access_form_normalizes_dependencies_and_builds_rows():
     assert all("scope_label" not in cell for row in form.matrix_rows for cell in row["cells"])
 
 
-def test_diary_configuration_exposes_only_view_and_edit_actions():
+def test_diary_configuration_exposes_view_create_and_edit_actions():
     from core.access.forms import AccessConfigurationForm
 
     form = AccessConfigurationForm()
@@ -251,8 +251,8 @@ def test_diary_configuration_exposes_only_view_and_edit_actions():
         AccessConfigurationForm.field_name("diary_configuration", "COORDINATOR")
     ]
 
-    assert tuple(value for value, _label in secretary_field.choices) == (VIEW, EDIT)
-    assert tuple(value for value, _label in coordinator_field.choices) == (VIEW, EDIT)
+    assert tuple(value for value, _label in secretary_field.choices) == (VIEW, CREATE, EDIT)
+    assert tuple(value for value, _label in coordinator_field.choices) == (VIEW, CREATE, EDIT)
     assert "access__diary_configuration__TEACHER" not in form.fields
 
 
@@ -302,6 +302,42 @@ def test_access_migration_reconciles_defaults_and_preserves_room_deactivation():
         assert access.can_create is False
         assert access.can_edit is True
         assert access.can_deactivate is False
+
+
+@pytest.mark.django_db
+def test_diary_create_migration_updates_only_previous_default_matrices():
+    import importlib
+
+    from django.apps import apps
+
+    from core.models import RoleModuleAccess
+
+    secretary = RoleModuleAccess.objects.get(
+        role__name="SECRETARY", module_key="diary_configuration"
+    )
+    coordinator = RoleModuleAccess.objects.get(
+        role__name="COORDINATOR", module_key="diary_configuration"
+    )
+    RoleModuleAccess.objects.filter(pk=secretary.pk).update(
+        can_view=True,
+        can_create=False,
+        can_edit=True,
+        can_deactivate=False,
+    )
+    RoleModuleAccess.objects.filter(pk=coordinator.pk).update(
+        can_view=True,
+        can_create=False,
+        can_edit=False,
+        can_deactivate=False,
+    )
+    migration = importlib.import_module("core.migrations.0004_diary_configuration_create_access")
+
+    migration.enable_create_for_previous_defaults(apps, None)
+
+    secretary.refresh_from_db()
+    coordinator.refresh_from_db()
+    assert secretary.can_create is True
+    assert coordinator.can_create is False
 
 
 def test_access_form_rejects_unknown_module_and_action_tampering():

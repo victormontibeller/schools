@@ -1295,6 +1295,301 @@ html.app-skin-dark #calendar-workspace .sm-calendar-summary span {
     #calendar-workspace .sm-calendar-summary span { font-size: .58rem; }
 }
 
+/* Agenda Infantil */
+.sm-diary-page-header {
+    position: sticky;
+    top: 80px;
+    z-index: 1023;
+}
+
+.nxl-container .nxl-content .main-content.sm-diary-main-content {
+    box-sizing: border-box;
+    height: calc(100vh - 145px);
+    height: calc(100dvh - 145px);
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    padding-right: 30px;
+    padding-left: 30px;
+}
+
+#diary-workspace-card {
+    height: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin-bottom: 0;
+    overflow: hidden;
+}
+
+#diary-workspace-card > .card-header {
+    flex: 0 0 auto;
+}
+
+#diary-roster-card,
+#diary-roster-form {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+#diary-roster-form > :not(.sm-diary-table-responsive) {
+    flex: 0 0 auto;
+}
+
+.sm-diary-filter-form .sm-diary-class-filter {
+    width: 250px;
+}
+
+.sm-diary-filter-form .sm-diary-date-filter {
+    width: 150px;
+}
+
+.sm-diary-context-bar {
+    min-height: 48px;
+    padding: .4rem 15px .4rem 30px;
+    background: #fbfcfe;
+}
+
+.sm-diary-table-responsive {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow: auto;
+}
+
+.sm-diary-table {
+    width: max-content;
+    min-width: 100%;
+    table-layout: fixed;
+}
+
+.sm-diary-table > thead > tr > th {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    color: #64748b;
+    background: #f8f9fc;
+    box-shadow: inset 0 -1px 0 #e9ecef;
+    white-space: nowrap;
+}
+
+.sm-diary-table .sm-diary-student-column {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    width: 205px;
+    min-width: 205px;
+    background: #fff;
+    box-shadow: inset -1px 0 0 #e9ecef;
+}
+
+.sm-diary-table > thead .sm-diary-student-column {
+    z-index: 5;
+    background: #f8f9fc;
+    box-shadow: inset -1px 0 0 #e9ecef, inset 0 -1px 0 #e9ecef;
+}
+
+.sm-diary-table .sm-diary-status-column {
+    width: 105px;
+    min-width: 105px;
+}
+
+.sm-diary-table .sm-diary-field-column {
+    width: 160px;
+    min-width: 160px;
+    text-align: center;
+}
+
+.sm-diary-table .sm-diary-notes-column {
+    width: 165px;
+    min-width: 165px;
+    text-align: center;
+}
+
+.sm-diary-table > tbody > tr > th,
+.sm-diary-table > tbody > tr > td {
+    vertical-align: middle;
+}
+
+.sm-diary-table > tbody > tr > .sm-diary-student-column {
+    padding-top: .3rem;
+    padding-right: 15px;
+    padding-bottom: .3rem;
+    padding-left: 30px;
+}
+
+.sm-diary-table > tbody > tr.sm-diary-row-has-errors > td,
+.sm-diary-table > tbody > tr.sm-diary-row-has-errors > th {
+    background-color: #fff8f8;
+}
+
+.sm-diary-dropdown {
+    display: grid;
+    width: 100%;
+    max-width: 150px;
+    gap: .3rem;
+    margin: 0 auto;
+}
+
+.sm-diary-selector {
+    display: flex;
+    min-height: 34px;
+    width: 100%;
+    min-width: 0;
+    align-items: center;
+    justify-content: flex-start;
+    gap: .3rem;
+    padding: .3rem .5rem;
+    border-color: #d7dce5;
+    background: #fff;
+    color: #283342;
+    text-align: left;
+}
+
+.sm-diary-selector:hover,
+.sm-diary-selector:focus,
+.sm-diary-selector[aria-expanded="true"] {
+    border-color: #4361ee;
+    background: #f6f7ff;
+    color: #283342;
+}
+
+.sm-diary-selection {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    color: #52616f;
+    font-size: .75rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sm-diary-dropdown-menu {
+    min-width: 245px;
+    border-color: #e1e5ec;
+    box-shadow: 0 .5rem 1.4rem rgba(30, 39, 57, .14);
+    text-align: left;
+}
+
+.sm-diary-notes-menu {
+    width: min(520px, calc(100vw - 2rem));
+}
+
+.sm-diary-notes-menu textarea {
+    min-height: 156px;
+    resize: vertical;
+}
+
+.sm-diary-notes-menu fieldset > .d-flex {
+    flex-wrap: wrap;
+}
+
+.sm-diary-dropdown.is-invalid .sm-diary-selector,
+.sm-diary-selector.is-invalid {
+    border-color: #dc3545;
+}
+
+html.app-skin-dark .sm-diary-context-bar {
+    border-color: #273550 !important;
+    background: #121a2d;
+}
+
+html.app-skin-dark .sm-diary-table > thead > tr > th {
+    border-color: #273550;
+    color: #cbd5e1;
+    background: #16213d;
+    box-shadow: inset 0 -1px 0 #273550;
+}
+
+html.app-skin-dark .sm-diary-table .sm-diary-student-column {
+    border-color: #273550;
+    color: #e2e8f0;
+    background: #0f172a;
+    box-shadow: inset -1px 0 0 #273550;
+}
+
+html.app-skin-dark .sm-diary-table > thead .sm-diary-student-column {
+    background: #16213d;
+    box-shadow: inset -1px 0 0 #273550, inset 0 -1px 0 #273550;
+}
+
+html.app-skin-dark .sm-diary-table > tbody > tr:hover > .sm-diary-student-column {
+    background: #1e293b;
+}
+
+html.app-skin-dark .sm-diary-table > tbody > tr.sm-diary-row-has-errors > td,
+html.app-skin-dark .sm-diary-table > tbody > tr.sm-diary-row-has-errors > th {
+    background-color: #301b26;
+}
+
+html.app-skin-dark .sm-diary-selector {
+    border-color: #273550;
+    color: #e2e8f0;
+    background: #121a2d;
+}
+
+html.app-skin-dark .sm-diary-selector:hover,
+html.app-skin-dark .sm-diary-selector:focus,
+html.app-skin-dark .sm-diary-selector[aria-expanded="true"] {
+    border-color: #3b82f6;
+    color: #fff;
+    background: #1e293b;
+}
+
+html.app-skin-dark .sm-diary-selection {
+    color: #cbd5e1;
+}
+
+html.app-skin-dark .sm-diary-dropdown-menu {
+    border-color: #273550;
+    color: #e2e8f0;
+    background: #0f172a;
+    box-shadow: 0 .5rem 1.4rem rgba(0, 0, 0, .35);
+}
+
+html.app-skin-dark .sm-diary-dropdown-menu .form-check-label,
+html.app-skin-dark .sm-diary-dropdown-menu .form-label {
+    color: #e2e8f0;
+}
+
+html.app-skin-dark .sm-diary-dropdown-menu .form-check-input:not(:checked) {
+    border-color: #64748b !important;
+    background-color: #0f172a !important;
+}
+
+html.app-skin-dark .sm-diary-dropdown-menu .form-check-input:checked {
+    border-color: #3454d1 !important;
+    background-color: #3454d1 !important;
+}
+
+@media (max-width: 767.98px) {
+    .sm-diary-header-controls,
+    .sm-diary-filter-form,
+    .sm-diary-filter-form .sm-diary-class-filter,
+    .sm-diary-filter-form .sm-diary-date-filter {
+        width: 100%;
+    }
+
+    .sm-diary-filter-form .btn {
+        flex: 1 0 auto;
+    }
+
+    .sm-diary-table .sm-diary-student-column {
+        width: 180px;
+        min-width: 180px;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .nxl-container .nxl-content .main-content.sm-diary-main-content {
+        padding-right: 20px;
+        padding-left: 20px;
+    }
+}
+
 /* Central de acessos */
 .sm-access-table-responsive {
     max-height: min(68vh, 760px);

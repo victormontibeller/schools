@@ -20,10 +20,13 @@ class DiaryCategory(BaseModel):
         max_length=20,
         choices=Aspect.choices,
         unique=True,
+        null=True,
+        blank=True,
+        default=None,
         verbose_name="Aspecto estruturado",
     )
     display_order = models.PositiveSmallIntegerField(default=0, verbose_name="Ordem")
-    is_required = models.BooleanField(default=False, verbose_name="Obrigatória")
+    is_required = models.BooleanField(default=True, verbose_name="Resposta obrigatória")
     is_enabled = models.BooleanField(default=True, verbose_name="Ativo na rotina")
 
     class Meta:
@@ -76,9 +79,13 @@ class DiaryOption(BaseModel):
     code = models.CharField(
         max_length=24,
         choices=FixedCode.choices,
+        null=True,
+        blank=True,
+        default=None,
         verbose_name="Opção estruturada",
     )
     display_order = models.PositiveSmallIntegerField(default=0, verbose_name="Ordem")
+    is_enabled = models.BooleanField(default=True, verbose_name="Disponível na rotina")
 
     class Meta:
         ordering = ["display_order", "label"]

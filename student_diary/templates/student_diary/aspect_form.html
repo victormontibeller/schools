@@ -1,0 +1,14 @@
+{% extends "form_base.html" %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'diary_configuration' %}">Aspectos da rotina</a></li>
+{% endblock %}
+
+{% block cancel_url %}{% url 'diary_configuration' %}{% endblock %}
+{% block form_container_open %}<div class="row g-3"><div class="col-12 col-xl-5">{% endblock %}
+{% block form_container_close %}</div></div>{% endblock %}
+{% block form_fields %}
+<div class="row g-2">
+    {% for field in form %}{% include "partials/form_field.html" with field=field %}{% endfor %}
+</div>
+{% endblock %}

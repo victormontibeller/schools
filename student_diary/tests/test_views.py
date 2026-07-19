@@ -53,7 +53,9 @@ def test_diary_daily_renders_canonical_roster_for_admin(client, user):
     assert response.status_code == 200
     assert b"Agenda" in response.content
     assert b"Lista da Agenda" in response.content
+    assert b"page-header sm-diary-page-header" in response.content
     assert b"sm-diary-filter-form" in response.content
+    assert b"sm-diary-context-bar" in response.content
     assert b"sm-diary-table" in response.content
     assert b"diary-student-editor" not in response.content
     assert b'value="2026-07-12"' in response.content
@@ -218,7 +220,7 @@ def test_diary_daily_teacher_sees_only_linked_class(client, user):
 
 
 @pytest.mark.django_db
-def test_diary_configuration_lists_only_four_fixed_aspects(client, user):
+def test_diary_configuration_lists_catalog_and_create_action(client, user):
     client.force_login(user)
 
     response = client.get(reverse("diary_configuration"))
@@ -230,7 +232,116 @@ def test_diary_configuration_lists_only_four_fixed_aspects(client, user):
     assert b"Descanso" in response.content
     assert b"Evacua\xc3\xa7\xc3\xa3o" in response.content
     assert b"Participa\xc3\xa7\xc3\xa3o" in response.content
-    assert b"Nova categoria" not in response.content
+    assert b"NOVO" in response.content
+
+
+@pytest.mark.django_db
+def test_diary_aspect_create_starts_inactive_and_redirects_to_detail(client, user):
+    client.force_login(user)
+    form_response = client.get(reverse("diary_aspect_create"))
+
+    response = client.post(
+        reverse("diary_aspect_create"),
+        {"name": "Hidratação", "display_order": 5, "is_required": "on"},
+    )
+
+    aspect = DiaryCategory.objects.get(name="Hidratação")
+    assert form_response.status_code == 200
+    assert b'value="5"' in form_response.content
+    assert response.status_code == 302
+    assert response.url == reverse("diary_aspect_detail", args=[aspect.pk])
+    assert aspect.code is None
+    assert aspect.is_enabled is False
+    assert aspect.is_required is True
+
+
+@pytest.mark.django_db
+def test_diary_aspect_and_option_edit_replace_only_their_cards(client, user):
+    from student_diary.models import DiaryOption
+
+    client.force_login(user)
+    aspect = DiaryCategory.objects.get(code=DiaryCategory.Aspect.MOOD)
+    option = DiaryOption.objects.get(code=DiaryOption.FixedCode.MOOD_HAPPY)
+
+    aspect_response = client.post(
+        reverse("diary_aspect_edit", args=[aspect.pk]),
+        {
+            "name": "Estado emocional",
+            "display_order": 1,
+            "is_required": "on",
+            "version": aspect.version,
+        },
+        HTTP_HX_REQUEST="true",
+    )
+    option_response = client.post(
+        reverse("diary_option_edit", args=[aspect.pk, option.pk]),
+        {"label": "Muito alegre", "display_order": 1, "version": option.version},
+        HTTP_HX_REQUEST="true",
+    )
+
+    aspect.refresh_from_db()
+    option.refresh_from_db()
+    assert aspect_response.status_code == 200
+    assert b"diary-category-information-card" in aspect_response.content
+    assert b"<html" not in aspect_response.content
+    assert aspect.name == "Estado emocional"
+    assert option_response.status_code == 200
+    assert b"diary-options-card" in option_response.content
+    assert b"<html" not in option_response.content
+    assert option.label == "Muito alegre"
+
+
+@pytest.mark.django_db
+def test_diary_option_create_and_last_option_rule_stay_inside_card(client, user):
+    from student_diary.services import StudentDiaryService
+
+    service = StudentDiaryService(user=user)
+    aspect = service.create_routine_aspect({"name": "Hidratação", "display_order": 5})
+    client.force_login(user)
+
+    created_response = client.post(
+        reverse("diary_option_create", args=[aspect.pk]),
+        {"label": "Bebeu bem", "display_order": 1},
+        HTTP_HX_REQUEST="true",
+    )
+    option = aspect.options.get()
+    aspect = service.set_routine_aspect_enabled(aspect.pk, True, aspect.version)
+    blocked_response = client.post(
+        reverse("diary_option_toggle", args=[aspect.pk, option.pk]),
+        {"version": option.version},
+        HTTP_HX_REQUEST="true",
+    )
+
+    option.refresh_from_db()
+    assert created_response.status_code == 200
+    assert b"diary-options-card" in created_response.content
+    assert b"<html" not in created_response.content
+    assert blocked_response.status_code == 200
+    assert b"precisa manter ao menos uma op" in blocked_response.content
+    assert b"<html" not in blocked_response.content
+    assert option.is_enabled is True
+
+
+@pytest.mark.django_db
+def test_diary_aspect_without_option_cannot_be_enabled_from_card(client, user):
+    from student_diary.services import StudentDiaryService
+
+    aspect = StudentDiaryService(user=user).create_routine_aspect(
+        {"name": "Hidratação", "display_order": 5}
+    )
+    client.force_login(user)
+
+    response = client.post(
+        reverse("diary_aspect_toggle", args=[aspect.pk]),
+        {"is_enabled": "on", "version": aspect.version},
+        HTTP_HX_REQUEST="true",
+    )
+
+    aspect.refresh_from_db()
+    assert response.status_code == 200
+    assert b"Cadastre ao menos uma op" in response.content
+    assert b"<html" not in response.content
+    assert aspect.is_enabled is False
 
 
 @pytest.mark.django_db
@@ -257,7 +368,7 @@ def test_diary_aspect_detail_and_toggle_replace_information_card(client, user):
     detail = client.get(reverse("diary_aspect_detail", args=[aspect.pk]))
     toggle = client.post(
         reverse("diary_aspect_toggle", args=[aspect.pk]),
-        {},
+        {"version": aspect.version},
         HTTP_HX_REQUEST="true",
     )
     aspect.refresh_from_db()
@@ -290,7 +401,7 @@ def test_secretary_can_configure_aspects_without_accessing_agenda(client):
     configuration = client.get(reverse("diary_configuration"))
     toggle = client.post(
         reverse("diary_aspect_toggle", args=[aspect.pk]),
-        {},
+        {"version": aspect.version},
         HTTP_HX_REQUEST="true",
     )
     daily = client.get(reverse("diary_daily"))
@@ -318,7 +429,7 @@ def test_view_only_diary_configuration_hides_edit_control(client):
     RoleModuleAccess.objects.filter(
         role=secretary.role,
         module_key="diary_configuration",
-    ).update(can_view=True, can_edit=False)
+    ).update(can_view=True, can_create=False, can_edit=False)
     aspect = DiaryCategory.objects.get(code=DiaryCategory.Aspect.MOOD)
     client.force_login(secretary)
 
@@ -327,7 +438,11 @@ def test_view_only_diary_configuration_hides_edit_control(client):
 
     assert detail.status_code == 200
     assert b"Alterar disponibilidade" not in detail.content
+    assert b"Adicionar op" not in detail.content
     assert toggle.status_code == 403
+
+    configuration = client.get(reverse("diary_configuration"))
+    assert b"NOVO" not in configuration.content
 
 
 @pytest.mark.django_db

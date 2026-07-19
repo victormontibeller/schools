@@ -162,6 +162,7 @@ def test_build_school_navigation_uses_exact_taxonomy(role_name, expected):
         ("diary_configuration", "Secretaria", "Aspectos da rotina"),
         ("diary_aspect_detail", "Secretaria", "Aspectos da rotina"),
         ("diary_aspect_toggle", "Secretaria", "Aspectos da rotina"),
+        ("diary_option_edit", "Secretaria", "Aspectos da rotina"),
         ("school_settings_edit", "Administração", "Escola"),
     ],
 )

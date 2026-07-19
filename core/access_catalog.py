@@ -127,7 +127,7 @@ MODULES = (
         "Aspectos da rotina",
         "Secretaria",
         frozenset({SECRETARY, COORDINATOR}),
-        supported_actions=frozenset({VIEW, EDIT}),
+        supported_actions=frozenset({VIEW, CREATE, EDIT}),
     ),
     ModuleDefinition(
         "academic_calendar",
@@ -198,8 +198,8 @@ DEFAULT_ACCESS: dict[str, dict[str, frozenset[str]]] = {
     "enrollments": {SECRETARY: frozenset({VIEW, CREATE, EDIT})},
     "rooms": {SECRETARY: frozenset({VIEW, CREATE, EDIT})},
     "diary_configuration": {
-        SECRETARY: frozenset({VIEW, EDIT}),
-        COORDINATOR: frozenset({VIEW, EDIT}),
+        SECRETARY: frozenset({VIEW, CREATE, EDIT}),
+        COORDINATOR: frozenset({VIEW, CREATE, EDIT}),
     },
     "academic_calendar": {
         COORDINATOR: frozenset({VIEW, CREATE, EDIT}),

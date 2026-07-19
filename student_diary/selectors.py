@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from django.db.models import Count, Q
+from django.db.models import Count, Prefetch, Q
 
 from base.exceptions import ObjectNotFoundError
 from base.selectors import BaseSelector, PageResult
@@ -21,12 +21,19 @@ class StudentDiarySelector(BaseSelector):
         return DailyDiary
 
     def list_categories(self):
-        """Lista aspectos predefinidos habilitados com opções ordenadas."""
-        from student_diary.models import DiaryCategory
+        """Lista aspectos disponíveis com suas opções disponíveis."""
+        from student_diary.models import DiaryCategory, DiaryOption
 
         return (
-            DiaryCategory.objects.filter(code__isnull=False, is_enabled=True)
-            .prefetch_related("options")
+            DiaryCategory.objects.filter(is_enabled=True)
+            .prefetch_related(
+                Prefetch(
+                    "options",
+                    queryset=DiaryOption.objects.filter(is_enabled=True).order_by(
+                        "display_order", "label"
+                    ),
+                )
+            )
             .order_by("display_order", "name")
         )
 
@@ -47,10 +54,10 @@ class StudentDiarySelector(BaseSelector):
     def list_categories_page(
         self, search="", order_by="display_order", page=1, page_size=20
     ) -> PageResult:
-        """Lista aspectos fixos para a tela administrativa com paginação."""
+        """Lista o catálogo configurável para a tela administrativa."""
         from student_diary.models import DiaryCategory
 
-        queryset = DiaryCategory.objects.filter(code__isnull=False).prefetch_related("options")
+        queryset = DiaryCategory.objects.prefetch_related("options")
         if search:
             queryset = queryset.filter(name__icontains=search)
         queryset = queryset.order_by(order_by, "name")
@@ -64,23 +71,30 @@ class StudentDiarySelector(BaseSelector):
             page_size=page_size,
         )
 
+    def next_category_display_order(self) -> int:
+        """Sugere a próxima ordem sem impedir empates configurados pela escola."""
+        from django.db.models import Max
+
+        from student_diary.models import DiaryCategory
+
+        maximum = DiaryCategory.objects.aggregate(value=Max("display_order"))["value"]
+        return (maximum or 0) + 1
+
     def get_category(self, category_id):
-        """Retorna um aspecto predefinido ativo."""
+        """Retorna um aspecto configurável ativo no catálogo."""
         from student_diary.models import DiaryCategory
 
         try:
-            return DiaryCategory.objects.get(pk=category_id, code__isnull=False)
+            return DiaryCategory.objects.get(pk=category_id)
         except DiaryCategory.DoesNotExist:
             raise ObjectNotFoundError("DiaryCategory", str(category_id)) from None
 
     def get_category_with_options(self, category_id):
-        """Retorna um aspecto predefinido com suas opções ordenadas."""
+        """Retorna um aspecto configurável com suas opções ordenadas."""
         from student_diary.models import DiaryCategory
 
         try:
-            return DiaryCategory.objects.prefetch_related("options").get(
-                pk=category_id, code__isnull=False
-            )
+            return DiaryCategory.objects.prefetch_related("options").get(pk=category_id)
         except DiaryCategory.DoesNotExist:
             raise ObjectNotFoundError("DiaryCategory", str(category_id)) from None
 
@@ -112,13 +126,12 @@ class StudentDiarySelector(BaseSelector):
     def build_daily_sheet(self, class_id, diary_date: date, meal_types: tuple[str, ...]) -> dict:
         """Monta a folha com alunos, respostas e refeições pré-carregadas."""
         from classes.contracts import Enrollment
-        from student_diary.models import DailyDiary, DiaryMeal
+        from student_diary.models import DailyDiary, DiaryCategory, DiaryOption
 
         class_obj = self.get_class(class_id)
         from student_diary.models import DiarySheet
 
         workflow = DiarySheet.objects.filter(class_obj=class_obj, date=diary_date).first()
-        categories = list(self.list_categories())
         enrollments = Enrollment.objects.filter(
             class_obj=class_obj, status=Enrollment.Status.ACTIVE
         ).select_related("student")
@@ -126,10 +139,23 @@ class StudentDiarySelector(BaseSelector):
             diary.student_id: diary
             for diary in DailyDiary.objects.filter(
                 class_obj=class_obj, date=diary_date
-            ).prefetch_related("answers__option", "meals")
+            ).prefetch_related("answers__category", "answers__option", "meals")
         }
-        meal_labels = dict(DiaryMeal.MealType.choices)
-        active_category_ids = {category.pk for category in categories}
+        persisted_answers = [answer for diary in diaries.values() for answer in diary.answers.all()]
+        persisted_category_ids = {answer.category_id for answer in persisted_answers}
+        persisted_option_ids = {answer.option_id for answer in persisted_answers}
+        categories = list(
+            DiaryCategory.objects.filter(Q(is_enabled=True) | Q(pk__in=persisted_category_ids))
+            .prefetch_related(
+                Prefetch(
+                    "options",
+                    queryset=DiaryOption.objects.filter(
+                        Q(is_enabled=True) | Q(pk__in=persisted_option_ids)
+                    ).order_by("display_order", "label"),
+                )
+            )
+            .order_by("display_order", "name")
+        )
         rows = []
         for enrollment in enrollments:
             diary = diaries.get(enrollment.student_id)
@@ -149,7 +175,12 @@ class StudentDiarySelector(BaseSelector):
             )
             is_complete = (
                 bool(diary)
-                and all(answer_map.get(category.pk) for category in categories)
+                and all(
+                    not category.is_enabled
+                    or not category.is_required
+                    or answer_map.get(category.pk)
+                    for category in categories
+                )
                 and all(meal_map.get(meal_type) for meal_type in meal_types)
             )
             rows.append(
@@ -158,18 +189,6 @@ class StudentDiarySelector(BaseSelector):
                     "notes": diary.notes if diary else "",
                     "diary": diary,
                     "is_complete": is_complete,
-                    "meal_summary": (
-                        f"{len(meal_map)}/{len(meal_types)} refeições" if meal_map else "—"
-                    ),
-                    "routine_summary": (
-                        ", ".join(
-                            answer.option.label
-                            for answer in diary.answers.all()
-                            if answer.category_id in active_category_ids
-                        )
-                        if diary
-                        else "—"
-                    ),
                     "initial_payload": {
                         "answers": {
                             str(category_id): str(option_id)
@@ -178,22 +197,6 @@ class StudentDiarySelector(BaseSelector):
                         "meals": {str(key): value for key, value in meal_map.items()},
                         "notes": diary.notes if diary else "",
                     },
-                    "category_cells": [
-                        {
-                            "category": category,
-                            "options": category.options.all(),
-                            "selected": answer_map.get(category.pk),
-                        }
-                        for category in categories
-                    ],
-                    "meal_cells": [
-                        {
-                            "meal_type": meal_type,
-                            "label": meal_labels[meal_type],
-                            "selected": meal_map.get(meal_type),
-                        }
-                        for meal_type in meal_types
-                    ],
                 }
             )
         return {

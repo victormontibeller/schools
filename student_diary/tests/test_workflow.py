@@ -11,6 +11,8 @@ from core.models import CustomUser, Role, RoleModuleAccess
 from guardians.models import Guardian, StudentGuardian
 from notifications.models import Notification
 from student_diary.models import (
+    DiaryCategory,
+    DiaryOption,
     DiaryPublishedEntry,
     DiarySheet,
     DiaryViewReceipt,
@@ -274,6 +276,26 @@ def test_republish_preserves_first_snapshot(user, monkeypatch):
     workflow.submit_sheet(sheet.pk)
     first = workflow.approve_sheet(sheet.pk)
     first_entry = first.entries.get()
+    mood = DiaryCategory.objects.get(code=DiaryCategory.Aspect.MOOD)
+    happy = DiaryOption.objects.get(code=DiaryOption.FixedCode.MOOD_HAPPY)
+    StudentDiaryService(user=user).update_routine_aspect(
+        mood.pk,
+        {
+            "name": "Estado emocional",
+            "display_order": mood.display_order,
+            "is_required": mood.is_required,
+            "version": mood.version,
+        },
+    )
+    StudentDiaryService(user=user).update_routine_option(
+        mood.pk,
+        happy.pk,
+        {
+            "label": "Muito alegre",
+            "display_order": happy.display_order,
+            "version": happy.version,
+        },
+    )
     workflow.open_sheet_for_correction(sheet.pk)
     StudentDiaryService(user=user).save_daily_diaries(
         sheet.class_obj_id,
@@ -286,6 +308,16 @@ def test_republish_preserves_first_snapshot(user, monkeypatch):
 
     first_entry.refresh_from_db()
     assert first_entry.notes == "Dia tranquilo."
+    first_mood = next(
+        item for item in first_entry.routine_snapshot if item["category_code"] == "MOOD"
+    )
+    second_mood = next(
+        item for item in second.entries.get().routine_snapshot if item["category_code"] == "MOOD"
+    )
+    assert first_mood["category"] == "Humor"
+    assert first_mood["option"] == "Alegre"
+    assert second_mood["category"] == "Estado emocional"
+    assert second_mood["option"] == "Muito alegre"
     assert second.revision_number == 2
     assert second.entries.get().notes == "Conteúdo corrigido"
     assert (
@@ -300,6 +332,30 @@ def test_republish_preserves_first_snapshot(user, monkeypatch):
         ).count()
         == 2
     )
+
+
+@pytest.mark.django_db
+def test_publish_serializes_custom_codes_as_null(user, monkeypatch):
+    service = StudentDiaryService(user=user)
+    aspect = service.create_routine_aspect({"name": "Hidratação", "display_order": 5})
+    option = service.create_routine_option(aspect.pk, {"label": "Bebeu bem", "display_order": 1})
+    service.set_routine_aspect_enabled(aspect.pk, True, aspect.version)
+    class_obj = _class(user)
+    student = _student(user)
+    _enroll(user, class_obj, student)
+    payload = _payload()
+    payload["answers"][str(aspect.pk)] = str(option.pk)
+    service.save_daily_diaries(class_obj.pk, dt.date(2026, 7, 17), {str(student.pk): payload})
+    sheet = DiarySheet.objects.get(class_obj=class_obj)
+    monkeypatch.setattr(DiaryWorkflowService, "_schedule_staff_delivery", lambda *args: None)
+    workflow = DiaryWorkflowService(user=user)
+
+    workflow.submit_sheet(sheet.pk)
+    entry = workflow.approve_sheet(sheet.pk).entries.get()
+
+    custom = next(item for item in entry.routine_snapshot if item["category"] == "Hidratação")
+    assert custom["category_code"] is None
+    assert custom["option_code"] is None
 
 
 @pytest.mark.django_db

@@ -49,9 +49,16 @@ O Soft Delete deverá ser utilizado em todas as entidades do sistema.
 - Preferências de e-mail e WhatsApp são armazenadas separadamente e começam desmarcadas.
 - Turmas possuem etapa de ensino estruturada, incluindo `OTHER` como opção canônica.
 - Turmas usam um catálogo fixo e ordenado de séries compatíveis com a etapa de ensino.
-- A Agenda mantém um registro ativo por aluno, turma e data, uma resposta por aspecto fixo
-  habilitado e uma situação por refeição aplicável ao turno. `DiaryCategory` e `DiaryOption`
-  aceitam somente o catálogo com código estruturado.
+- A Agenda mantém um registro ativo por aluno, turma e data, uma resposta por aspecto disponível
+  e uma situação por refeição aplicável ao turno. `DiaryCategory` e `DiaryOption` formam um
+  catálogo configurável e isolado por tenant. Os itens predefinidos preservam códigos
+  estruturados; itens personalizados usam código nulo.
+- Aspectos e opções possuem disponibilidade reversível, sem exclusão física. Um aspecto ativo
+  exige ao menos uma opção disponível e sua última opção disponível não pode ser desativada.
+  Aspectos novos começam indisponíveis e com resposta obrigatória por padrão.
+- Respostas existentes podem continuar ligadas a itens posteriormente indisponíveis. Cada
+  `DiaryPublishedEntry` copia nomes, rótulos e códigos para JSON no momento da publicação, de
+  modo que alterações futuras no catálogo não reescrevem o histórico publicado.
 - Os estados de alimentação são `ATE_WELL`, `ATE_PARTIALLY`, `DID_NOT_EAT` e `NOT_PRESENT`.
   O responsável pedagógico (`DailyDiary.teacher`) pode ser nulo quando administração ou
   coordenação registra a turma; autoria e atualização continuam identificadas pelo `BaseModel`.

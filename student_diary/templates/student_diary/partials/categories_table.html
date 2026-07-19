@@ -1,11 +1,13 @@
 <div class="card sm-list-card" id="diary-categories-table"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr>
     <th aria-sort="{{ sorting.name.aria_sort }}"><a class="sm-sort-link{% if sorting.name.active %} is-active{% endif %}" href="?{{ sorting.name.query }}" hx-get="?{{ sorting.name.query }}" hx-target="#diary-categories-table">Aspecto</a></th>
     <th aria-sort="{{ sorting.is_enabled.aria_sort }}"><a class="sm-sort-link{% if sorting.is_enabled.active %} is-active{% endif %}" href="?{{ sorting.is_enabled.query }}" hx-get="?{{ sorting.is_enabled.query }}" hx-target="#diary-categories-table">Disponibilidade</a></th>
-    <th>Opções predefinidas</th>
+    <th>Resposta</th>
+    <th>Opções</th>
     <th aria-sort="{{ sorting.display_order.aria_sort }}"><a class="sm-sort-link{% if sorting.display_order.active %} is-active{% endif %}" href="?{{ sorting.display_order.query }}" hx-get="?{{ sorting.display_order.query }}" hx-target="#diary-categories-table">Ordem</a></th>
 </tr></thead><tbody>{% for category in result.items %}<tr>
     <td><a class="fw-semibold" href="{% url 'diary_aspect_detail' category.pk %}">{{ category.name }}</a></td>
     <td>{% if category.is_enabled %}<span class="badge bg-soft-success text-success">Ativo</span>{% else %}<span class="badge bg-soft-secondary text-secondary">Inativo</span>{% endif %}</td>
-    <td>{% for option in category.options.all %}{{ option.label }}{% if not forloop.last %}, {% endif %}{% endfor %}</td><td>{{ category.display_order }}</td>
-</tr>{% empty %}<tr><td colspan="4" class="text-center text-muted py-4">Nenhum aspecto predefinido encontrado.</td></tr>{% endfor %}</tbody></table></div>
+    <td>{% if category.is_required %}Obrigatória{% else %}Opcional{% endif %}</td>
+    <td>{% for option in category.options.all %}<span{% if not option.is_enabled %} class="text-muted text-decoration-line-through"{% endif %}>{{ option.label }}</span>{% if not forloop.last %}, {% endif %}{% empty %}<span class="text-muted">—</span>{% endfor %}</td><td>{{ category.display_order }}</td>
+</tr>{% empty %}<tr><td colspan="5" class="text-center text-muted py-4">Nenhum aspecto cadastrado.</td></tr>{% endfor %}</tbody></table></div>
 {% if result.total_pages > 1 %}<div class="d-flex justify-content-center py-3"><nav aria-label="Paginação dos aspectos"><ul class="pagination pagination-sm mb-0">{% if result.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ result.page|add:'-1' }}&{{ list_query }}" hx-get="?page={{ result.page|add:'-1' }}&{{ list_query }}" hx-target="#diary-categories-table">«</a></li>{% endif %}<li class="page-item active"><span class="page-link">{{ result.page }} / {{ result.total_pages }}</span></li>{% if result.has_next %}<li class="page-item"><a class="page-link" href="?page={{ result.page|add:'1' }}&{{ list_query }}" hx-get="?page={{ result.page|add:'1' }}&{{ list_query }}" hx-target="#diary-categories-table">»</a></li>{% endif %}</ul></nav></div>{% endif %}</div>

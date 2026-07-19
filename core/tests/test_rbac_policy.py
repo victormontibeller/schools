@@ -109,6 +109,7 @@ def test_secretary_diary_configuration_does_not_grant_agenda_editing():
     )
 
     assert can_access(secretary, "diary_configuration", "view") is True
+    assert can_access(secretary, "diary_configuration", "create") is True
     assert can_access(secretary, "diary_configuration", "edit") is True
     assert can_access(secretary, "student_diary", "view") is False
     assert can_access(secretary, "student_diary", "edit") is False

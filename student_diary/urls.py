@@ -2,7 +2,7 @@
 
 from django.urls import path
 
-from student_diary import views
+from student_diary import configuration_views, views
 
 urlpatterns = [
     path("agenda-infantil/", views.diary_daily, name="diary_daily"),
@@ -43,17 +43,44 @@ urlpatterns = [
     ),
     path(
         "agenda-infantil/configuracao/",
-        views.diary_configuration,
+        configuration_views.diary_configuration,
         name="diary_configuration",
     ),
     path(
+        "agenda-infantil/configuracao/aspectos/novo/",
+        configuration_views.diary_aspect_create,
+        name="diary_aspect_create",
+    ),
+    path(
         "agenda-infantil/configuracao/aspectos/<uuid:category_id>/",
-        views.diary_aspect_detail,
+        configuration_views.diary_aspect_detail,
         name="diary_aspect_detail",
     ),
     path(
+        "agenda-infantil/configuracao/aspectos/<uuid:category_id>/editar/",
+        configuration_views.diary_aspect_edit,
+        name="diary_aspect_edit",
+    ),
+    path(
         "agenda-infantil/configuracao/aspectos/<uuid:category_id>/ativacao/",
-        views.diary_aspect_toggle,
+        configuration_views.diary_aspect_toggle,
         name="diary_aspect_toggle",
+    ),
+    path(
+        "agenda-infantil/configuracao/aspectos/<uuid:category_id>/opcoes/nova/",
+        configuration_views.diary_option_create,
+        name="diary_option_create",
+    ),
+    path(
+        "agenda-infantil/configuracao/aspectos/<uuid:category_id>/opcoes/"
+        "<uuid:option_id>/editar/",
+        configuration_views.diary_option_edit,
+        name="diary_option_edit",
+    ),
+    path(
+        "agenda-infantil/configuracao/aspectos/<uuid:category_id>/opcoes/"
+        "<uuid:option_id>/ativacao/",
+        configuration_views.diary_option_toggle,
+        name="diary_option_toggle",
     ),
 ]

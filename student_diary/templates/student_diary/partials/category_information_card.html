@@ -4,7 +4,10 @@
     <div class="card-header d-flex align-items-center justify-content-between gap-2">
         <h6 class="card-title mb-0">Informações do aspecto</h6>
         {% if can_edit_diary_configuration %}
-        <button type="button" class="btn btn-sm btn-outline-primary" hx-get="{% url 'diary_aspect_toggle' category.pk %}" hx-target="#diary-category-information-card" hx-swap="outerHTML"><i class="feather-edit-2 me-1"></i> Alterar disponibilidade</button>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" hx-get="{% url 'diary_aspect_toggle' category.pk %}" hx-target="#diary-category-information-card" hx-swap="outerHTML">Alterar disponibilidade</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" hx-get="{% url 'diary_aspect_edit' category.pk %}" hx-target="#diary-category-information-card" hx-swap="outerHTML"><i class="feather-edit-2 me-1"></i> Editar</button>
+        </div>
         {% endif %}
     </div>
     <div class="card-body">
@@ -12,6 +15,7 @@
         <dl class="row mb-0 sm-detail-definition">
             <dt class="col-sm-4">Aspecto</dt><dd class="col-sm-8">{{ category.name }}</dd>
             <dt class="col-sm-4">Disponibilidade</dt><dd class="col-sm-8">{% if category.is_enabled %}Ativo na rotina{% else %}Inativo{% endif %}</dd>
+            <dt class="col-sm-4">Resposta</dt><dd class="col-sm-8">{% if category.is_required %}Obrigatória{% else %}Opcional{% endif %}</dd>
             <dt class="col-sm-4">Ordem</dt><dd class="col-sm-8">{{ category.display_order }}</dd>
         </dl>
     </div>
