@@ -63,6 +63,10 @@ def test_guardian_publication_is_read_only_and_marks_view(client, user, monkeypa
     viewed = client.post(reverse("diary_publication_mark_viewed", args=[entry.pk]))
 
     assert detail.status_code == 200
+    content = detail.content.decode()
+    assert content.index("<h6>Alimentação</h6>") < content.index("<h6>Como foi o dia</h6>")
+    assert "Café da manhã" in content
+    assert "Humor" in content
     assert b'hx-trigger="load"' in detail.content
     assert b'name="message"' not in detail.content
     assert b"Enviar resposta" not in detail.content

@@ -4,7 +4,8 @@
         <tr>
             <th>Cobrança</th>
             <th>Aluno</th>
-            <th>Vencimento</th>
+            <th aria-sort="{{ sorting.due_date.aria_sort }}"><a href="?{{ sorting.due_date.query }}" class="sm-sort-link{% if sorting.due_date.active %} is-active{% endif %}" hx-get="?{{ sorting.due_date.query }}" hx-target="#billings-table">Vencimento</a></th>
+            <th aria-sort="{{ sorting.competency.aria_sort }}"><a href="?{{ sorting.competency.query }}" class="sm-sort-link{% if sorting.competency.active %} is-active{% endif %}" hx-get="?{{ sorting.competency.query }}" hx-target="#billings-table">Competência</a></th>
             <th>Situação</th>
             <th class="text-end">Saldo</th>
         </tr>
@@ -15,11 +16,19 @@
             <td><a href="{% url 'billing_detail' billing.pk %}" class="fw-semibold">{{ billing.description }}</a></td>
             <td>{{ billing.student }}</td>
             <td>{{ billing.due_date|date:"d/m/Y" }}</td>
-            <td><span class="badge bg-soft-secondary text-secondary">{{ billing.get_status_display }}</span></td>
+            <td>{{ billing.competency|date:"m/Y" }}</td>
+            <td>
+                {% if billing.settlement_status == "PAID" %}<span class="badge bg-soft-success text-success">Paga</span>
+                {% elif billing.settlement_status == "PARTIAL" %}<span class="badge bg-soft-warning text-warning">Parcial</span>
+                {% else %}<span class="badge bg-soft-secondary text-secondary">Não paga</span>{% endif %}
+                {% if billing.due_status == "OVERDUE" %}<span class="badge bg-soft-danger text-danger">Vencida</span>
+                {% elif billing.due_status == "DUE" %}<span class="badge bg-soft-warning text-warning">Vence hoje</span>
+                {% elif billing.due_status == "UPCOMING" %}<span class="badge bg-soft-info text-info">A vencer</span>{% endif %}
+            </td>
             <td class="text-end">R$ {{ billing.outstanding_value|floatformat:2 }}</td>
         </tr>
         {% empty %}
-        <tr><td colspan="5" class="text-center text-muted py-4">Nenhuma cobrança encontrada.</td></tr>
+        <tr><td colspan="6" class="text-center text-muted py-4">Nenhuma cobrança encontrada.</td></tr>
         {% endfor %}
     </tbody>
 </table>
@@ -31,13 +40,13 @@
         <ul class="pagination pagination-sm mb-0">
             {% if result.has_previous %}
             <li class="page-item">
-                <a class="page-link" hx-get="?page={{ result.page|add:'-1' }}&tab={{ tab }}{% if q %}&q={{ q }}{% endif %}" hx-target="#billings-table" hx-swap="innerHTML">«</a>
+                <a class="page-link" href="?page={{ result.page|add:'-1' }}&tab={{ tab }}{% if q %}&q={{ q }}{% endif %}" hx-get="?page={{ result.page|add:'-1' }}&tab={{ tab }}{% if q %}&q={{ q }}{% endif %}" hx-target="#billings-table" hx-swap="innerHTML">«</a>
             </li>
             {% endif %}
             <li class="page-item active"><span class="page-link">{{ result.page }} / {{ result.total_pages }}</span></li>
             {% if result.has_next %}
             <li class="page-item">
-                <a class="page-link" hx-get="?page={{ result.page|add:'1' }}&tab={{ tab }}{% if q %}&q={{ q }}{% endif %}" hx-target="#billings-table" hx-swap="innerHTML">»</a>
+                <a class="page-link" href="?page={{ result.page|add:'1' }}&tab={{ tab }}{% if q %}&q={{ q }}{% endif %}" hx-get="?page={{ result.page|add:'1' }}&tab={{ tab }}{% if q %}&q={{ q }}{% endif %}" hx-target="#billings-table" hx-swap="innerHTML">»</a>
             </li>
             {% endif %}
         </ul>

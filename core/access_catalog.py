@@ -4,6 +4,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from core import finance_access_catalog
+
+FINANCE_BILLINGS = finance_access_catalog.FINANCE_BILLINGS
+FINANCE_CONTRACTS = finance_access_catalog.FINANCE_CONTRACTS
+FINANCE_OVERDUE_REPORTS = finance_access_catalog.FINANCE_OVERDUE_REPORTS
+FINANCE_OVERVIEW = finance_access_catalog.FINANCE_OVERVIEW
+FINANCE_PAYMENTS = finance_access_catalog.FINANCE_PAYMENTS
+FINANCE_REMINDERS = finance_access_catalog.FINANCE_REMINDERS
+FINANCE_REVENUE_REPORTS = finance_access_catalog.FINANCE_REVENUE_REPORTS
+FINANCE_TEMPLATES = finance_access_catalog.FINANCE_TEMPLATES
+build_finance_modules = finance_access_catalog.build_finance_modules
+finance_default_access = finance_access_catalog.finance_default_access
+
 ADMIN = "ADMIN"
 SECRETARY = "SECRETARY"
 COORDINATOR = "COORDINATOR"
@@ -56,6 +69,7 @@ class ModuleDefinition:
     eligible_roles: frozenset[str]
     supported_actions: frozenset[str] = frozenset(ACTIONS)
     scoped_roles: frozenset[str] = frozenset()
+    role_action_limits: dict[str, frozenset[str]] | None = None
 
 
 _STAFF_AND_TEACHER = STAFF_ROLES | {TEACHER}
@@ -124,7 +138,7 @@ MODULES = (
     ModuleDefinition("rooms", "Salas", "Secretaria", STAFF_ROLES),
     ModuleDefinition(
         "diary_configuration",
-        "Aspectos da rotina",
+        "Itens da Agenda",
         "Secretaria",
         frozenset({SECRETARY, COORDINATOR}),
         supported_actions=frozenset({VIEW, CREATE, EDIT}),
@@ -137,13 +151,34 @@ MODULES = (
         scoped_roles=frozenset({GUARDIAN}),
     ),
     ModuleDefinition(
+        "holidays",
+        "Feriados",
+        "Coordenação",
+        STAFF_ROLES,
+        supported_actions=frozenset({VIEW, CREATE, EDIT}),
+    ),
+    ModuleDefinition(
+        "academic_years",
+        "Anos Letivos",
+        "Coordenação",
+        STAFF_ROLES,
+        supported_actions=frozenset({VIEW, CREATE, EDIT}),
+    ),
+    ModuleDefinition(
         "notifications",
         "Comunicados",
         "Coordenação",
         _PEDAGOGICAL,
         scoped_roles=frozenset({GUARDIAN}),
     ),
-    ModuleDefinition("financeiro", "Financeiro", "Financeiro", STAFF_ROLES),
+    *build_finance_modules(
+        ModuleDefinition,
+        staff_roles=STAFF_ROLES,
+        guardian=GUARDIAN,
+        view=VIEW,
+        create=CREATE,
+        edit=EDIT,
+    ),
 )
 
 MODULES_BY_KEY = {module.key: module for module in MODULES}
@@ -206,12 +241,14 @@ DEFAULT_ACCESS: dict[str, dict[str, frozenset[str]]] = {
         TEACHER: frozenset({VIEW}),
         GUARDIAN: frozenset({VIEW}),
     },
+    "holidays": {COORDINATOR: frozenset({VIEW, CREATE, EDIT})},
+    "academic_years": {COORDINATOR: frozenset({VIEW, CREATE, EDIT})},
     "notifications": {
         COORDINATOR: frozenset({VIEW, CREATE, EDIT}),
         TEACHER: frozenset({VIEW}),
         GUARDIAN: frozenset({VIEW}),
     },
-    "financeiro": {FINANCE: frozenset({VIEW, CREATE, EDIT})},
+    **finance_default_access(finance=FINANCE, view=VIEW, create=CREATE, edit=EDIT),
 }
 
 APP_MODULES = {
@@ -222,7 +259,8 @@ APP_MODULES = {
     "classes": "classes",
     "dashboard": "dashboard",
     "enrollments": "enrollments",
-    "financeiro": "financeiro",
+    # O Financeiro possui várias capacidades e exige declaração explícita por rota/comando.
+    "financeiro": None,
     "guardians": "guardians",
     "notifications": "notifications",
     "rooms": "rooms",
@@ -235,13 +273,25 @@ APP_MODULES = {
 def default_actions(module_key: str, role_name: str) -> frozenset[str]:
     """Retorna o conjunto inicial sem ampliar módulos ou papéis desconhecidos."""
     if module_key in DEFAULT_ACCESS:
-        return DEFAULT_ACCESS[module_key].get(role_name, frozenset())
+        module = MODULES_BY_KEY[module_key]
+        return DEFAULT_ACCESS[module_key].get(role_name, frozenset()) & allowed_actions(
+            module, role_name
+        )
     module = MODULES_BY_KEY.get(module_key)
     if not module or role_name not in module.eligible_roles:
         return frozenset()
     if role_name in {TEACHER, GUARDIAN} and role_name not in module.scoped_roles:
         return frozenset()
-    return department_defaults(module.department, role_name)
+    return department_defaults(module.department, role_name) & allowed_actions(module, role_name)
+
+
+def allowed_actions(module: ModuleDefinition, role_name: str) -> frozenset[str]:
+    """Retorna o teto configurável por módulo e papel."""
+    if role_name not in module.eligible_roles:
+        return frozenset()
+    if module.role_action_limits and role_name in module.role_action_limits:
+        return module.supported_actions & module.role_action_limits[role_name]
+    return module.supported_actions
 
 
 def module_for_app(app_label: str, *, subject: bool = False) -> str | None:

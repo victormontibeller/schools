@@ -19,7 +19,18 @@ from core.access_catalog import (
     DEACTIVATE,
     DEFAULT_ACCESS,
     EDIT,
+    FINANCE,
+    FINANCE_BILLINGS,
+    FINANCE_CONTRACTS,
+    FINANCE_OVERDUE_REPORTS,
+    FINANCE_OVERVIEW,
+    FINANCE_PAYMENTS,
+    FINANCE_REMINDERS,
+    FINANCE_REVENUE_REPORTS,
+    FINANCE_TEMPLATES,
+    GUARDIAN,
     MODULES,
+    MODULES_BY_KEY,
     ROLE_LABELS,
     SECRETARY,
     TEACHER,
@@ -121,7 +132,20 @@ def test_access_settings_renders_only_configurable_groups(client, user):
     assert "data-access-module-row" in content
     assert "data-access-department-row" in content
     assert 'data-access-search="Secretaria Salas"' in content
-    assert 'data-access-search="Secretaria Aspectos da rotina"' in content
+    assert 'data-access-search="Secretaria Itens da Agenda"' in content
+    assert 'data-access-search="Coordenação Feriados"' in content
+    assert 'data-access-search="Coordenação Anos Letivos"' in content
+    for finance_label in (
+        "Visão Financeira",
+        "Modelos",
+        "Contratos",
+        "Cobranças",
+        "Baixas e Conciliações",
+        "Lembretes",
+        "Competência e Caixa",
+        "Inadimplência",
+    ):
+        assert f'data-access-search="Financeiro {finance_label}"' in content
     assert "Nenhum módulo encontrado." in content
     assert '<div class="fw-semibold mb-2">' not in content
     assert 'aria-label="Combinação indisponível"' in content
@@ -140,7 +164,7 @@ def test_bootstrap_preserves_customized_access(user):
     from core.models import Role, RoleModuleAccess
 
     role = Role.objects.get(name="SECRETARY")
-    access = RoleModuleAccess.objects.get(role=role, module_key="financeiro")
+    access = RoleModuleAccess.objects.get(role=role, module_key=FINANCE_TEMPLATES)
     access.can_view = True
     access.updated_by = user
     access.save()
@@ -256,6 +280,19 @@ def test_diary_configuration_exposes_view_create_and_edit_actions():
     assert "access__diary_configuration__TEACHER" not in form.fields
 
 
+@pytest.mark.parametrize("module_key", ["holidays", "academic_years"])
+def test_calendar_management_exposes_only_staff_view_create_and_edit(module_key):
+    from core.access.forms import AccessConfigurationForm
+
+    form = AccessConfigurationForm()
+
+    for role_name in ("SECRETARY", "COORDINATOR", "FINANCE"):
+        field = form.fields[AccessConfigurationForm.field_name(module_key, role_name)]
+        assert tuple(value for value, _label in field.choices) == (VIEW, CREATE, EDIT)
+    assert AccessConfigurationForm.field_name(module_key, "TEACHER") not in form.fields
+    assert AccessConfigurationForm.field_name(module_key, "GUARDIAN") not in form.fields
+
+
 @pytest.mark.django_db
 def test_access_migration_reconciles_defaults_and_preserves_room_deactivation():
     import importlib
@@ -338,6 +375,55 @@ def test_diary_create_migration_updates_only_previous_default_matrices():
     coordinator.refresh_from_db()
     assert secretary.can_create is True
     assert coordinator.can_create is False
+
+
+@pytest.mark.django_db
+def test_calendar_management_migration_copies_legacy_access_without_overwrite():
+    import importlib
+
+    from django.apps import apps
+
+    from core.models import RoleModuleAccess
+
+    source = RoleModuleAccess.objects.get(
+        role__name="SECRETARY",
+        module_key="academic_calendar",
+    )
+    RoleModuleAccess.objects.filter(pk=source.pk).update(
+        can_view=True,
+        can_create=False,
+        can_edit=True,
+        can_deactivate=True,
+    )
+    existing_holidays = RoleModuleAccess.objects.get(
+        role=source.role,
+        module_key="holidays",
+    )
+    RoleModuleAccess.objects.filter(pk=existing_holidays.pk).update(
+        can_view=False,
+        can_create=False,
+        can_edit=False,
+        can_deactivate=False,
+    )
+    RoleModuleAccess.objects.filter(
+        role=source.role,
+        module_key="academic_years",
+    ).delete()
+
+    migration = importlib.import_module("core.migrations.0005_split_calendar_management_access")
+    migration.copy_calendar_management_access(apps, None)
+
+    existing_holidays.refresh_from_db()
+    academic_years = RoleModuleAccess.objects.get(
+        role=source.role,
+        module_key="academic_years",
+    )
+    assert existing_holidays.can_view is False
+    assert existing_holidays.can_edit is False
+    assert academic_years.can_view is True
+    assert academic_years.can_create is False
+    assert academic_years.can_edit is True
+    assert academic_years.can_deactivate is False
 
 
 def test_access_form_rejects_unknown_module_and_action_tampering():
@@ -520,6 +606,7 @@ def test_catalog_resolves_modules_actions_and_department_inheritance(monkeypatch
 
     assert module_for_app("teachers", subject=True) == "subjects"
     assert module_for_app("students") == "students"
+    assert module_for_app("financeiro") is None
     assert module_for_app("unknown") is None
     assert action_for_operation("remove_member", is_post=False) == "deactivate"
     assert action_for_operation("create_item", is_post=False) == CREATE
@@ -546,6 +633,34 @@ def test_catalog_resolves_modules_actions_and_department_inheritance(monkeypatch
     assert default_actions(future.key, TEACHER) == {VIEW, CREATE, EDIT}
     assert default_actions(future.key, SECRETARY) == frozenset()
     assert default_actions("missing", TEACHER) == frozenset()
+
+
+def test_finance_capabilities_have_exact_roles_actions_and_defaults():
+    standard = frozenset({VIEW, CREATE, EDIT})
+    expected_actions = {
+        FINANCE_OVERVIEW: frozenset({VIEW}),
+        FINANCE_TEMPLATES: standard,
+        FINANCE_CONTRACTS: standard,
+        FINANCE_BILLINGS: standard,
+        FINANCE_PAYMENTS: standard,
+        FINANCE_REMINDERS: frozenset({VIEW, EDIT}),
+        FINANCE_REVENUE_REPORTS: frozenset({VIEW}),
+        FINANCE_OVERDUE_REPORTS: frozenset({VIEW}),
+    }
+
+    assert "financeiro" not in MODULES_BY_KEY
+    for module_key, supported_actions in expected_actions.items():
+        module = MODULES_BY_KEY[module_key]
+        assert module.supported_actions == supported_actions
+        assert TEACHER not in module.eligible_roles
+        assert default_actions(module_key, FINANCE) == supported_actions
+        assert default_actions(module_key, SECRETARY) == frozenset()
+
+    assert GUARDIAN in MODULES_BY_KEY[FINANCE_OVERVIEW].eligible_roles
+    assert GUARDIAN in MODULES_BY_KEY[FINANCE_BILLINGS].eligible_roles
+    assert default_actions(FINANCE_OVERVIEW, GUARDIAN) == frozenset()
+    assert default_actions(FINANCE_BILLINGS, GUARDIAN) == frozenset()
+    assert MODULES_BY_KEY[FINANCE_BILLINGS].role_action_limits[GUARDIAN] == frozenset({VIEW})
 
 
 def test_access_declarations_resolve_strictly_for_views_and_services():
@@ -605,9 +720,52 @@ def test_access_declarations_resolve_strictly_for_views_and_services():
     assert can_execute_service(secretary, "unknown", "update_record") is False
     assert "students" in modules_for_user(secretary)
 
+    finance = SimpleNamespace(
+        is_authenticated=True,
+        is_superuser=False,
+        access_mode="STANDARD",
+        role=SimpleNamespace(name=FINANCE),
+    )
+    assert can_execute_service(finance, "financeiro", "create_financial_template", "FinanceService")
+    assert can_execute_service(finance, "financeiro", "create_amendment", "FinanceService")
+    assert can_execute_service(
+        finance, "financeiro", "materialize_contract_billings", "FinanceService"
+    )
+    assert can_execute_service(
+        finance, "financeiro", "deactivate_financial_template", "FinanceService"
+    )
+    assert can_execute_service(finance, "financeiro", "create_payment", "PaymentService")
+    assert not can_execute_service(finance, "financeiro", "update_unknown", "FinanceService")
+
     admin = SimpleNamespace(
         is_authenticated=True,
         is_superuser=False,
         role=SimpleNamespace(name="ADMIN"),
     )
     assert modules_for_user(admin) == {"*"}
+
+
+@pytest.mark.django_db
+def test_finance_service_policies_use_explicit_process_and_action():
+    from core.models import RoleModuleAccess
+    from core.permissions import can_execute_service
+
+    secretary = _create_role_user("SECRETARY", "finance-service-policy@test.com")
+    for module_key in (FINANCE_TEMPLATES, FINANCE_CONTRACTS, FINANCE_BILLINGS, FINANCE_PAYMENTS):
+        RoleModuleAccess.objects.filter(role=secretary.role, module_key=module_key).update(
+            can_view=True,
+            can_create=True,
+            can_edit=False,
+            can_deactivate=False,
+        )
+
+    assert can_execute_service(secretary, "financeiro", "create_contract", "FinanceService")
+    assert not can_execute_service(secretary, "financeiro", "create_amendment", "FinanceService")
+    assert can_execute_service(
+        secretary, "financeiro", "materialize_contract_billings", "FinanceService"
+    )
+    assert not can_execute_service(
+        secretary, "financeiro", "deactivate_financial_template", "FinanceService"
+    )
+    assert can_execute_service(secretary, "financeiro", "create_payment", "PaymentService")
+    assert not can_execute_service(secretary, "financeiro", "confirm_payment", "PaymentService")

@@ -27,6 +27,8 @@ O projeto mantém helpers no `BaseService` e `BaseSelector` para eliminar repeti
 |--------|-----------|-----|
 | `validate_required(data, fields)` | Bloco `required = [...]` + `for/if/raise` | `self.validate_required(data, ["name", "email"])` |
 | `_deactivate(model, id, label)` | 13 linhas de try/except/soft_delete | `self._deactivate(Teacher, tid, "Teacher")` |
+| `@service_command` | Autorização + `transaction.atomic` manual | Comando de usuário fora dos prefixos reconhecidos |
+| `@system_command` | `transaction.atomic` para comando interno | Webhook ou infraestrutura sem autorização de usuário |
 
 ### Em `base/selectors.py` (BaseSelector)
 
@@ -48,6 +50,7 @@ O projeto mantém helpers no `BaseService` e `BaseSelector` para eliminar repeti
 | `ValidationError(errors=dict)` | Dados inválidos (campos obrigatórios, formato, unicidade) |
 | `ObjectNotFoundError(model, id)` | Entidade não encontrada |
 | `BusinessRuleViolationError(msg)` | Regra de domínio violada (ex: já desativado, sem vagas) |
+| `PermissionDeniedError(msg)` | Autorização negada ou objeto fora do escopo permitido para o ator |
 
 ### Em `notifications/` (SDK de Comunicação)
 
@@ -91,4 +94,6 @@ class WhatsAppChannel(BaseChannel):
 - **Provedor externo = `channels/` SDK**. Nunca chamada direta a API de terceiro em task.
 - **PII nunca em logs** — `BaseService._log()` bloqueia email, phone, cpf, etc.
 - **Toda escrita gera auditoria** — `BaseService._record_audit()`.
+- **Todo comando público declara seu contrato** — prefixo reconhecido, `@service_command` ou
+  `@system_command`; o checker de services bloqueia omissões.
 - **Nenhum segredo em código** — credenciais via `School.settings` (tenant) ou variáveis de ambiente.

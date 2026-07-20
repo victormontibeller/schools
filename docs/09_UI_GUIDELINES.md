@@ -35,9 +35,10 @@
 - No contexto escolar, **Visão geral** permanece como acesso direto e os demais destinos são agrupados por departamento: Acadêmico, Secretaria, Coordenação e Administração.
 - Para funcionários, a taxonomia canônica é:
   - **Acadêmico:** Turmas, Disciplinas, Grade Horária, Atividades, Frequência e Agenda;
-  - **Secretaria:** Professores, Alunos, Responsáveis, Matrículas, Salas e Aspectos da rotina;
+  - **Secretaria:** Professores, Alunos, Responsáveis, Matrículas, Salas e Itens da Agenda;
   - **Coordenação:** Calendário, Feriados, Anos Letivos e Comunicados;
-  - **Financeiro:** Visão Financeira;
+  - **Financeiro:** Visão Financeira, Modelos, Contratos, Cobranças, Baixas e Conciliações,
+    Lembretes, Competência e Caixa e Inadimplência;
   - **Administração:** Unidades, Escola, Usuários e Acessos.
 - Professores usam os grupos **Rotina Docente** e **Planejamento**. Responsáveis usam somente
   **Acompanhamento**. Permissões auxiliares de módulo não devem criar links fora da taxonomia do
@@ -52,6 +53,15 @@
   `V`, `C`, `E`, `D`. Administrador não aparece e combinações incompatíveis exibem `—`.
   Os escopos de Professor e Responsável permanecem obrigatórios, mas não são exibidos como
   legendas na matriz nem podem ser configurados nessa tela.
+- **Calendário**, **Feriados** e **Anos Letivos** são capacidades independentes. Feriados e Anos
+  Letivos aceitam somente Visualizar, Cadastrar e Editar para Secretaria, Coordenação e Financeiro;
+  Professor e Responsável exibem `—`. A leitura de feriados dentro do calendário continua
+  subordinada apenas ao acesso ao Calendário.
+- Os oito processos financeiros são capacidades independentes. Visão Financeira, Competência e
+  Caixa e Inadimplência oferecem somente Visualizar; Lembretes oferece Visualizar e Editar; os
+  demais oferecem Visualizar, Cadastrar e Editar. Secretaria e Coordenação não recebem defaults,
+  Professor exibe `—` e Responsável pode receber somente Visualizar em Visão Financeira e
+  Cobranças, sem acesso padrão.
 - A matriz possui um único botão **Salvar acessos**. Cabeçalho e primeira coluna permanecem fixos,
   com rolagem horizontal em telas estreitas; dropdowns precisam ser operáveis por teclado.
 - A busca da matriz usa o visual padrão de listagem, mas filtra módulos e departamentos localmente,
@@ -123,7 +133,7 @@
   botão **Carregar**. O cabeçalho da página, os filtros, a identificação da turma e o rodapé ficam
   fora da rolagem; somente a grade rola. A primeira coluna liga ao histórico do aluno e permanece
   fixa, e a identificação da turma usa o mesmo recuo esquerdo de 30px da Central de Acessos.
-- Cada refeição aplicável ao turno e cada aspecto ativo ocupam uma coluna com dropdown de escolha
+- Cada item ativo e aplicável ao turno ocupa uma coluna com dropdown de escolha
   única, seguindo a densidade da Central de Acessos. Observações usam um dropdown próprio com
   textarea de seis linhas e largura de até 520px, limitada ao viewport, sem aumentar a altura da
   linha. O painel exibe **Melhorar com IA — em breve** desabilitado enquanto não houver integração.
@@ -137,23 +147,50 @@
 - Revisores veem um resumo agregado de entrega por revisão; endereços dos responsáveis nunca são
   exibidos nessa área.
 - O histórico do responsável mostra somente snapshots publicados do aluno para o qual mantém
-  guarda. A ficha da publicação registra a visualização automaticamente por POST com CSRF e não
-  contém campo ou botão para responder, reagir ou confirmar.
+  guarda. A ficha agrupa o `answers_snapshot` por seção, registra a visualização automaticamente
+  por POST com CSRF e não contém campo ou botão para responder, reagir ou confirmar.
 - A instalação PWA e a ativação de notificações Push são opcionais. O estado offline mostra apenas
   uma página genérica e não sugere que a Agenda possa ser consultada sem conexão.
-- Refeições exibem Café da manhã, Almoço e Café da tarde conforme o turno e incluem a resposta
-  Não estava presente. A grade usa cabeçalho e primeira coluna fixos e concentra sua rolagem
+- A seção Alimentação inicia com Café da manhã, Almoço e Café da tarde conforme o turno e inclui
+  a opção Não estava presente. Itens de Alimentação aparecem antes de Como foi o dia. A grade usa
+  cabeçalho e primeira coluna fixos e concentra sua rolagem
   vertical e horizontal no card, sem criar overflow horizontal no documento. Seus menus são
   anexados temporariamente ao `body` e posicionados pelo Popper com estratégia fixa, `flip` e
   `preventOverflow`; ao fechar, retornam à célula de origem. A inicialização é repetida após HTMX.
-- **Aspectos da rotina** segue a listagem e ficha canônicas e permite cadastrar e editar aspectos
-  e opções. Aspectos novos começam inativos; a ficha cadastra suas opções antes da ativação.
-  Nome/rótulo, ordem, obrigatoriedade e disponibilidade ficam explícitos. A edição do aspecto
+- **Itens da Agenda** segue a listagem e ficha canônicas e permite cadastrar itens nas seções
+  Como foi o dia e Alimentação. Itens novos começam inativos; a ficha cadastra suas opções antes
+  da ativação. Nome/rótulo, seção, turnos, ordem, obrigatoriedade e disponibilidade ficam
+  explícitos. A edição do item
   substitui somente o card de informações e opções são criadas ou editadas no próprio card.
 - A Agenda oferece somente itens disponíveis para novas escolhas. Uma resposta já salva continua
-  visível quando seu aspecto ou opção se torna indisponível, mas não pode ser escolhida por outro
+  visível quando seu item, turno ou opção se torna indisponível, mas não pode ser escolhida por outro
   registro. A capacidade `diary_configuration`, com ações Visualizar, Cadastrar e Editar, é
   independente de `student_diary`, usada para preencher, revisar e publicar a Agenda.
+
+## Financeiro
+
+- Dashboard, relatórios e fichas usam `page_shell_base.html`; modelos, contratos, cobranças,
+  conciliações e lembretes são listagens registradas no catálogo canônico.
+- As fichas de modelo e contrato usam a grade 5/7. A edição do contrato em rascunho substitui
+  somente o card de informações; contrato ativo é alterado somente pelo fluxo de aditivo.
+- Listagens preservam busca, filtros, ordenação e paginação na query string. Tabelas mantêm
+  cabeçalho e primeira coluna fixos e restringem a rolagem a `.sm-scroll-region`.
+- A primeira coluna contém o link principal. Não repetir Ver/Editar em Ações. Cobranças combinam
+  badges de quitação — não paga, parcial ou paga — e temporalidade — a vencer, vence hoje ou
+  vencida.
+- A baixa permite selecionar o aluno, editar a distribuição entre cobranças abertas e revisar os
+  encargos; a confirmação ocorre na fila de conciliação. Recibo e extrato abrem PDFs server-side.
+- Relatórios sempre exibem período e base de cálculo. Competência e caixa são cards separados;
+  inadimplência oferece drill-down e CSV.
+- Todos os CTAs respeitam `can_access_url` ou a ação equivalente. A visão do Responsável omite
+  notas, referência manual, conciliação e auditoria e limita dados aos alunos sob guarda ativa.
+- Para funcionários, Financeiro permanece como departamento. Para Responsáveis habilitados,
+  Visão Financeira e Cobranças aparecem separadamente dentro de Acompanhamento.
+- Atalhos, indicadores e links entre processos usam a capacidade da rota de destino. A permissão
+  de Visão Financeira não concede acesso implícito a cadastros, conciliação, lembretes ou
+  relatórios.
+- O fluxo mantém fallback sem JavaScript, mensagens Django centralizadas, foco visível, teclado,
+  tema escuro e geometrias verificadas em 1280x720, 1280x480 e 390x844.
 
 ## HTMX, acessibilidade e feedback
 

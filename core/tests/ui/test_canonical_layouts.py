@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime as dt
 import os
 from dataclasses import dataclass
+from decimal import Decimal
 from urllib.parse import urlencode, urlparse
 
 import pytest
@@ -14,6 +15,7 @@ from playwright.sync_api import Page, expect
 
 from base.tests.factories import RoomFactory
 from classes.models import Class, Enrollment
+from financeiro.services import FinanceService
 from student_diary.tests.test_services import _class, _enroll, _student
 from students.models import Student
 
@@ -75,6 +77,20 @@ def canonical_screens(user) -> tuple[Screen, ...]:
             updated_by=user,
         )
 
+    finance_student = _student(user, "UI-FINANCE")
+    finance_contract = FinanceService(user=user).create_contract(
+        {
+            "student_id": finance_student.pk,
+            "academic_year": 2026,
+            "name": "Contrato para regressão visual financeira",
+            "installment_count": 60,
+            "installment_value": Decimal("100.00"),
+            "due_day": 10,
+            "start_competency": dt.date(2026, 1, 1),
+        }
+    )
+    FinanceService(user=user).activate_contract(finance_contract.pk)
+
     diary_query = urlencode({"class_id": diary_class.pk, "date": dt.date(2026, 7, 18).isoformat()})
     return (
         Screen(
@@ -103,6 +119,12 @@ def canonical_screens(user) -> tuple[Screen, ...]:
             reverse("class_attendance_summary", args=[attendance_class.pk]),
             ".sm-detail-table-card .sm-scroll-region",
             ".sm-detail-table-card > .card-header",
+        ),
+        Screen(
+            "financeiro",
+            reverse("billing_list"),
+            "#billings-table .sm-scroll-region",
+            "[data-sm-layout='list'] > .card-header",
         ),
     )
 

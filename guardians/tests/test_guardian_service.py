@@ -1,9 +1,16 @@
 """Testes do GuardianService."""
 
+from unittest.mock import patch
+
 import pytest
 
-from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
-from core.models import CustomUser
+from base.exceptions import (
+    BusinessRuleViolationError,
+    ObjectNotFoundError,
+    PermissionDeniedError,
+    ValidationError,
+)
+from core.models import CustomUser, Role
 from guardians.models import StudentGuardian
 from guardians.services import GuardianService
 from students.services import StudentService
@@ -162,6 +169,34 @@ class TestLinkStudent:
         g = GuardianService(user=user).create_guardian(_guardian_data(g_user.pk))
         with pytest.raises(ObjectNotFoundError):
             GuardianService(user=user).link_student(g.pk, uuid.uuid4())
+
+    def test_link_denies_actor_without_edit_permission_before_write(self, user):
+        role, _ = Role.objects.get_or_create(name=Role.Name.FINANCE)
+        actor = CustomUser.objects.create_user(
+            email="finance-link@test.com",
+            password="Senha123",
+            role=role,
+        )
+        guardian = GuardianService(user=user).create_guardian(_guardian_data(None))
+        student = _make_student(user, "DENY-LINK")
+
+        with pytest.raises(PermissionDeniedError):
+            GuardianService(user=actor).link_student(guardian.pk, student.pk)
+
+        assert not StudentGuardian.objects.filter(guardian=guardian, student=student).exists()
+
+    def test_unlink_rolls_back_when_audit_fails(self, user):
+        guardian = GuardianService(user=user).create_guardian(_guardian_data(None))
+        student = _make_student(user, "ROLLBACK-UNLINK")
+        link = GuardianService(user=user).link_student(guardian.pk, student.pk)
+
+        with patch("audit.services.AuditService.record", side_effect=RuntimeError("audit down")):
+            with pytest.raises(RuntimeError, match="audit down"):
+                GuardianService(user=user).unlink_student(guardian.pk, student.pk)
+
+        link.refresh_from_db()
+        assert link.is_active is True
+        assert link.deleted_at is None
 
 
 @pytest.mark.django_db

@@ -13,15 +13,21 @@ from base.exceptions import (
 )
 from classes.models import Class, Enrollment
 from core.models import CustomUser, Role
-from student_diary.models import (
-    DailyDiary,
-    DiaryCategory,
-    DiaryMeal,
-)
+from student_diary.models import DailyDiary, DiaryCategory
 from student_diary.selectors import StudentDiarySelector
 from student_diary.services import StudentDiaryService
 from students.models import Student
 from teachers.models import Teacher
+
+SEEDED_ITEM_NAMES = {
+    "Humor",
+    "Descanso",
+    "Evacuação",
+    "Participação",
+    "Café da manhã",
+    "Almoço",
+    "Café da tarde",
+}
 
 
 def _teacher(user, registration="DIARY-TEACHER"):
@@ -84,24 +90,18 @@ def _enroll(user, class_obj, student):
     )
 
 
-def _fixed_answers():
-    categories = list(
-        DiaryCategory.objects.filter(code__isnull=False, is_enabled=True).prefetch_related(
-            "options"
-        )
-    )
-    assert len(categories) == 4
+def _seeded_answers(shift=Class.Shift.MORNING):
+    categories = [
+        category
+        for category in StudentDiarySelector().list_sheet_categories(shift)
+        if category.name in SEEDED_ITEM_NAMES
+    ]
     return {str(category.pk): str(category.options.all()[0].pk) for category in categories}
 
 
-def _payload(*, meals=None, notes="Dia tranquilo."):
+def _payload(*, notes="Dia tranquilo."):
     return {
-        "answers": _fixed_answers(),
-        "meals": meals
-        or {
-            DiaryMeal.MealType.MORNING_SNACK: DiaryMeal.Status.ATE_WELL,
-            DiaryMeal.MealType.LUNCH: DiaryMeal.Status.ATE_PARTIALLY,
-        },
+        "answers": _seeded_answers(),
         "notes": notes,
     }
 
@@ -110,30 +110,41 @@ def _payload(*, meals=None, notes="Dia tranquilo."):
 @pytest.mark.parametrize(
     ("shift", "expected"),
     [
-        (Class.Shift.MORNING, {"MORNING_SNACK", "LUNCH"}),
-        (Class.Shift.AFTERNOON, {"LUNCH", "AFTERNOON_SNACK"}),
-        (Class.Shift.FULL, {"MORNING_SNACK", "LUNCH", "AFTERNOON_SNACK"}),
+        (Class.Shift.MORNING, {"Café da manhã", "Almoço"}),
+        (Class.Shift.AFTERNOON, {"Almoço", "Café da tarde"}),
+        (Class.Shift.FULL, {"Café da manhã", "Almoço", "Café da tarde"}),
     ],
 )
-def test_meals_for_shift_returns_required_meals(shift, expected):
-    assert set(StudentDiaryService.meals_for_shift(shift)) == expected
-
-
-@pytest.mark.django_db
-def test_fixed_aspects_have_expected_options():
-    expected_counts = {
-        DiaryCategory.Aspect.MOOD: 6,
-        DiaryCategory.Aspect.REST: 4,
-        DiaryCategory.Aspect.BOWEL_MOVEMENT: 4,
-        DiaryCategory.Aspect.PARTICIPATION: 3,
+def test_list_sheet_categories_returns_items_for_shift(shift, expected):
+    names = {
+        category.name
+        for category in StudentDiarySelector().list_sheet_categories(shift)
+        if category.section == DiaryCategory.Section.MEAL
     }
-    categories = DiaryCategory.objects.filter(code__isnull=False).prefetch_related("options")
 
-    assert {category.code: category.options.count() for category in categories} == (expected_counts)
+    assert names == expected
 
 
 @pytest.mark.django_db
-def test_save_daily_diaries_creates_all_answers_meals_and_audit(user):
+def test_seeded_items_have_expected_options():
+    expected_counts = {
+        "Humor": 6,
+        "Descanso": 4,
+        "Evacuação": 4,
+        "Participação": 3,
+        "Café da manhã": 4,
+        "Almoço": 4,
+        "Café da tarde": 4,
+    }
+    categories = DiaryCategory.objects.filter(name__in=SEEDED_ITEM_NAMES).prefetch_related(
+        "options"
+    )
+
+    assert {category.name: category.options.count() for category in categories} == expected_counts
+
+
+@pytest.mark.django_db
+def test_save_daily_diaries_creates_all_category_answers_and_audit(user):
     teacher = _teacher(user)
     class_obj = _class(user, teacher)
     student = _student(user)
@@ -147,8 +158,8 @@ def test_save_daily_diaries_creates_all_answers_meals_and_audit(user):
 
     diary = DailyDiary.objects.get(student=student)
     assert count == 1
-    assert diary.answers.count() == 4
-    assert diary.meals.count() == 2
+    assert diary.answers.count() == 6
+    assert diary.answers.filter(category__section=DiaryCategory.Section.MEAL).count() == 2
     assert diary.notes == "Dia tranquilo."
     assert diary.teacher == teacher
 
@@ -159,20 +170,27 @@ def test_save_daily_diaries_accepts_not_present_for_meal(user):
     class_obj = _class(user, teacher)
     student = _student(user)
     _enroll(user, class_obj, student)
-    meals = {
-        DiaryMeal.MealType.MORNING_SNACK: DiaryMeal.Status.NOT_PRESENT,
-        DiaryMeal.MealType.LUNCH: DiaryMeal.Status.NOT_PRESENT,
-    }
+    payload = _payload()
+    meal_categories = DiaryCategory.objects.filter(
+        section=DiaryCategory.Section.MEAL,
+        name__in=["Café da manhã", "Almoço"],
+    )
+    for category in meal_categories:
+        payload["answers"][str(category.pk)] = str(
+            category.options.get(label="Não estava presente").pk
+        )
 
     StudentDiaryService(user=teacher.user).save_daily_diaries(
         class_obj.pk,
         dt.date(2026, 7, 12),
-        {str(student.pk): _payload(meals=meals)},
+        {str(student.pk): payload},
     )
 
-    assert set(DailyDiary.objects.get().meals.values_list("status", flat=True)) == {
-        DiaryMeal.Status.NOT_PRESENT
-    }
+    assert set(
+        DailyDiary.objects.get()
+        .answers.filter(category__section=DiaryCategory.Section.MEAL)
+        .values_list("option__label", flat=True)
+    ) == {"Não estava presente"}
 
 
 @pytest.mark.django_db
@@ -184,7 +202,8 @@ def test_save_daily_diaries_rolls_back_whole_class_on_student_error(user):
     _enroll(user, class_obj, first)
     _enroll(user, class_obj, second)
     invalid = _payload()
-    invalid["meals"].pop(DiaryMeal.MealType.LUNCH)
+    lunch = DiaryCategory.objects.get(name="Almoço")
+    invalid["answers"].pop(str(lunch.pk))
 
     with pytest.raises(ValidationError):
         StudentDiaryService(user=teacher.user).save_daily_diaries(
@@ -249,10 +268,10 @@ def test_admin_without_teacher_profile_saves_inside_tenant(user):
 
 
 @pytest.mark.django_db
-def test_toggle_fixed_aspect_is_audited(user):
+def test_toggle_seeded_aspect_is_audited(user):
     from audit.models import AuditLog
 
-    aspect = DiaryCategory.objects.get(code=DiaryCategory.Aspect.MOOD)
+    aspect = DiaryCategory.objects.get(name="Humor")
     service = StudentDiaryService(user=user)
 
     service.set_routine_aspect_enabled(aspect.pk, False)
@@ -267,7 +286,7 @@ def test_toggle_fixed_aspect_is_audited(user):
 @pytest.mark.django_db
 def test_teacher_cannot_toggle_aspect(user):
     teacher = _teacher(user)
-    aspect = DiaryCategory.objects.get(code=DiaryCategory.Aspect.MOOD)
+    aspect = DiaryCategory.objects.get(name="Humor")
 
     with pytest.raises(PermissionDeniedError):
         StudentDiaryService(user=teacher.user).set_routine_aspect_enabled(aspect.pk, False)

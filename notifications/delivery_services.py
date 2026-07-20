@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from django.db import transaction
 from django.utils import timezone
 
 from base.exceptions import ObjectNotFoundError
-from base.services import BaseService
+from base.services import BaseService, system_command
 
 
 class MessageDeliveryService(BaseService):
@@ -89,7 +88,7 @@ class MessageDeliveryService(BaseService):
         )
         return message_log
 
-    @transaction.atomic
+    @system_command
     def process_resend_event(
         self,
         *,

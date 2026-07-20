@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from datetime import date
 
-from django.db import transaction
-
 from base.exceptions import (
     BusinessRuleViolationError,
     ObjectNotFoundError,
@@ -19,43 +17,14 @@ from student_diary.configuration_services import RoutineConfigurationServiceMixi
 class StudentDiaryService(RoutineConfigurationServiceMixin, BaseService):
     """Gerencia configurações e registros diários infantis."""
 
-    @staticmethod
-    def meals_for_shift(shift: str) -> tuple[str, ...]:
-        """Retorna as refeições obrigatórias para o turno informado."""
-        from classes.contracts import Class
-        from student_diary.models import DiaryMeal
-
-        mapping = {
-            Class.Shift.MORNING: (
-                DiaryMeal.MealType.MORNING_SNACK,
-                DiaryMeal.MealType.LUNCH,
-            ),
-            Class.Shift.AFTERNOON: (
-                DiaryMeal.MealType.LUNCH,
-                DiaryMeal.MealType.AFTERNOON_SNACK,
-            ),
-            Class.Shift.FULL: (
-                DiaryMeal.MealType.MORNING_SNACK,
-                DiaryMeal.MealType.LUNCH,
-                DiaryMeal.MealType.AFTERNOON_SNACK,
-            ),
-        }
-        if shift not in mapping:
-            raise BusinessRuleViolationError("A Agenda não está disponível para este turno.")
-        return mapping[shift]
-
-    @transaction.atomic
     def save_daily_diaries(self, class_id, diary_date: date, entries_data: dict):
         """Salva atomicamente a agenda de todos os alunos ativos da turma."""
-        from django.db.models import Q
-
         from classes.contracts import Class, Enrollment
         from student_diary.models import (
             DiaryAnswer,
-            DiaryCategory,
-            DiaryOption,
             DiarySheet,
         )
+        from student_diary.selectors import StudentDiarySelector
 
         try:
             class_obj = Class.objects.get(pk=class_id)
@@ -105,16 +74,23 @@ class StudentDiaryService(RoutineConfigurationServiceMixin, BaseService):
         existing_category_ids = {category_id for _, category_id in existing_answers}
         existing_option_ids = set(existing_answers.values())
         categories = list(
-            DiaryCategory.objects.filter(Q(is_enabled=True) | Q(pk__in=existing_category_ids))
+            StudentDiarySelector().list_sheet_categories(
+                class_obj.shift,
+                persisted_category_ids=existing_category_ids,
+                persisted_option_ids=existing_option_ids,
+            )
         )
         category_map = {str(category.pk): category for category in categories}
         option_pairs = {
             (str(option.category_id), str(option.pk)): option
-            for option in DiaryOption.objects.filter(category__in=categories).filter(
-                Q(is_enabled=True) | Q(pk__in=existing_option_ids)
-            )
+            for category in categories
+            for option in category.options.all()
         }
-        meal_types = self.meals_for_shift(class_obj.shift)
+        available_category_ids = {
+            str(category.pk)
+            for category in categories
+            if StudentDiarySelector.category_applies_to_shift(category, class_obj.shift)
+        }
         for student_id, payload in entries_data.items():
             current_answers = {
                 category_id: option_id
@@ -122,7 +98,11 @@ class StudentDiaryService(RoutineConfigurationServiceMixin, BaseService):
                 if answer_student_id == student_id
             }
             self._validate_daily_payload(
-                payload, category_map, option_pairs, meal_types, current_answers
+                payload,
+                category_map,
+                option_pairs,
+                available_category_ids,
+                current_answers,
             )
             self._save_student_diary(
                 class_obj,
@@ -132,7 +112,6 @@ class StudentDiaryService(RoutineConfigurationServiceMixin, BaseService):
                 payload,
                 category_map,
                 option_pairs,
-                meal_types,
             )
         self._log(
             "agendas_infantis_salvas",
@@ -149,7 +128,12 @@ class StudentDiaryService(RoutineConfigurationServiceMixin, BaseService):
             raise BusinessRuleViolationError(
                 "A agenda diária é exclusiva de turmas da Educação Infantil."
             )
-        StudentDiaryService.meals_for_shift(class_obj.shift)
+        if class_obj.shift not in {
+            class_obj.Shift.MORNING,
+            class_obj.Shift.AFTERNOON,
+            class_obj.Shift.FULL,
+        }:
+            raise BusinessRuleViolationError("A Agenda não está disponível para este turno.")
 
     def _get_authorized_teacher(self, class_obj):
         """Resolve o responsável pedagógico e valida o escopo de preenchimento."""
@@ -169,35 +153,30 @@ class StudentDiaryService(RoutineConfigurationServiceMixin, BaseService):
 
     @staticmethod
     def _validate_daily_payload(
-        payload, categories, option_pairs, meal_types, current_answers=None
+        payload,
+        categories,
+        option_pairs,
+        available_category_ids,
+        current_answers=None,
     ) -> None:
-        """Valida respostas e refeições de um aluno."""
+        """Valida as respostas configuráveis de um aluno."""
         errors: dict[str, list[str]] = {}
         answers = payload.get("answers", {})
         current_answers = current_answers or {}
         if set(answers) - set(categories):
-            errors.setdefault("answers", []).append(
-                "Um dos aspectos informados não está disponível."
-            )
+            errors.setdefault("answers", []).append("Um dos itens informados não está disponível.")
         for category_id, category in categories.items():
             option_id = str(answers.get(category_id, ""))
-            if category.is_enabled and category.is_required and not option_id:
-                errors.setdefault("answers", []).append(f"O aspecto {category.name} é obrigatório.")
+            is_available = category_id in available_category_ids
+            if is_available and category.is_required and not option_id:
+                errors.setdefault("answers", []).append(f"O item {category.name} é obrigatório.")
             option = option_pairs.get((category_id, option_id)) if option_id else None
             if option_id and (
                 option is None
-                or (not category.is_enabled and current_answers.get(category_id) != option_id)
+                or (not is_available and current_answers.get(category_id) != option_id)
                 or (not option.is_enabled and current_answers.get(category_id) != option_id)
             ):
-                errors.setdefault("answers", []).append("Resposta inválida para o aspecto.")
-        from student_diary.models import DiaryMeal
-
-        valid_statuses = set(DiaryMeal.Status.values)
-        meals = payload.get("meals", {})
-        if set(meals) != set(meal_types) or any(
-            value not in valid_statuses for value in meals.values()
-        ):
-            errors["meals"] = ["Informe todas as refeições previstas para o turno."]
+                errors.setdefault("answers", []).append("Resposta inválida para o item.")
         if errors:
             raise ValidationError(errors=errors)
 
@@ -210,10 +189,9 @@ class StudentDiaryService(RoutineConfigurationServiceMixin, BaseService):
         payload,
         categories,
         option_pairs,
-        meal_types,
     ) -> None:
         """Persiste um registro individual e suas respostas relacionadas."""
-        from student_diary.models import DailyDiary, DiaryAnswer, DiaryMeal
+        from student_diary.models import DailyDiary, DiaryAnswer
 
         diary = DailyDiary.objects.filter(
             class_obj=class_obj, student_id=student_id, date=diary_date
@@ -262,22 +240,3 @@ class StudentDiaryService(RoutineConfigurationServiceMixin, BaseService):
                     updated_by=self.user,
                 )
                 self._record_audit("INSERT", answer)
-
-        for meal_type in meal_types:
-            current = DiaryMeal.objects.filter(diary=diary, meal_type=meal_type).first()
-            status = payload["meals"][meal_type]
-            if current:
-                old = self._snapshot(current, ["status"])
-                current.status = status
-                current.updated_by = self.user
-                current.save(update_fields=["status", "updated_by", "updated_at"])
-                self._record_audit("UPDATE", current, old_values=old)
-            else:
-                meal = DiaryMeal.objects.create(
-                    diary=diary,
-                    meal_type=meal_type,
-                    status=status,
-                    created_by=self.user,
-                    updated_by=self.user,
-                )
-                self._record_audit("INSERT", meal)

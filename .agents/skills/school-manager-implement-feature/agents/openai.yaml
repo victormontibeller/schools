@@ -1,0 +1,4 @@
+interface:
+  display_name: "School Manager — Implementar funcionalidade"
+  short_description: "Implementar funcionalidades conforme a arquitetura"
+  default_prompt: "Use $school-manager-implement-feature para implementar uma funcionalidade completa no School Manager."

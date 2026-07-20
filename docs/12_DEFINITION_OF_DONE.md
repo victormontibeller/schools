@@ -26,8 +26,9 @@ Um item **só pode ser considerado concluído** quando todos os critérios abaix
 - [ ] Regras de negócio em `services.py`
 - [ ] Consultas em `selectors.py`
 - [ ] Views apenas com orquestração HTTP
-- [ ] Toda entidade herda de `BaseModel`
+- [ ] Todo modelo de domínio herda de `BaseModel`; exceções de infraestrutura constam em `docs/05_DATABASE.md`
 - [ ] Nova tela ou mutação resolve módulo e ação do catálogo; chaves desconhecidas falham no CI
+- [ ] `python scripts/check_service_contracts.py` verde; comandos internos têm dispensa explícita
 - [ ] Nova listagem usa `list_page_base.html` e consta em `LIST_PAGE_CATALOG`
 - [ ] Nova grade primária usa `page_shell_base.html` e os utilitários canônicos de viewport,
       rolagem acessível, cabeçalho e primeira coluna fixos

@@ -1,5 +1,7 @@
 """Testes do DashboardService com cache."""
 
+from unittest.mock import patch
+
 import pytest
 
 from dashboard.services import CACHE_TTL, DashboardService
@@ -14,6 +16,36 @@ class TestDashboardService:
         assert "total_classes" in data
         assert "financial_kpis" in data
         assert data["total_students"] == 0
+
+    def test_financial_kpis_receive_guardian_for_object_scope(self, django_user_model, user):
+        from core.models import Role, RoleModuleAccess
+
+        guardian_role = Role.objects.get(name=Role.Name.GUARDIAN)
+        guardian = django_user_model.objects.create_user(
+            email="guardian-dashboard@test.com",
+            password="Senha123",
+            role=guardian_role,
+        )
+        RoleModuleAccess.objects.filter(role=guardian_role, module_key="finance_overview").update(
+            can_view=True
+        )
+        expected = {
+            "total_aberto": 0,
+            "total_vencido": 0,
+            "recebido_mes": 0,
+            "partial_count": 0,
+            "pending_reconciliation": 0,
+            "reminder_failures": 0,
+        }
+
+        with patch(
+            "dashboard.selectors.DashboardSelector.get_financial_kpis",
+            return_value=expected,
+        ) as get_financial_kpis:
+            data = DashboardService(user=guardian).get_school_dashboard_data()
+
+        assert data["financial_kpis"] == expected
+        get_financial_kpis.assert_called_once_with(guardian)
 
     def test_get_executive_dashboard(self, user):
         data = DashboardService(user=user).get_executive_dashboard_data()

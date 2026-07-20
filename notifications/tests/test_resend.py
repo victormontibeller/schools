@@ -3,6 +3,7 @@
 import base64
 import datetime as dt
 import json
+from unittest.mock import patch
 
 import pytest
 from django.test import override_settings
@@ -138,6 +139,30 @@ def test_webhook_does_not_regress_terminal_status(client, user):
     message_log.refresh_from_db()
     assert message_log.status == MessageLog.Status.DELIVERED
     assert message_log.last_event == "email.delivered"
+
+
+@pytest.mark.django_db
+def test_system_webhook_command_rolls_back_when_audit_fails(user):
+    message_log = MessageDeliveryService(user=user).create_pending(
+        recipient=user,
+        channel=MessageLog.Channel.EMAIL,
+        recipient_address=user.email,
+    )
+    occurred_at = timezone.now()
+
+    with patch("audit.services.AuditService.record", side_effect=RuntimeError("audit down")):
+        with pytest.raises(RuntimeError, match="audit down"):
+            MessageDeliveryService(user=None).process_resend_event(
+                external_event_id="evt-rollback",
+                event_type="email.delivered",
+                provider_message_id="provider-rollback",
+                message_log_id=str(message_log.pk),
+                occurred_at=occurred_at,
+            )
+
+    message_log.refresh_from_db()
+    assert message_log.status == MessageLog.Status.PENDING
+    assert not WebhookEventReceipt.objects.filter(external_event_id="evt-rollback").exists()
 
 
 @pytest.mark.django_db

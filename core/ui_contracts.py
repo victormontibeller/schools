@@ -71,9 +71,21 @@ LIST_TEMPLATE_CONTRACTS: dict[str, tuple[str, str]] = {
         "attendance/templates/attendance/justifications_list.html",
         "attendance/templates/attendance/partials/justifications_table.html",
     ),
-    "plan_list": (
-        "financeiro/templates/financeiro/plan_list.html",
-        "financeiro/templates/financeiro/partials/plans_table.html",
+    "contract_list": (
+        "financeiro/templates/financeiro/contract_list.html",
+        "financeiro/templates/financeiro/partials/contracts_table.html",
+    ),
+    "financial_template_list": (
+        "financeiro/templates/financeiro/template_list.html",
+        "financeiro/templates/financeiro/partials/templates_table.html",
+    ),
+    "payment_queue": (
+        "financeiro/templates/financeiro/payment_list.html",
+        "financeiro/templates/financeiro/partials/payments_table.html",
+    ),
+    "reminder_history": (
+        "financeiro/templates/financeiro/reminder_list.html",
+        "financeiro/templates/financeiro/partials/reminders_table.html",
     ),
     "platform_school_list": (
         "tenancy/templates/tenancy/platform_school_list.html",
@@ -110,6 +122,36 @@ LIST_TEMPLATE_CONTRACTS: dict[str, tuple[str, str]] = {
 }
 
 OPERATIONAL_GRID_CONTRACTS = (
+    GridContract(
+        "financeiro/templates/financeiro/contract_detail.html",
+        "financeiro/templates/financeiro/contract_detail.html",
+        "financeiro/templates/financeiro/contract_detail.html",
+    ),
+    GridContract(
+        "financeiro/templates/financeiro/billing_detail.html",
+        "financeiro/templates/financeiro/billing_detail.html",
+        "financeiro/templates/financeiro/billing_detail.html",
+    ),
+    GridContract(
+        "financeiro/templates/financeiro/overdue_report.html",
+        "financeiro/templates/financeiro/overdue_report.html",
+        "financeiro/templates/financeiro/overdue_report.html",
+    ),
+    GridContract(
+        "financeiro/templates/financeiro/student_statement.html",
+        "financeiro/templates/financeiro/student_statement.html",
+        "financeiro/templates/financeiro/student_statement.html",
+    ),
+    GridContract(
+        "financeiro/templates/financeiro/payment_batch_form.html",
+        "financeiro/templates/financeiro/payment_batch_form.html",
+        "financeiro/templates/financeiro/payment_batch_form.html",
+    ),
+    GridContract(
+        "financeiro/templates/financeiro/payment_detail.html",
+        "financeiro/templates/financeiro/payment_detail.html",
+        "financeiro/templates/financeiro/payment_detail.html",
+    ),
     GridContract(
         "student_diary/templates/student_diary/daily.html",
         "student_diary/templates/student_diary/partials/daily_roster_card.html",
@@ -171,11 +213,6 @@ MANUAL_SHELL_ALLOWLIST = {
     "enrollments/templates/enrollments/application_review.html",
     "enrollments/templates/enrollments/document_form.html",
     "enrollments/templates/enrollments/secretary_dashboard.html",
-    "financeiro/templates/financeiro/billing_detail.html",
-    "financeiro/templates/financeiro/dashboard.html",
-    "financeiro/templates/financeiro/overdue_report.html",
-    "financeiro/templates/financeiro/plan_detail.html",
-    "financeiro/templates/financeiro/revenue_report.html",
     "guardians/templates/guardians/guardian_detail.html",
     "guardians/templates/guardians/guardian_form.html",
     "notifications/templates/notifications/announcement_detail.html",
@@ -201,9 +238,6 @@ SECONDARY_TABLE_ALLOWLIST = {
     "design_system/refs/duralux/index.html",
     "enrollments/templates/enrollments/application_detail.html",
     "enrollments/templates/enrollments/partials/applications_table.html",
-    "financeiro/templates/financeiro/billing_detail.html",
-    "financeiro/templates/financeiro/overdue_report.html",
-    "financeiro/templates/financeiro/plan_detail.html",
     "student_diary/templates/student_diary/partials/category_options_card.html",
     "tenancy/templates/tenancy/platform_dashboard.html",
 }

@@ -4,7 +4,9 @@ applyTo: "**/models.py"
 
 # Models — Padrões Obrigatórios
 
-Todo model deve herdar de `BaseModel`. Nunca de `models.Model` diretamente.
+Todo modelo de domínio deve herdar de `BaseModel`, nunca de `models.Model` diretamente. As
+exceções de infraestrutura são exclusivamente `BaseModel`, `AuditLog`, `Domain` e os mixins de
+tenancy documentados em `docs/05_DATABASE.md`.
 
 ```python
 """MyModel: <descrição breve do domínio>."""
@@ -65,7 +67,8 @@ class MyModel(BaseModel):
 
 ## Regras
 
-- **Nunca** herdar de `models.Model` — sempre `BaseModel`
+- **Nunca** herdar de `models.Model` em modelos de domínio — sempre `BaseModel`
+- **Nunca** criar nova exceção de infraestrutura sem atualizar `docs/05_DATABASE.md`
 - **Nunca** deletar fisicamente — soft delete é herdado de `BaseModel`
 - **Sempre** `Meta.verbose_name` e `Meta.verbose_name_plural`
 - **Sempre** índices em campos de filtro frequente e FKs

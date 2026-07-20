@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('notifications', '0001_initial'),
-        ('student_diary', '0003_diarypublication_diarypublishedentry_diarysheet_and_more'),
+        ('student_diary', '0001_initial'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

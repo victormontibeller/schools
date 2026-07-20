@@ -122,12 +122,12 @@ guardians/      → Responsáveis e vínculos com alunos
 classes/        → Turmas, matrículas e ano letivo
 rooms/          → Salas físicas e recursos
 agenda/         → Grade horária e agendamentos
-student_diary/  → Agenda da Educação Infantil, catálogo configurável da rotina e alimentação
+student_diary/  → Agenda da Educação Infantil e catálogo unificado de rotina e alimentação
 activities/     → Atividades, avaliações e notas
 attendance/     → Frequência e controle de presença
 academic_calendar/ → Calendário acadêmico e eventos
 enrollments/    → Matrículas, rematrículas e documentos
-financeiro/     → Planos, cobranças e pagamentos
+financeiro/     → Modelos, contratos, cobranças, alocações, conciliação e lembretes
 addresses/      → Endereços unificados
 notifications/  → Notificações, e-mails e WhatsApp
 dashboard/      → Dashboards técnico, escolar e executivo
@@ -176,13 +176,15 @@ pacotes Python internos aprovados no ADR-0009, mantendo os imports públicos com
     partials/
 ```
 
-Pacotes internos autorizados são: financeiro (planos, cobranças, pagamentos e políticas), core
+Pacotes internos autorizados são: financeiro (modelos contratuais, contratos, cobranças,
+pagamentos e políticas), core
 (páginas públicas, saúde, escolas e unidades), atividades (atividades, notas e grupos) e
 matrículas (solicitações, documentos e rematrículas). Um arquivo novo deve permanecer abaixo de
 400 linhas. Não existem composition roots dispensados das regras de importação.
 
-O CI executa `scripts/check_import_contracts.py` e exige zero violações: ORM em views, SQL direto,
-dependência de `base` para apps e import direto de modelos entre domínios sempre falham.
+O CI executa os checkers de imports e comandos de service e exige zero violações: ORM em views,
+SQL direto, dependência de `base` para apps, import direto de modelos entre domínios e mutações
+públicas sem contrato explícito sempre falham.
 
 ## Arquitetura de interface autenticada
 
@@ -221,6 +223,9 @@ dependência de `base` para apps e import direto de modelos entre domínios semp
   como aprovar, cancelar, lançar e reconciliar pertencem a Editar.
 - Módulos e ações desconhecidos são negados. O checker exige que novos apps com views ou services
   estejam ligados ao catálogo de autorização.
+- Apps com mais de uma capacidade, como `financeiro`, são registrados como explicit-only: não
+  possuem fallback por app e toda rota ou comando público declara seu processo e ação. Isso evita
+  que acesso ao dashboard amplie implicitamente contratos, cobranças, pagamentos ou relatórios.
 - O bootstrap cria somente papéis e módulos ausentes. Seeds e migrations nunca sobrescrevem
   configurações existentes do tenant.
 - A Central apresenta todos os grupos em uma única matriz e salva o conjunto atomicamente. As

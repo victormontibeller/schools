@@ -7,10 +7,11 @@ from datetime import date
 from django.db.models import Count, Prefetch, Q
 
 from base.exceptions import ObjectNotFoundError
-from base.selectors import BaseSelector, PageResult
+from base.selectors import BaseSelector
+from student_diary.configuration_selectors import DiaryConfigurationSelectorMixin
 
 
-class StudentDiarySelector(BaseSelector):
+class StudentDiarySelector(DiaryConfigurationSelectorMixin, BaseSelector):
     """Consulta configurações, folhas diárias e históricos."""
 
     @property
@@ -19,23 +20,6 @@ class StudentDiarySelector(BaseSelector):
         from student_diary.models import DailyDiary
 
         return DailyDiary
-
-    def list_categories(self):
-        """Lista aspectos disponíveis com suas opções disponíveis."""
-        from student_diary.models import DiaryCategory, DiaryOption
-
-        return (
-            DiaryCategory.objects.filter(is_enabled=True)
-            .prefetch_related(
-                Prefetch(
-                    "options",
-                    queryset=DiaryOption.objects.filter(is_enabled=True).order_by(
-                        "display_order", "label"
-                    ),
-                )
-            )
-            .order_by("display_order", "name")
-        )
 
     @staticmethod
     def publication_enabled() -> bool:
@@ -50,53 +34,6 @@ class StudentDiarySelector(BaseSelector):
         return bool(
             school and school.settings.get("student_diary", {}).get("interactive_enabled", False)
         )
-
-    def list_categories_page(
-        self, search="", order_by="display_order", page=1, page_size=20
-    ) -> PageResult:
-        """Lista o catálogo configurável para a tela administrativa."""
-        from student_diary.models import DiaryCategory
-
-        queryset = DiaryCategory.objects.prefetch_related("options")
-        if search:
-            queryset = queryset.filter(name__icontains=search)
-        queryset = queryset.order_by(order_by, "name")
-        total = queryset.count()
-        page = max(1, page)
-        offset = (page - 1) * page_size
-        return PageResult(
-            items=list(queryset[offset : offset + page_size]),
-            total=total,
-            page=page,
-            page_size=page_size,
-        )
-
-    def next_category_display_order(self) -> int:
-        """Sugere a próxima ordem sem impedir empates configurados pela escola."""
-        from django.db.models import Max
-
-        from student_diary.models import DiaryCategory
-
-        maximum = DiaryCategory.objects.aggregate(value=Max("display_order"))["value"]
-        return (maximum or 0) + 1
-
-    def get_category(self, category_id):
-        """Retorna um aspecto configurável ativo no catálogo."""
-        from student_diary.models import DiaryCategory
-
-        try:
-            return DiaryCategory.objects.get(pk=category_id)
-        except DiaryCategory.DoesNotExist:
-            raise ObjectNotFoundError("DiaryCategory", str(category_id)) from None
-
-    def get_category_with_options(self, category_id):
-        """Retorna um aspecto configurável com suas opções ordenadas."""
-        from student_diary.models import DiaryCategory
-
-        try:
-            return DiaryCategory.objects.prefetch_related("options").get(pk=category_id)
-        except DiaryCategory.DoesNotExist:
-            raise ObjectNotFoundError("DiaryCategory", str(category_id)) from None
 
     def list_eligible_classes(self, user):
         """Lista turmas infantis acessíveis ao usuário."""
@@ -123,10 +60,10 @@ class StudentDiarySelector(BaseSelector):
         except Class.DoesNotExist:
             raise ObjectNotFoundError("Class", str(class_id)) from None
 
-    def build_daily_sheet(self, class_id, diary_date: date, meal_types: tuple[str, ...]) -> dict:
-        """Monta a folha com alunos, respostas e refeições pré-carregadas."""
+    def build_daily_sheet(self, class_id, diary_date: date) -> dict:
+        """Monta a folha com alunos e respostas configuráveis pré-carregadas."""
         from classes.contracts import Enrollment
-        from student_diary.models import DailyDiary, DiaryCategory, DiaryOption
+        from student_diary.models import DailyDiary
 
         class_obj = self.get_class(class_id)
         from student_diary.models import DiarySheet
@@ -139,23 +76,23 @@ class StudentDiarySelector(BaseSelector):
             diary.student_id: diary
             for diary in DailyDiary.objects.filter(
                 class_obj=class_obj, date=diary_date
-            ).prefetch_related("answers__category", "answers__option", "meals")
+            ).prefetch_related("answers__category", "answers__option")
         }
         persisted_answers = [answer for diary in diaries.values() for answer in diary.answers.all()]
         persisted_category_ids = {answer.category_id for answer in persisted_answers}
         persisted_option_ids = {answer.option_id for answer in persisted_answers}
         categories = list(
-            DiaryCategory.objects.filter(Q(is_enabled=True) | Q(pk__in=persisted_category_ids))
-            .prefetch_related(
-                Prefetch(
-                    "options",
-                    queryset=DiaryOption.objects.filter(
-                        Q(is_enabled=True) | Q(pk__in=persisted_option_ids)
-                    ).order_by("display_order", "label"),
-                )
+            self.list_sheet_categories(
+                class_obj.shift,
+                persisted_category_ids=persisted_category_ids,
+                persisted_option_ids=persisted_option_ids,
             )
-            .order_by("display_order", "name")
         )
+        available_category_ids = {
+            category.pk
+            for category in categories
+            if self.category_applies_to_shift(category, class_obj.shift)
+        }
         rows = []
         for enrollment in enrollments:
             diary = diaries.get(enrollment.student_id)
@@ -164,24 +101,11 @@ class StudentDiarySelector(BaseSelector):
                 if diary
                 else {}
             )
-            meal_map = (
-                {
-                    meal.meal_type: meal.status
-                    for meal in diary.meals.all()
-                    if meal.meal_type in meal_types
-                }
-                if diary
-                else {}
-            )
-            is_complete = (
-                bool(diary)
-                and all(
-                    not category.is_enabled
-                    or not category.is_required
-                    or answer_map.get(category.pk)
-                    for category in categories
-                )
-                and all(meal_map.get(meal_type) for meal_type in meal_types)
+            is_complete = bool(diary) and all(
+                category.pk not in available_category_ids
+                or not category.is_required
+                or answer_map.get(category.pk)
+                for category in categories
             )
             rows.append(
                 {
@@ -194,7 +118,6 @@ class StudentDiarySelector(BaseSelector):
                             str(category_id): str(option_id)
                             for category_id, option_id in answer_map.items()
                         },
-                        "meals": {str(key): value for key, value in meal_map.items()},
                         "notes": diary.notes if diary else "",
                     },
                 }
@@ -204,7 +127,7 @@ class StudentDiarySelector(BaseSelector):
             "date": diary_date,
             "workflow": workflow,
             "categories": categories,
-            "meal_types": meal_types,
+            "available_category_ids": available_category_ids,
             "rows": rows,
         }
 
@@ -306,33 +229,43 @@ class StudentDiarySelector(BaseSelector):
         diaries = (
             DailyDiary.objects.filter(class_obj=sheet.class_obj, date=sheet.date)
             .select_related("student")
-            .prefetch_related("answers__category", "answers__option", "meals")
+            .prefetch_related("answers__category", "answers__option")
+            .order_by("student_id")
         )
         return [
             {
                 "student_id": diary.student_id,
                 "notes": diary.notes,
-                "routine_snapshot": [
+                "answers_snapshot": [
                     {
+                        "section": answer.category.section,
                         "category": answer.category.name,
-                        "category_code": answer.category.code,
                         "option": answer.option.label,
-                        "option_code": answer.option.code,
+                        "display_order": answer.category.display_order,
                     }
                     for answer in diary.answers.all()
-                ],
-                "meals_snapshot": [
-                    {
-                        "meal_type": meal.meal_type,
-                        "meal_label": meal.get_meal_type_display(),
-                        "status": meal.status,
-                        "status_label": meal.get_status_display(),
-                    }
-                    for meal in diary.meals.all()
                 ],
             }
             for diary in diaries
         ]
+
+    @staticmethod
+    def split_answers_snapshot(entry) -> dict[str, list[dict]]:
+        """Agrupa o snapshot publicado nas duas seções de apresentação."""
+        from student_diary.models import DiaryCategory
+
+        return {
+            "meal_items": [
+                item
+                for item in entry.answers_snapshot
+                if item["section"] == DiaryCategory.Section.MEAL
+            ],
+            "routine_items": [
+                item
+                for item in entry.answers_snapshot
+                if item["section"] == DiaryCategory.Section.ROUTINE
+            ],
+        }
 
     def list_custodial_guardians(self, student_ids):
         """Lista destinatários ativos com conta e guarda no momento da publicação."""
@@ -387,11 +320,26 @@ class StudentDiarySelector(BaseSelector):
 
     def list_student_history(self, student_id):
         """Lista o histórico completo de agenda de um aluno."""
-        from student_diary.models import DailyDiary
+        from student_diary.models import DailyDiary, DiaryAnswer, DiaryCategory
 
         return (
             DailyDiary.objects.filter(student_id=student_id)
             .select_related("student", "class_obj", "teacher__user", "updated_by")
-            .prefetch_related("answers__category", "answers__option", "meals")
+            .prefetch_related(
+                Prefetch(
+                    "answers",
+                    queryset=DiaryAnswer.objects.filter(
+                        category__section=DiaryCategory.Section.ROUTINE
+                    ).select_related("category", "option"),
+                    to_attr="routine_answers",
+                ),
+                Prefetch(
+                    "answers",
+                    queryset=DiaryAnswer.objects.filter(
+                        category__section=DiaryCategory.Section.MEAL
+                    ).select_related("category", "option"),
+                    to_attr="meal_answers",
+                ),
+            )
             .order_by("-date")
         )

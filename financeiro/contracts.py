@@ -1,5 +1,23 @@
 """Contrato público do domínio financeiro."""
 
-from financeiro.models import BillingEntry, FinancialPlan
+from financeiro.models import (
+    BillingEntry,
+    CollectionReminder,
+    CollectionReminderPolicy,
+    FinancialContractAmendment,
+    FinancialPlanTemplate,
+    PaymentAllocation,
+    PaymentRecord,
+    StudentFinancialContract,
+)
 
-__all__ = ["BillingEntry", "FinancialPlan"]
+__all__ = [
+    "BillingEntry",
+    "CollectionReminder",
+    "CollectionReminderPolicy",
+    "FinancialContractAmendment",
+    "FinancialPlanTemplate",
+    "PaymentAllocation",
+    "PaymentRecord",
+    "StudentFinancialContract",
+]

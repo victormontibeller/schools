@@ -1,40 +1,22 @@
-{% extends "base.html" %}
-
+{% extends "page_shell_base.html" %}
+{% load ui_helpers %}
 {% block title %}Inadimplência — School Manager{% endblock %}
-
-{% block content %}
-<div class="page-header">
-    <div class="page-header-left d-flex align-items-center">
-        <div class="page-header-title"><h5 class="m-b-10">Inadimplência</h5></div>
-        <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
-            <li class="breadcrumb-item"><a href="{% url 'finance_dashboard' %}">Financeiro</a></li>
-            <li class="breadcrumb-item active">Inadimplência</li>
-        </ul>
-    </div>
+{% block page_heading %}Inadimplência{% endblock %}
+{% block page_breadcrumbs %}{% include "financeiro/partials/finance_breadcrumb.html" %}<li class="breadcrumb-item active">Inadimplência</li>{% endblock %}
+{% block page_content %}
+{% can_access_action "finance_billings" "view" as can_view_billings %}
+<div class="row g-3 mb-3">
+    {% for band in bands %}<div class="col-12 col-md-4"><div class="card h-100"><div class="card-body"><span class="text-muted">{{ band.faixa }}</span><h4 class="mb-1">R$ {{ band.total|floatformat:2 }}</h4><small>{{ band.quantidade }} título(s)</small></div></div></div>{% endfor %}
 </div>
-
-<div class="main-content">
-    <div class="card">
-        <div class="card-header"><h6 class="card-title mb-0">Faixas de atraso</h6></div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead class="table-light"><tr><th>Faixa</th><th>Quantidade</th><th class="text-end">Total</th></tr></thead>
-                <tbody>
-                    {% for band in bands %}
-                    <tr>
-                        <td>{{ band.faixa }}</td>
-                        <td>{{ band.quantidade }}</td>
-                        <td class="text-end">R$ {{ band.total|floatformat:2 }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="3" class="text-center text-muted py-4">Nenhuma inadimplência encontrada.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            </div>
-        </div>
+<div class="card">
+    <div class="card-header"><h6 class="card-title mb-0">Drill-down por aluno, turma e contrato</h6></div>
+    <div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Detalhamento da inadimplência">
+        <table class="table mb-0 sm-sticky-table sm-sticky-table--first-column">
+            <thead><tr><th>Aluno</th><th>Faixa</th><th>Turma</th><th>Contrato</th><th>Mais antigo</th><th>Títulos</th><th class="text-end">Saldo</th></tr></thead>
+            <tbody>
+                {% for row in details %}<tr><td>{% if can_view_billings %}<a href="{% url 'student_financial_statement' row.student_id %}">{{ row.student__first_name }} {{ row.student__last_name }}</a>{% else %}{{ row.student__first_name }} {{ row.student__last_name }}{% endif %}</td><td>{{ row.aging_band }}</td><td>{{ row.contract__class_obj__name|default:"—" }}</td><td>{{ row.contract__name|default:"Avulsa" }}</td><td>{{ row.oldest_due|date:"d/m/Y" }}</td><td>{{ row.quantity }}</td><td class="text-end">R$ {{ row.total|floatformat:2 }}</td></tr>{% empty %}<tr><td colspan="7" class="text-center text-muted py-4">Nenhuma inadimplência.</td></tr>{% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 {% endblock %}

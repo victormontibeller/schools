@@ -1,0 +1,7 @@
+{% extends "list_page_base.html" %}
+{% block list_before_body %}
+<div class="px-3 pt-3 d-flex gap-2 flex-wrap">
+    {% for value, label in status_choices %}<a class="btn btn-sm {% if status == value %}btn-primary{% else %}btn-light{% endif %}" href="?status={{ value }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}">{{ label }}</a>{% endfor %}
+</div>
+{% endblock %}
+{% block list_body %}{% include "financeiro/partials/payments_table.html" %}{% endblock %}

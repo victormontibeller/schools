@@ -1,8 +1,0 @@
-{% extends "form_base.html" %}
-
-{% block breadcrumb %}
-<li class="breadcrumb-item"><a href="{% url 'finance_dashboard' %}">Financeiro</a></li>
-<li class="breadcrumb-item"><a href="{% url 'plan_list' %}">Planos</a></li>
-{% endblock %}
-
-{% block cancel_url %}{% url 'plan_list' %}{% endblock %}

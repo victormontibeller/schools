@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from base.exceptions import ObjectNotFoundError, ValidationError
 
 if TYPE_CHECKING:
-    from financeiro.models import FinancialPlan
+    from financeiro.models import StudentFinancialContract
 
 ZERO = Decimal("0.00")
 
@@ -16,16 +16,17 @@ ZERO = Decimal("0.00")
 class FinanceRulesMixin:
     """Invariantes e cálculos puros usados pelos serviços financeiros."""
 
-    ACTIVE_PLAN_STATUSES = ("ACTIVE",)
-    OPEN_LIKE_STATUSES = ("OPEN", "OVERDUE")
+    ACTIVE_CONTRACT_STATUSES = ("ACTIVE",)
 
-    def _get_plan(self, plan_id) -> FinancialPlan:
-        from financeiro.models import FinancialPlan
+    def _get_contract(self, contract_id) -> StudentFinancialContract:
+        from financeiro.models import StudentFinancialContract
 
         try:
-            return FinancialPlan.objects.select_related("student", "class_obj").get(pk=plan_id)
-        except FinancialPlan.DoesNotExist:
-            raise ObjectNotFoundError("FinancialPlan", str(plan_id)) from None
+            return StudentFinancialContract.objects.select_related("student", "class_obj").get(
+                pk=contract_id
+            )
+        except StudentFinancialContract.DoesNotExist:
+            raise ObjectNotFoundError("StudentFinancialContract", str(contract_id)) from None
 
     @staticmethod
     def _to_decimal(value, default: Decimal = ZERO) -> Decimal:
@@ -54,24 +55,24 @@ class FinanceRulesMixin:
         return year, month
 
     @staticmethod
-    def _installment_for_month(plan, month: int) -> int | None:
+    def _installment_for_month(contract, month: int) -> int | None:
         """Calcula o numero da parcela esperada para o mes (1-based) ou None."""
-        step = FinanceRulesMixin._month_step(plan.billing_frequency)
+        step = FinanceRulesMixin._month_step(contract.billing_frequency)
         if step == 0:
             return None
         index = (month - 1) // step + 1
-        if index > plan.installment_count:
+        if index > contract.installment_count:
             return None
         return index
 
     @staticmethod
-    def _next_installment_number(plan_id) -> int:
+    def _next_installment_number(contract_id) -> int:
         from django.db.models import Max
 
         from financeiro.models import BillingEntry
 
         current = (
-            BillingEntry.all_objects.filter(plan_id=plan_id).aggregate(
+            BillingEntry.all_objects.filter(contract_id=contract_id).aggregate(
                 max_number=Max("installment_number")
             )["max_number"]
             or 0

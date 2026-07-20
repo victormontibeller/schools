@@ -1,15 +1,16 @@
-"""Baixa e conciliação de pagamentos."""
+"""Registro, alocação, conciliação e estorno de pagamentos manuais."""
 
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
-from base.services import BaseService
+from base.services import BaseService, service_command
 from financeiro.services.rules import ZERO, FinanceRulesMixin
 
 if TYPE_CHECKING:
@@ -17,158 +18,260 @@ if TYPE_CHECKING:
 
 
 class PaymentService(FinanceRulesMixin, BaseService):
-    """Servico de baixa manual de pagamentos e conciliacao."""
+    """Mantém pagamentos pendentes sem alterar saldos antes da conciliação."""
 
-    @transaction.atomic
-    def register_payment(
+    @service_command
+    def create_payment(
         self,
-        billing_id,
         *,
-        amount,
+        allocations: list[dict],
         paid_date: date,
-        payment_method="CASH",
+        payment_method: str = "CASH",
+        reference: str = "",
         notes: str = "",
+        idempotency_key=None,
     ) -> PaymentRecord:
-        """Registra um pagamento (parcial ou total) e recalcula o status da cobranca."""
-        from financeiro.models import BillingEntry, PaymentRecord
+        """Registra uma baixa pendente distribuída entre cobranças selecionadas."""
+        from financeiro.models import BillingEntry, PaymentAllocation, PaymentRecord
 
-        try:
-            billing = BillingEntry.objects.select_for_update().get(pk=billing_id)
-        except BillingEntry.DoesNotExist:
-            raise ObjectNotFoundError("BillingEntry", str(billing_id)) from None
+        if not allocations:
+            raise ValidationError(errors={"allocations": ["Selecione ao menos uma cobrança."]})
+        if not isinstance(paid_date, date) or paid_date > date.today():
+            raise ValidationError(errors={"paid_date": ["A data não pode ser futura."]})
+        if idempotency_key:
+            existing = PaymentRecord.all_objects.filter(idempotency_key=idempotency_key).first()
+            if existing:
+                return existing
 
-        if billing.status in (BillingEntry.Status.CANCELLED, BillingEntry.Status.PAID):
-            raise BusinessRuleViolationError(
-                "Cobranca cancelada ou ja quitada nao pode receber pagamento."
-            )
+        normalized: dict[str, Decimal] = {}
+        for item in allocations:
+            billing_id = str(item.get("billing_id", ""))
+            value = self._to_decimal(item.get("amount"))
+            if not billing_id or value <= ZERO:
+                raise ValidationError(errors={"allocations": ["Alocação inválida."]})
+            normalized[billing_id] = normalized.get(billing_id, ZERO) + value
+        billings = {
+            str(item.pk): item
+            for item in BillingEntry.objects.filter(pk__in=normalized).select_related("contract")
+        }
+        if set(billings) != set(normalized):
+            missing = next(iter(set(normalized) - set(billings)))
+            raise ObjectNotFoundError("BillingEntry", missing)
+        for billing_id, value in normalized.items():
+            billing = billings[billing_id]
+            if billing.status == BillingEntry.Status.CANCELLED or billing.is_settled:
+                raise BusinessRuleViolationError("Cobrança encerrada não aceita pagamento.")
+            if value > billing.outstanding_value:
+                raise ValidationError(
+                    errors={"allocations": ["O valor excede o saldo atualmente apurado."]}
+                )
 
-        value = self._to_decimal(amount)
-        if value <= 0:
-            raise ValidationError(
-                errors={"amount": ["Valor do pagamento deve ser maior que zero."]}
-            )
-
-        if value > billing.outstanding_value:
-            raise ValidationError(
-                errors={"amount": ["Valor do pagamento excede o saldo da cobranca."]}
-            )
-
-        if self._is_future(paid_date):
-            raise ValidationError(errors={"paid_date": ["Data de pagamento nao pode ser futura."]})
-
-        payment = PaymentRecord.objects.create(
-            billing=billing,
-            amount=value,
-            paid_date=paid_date,
-            payment_method=payment_method,
-            received_by=self.user,
-            notes=notes.strip(),
-            created_by=self.user,
-            updated_by=self.user,
-        )
+        total = sum(normalized.values(), ZERO)
+        create_values = {
+            "amount": total,
+            "paid_date": paid_date,
+            "payment_method": payment_method,
+            "reference": reference.strip(),
+            "received_by": self.user,
+            "notes": notes.strip(),
+            "created_by": self.user,
+            "updated_by": self.user,
+        }
+        if idempotency_key:
+            create_values["idempotency_key"] = idempotency_key
+        if idempotency_key:
+            try:
+                with transaction.atomic():
+                    payment = PaymentRecord.objects.create(**create_values)
+            except IntegrityError:
+                return PaymentRecord.all_objects.get(idempotency_key=idempotency_key)
+        else:
+            payment = PaymentRecord.objects.create(**create_values)
         self._record_audit("INSERT", payment)
-
-        billing.paid_value = (billing.paid_value or ZERO) + value
-        old_status = billing.status
-        new_status = billing.computed_status()
-        billing.status = new_status
-        billing.updated_by = self.user
-        billing.save(update_fields=["paid_value", "status", "updated_by", "updated_at", "version"])
-        if old_status != new_status:
-            self._record_audit("UPDATE", billing, old_values={"status": old_status})
-
+        for billing_id, value in normalized.items():
+            allocation = PaymentAllocation.objects.create(
+                payment=payment,
+                billing=billings[billing_id],
+                amount=value,
+                created_by=self.user,
+                updated_by=self.user,
+            )
+            self._record_audit("INSERT", allocation)
         self._log(
-            "Pagamento registrado",
-            billing_id=str(billing.pk),
+            "payment_pending_created",
             payment_id=str(payment.pk),
-            amount=str(value),
-            new_status=new_status,
+            allocation_count=len(normalized),
+            amount=str(total),
         )
         return payment
 
-    @transaction.atomic
-    def reconcile(self, payment_id, *, confirmed: bool = True) -> PaymentRecord:
-        """Conciliacao basica: marca/invalida um pagamento. Em caso de invalidacao,
-        estorna o valor pago da cobranca e recoloca o status correto.
-        """
-        from financeiro.models import BillingEntry, PaymentRecord
+    @service_command
+    def confirm_payment(self, payment_id) -> PaymentRecord:
+        """Concilia sob lock, apura encargos e só então altera saldos e caixa."""
+        from financeiro.models import (
+            BillingEntry,
+            FinancialSequence,
+            PaymentAllocation,
+            PaymentRecord,
+        )
+        from financeiro.services import FinanceService
 
         try:
-            payment = (
-                PaymentRecord.objects.select_for_update()
-                .select_related("billing")
-                .get(pk=payment_id)
-            )
+            payment = PaymentRecord.objects.select_for_update().get(pk=payment_id)
         except PaymentRecord.DoesNotExist:
             raise ObjectNotFoundError("PaymentRecord", str(payment_id)) from None
+        if payment.status == PaymentRecord.Status.CONFIRMED:
+            return payment
+        if payment.status == PaymentRecord.Status.REVERSED:
+            raise BusinessRuleViolationError("Pagamento estornado não pode ser conciliado.")
 
-        if payment.reconciliation_status == PaymentRecord.ReconciliationStatus.REJECTED:
-            raise BusinessRuleViolationError(
-                "Pagamento estornado nao pode ser conciliado novamente."
-            )
-
-        if not confirmed:
-            billing = BillingEntry.objects.select_for_update().get(pk=payment.billing_id)
-            old_paid = billing.paid_value
-            old_status = billing.status
-            billing.paid_value = max((billing.paid_value or ZERO) - payment.amount, ZERO)
-            billing.status = billing.computed_status()
-            billing.updated_by = self.user
-            billing.save(
-                update_fields=["paid_value", "status", "updated_by", "updated_at", "version"]
-            )
-            old_payment_status = payment.reconciliation_status
-            payment.reconciliation_status = PaymentRecord.ReconciliationStatus.REJECTED
-            payment.updated_by = self.user
-            payment.save(
-                update_fields=[
-                    "reconciliation_status",
-                    "updated_by",
-                    "updated_at",
-                    "version",
-                ]
-            )
-            payment.soft_delete(user=self.user)
-            self._record_audit(
-                "DELETE",
-                payment,
-                old_values={"reconciliation_status": old_payment_status},
-            )
-            if old_status != billing.status:
-                self._record_audit(
-                    "UPDATE",
-                    billing,
-                    old_values={"status": old_status, "paid_value": str(old_paid)},
+        allocations = list(
+            PaymentAllocation.objects.select_for_update()
+            .filter(payment=payment)
+            .order_by("billing_id")
+        )
+        if not allocations:
+            raise BusinessRuleViolationError("Pagamento não possui alocações.")
+        billing_ids = [allocation.billing_id for allocation in allocations]
+        billings = {
+            billing.pk: billing
+            for billing in BillingEntry.objects.select_for_update(of=("self",))
+            .select_related("contract")
+            .filter(pk__in=billing_ids)
+            .order_by("pk")
+        }
+        finance_service = FinanceService(user=self.user)
+        for allocation in allocations:
+            billing = billings[allocation.billing_id]
+            finance_service._assess_late_charges(billing, payment.paid_date)
+            billing.refresh_from_db()
+            if billing.status == BillingEntry.Status.CANCELLED:
+                raise BusinessRuleViolationError("Uma cobrança selecionada foi cancelada.")
+            if allocation.amount > billing.outstanding_value:
+                raise BusinessRuleViolationError(
+                    "O saldo mudou após o registro. Revise a baixa antes de conciliar."
                 )
-            self._log(
-                "Pagamento estornado (conciliacao)",
-                billing_id=str(billing.pk),
-                payment_id=str(payment.pk),
+            remaining = allocation.amount
+            unpaid_fee = max(billing.late_fee_value - billing.paid_late_fee_value, ZERO)
+            allocation.late_fee_amount = min(remaining, unpaid_fee)
+            remaining -= allocation.late_fee_amount
+            unpaid_interest = max(billing.interest_value - billing.paid_interest_value, ZERO)
+            allocation.interest_amount = min(remaining, unpaid_interest)
+            remaining -= allocation.interest_amount
+            unpaid_principal = max(
+                billing.contractual_value - billing.paid_principal_value,
+                ZERO,
             )
-        else:
-            if payment.reconciliation_status == PaymentRecord.ReconciliationStatus.CONFIRMED:
-                return payment
-            old_status = payment.reconciliation_status
-            payment.reconciliation_status = PaymentRecord.ReconciliationStatus.CONFIRMED
-            payment.reconciled_at = timezone.now()
-            payment.updated_by = self.user
-            payment.save(
-                update_fields=[
-                    "reconciliation_status",
-                    "reconciled_at",
-                    "updated_by",
-                    "updated_at",
-                    "version",
-                ]
+            allocation.principal_amount = min(remaining, unpaid_principal)
+            remaining -= allocation.principal_amount
+            if remaining != ZERO:
+                raise BusinessRuleViolationError("A alocação excede os componentes da cobrança.")
+            allocation.updated_by = self.user
+            allocation.save()
+            self._record_audit("UPDATE", allocation)
+
+            old = {
+                "paid_value": str(billing.paid_value),
+                "status": billing.status,
+            }
+            billing.paid_late_fee_value += allocation.late_fee_amount
+            billing.paid_interest_value += allocation.interest_amount
+            billing.paid_principal_value += allocation.principal_amount
+            billing.paid_value += allocation.amount
+            billing.updated_by = self.user
+            billing.save()
+            self._record_audit("UPDATE", billing, old_values=old)
+
+        sequence_created = False
+        try:
+            sequence = FinancialSequence.objects.select_for_update().get(
+                kind="RECEIPT", year=payment.paid_date.year
             )
-            self._record_audit("UPDATE", payment, old_values={"reconciliation_status": old_status})
-            self._log(
-                "Pagamento conciliado",
-                billing_id=str(payment.billing_id),
-                payment_id=str(payment.pk),
+        except FinancialSequence.DoesNotExist:
+            try:
+                with transaction.atomic():
+                    sequence = FinancialSequence.objects.create(
+                        kind="RECEIPT",
+                        year=payment.paid_date.year,
+                        created_by=self.user,
+                        updated_by=self.user,
+                    )
+                    sequence_created = True
+            except IntegrityError:
+                pass
+            sequence = FinancialSequence.objects.select_for_update().get(
+                kind="RECEIPT", year=payment.paid_date.year
             )
+        old_sequence_value = sequence.last_value
+        sequence.last_value += 1
+        sequence.updated_by = self.user
+        sequence.save()
+        self._record_audit(
+            "INSERT" if sequence_created else "UPDATE",
+            sequence,
+            old_values={} if sequence_created else {"last_value": old_sequence_value},
+        )
+        payment.receipt_number = f"REC-{payment.paid_date.year}-{sequence.last_value:06d}"
+        payment.status = PaymentRecord.Status.CONFIRMED
+        payment.reconciled_at = timezone.now()
+        payment.confirmed_by = self.user
+        payment.updated_by = self.user
+        payment.save()
+        self._record_audit("UPDATE", payment, old_values={"status": "PENDING"})
+        self._log(
+            "payment_confirmed",
+            payment_id=str(payment.pk),
+            allocation_count=len(allocations),
+            receipt_number=payment.receipt_number,
+        )
         return payment
 
-    @staticmethod
-    def _is_future(target: date) -> bool:
-        return target > date.today()
+    @service_command
+    def reverse_payment(self, payment_id, *, reason: str) -> PaymentRecord:
+        """Estorna componentes confirmados sem excluir o registro financeiro."""
+        from financeiro.models import BillingEntry, PaymentAllocation, PaymentRecord
+
+        if not reason.strip():
+            raise ValidationError(errors={"reason": ["Informe o motivo do estorno."]})
+        try:
+            payment = PaymentRecord.objects.select_for_update().get(pk=payment_id)
+        except PaymentRecord.DoesNotExist:
+            raise ObjectNotFoundError("PaymentRecord", str(payment_id)) from None
+        if payment.status != PaymentRecord.Status.CONFIRMED:
+            raise BusinessRuleViolationError("Somente pagamento conciliado pode ser estornado.")
+        allocations = list(
+            PaymentAllocation.objects.select_for_update()
+            .filter(payment=payment)
+            .order_by("billing_id")
+        )
+        billings = {
+            item.pk: item
+            for item in BillingEntry.objects.select_for_update().filter(
+                pk__in=[allocation.billing_id for allocation in allocations]
+            )
+        }
+        for allocation in allocations:
+            billing = billings[allocation.billing_id]
+            old = {"paid_value": str(billing.paid_value), "status": billing.status}
+            billing.paid_late_fee_value = max(
+                billing.paid_late_fee_value - allocation.late_fee_amount, ZERO
+            )
+            billing.paid_interest_value = max(
+                billing.paid_interest_value - allocation.interest_amount, ZERO
+            )
+            billing.paid_principal_value = max(
+                billing.paid_principal_value - allocation.principal_amount, ZERO
+            )
+            billing.paid_value = max(billing.paid_value - allocation.amount, ZERO)
+            billing.updated_by = self.user
+            billing.save()
+            self._record_audit("UPDATE", billing, old_values=old)
+        payment.status = PaymentRecord.Status.REVERSED
+        payment.reversed_at = timezone.now()
+        payment.reversed_by = self.user
+        payment.reversal_reason = reason.strip()
+        payment.updated_by = self.user
+        payment.save()
+        self._record_audit("UPDATE", payment, old_values={"status": "CONFIRMED"})
+        self._log("payment_reversed", payment_id=str(payment.pk))
+        return payment

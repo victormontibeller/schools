@@ -88,13 +88,15 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     if is_platform_request(request):
         return redirect("platform_dashboard")
 
-    from core.permissions import can_access_module
+    from core.permissions import VIEW, can_access
     from dashboard.services import DashboardService
 
     role_name = _detect_dashboard_role(request.user)
     data = DashboardService(user=request.user).get_school_dashboard_data()
     diary_kpis = data.get("diary_kpis") or {}
-    can_view_financial = can_access_module(request.user, "financeiro")
+    can_view_financial = can_access(request.user, "finance_overview", VIEW)
+    can_view_revenue = can_access(request.user, "finance_revenue_reports", VIEW)
+    can_view_overdue = can_access(request.user, "finance_overdue_reports", VIEW)
     return render(
         request,
         "dashboard.html",
@@ -104,12 +106,14 @@ def dashboard(request: HttpRequest) -> HttpResponse:
             "role_name": _dashboard_role_label(request.user, role_name),
             "greeting": _dashboard_greeting(),
             "can_view_financial": can_view_financial,
+            "can_view_revenue": can_view_revenue,
+            "can_view_overdue": can_view_overdue,
             "has_visible_attention": bool(
                 data["students_at_risk"]
                 or data["pending_activities"]
                 or diary_kpis.get("pending_review")
                 or diary_kpis.get("changes_requested")
-                or (can_view_financial and data["financial_kpis"]["total_vencido"])
+                or (can_view_overdue and data["financial_kpis"]["total_vencido"])
             ),
         },
     )

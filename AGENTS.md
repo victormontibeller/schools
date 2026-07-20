@@ -30,7 +30,9 @@ School Manager é um monólito modular Django 5.2, Python 3.13 e PostgreSQL com 
 - Toda escrita usa `BaseService`, gera auditoria e log estruturado sem PII.
 - Nunca registrar e-mail, CPF, telefone, nome, senha, endereço ou avatar em logs.
 - Todo modelo de domínio herda de `BaseModel`; exclusão física é proibida.
-- Usar apenas `ValidationError`, `ObjectNotFoundError` e `BusinessRuleViolationError` nos services.
+- Usar apenas `ValidationError`, `ObjectNotFoundError`, `BusinessRuleViolationError` e
+  `PermissionDeniedError` nos services; a última é exclusiva para negação de autorização ou
+  escopo de objeto.
 - Secrets ficam em variáveis de ambiente; provedores externos usam `notifications/channels/`.
 - O schema do tenant é obrigatório em requests e tarefas Celery.
 - Não usar `print()` para logging.
@@ -61,6 +63,15 @@ Não reimplementar métodos de `BaseService`:
 - Definition of Done completa: `docs/12_DEFINITION_OF_DONE.md`.
 - Uma alteração só está pronta com `ruff check .`, `black --check .`, testes relevantes e documentação/ADR atualizados quando necessário.
 
+## Subagentes
+
+- Em tarefas grandes, delegar automaticamente quando houver pelo menos duas frentes independentes, investigação ampla ou mudança atravessando múltiplas camadas.
+- Usar `school_explorer` para mapear o código, `school_builder` para implementar, `school_guardian` para segurança e testes e `school_reviewer` para a revisão final.
+- Não delegar correções pequenas e localizadas quando a coordenação custar mais do que a execução direta.
+- Entre os subagentes, somente `school_builder` pode editar. Enquanto ele estiver escrevendo, o agente principal aguarda; a integração começa após sua conclusão.
+- O agente principal mantém requisitos, decisões, integração e validação final, espera os agentes solicitados e consolida os resultados.
+- Manter a profundidade padrão de um nível; subagentes não delegam para outros subagentes.
+
 ## Mapa documental
 
 | Assunto | Documento oficial |
@@ -73,4 +84,4 @@ Não reimplementar métodos de `BaseService`:
 | Interface | `docs/09_UI_GUIDELINES.md` |
 | Código e entrega | `docs/10_CODING_STANDARDS.md`, `docs/12_DEFINITION_OF_DONE.md` |
 | Decisões | `docs/adr/` |
-| Histórico | `docs/14_SPRINT_00.md` a `docs/34_SPRINT_20.md` |
+| Histórico | `docs/14_SPRINT_00.md` a `docs/35_SPRINT_21.md` |

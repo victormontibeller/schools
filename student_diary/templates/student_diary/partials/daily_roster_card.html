@@ -58,7 +58,7 @@
                         <th scope="col" class="sm-diary-student-column">Aluno</th>
                         <th scope="col" class="sm-diary-status-column">Situação</th>
                         {% for cell in sheet.rows.0.form.meal_fields %}<th scope="col" class="sm-diary-field-column">{{ cell.label }}</th>{% endfor %}
-                        {% for cell in sheet.rows.0.form.aspect_fields %}<th scope="col" class="sm-diary-field-column">{{ cell.label }}</th>{% endfor %}
+                        {% for cell in sheet.rows.0.form.routine_fields %}<th scope="col" class="sm-diary-field-column">{{ cell.label }}</th>{% endfor %}
                         <th scope="col" class="sm-diary-notes-column">Observações</th>
                     </tr>
                 </thead>
@@ -82,7 +82,7 @@
                             {% include "student_diary/partials/inline_choice_dropdown.html" with cell=cell student=row.student can_edit=can_edit %}
                         </td>
                         {% endfor %}
-                        {% for cell in row.form.aspect_fields %}
+                        {% for cell in row.form.routine_fields %}
                         <td class="sm-diary-field-column">
                             {% include "student_diary/partials/inline_choice_dropdown.html" with cell=cell student=row.student can_edit=can_edit %}
                         </td>

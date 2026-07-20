@@ -1,0 +1,4 @@
+{% extends "page_shell_base.html" %}
+{% block title %}Editar contrato — School Manager{% endblock %}{% block page_heading %}Editar contrato em rascunho{% endblock %}
+{% block page_breadcrumbs %}<li class="breadcrumb-item"><a href="{% url 'contract_detail' contract.pk %}">{{ contract.name }}</a></li><li class="breadcrumb-item active">Editar</li>{% endblock %}
+{% block page_content %}<div class="row justify-content-center"><div class="col-12 col-xl-8">{% include "partials/information_form_card.html" with component_id="contract-information-card" component_title="Informações do contrato" edit_url=request.path cancel_url=cancel_url %}</div></div>{% endblock %}

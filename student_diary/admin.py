@@ -2,21 +2,21 @@
 
 from django.contrib import admin
 
-from student_diary.models import DailyDiary, DiaryAnswer, DiaryCategory, DiaryMeal, DiaryOption
+from student_diary.models import DailyDiary, DiaryAnswer, DiaryCategory, DiaryOption
 
 
 @admin.register(DiaryCategory)
 class DiaryCategoryAdmin(admin.ModelAdmin):
     """Administra categorias da agenda."""
 
-    list_display = ["name", "code", "display_order", "is_enabled", "is_active"]
+    list_display = ["name", "section", "display_order", "is_enabled", "is_active"]
 
 
 @admin.register(DiaryOption)
 class DiaryOptionAdmin(admin.ModelAdmin):
     """Administra opções de categoria."""
 
-    list_display = ["label", "code", "category", "display_order", "is_active"]
+    list_display = ["label", "category", "display_order", "is_active"]
 
 
 @admin.register(DailyDiary)
@@ -28,4 +28,3 @@ class DailyDiaryAdmin(admin.ModelAdmin):
 
 
 admin.site.register(DiaryAnswer)
-admin.site.register(DiaryMeal)

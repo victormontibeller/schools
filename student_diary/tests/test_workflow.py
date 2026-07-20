@@ -276,13 +276,14 @@ def test_republish_preserves_first_snapshot(user, monkeypatch):
     workflow.submit_sheet(sheet.pk)
     first = workflow.approve_sheet(sheet.pk)
     first_entry = first.entries.get()
-    mood = DiaryCategory.objects.get(code=DiaryCategory.Aspect.MOOD)
-    happy = DiaryOption.objects.get(code=DiaryOption.FixedCode.MOOD_HAPPY)
+    mood = DiaryCategory.objects.get(name="Humor")
+    happy = DiaryOption.objects.get(category=mood, label="Alegre")
     StudentDiaryService(user=user).update_routine_aspect(
         mood.pk,
         {
             "name": "Estado emocional",
-            "display_order": mood.display_order,
+            "section": DiaryCategory.Section.MEAL,
+            "display_order": 8,
             "is_required": mood.is_required,
             "version": mood.version,
         },
@@ -297,10 +298,12 @@ def test_republish_preserves_first_snapshot(user, monkeypatch):
         },
     )
     workflow.open_sheet_for_correction(sheet.pk)
+    corrected_payload = _payload(notes="Conteúdo corrigido")
+    corrected_payload["answers"][str(mood.pk)] = str(happy.pk)
     StudentDiaryService(user=user).save_daily_diaries(
         sheet.class_obj_id,
         sheet.date,
-        {str(student.pk): _payload(notes="Conteúdo corrigido")},
+        {str(student.pk): corrected_payload},
     )
     workflow.submit_sheet(sheet.pk)
 
@@ -308,16 +311,20 @@ def test_republish_preserves_first_snapshot(user, monkeypatch):
 
     first_entry.refresh_from_db()
     assert first_entry.notes == "Dia tranquilo."
-    first_mood = next(
-        item for item in first_entry.routine_snapshot if item["category_code"] == "MOOD"
-    )
+    first_mood = next(item for item in first_entry.answers_snapshot if item["category"] == "Humor")
     second_mood = next(
-        item for item in second.entries.get().routine_snapshot if item["category_code"] == "MOOD"
+        item
+        for item in second.entries.get().answers_snapshot
+        if item["category"] == "Estado emocional"
     )
     assert first_mood["category"] == "Humor"
     assert first_mood["option"] == "Alegre"
+    assert first_mood["section"] == DiaryCategory.Section.ROUTINE
+    assert first_mood["display_order"] == 1
     assert second_mood["category"] == "Estado emocional"
     assert second_mood["option"] == "Muito alegre"
+    assert second_mood["section"] == DiaryCategory.Section.MEAL
+    assert second_mood["display_order"] == 8
     assert second.revision_number == 2
     assert second.entries.get().notes == "Conteúdo corrigido"
     assert (
@@ -335,7 +342,7 @@ def test_republish_preserves_first_snapshot(user, monkeypatch):
 
 
 @pytest.mark.django_db
-def test_publish_serializes_custom_codes_as_null(user, monkeypatch):
+def test_publish_serializes_custom_routine_item(user, monkeypatch):
     service = StudentDiaryService(user=user)
     aspect = service.create_routine_aspect({"name": "Hidratação", "display_order": 5})
     option = service.create_routine_option(aspect.pk, {"label": "Bebeu bem", "display_order": 1})
@@ -353,9 +360,54 @@ def test_publish_serializes_custom_codes_as_null(user, monkeypatch):
     workflow.submit_sheet(sheet.pk)
     entry = workflow.approve_sheet(sheet.pk).entries.get()
 
-    custom = next(item for item in entry.routine_snapshot if item["category"] == "Hidratação")
-    assert custom["category_code"] is None
-    assert custom["option_code"] is None
+    custom = next(item for item in entry.answers_snapshot if item["category"] == "Hidratação")
+    assert custom == {
+        "section": DiaryCategory.Section.ROUTINE,
+        "category": "Hidratação",
+        "option": "Bebeu bem",
+        "display_order": 5,
+    }
+
+
+@pytest.mark.django_db
+def test_publish_serializes_custom_meal_in_unified_snapshot(user, monkeypatch):
+    service = StudentDiaryService(user=user)
+    item = service.create_routine_aspect(
+        {
+            "name": "Ceia",
+            "section": DiaryCategory.Section.MEAL,
+            "display_order": 4,
+            "applies_morning": True,
+            "applies_afternoon": False,
+            "applies_full": True,
+        }
+    )
+    option = service.create_routine_option(item.pk, {"label": "Aceitou bem", "display_order": 1})
+    service.set_routine_aspect_enabled(item.pk, True, item.version)
+    class_obj = _class(user)
+    student = _student(user)
+    _enroll(user, class_obj, student)
+    payload = _payload()
+    payload["answers"][str(item.pk)] = str(option.pk)
+    service.save_daily_diaries(
+        class_obj.pk,
+        dt.date(2026, 7, 18),
+        {str(student.pk): payload},
+    )
+    sheet = DiarySheet.objects.get(class_obj=class_obj)
+    monkeypatch.setattr(DiaryWorkflowService, "_schedule_staff_delivery", lambda *args: None)
+    workflow = DiaryWorkflowService(user=user)
+
+    workflow.submit_sheet(sheet.pk)
+    entry = workflow.approve_sheet(sheet.pk).entries.get()
+
+    custom = next(item for item in entry.answers_snapshot if item["category"] == "Ceia")
+    assert custom == {
+        "section": DiaryCategory.Section.MEAL,
+        "category": "Ceia",
+        "option": "Aceitou bem",
+        "display_order": 4,
+    }
 
 
 @pytest.mark.django_db

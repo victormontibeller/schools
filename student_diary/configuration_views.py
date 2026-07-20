@@ -1,4 +1,4 @@
-"""Views de configuração dos aspectos e opções da Agenda."""
+"""Views de configuração dos itens e opções da Agenda."""
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -23,19 +23,21 @@ from student_diary.services import StudentDiaryService
 @login_required
 @access_policy("diary_configuration", VIEW)
 def diary_configuration(request):
-    """Lista o catálogo configurável de aspectos da rotina."""
+    """Lista o catálogo configurável de itens da Agenda."""
     state = resolve_listing_state(
         request,
         scope="diary_configuration",
         allowed_sorts={
             "name",
             "-name",
+            "section",
+            "-section",
             "display_order",
             "-display_order",
             "is_enabled",
             "-is_enabled",
         },
-        default_sort="display_order",
+        default_sort="section",
     )
     result = StudentDiarySelector().list_categories_page(
         search=state["q"],
@@ -49,12 +51,12 @@ def diary_configuration(request):
         "sorting": build_sorting(
             current_sort=state["sort"],
             search=state["q"],
-            sortable_fields=["name", "display_order", "is_enabled"],
+            sortable_fields=["name", "section", "display_order", "is_enabled"],
         ),
         "list_query": build_querystring({"q": state["q"], "sort": state["sort"]}),
         "breadcrumb_items": [
             {"label": "Home", "url": "dashboard"},
-            {"label": "Aspectos da rotina", "url": None},
+            {"label": "Itens da Agenda", "url": None},
         ],
     }
     if request.headers.get("HX-Request"):
@@ -65,12 +67,18 @@ def diary_configuration(request):
 @login_required
 @access_policy("diary_configuration", CREATE)
 def diary_aspect_create(request):
-    """Cria um aspecto inativo e encaminha para o cadastro de opções."""
+    """Cria um item inativo e encaminha para o cadastro de opções."""
+    selector = StudentDiarySelector()
+    default_section = selector.default_category_section()
     form = RoutineAspectForm(
         request.POST or None,
         initial={
             "is_required": True,
-            "display_order": StudentDiarySelector().next_category_display_order(),
+            "section": default_section,
+            "display_order": selector.next_category_display_order(default_section),
+            "applies_morning": True,
+            "applies_afternoon": True,
+            "applies_full": True,
         },
     )
     if request.method == "POST" and form.is_valid():
@@ -78,21 +86,21 @@ def diary_aspect_create(request):
             category = StudentDiaryService(user=request.user).create_routine_aspect(
                 form.cleaned_data
             )
-            messages.success(request, "Aspecto criado. Cadastre as opções antes de ativá-lo.")
+            messages.success(request, "Item criado. Cadastre as opções antes de ativá-lo.")
             return redirect("diary_aspect_detail", category_id=category.pk)
         except ValidationError as exc:
             apply_validation_errors(form, exc)
     return render(
         request,
         "student_diary/aspect_form.html",
-        {"form": form, "title": "Novo aspecto da rotina"},
+        {"form": form, "title": "Novo item da Agenda"},
     )
 
 
 @login_required
 @access_policy("diary_configuration", VIEW)
 def diary_aspect_detail(request, category_id):
-    """Exibe a ficha de um aspecto e suas opções."""
+    """Exibe a ficha de um item e suas opções."""
     category = StudentDiarySelector().get_category_with_options(category_id)
     if request.headers.get("HX-Request"):
         component = request.GET.get("component")
@@ -106,7 +114,7 @@ def diary_aspect_detail(request, category_id):
 @login_required
 @access_policy("diary_configuration", EDIT)
 def diary_aspect_edit(request, category_id):
-    """Edita o aspecto substituindo somente seu card de informações."""
+    """Edita o item substituindo somente seu card de informações."""
     category = StudentDiarySelector().get_category_with_options(category_id)
     form = RoutineAspectForm(request.POST or None, instance=category)
     if request.method == "POST" and form.is_valid():
@@ -121,13 +129,13 @@ def diary_aspect_edit(request, category_id):
             form.add_error(None, exc.message)
     if not request.headers.get("HX-Request"):
         return redirect("diary_aspect_detail", category_id=category_id)
-    return _render_information_form(request, category, form, "Editar aspecto", request.path)
+    return _render_information_form(request, category, form, "Editar item", request.path)
 
 
 @login_required
 @access_policy("diary_configuration", EDIT)
 def diary_aspect_toggle(request, category_id):
-    """Mantém a rota compatível de ativação reversível do aspecto."""
+    """Mantém a rota compatível de ativação reversível do item."""
     category = StudentDiarySelector().get_category_with_options(category_id)
     form = RoutineAspectToggleForm(
         request.POST if request.method == "POST" else None,
@@ -142,21 +150,21 @@ def diary_aspect_toggle(request, category_id):
             )
             if request.headers.get("HX-Request"):
                 return _render_information(request, category, saved=True)
-            messages.success(request, "Aspecto da rotina atualizado.")
+            messages.success(request, "Item da Agenda atualizado.")
             return redirect("diary_aspect_detail", category_id=category_id)
         except BusinessRuleViolationError as exc:
             form.add_error(None, exc.message)
     if not request.headers.get("HX-Request"):
         return redirect("diary_aspect_detail", category_id=category_id)
     return _render_information_form(
-        request, category, form, "Disponibilidade do aspecto", request.path
+        request, category, form, "Disponibilidade do item", request.path
     )
 
 
 @login_required
 @access_policy("diary_configuration", CREATE)
 def diary_option_create(request, category_id):
-    """Adiciona uma opção no card do aspecto."""
+    """Adiciona uma opção no card do item."""
     category = StudentDiarySelector().get_category_with_options(category_id)
     initial_order = max((option.display_order for option in category.options.all()), default=0) + 1
     form = RoutineOptionForm(request.POST or None, initial={"display_order": initial_order})

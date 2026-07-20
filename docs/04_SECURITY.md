@@ -65,6 +65,9 @@ somente para scripts/estilos legados do tema e deverá ser removida conforme for
 - Secretaria, Coordenação, Professor, Financeiro e Responsável recebem somente capacidades
   persistidas em `RoleModuleAccess`; permissões individuais e grupos do Django são ignorados.
 - Toda autorização combina módulo e ação e é repetida na fronteira HTTP e nos services.
+- Calendário e eventos usam a capacidade `academic_calendar`; a administração de feriados e
+  anos letivos usa, respectivamente, `holidays` e `academic_years`. Estas duas capacidades são
+  delegáveis somente a Secretaria, Coordenação e Financeiro e não ampliam a leitura do calendário.
 - Professor acessa somente turmas, alunos e registros atribuídos. Responsável acessa somente
   alunos vinculados e os dados derivados desses vínculos; a matriz não remove esses filtros.
 - Ausência de registro, módulo desconhecido, ação incompatível ou contrato de escopo ausente

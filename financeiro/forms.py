@@ -1,17 +1,20 @@
-"""Formularios do modulo Financeiro Escolar."""
+"""Fachada estável dos formulários HTTP do domínio financeiro."""
+
+import uuid
 
 from django import forms
 from django.core.exceptions import ValidationError as DjangoValidationError
 
-from financeiro.models import FinancialPlan, PaymentRecord
+from financeiro.models import PaymentRecord, StudentFinancialContract
 
 
-class FinancialPlanForm(forms.ModelForm):
-    """Formulario de criacao/edicao de plano financeiro."""
+class StudentFinancialContractForm(forms.ModelForm):
+    """Criação e edição do snapshot de um contrato financeiro."""
 
     class Meta:
-        model = FinancialPlan
+        model = StudentFinancialContract
         fields = [
+            "template",
             "student",
             "class_obj",
             "academic_year",
@@ -20,6 +23,7 @@ class FinancialPlanForm(forms.ModelForm):
             "installment_count",
             "installment_value",
             "due_day",
+            "start_competency",
             "discount_value",
             "late_fee_percent",
             "daily_interest_percent",
@@ -27,6 +31,7 @@ class FinancialPlanForm(forms.ModelForm):
         ]
         widgets = {
             "student": forms.Select(attrs={"class": "form-select"}),
+            "template": forms.Select(attrs={"class": "form-select"}),
             "class_obj": forms.Select(attrs={"class": "form-select"}),
             "academic_year": forms.NumberInput(
                 attrs={"class": "form-control", "min": 2000, "max": 2100}
@@ -40,6 +45,7 @@ class FinancialPlanForm(forms.ModelForm):
                 attrs={"class": "form-control", "step": "0.01", "min": "0.01"}
             ),
             "due_day": forms.NumberInput(attrs={"class": "form-control", "min": 1, "max": 28}),
+            "start_competency": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
             "discount_value": forms.NumberInput(
                 attrs={"class": "form-control", "step": "0.01", "min": "0"}
             ),
@@ -53,41 +59,47 @@ class FinancialPlanForm(forms.ModelForm):
         }
         labels = {
             "student": "Aluno",
+            "template": "Modelo de plano",
             "class_obj": "Turma",
-            "academic_year": "Ano Letivo",
-            "name": "Nome do Plano",
-            "billing_frequency": "Frequencia de Cobranca",
-            "installment_count": "Numero de Parcelas",
-            "installment_value": "Valor da Parcela",
-            "due_day": "Dia de Vencimento",
-            "discount_value": "Desconto por Parcela",
-            "late_fee_percent": "Multa por Atraso (%)",
-            "daily_interest_percent": "Juros Diarios (%)",
-            "notes": "Observacoes",
+            "academic_year": "Ano letivo",
+            "name": "Nome do contrato",
+            "billing_frequency": "Frequência de cobrança",
+            "installment_count": "Número de parcelas",
+            "installment_value": "Valor da parcela",
+            "due_day": "Dia de vencimento",
+            "start_competency": "Competência inicial",
+            "discount_value": "Desconto por parcela",
+            "late_fee_percent": "Multa por atraso (%)",
+            "daily_interest_percent": "Juros diários (%)",
+            "notes": "Observações",
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["class_obj"].required = False
-        self.fields["discount_value"].required = False
-        self.fields["late_fee_percent"].required = False
-        self.fields["daily_interest_percent"].required = False
-        self.fields["notes"].required = False
+        for name in (
+            "class_obj",
+            "template",
+            "start_competency",
+            "discount_value",
+            "late_fee_percent",
+            "daily_interest_percent",
+            "notes",
+        ):
+            self.fields[name].required = False
 
 
-class GenerateBillingsByClassForm(forms.Form):
-    """Formulario para gerar cobrancas em lote por turma e competencia."""
+class MaterializeBillingsByClassForm(forms.Form):
+    """Geração idempotente por turma e competência."""
 
     class_obj = forms.ChoiceField(
-        label="Turma",
-        widget=forms.Select(attrs={"class": "form-select"}),
+        label="Turma", widget=forms.Select(attrs={"class": "form-select"})
     )
     academic_year = forms.IntegerField(
-        label="Ano Letivo",
+        label="Ano letivo",
         widget=forms.NumberInput(attrs={"class": "form-control", "min": 2000, "max": 2100}),
     )
     month = forms.ChoiceField(
-        label="Competencia (Mes)",
+        label="Competência (mês)",
         required=False,
         widget=forms.Select(attrs={"class": "form-select"}),
     )
@@ -97,50 +109,46 @@ class GenerateBillingsByClassForm(forms.Form):
         from classes.selectors import ClassSelector
 
         classes = ClassSelector().list_ordered()
-        self.fields["class_obj"].choices = [
-            ("", "---"),
-            *[(str(c.pk), str(c)) for c in classes],
+        self.fields["class_obj"].choices = [("", "---")] + [
+            (str(item.pk), str(item)) for item in classes
         ]
-        self.fields["month"].choices = [("", "Mes corrente")] + [
-            (str(m), f"{m:02d}") for m in range(1, 13)
+        self.fields["month"].choices = [("", "Mês corrente")] + [
+            (str(month), f"{month:02d}") for month in range(1, 13)
         ]
 
 
 class PaymentForm(forms.ModelForm):
-    """Formulario de baixa manual de pagamento."""
+    """Baixa manual para uma única cobrança."""
 
     class Meta:
         model = PaymentRecord
-        fields = ["amount", "paid_date", "payment_method", "notes"]
+        fields = ["amount", "paid_date", "payment_method", "reference", "notes"]
         widgets = {
             "amount": forms.NumberInput(
                 attrs={"class": "form-control", "step": "0.01", "min": "0.01"}
             ),
             "paid_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
             "payment_method": forms.Select(attrs={"class": "form-select"}),
+            "reference": forms.TextInput(attrs={"class": "form-control"}),
             "notes": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
-        }
-        labels = {
-            "amount": "Valor Pago",
-            "paid_date": "Data de Pagamento",
-            "payment_method": "Forma de Pagamento",
-            "notes": "Observacoes",
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["notes"].required = False
+        self.fields["reference"].required = False
+        self.fields["idempotency_key"] = forms.UUIDField(
+            initial=uuid.uuid4, widget=forms.HiddenInput()
+        )
 
 
 class RenegotiationForm(forms.Form):
-    """Formulario de renegociacao simples de cobranca."""
-
     new_due_date = forms.DateField(
-        label="Novo Vencimento (1a parcela)",
+        label="Novo vencimento (1ª parcela)",
         widget=forms.DateInput(attrs={"class": "form-control", "type": "date"}),
     )
     new_value = forms.DecimalField(
-        label="Valor Renegociado (total)",
+        label="Valor renegociado (total)",
         required=False,
         min_value=0,
         decimal_places=2,
@@ -148,7 +156,7 @@ class RenegotiationForm(forms.Form):
         widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0.01"}),
     )
     installment_count = forms.IntegerField(
-        label="Numero de Parcelas",
+        label="Número de parcelas",
         min_value=1,
         max_value=12,
         initial=1,
@@ -163,30 +171,49 @@ class RenegotiationForm(forms.Form):
 
 
 class CancelBillingForm(forms.Form):
-    """Formulario de cancelamento de cobranca."""
-
     reason = forms.CharField(
-        label="Motivo do Cancelamento",
-        required=False,
+        label="Motivo do cancelamento",
+        required=True,
         widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
     )
 
 
 class ReportFilterForm(forms.Form):
-    """Filtro para o relatorio mensal previsto x recebido."""
-
     year = forms.IntegerField(
         label="Ano",
         widget=forms.NumberInput(attrs={"class": "form-control", "min": 2000, "max": 2100}),
     )
     month = forms.ChoiceField(
-        label="Mes",
-        required=False,
-        widget=forms.Select(attrs={"class": "form-select"}),
+        label="Mês", required=False, widget=forms.Select(attrs={"class": "form-select"})
     )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["month"].choices = [("", "Ano inteiro")] + [
-            (str(m), f"{m:02d}") for m in range(1, 13)
+            (str(month), f"{month:02d}") for month in range(1, 13)
         ]
+
+
+from financeiro.receivables_forms import (  # noqa: E402,F401
+    AdHocBillingForm,
+    CollectionReminderPolicyForm,
+    FinancialContractAmendmentForm,
+    FinancialPlanTemplateForm,
+    PaymentBatchForm,
+    PaymentReversalForm,
+)
+
+__all__ = [
+    "AdHocBillingForm",
+    "CancelBillingForm",
+    "CollectionReminderPolicyForm",
+    "FinancialContractAmendmentForm",
+    "FinancialPlanTemplateForm",
+    "MaterializeBillingsByClassForm",
+    "PaymentBatchForm",
+    "PaymentForm",
+    "PaymentReversalForm",
+    "RenegotiationForm",
+    "ReportFilterForm",
+    "StudentFinancialContractForm",
+]

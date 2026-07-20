@@ -47,17 +47,19 @@ LIST_PAGE_CATALOG: dict[str, ListPageDefinition] = {
         "#attendance-records-table",
         "attendance_record_create",
     ),
-    "billing_list": ListPageDefinition("Cobranças", "billing_list", "#billings-table"),
+    "billing_list": ListPageDefinition(
+        "Cobranças", "billing_list", "#billings-table", "billing_create"
+    ),
     "business_unit_list": ListPageDefinition(
         "Unidades", "business_unit_list", "#business-units-table", "business_unit_create"
     ),
     "classes_list": ListPageDefinition("Turmas", "classes_list", "#classes-table", "class_create"),
     "diary_configuration": ListPageDefinition(
-        "Aspectos da rotina",
+        "Itens da Agenda",
         "diary_configuration",
         "#diary-categories-table",
         "diary_aspect_create",
-        "aspectos",
+        "itens",
     ),
     "events_list": ListPageDefinition("Eventos", "events_list", "#events-table", "event_create"),
     "guardians_list": ListPageDefinition(
@@ -72,8 +74,20 @@ LIST_PAGE_CATALOG: dict[str, ListPageDefinition] = {
         "#justifications-table",
         "justification_create",
     ),
-    "plan_list": ListPageDefinition(
-        "Planos Financeiros", "plan_list", "#plans-table", "plan_create"
+    "contract_list": ListPageDefinition(
+        "Contratos Financeiros", "contract_list", "#contracts-table", "contract_create"
+    ),
+    "financial_template_list": ListPageDefinition(
+        "Modelos Financeiros",
+        "financial_template_list",
+        "#financial-templates-table",
+        "financial_template_create",
+    ),
+    "payment_queue": ListPageDefinition(
+        "Conciliações", "payment_queue", "#payments-table", "payment_create"
+    ),
+    "reminder_history": ListPageDefinition(
+        "Histórico de Lembretes", "reminder_history", "#reminders-table"
     ),
     "platform_school_list": ListPageDefinition(
         "Escolas",

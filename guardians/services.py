@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError
 from base.repositories import BaseRepository
-from base.services import BaseService
+from base.services import BaseService, service_command
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +140,7 @@ class GuardianService(BaseService):
         guardian = self.create_guardian(contact_data)
         return self.link_student(guardian.pk, student_id, link_data)
 
-    @transaction.atomic
+    @service_command
     def link_student(self, guardian_id, student_id, data: dict | None = None):
         """Vincula um aluno a um responsável com metadados (principal, guarda, etc.)."""
         if data is None:
@@ -200,6 +200,7 @@ class GuardianService(BaseService):
         self._log("Vinculo aluno-responsavel atualizado", link_id=str(link.pk))
         return link
 
+    @service_command
     def unlink_student(self, guardian_id, student_id):
         """Remove o vínculo entre responsável e aluno (soft-delete)."""
         from guardians.models import StudentGuardian

@@ -102,11 +102,11 @@ class DashboardSelector(BaseSelector):
             count += len(at_risk)
         return count
 
-    def get_financial_kpis(self) -> dict:
+    def get_financial_kpis(self, user=None) -> dict:
         """KPIs financeiros operacionais para o dashboard escolar."""
         from financeiro.selectors import BillingSelector
 
-        return BillingSelector().finance_kpis()
+        return BillingSelector(user=user).finance_kpis()
 
     def get_pending_activities(self, days: int = 3) -> list[dict]:
         """Atividades com entrega nos proximos N dias."""

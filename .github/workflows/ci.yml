@@ -40,6 +40,9 @@ jobs:
       - name: Check import contracts
         run: python scripts/check_import_contracts.py
 
+      - name: Check service command contracts
+        run: python scripts/check_service_contracts.py
+
       - name: Check canonical UI contracts
         run: python scripts/check_ui_contracts.py
 

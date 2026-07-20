@@ -2,7 +2,8 @@
 
 ## Status
 
-Aceito em 2026-07-17. Supera parcialmente a ADR-0008 quanto aos aspectos e opções fixos.
+Superado pela ADR-0017 em 2026-07-19. Os detalhes abaixo registram a decisão intermediária e não
+descrevem o contrato atual de dados.
 
 ## Contexto
 

@@ -35,6 +35,7 @@ A ordem abaixo e a referencia oficial para planejamento e execucao das Sprints.
 | **Sprint 18** | IA | Inteligência artificial para apoio pedagógico |
 | **Sprint 19** | Segurança e LGPD+ | Fortalecer proteção de dados, rastreabilidade e resposta a incidentes |
 | **Sprint 20** | Produção | Docker Swarm, hardening, performance e monitoramento |
+| **Sprint 21** | Rotina docente e agenda infantil | Completar chamadas, atividades coletivas e Agenda da Educação Infantil |
 
 ---
 
@@ -46,7 +47,8 @@ A ordem abaixo e a referencia oficial para planejamento e execucao das Sprints.
 | **Cadastro e Base Operacional** | 04, 05, 06, 07, 08, 09, 10 |
 | **Comunicacao e Visao Gerencial** | 11, 12, 13, 14 |
 | **Robustez e Expansao** | 15, 16, 17, 18, 19 |
-| **Entrega Final** | 20 |
+| **Entrega Operacional** | 20 |
+| **Evolução Funcional** | 21+ |
 
 ---
 
@@ -55,5 +57,6 @@ A ordem abaixo e a referencia oficial para planejamento e execucao das Sprints.
 - Toda Sprint deverá incluir observabilidade e auditoria no escopo de cada entrega.
 - Nenhuma Sprint poderá ser concluída sem passar pelo **Definition of Done**.
 - O backlog poderá ser ajustado, mas a ordem das Sprints 00 e 01 é imutável.
-- A Sprint 20 (Produção) deverá ocorrer apenas ao final, após validacao funcional e operacional completa.
+- A Sprint 20 concentra a preparação operacional para go-live; sprints funcionais posteriores
+  podem ser incorporadas sem significar que a publicação em produção já ocorreu.
 - As Sprints 11+ deverão ser priorizadas conforme impacto operacional, risco e esforço.

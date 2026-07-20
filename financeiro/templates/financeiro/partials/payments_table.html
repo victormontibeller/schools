@@ -1,0 +1,17 @@
+{% load ui_helpers %}
+{% can_access_action "finance_payments" "edit" as can_edit_payments %}
+{% can_access_action "finance_billings" "view" as can_view_billings %}
+<div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Fila de conciliações financeiras">
+<table class="table table-hover mb-0 sm-sticky-table sm-sticky-table--first-column">
+    <thead class="table-light"><tr><th>Pagamento</th><th aria-sort="{{ sorting.paid_date.aria_sort }}"><a href="?{{ sorting.paid_date.query }}" class="sm-sort-link{% if sorting.paid_date.active %} is-active{% endif %}" hx-get="?{{ sorting.paid_date.query }}" hx-target="#payments-table">Data</a></th><th>Alocações</th><th>Situação</th><th class="text-end" aria-sort="{{ sorting.amount.aria_sort }}"><a href="?{{ sorting.amount.query }}" class="sm-sort-link{% if sorting.amount.active %} is-active{% endif %}" hx-get="?{{ sorting.amount.query }}" hx-target="#payments-table">Valor</a></th><th>Ações</th></tr></thead>
+    <tbody>
+    {% for item in result.items %}<tr>
+        <td><a class="fw-semibold" href="{% url 'payment_detail' item.pk %}">{% if item.receipt_number %}{{ item.receipt_number }}{% else %}{{ item.pk|stringformat:"s"|slice:":8" }}{% endif %}</a></td>
+        <td>{{ item.paid_date|date:"d/m/Y" }}</td><td>{{ item.allocations.count }}</td>
+        <td><span class="badge bg-soft-secondary text-secondary">{{ item.get_status_display }}</span></td>
+        <td class="text-end">R$ {{ item.amount|floatformat:2 }}</td>
+        <td>{% if item.status == "PENDING" and can_edit_payments %}<form method="post" action="{% url 'payment_confirm' item.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-primary" type="submit">Confirmar</button></form>{% elif item.status == "CONFIRMED" and can_edit_payments %}<a class="btn btn-sm btn-outline-danger" href="{% url 'payment_reverse' item.pk %}">Estornar</a>{% elif item.status == "REVERSED" and can_view_billings %}<a class="btn btn-sm btn-light" href="{% url 'payment_receipt_pdf' item.pk %}">Recibo</a>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+    </tr>{% empty %}<tr><td colspan="6" class="text-center text-muted py-4">Nenhum pagamento nesta fila.</td></tr>{% endfor %}
+    </tbody>
+</table>
+</div>

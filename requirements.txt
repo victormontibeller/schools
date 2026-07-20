@@ -16,5 +16,6 @@ opentelemetry-exporter-otlp==1.29.0
 gunicorn==23.0.0
 django-axes==7.0.1
 pypdf==6.13.3
+reportlab==4.4.9
 resend==2.33.0
 svix==1.96.1

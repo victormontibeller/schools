@@ -1,0 +1,4 @@
+interface:
+  display_name: "School Manager — Proteger comando"
+  short_description: "Criar mutações autorizadas, atômicas e auditadas"
+  default_prompt: "Use $school-manager-secure-command para criar ou revisar uma mutação de domínio segura."

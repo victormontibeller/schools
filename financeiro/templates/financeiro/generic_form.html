@@ -1,0 +1,14 @@
+{% extends "page_shell_base.html" %}
+{% block title %}{{ title }} — School Manager{% endblock %}
+{% block page_heading %}{{ title }}{% endblock %}
+{% block page_breadcrumbs %}{% include "financeiro/partials/finance_breadcrumb.html" %}<li class="breadcrumb-item active">{{ title }}</li>{% endblock %}
+{% block page_content %}
+<div class="row justify-content-center"><div class="col-12 col-xl-8"><div class="card"><div class="card-body">
+<form method="post" novalidate>{% csrf_token %}
+    {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="row g-3">{% for field in form.visible_fields %}<div class="col-12 {% if field.field.widget.input_type != 'textarea' %}col-md-6{% endif %}"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}{% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>{% endfor %}</div>
+    <div class="d-flex justify-content-end gap-2 mt-4"><a class="btn btn-light" href="{% if cancel_url %}{% url cancel_url %}{% elif cancel_pk %}{% url 'financial_template_detail' cancel_pk %}{% else %}{% url 'finance_dashboard' %}{% endif %}">Cancelar</a><button class="btn btn-primary" type="submit">Salvar</button></div>
+</form>
+</div></div></div></div>
+{% endblock %}

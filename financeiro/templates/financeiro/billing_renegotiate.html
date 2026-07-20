@@ -1,7 +1,7 @@
 {% extends "form_base.html" %}
 
 {% block breadcrumb %}
-<li class="breadcrumb-item"><a href="{% url 'finance_dashboard' %}">Financeiro</a></li>
+{% include "financeiro/partials/finance_breadcrumb.html" %}
 <li class="breadcrumb-item"><a href="{% url 'billing_detail' billing.pk %}">{{ billing.description }}</a></li>
 {% endblock %}
 

@@ -54,12 +54,39 @@ class MyService(BaseService):
 
 ## Regras
 
+- Comandos com prefixos de `MUTATION_PREFIXES` recebem autorização e transação automaticamente
+- Comando de usuário fora desses prefixos usa `@service_command`
+- Comando interno ou webhook fora da matriz de usuários usa `@system_command`, com justificativa
+- Nunca combinar `@service_command` ou `@system_command` com `@transaction.atomic`
+- Nunca usar `@system_command` para contornar uma permissão de produto
 - **Nunca** raise `ValueError`, `Exception`, `Http404` — use as exceções de `base/exceptions.py`
+- Usar `PermissionDeniedError` somente para negação de autorização ou escopo de objeto
 - **Nunca** PII em `self._log()` (email, CPF, nome, telefone)
 - **Sempre** `self._record_audit()` em toda operação de escrita
 - **Sempre** setar `created_by=self.user` e `updated_by=self.user` no create
 - **Nunca** chamar `instance.delete()` — usar `instance.soft_delete(user=self.user)` ou `self._deactivate()`
 - **Nunca** lógica de negócio em views, forms ou tasks
+- Toda mutação pública deve passar em `python scripts/check_service_contracts.py`
+
+## Comandos com nome fora dos prefixos
+
+```python
+from base.services import BaseService, service_command, system_command
+
+
+class LinkService(BaseService):
+    @service_command
+    def link_student(self, guardian_id, student_id):
+        """Comando iniciado por usuário: autoriza e executa atomicamente."""
+        ...
+
+
+class WebhookService(BaseService):
+    @system_command
+    def process_event(self, payload):
+        """Comando interno: executa atomicamente sem usar a matriz do usuário."""
+        ...
+```
 
 ## Exceções disponíveis
 
@@ -68,6 +95,6 @@ from base.exceptions import (
     ValidationError,           # dados inválidos — raise ValidationError(errors={"campo": ["msg"]})
     ObjectNotFoundError,       # não encontrado — raise ObjectNotFoundError("ModelName", str(id))
     BusinessRuleViolationError,# regra violada — raise BusinessRuleViolationError("Mensagem.")
-    PermissionDeniedError,     # sem permissão
+    PermissionDeniedError,     # autorização negada ou objeto fora do escopo permitido
 )
 ```

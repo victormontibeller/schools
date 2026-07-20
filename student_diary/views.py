@@ -32,7 +32,7 @@ def _selected_date(raw: str | None) -> date:
     return timezone.localdate()
 
 
-def _attach_entry_forms(request, sheet, meal_types, *, bind: bool = False):
+def _attach_entry_forms(request, sheet, *, bind: bool = False):
     """Associa um formulário prefixado a cada linha da folha diária."""
     bound_data = request.POST if bind and request.method == "POST" else None
     for row in sheet["rows"]:
@@ -40,7 +40,7 @@ def _attach_entry_forms(request, sheet, meal_types, *, bind: bool = False):
             bound_data,
             prefix=f"student-{row['student'].pk}",
             categories=sheet["categories"],
-            meal_types=meal_types,
+            available_category_ids=sheet["available_category_ids"],
             initial_payload=row["initial_payload"],
         )
         row["form"] = form
@@ -65,9 +65,8 @@ def diary_daily(request):
         class_obj = selector.get_class(class_id)
         if not classes.filter(pk=class_obj.pk).exists():
             raise PermissionDeniedError("Turma fora do escopo do usuário.")
-        meal_types = StudentDiaryService.meals_for_shift(class_obj.shift)
-        sheet = selector.build_daily_sheet(class_obj.pk, diary_date, meal_types)
-        rows = _attach_entry_forms(request, sheet, meal_types, bind=request.method == "POST")
+        sheet = selector.build_daily_sheet(class_obj.pk, diary_date)
+        rows = _attach_entry_forms(request, sheet, bind=request.method == "POST")
         if request.method == "POST":
             if not can_edit:
                 raise PermissionDeniedError("Sem permissão para preencher a Agenda.")
@@ -85,8 +84,8 @@ def diary_daily(request):
                         return redirect(
                             f"{request.path}?class_id={class_obj.pk}&date={diary_date.isoformat()}"
                         )
-                    sheet = selector.build_daily_sheet(class_obj.pk, diary_date, meal_types)
-                    _attach_entry_forms(request, sheet, meal_types)
+                    sheet = selector.build_daily_sheet(class_obj.pk, diary_date)
+                    _attach_entry_forms(request, sheet)
                 except (ValidationError, BusinessRuleViolationError) as exc:
                     if request.headers.get("HX-Request"):
                         sheet["component_error"] = str(exc)
@@ -155,7 +154,8 @@ def diary_publication_detail(request, entry_id):
     if not selector.publication_enabled():
         raise PermissionDeniedError("Publicações da Agenda ainda não estão habilitadas.")
     entry = selector.get_published_entry_for_guardian(entry_id, request.user.pk)
-    return render(request, "student_diary/publication_detail.html", {"entry": entry})
+    context = {"entry": entry, **selector.split_answers_snapshot(entry)}
+    return render(request, "student_diary/publication_detail.html", context)
 
 
 @login_required

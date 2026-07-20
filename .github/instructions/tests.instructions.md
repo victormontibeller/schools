@@ -6,7 +6,7 @@ applyTo: "**/tests/**,**/tests.py"
 
 > Critérios de aceite estão em `docs/12_DEFINITION_OF_DONE.md`. Este arquivo cobre apenas convenções locais de testes.
 
-Framework: `pytest` + `pytest-django`. Cobertura mínima: **80%**.
+Framework: `pytest` + `pytest-django`. Cobertura mínima global: **85%**.
 
 ## Estrutura de um arquivo de teste
 

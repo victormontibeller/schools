@@ -25,6 +25,18 @@ def _labels(navigation):
     }
 
 
+FINANCE_ITEMS = [
+    "Visão Financeira",
+    "Modelos",
+    "Contratos",
+    "Cobranças",
+    "Baixas e Conciliações",
+    "Lembretes",
+    "Competência e Caixa",
+    "Inadimplência",
+]
+
+
 @pytest.mark.parametrize(
     ("role_name", "expected_groups"),
     [
@@ -51,8 +63,65 @@ def test_build_school_navigation_hides_unauthorized_items():
     assert labels == {
         "Acadêmico": ["Turmas"],
         "Secretaria": ["Alunos"],
-        "Financeiro": ["Visão Financeira"],
+        "Financeiro": FINANCE_ITEMS,
     }
+
+
+@pytest.mark.django_db
+def test_build_school_navigation_separates_calendar_management_capabilities(user):
+    from core.models import RoleModuleAccess
+
+    secretary = Role.objects.get(name=Role.Name.SECRETARY)
+    user.role = secretary
+    user.is_superuser = False
+    user.is_staff = False
+    user.save(update_fields=["role", "is_superuser", "is_staff"])
+    RoleModuleAccess.objects.filter(
+        role=secretary,
+        module_key__in=("academic_calendar", "academic_years"),
+    ).update(can_view=False, can_create=False, can_edit=False, can_deactivate=False)
+    RoleModuleAccess.objects.filter(role=secretary, module_key="holidays").update(
+        can_view=True,
+        can_create=False,
+        can_edit=False,
+        can_deactivate=False,
+    )
+
+    navigation = build_school_navigation(user, "holidays_list")
+    labels = _labels(navigation)
+
+    assert labels["Coordenação"] == ["Feriados"]
+    coordination = next(group for group in navigation["groups"] if group["label"] == "Coordenação")
+    assert coordination["expanded"] is True
+    assert coordination["items"][0]["active"] is True
+
+
+@pytest.mark.django_db
+def test_guardian_finance_links_follow_independent_capabilities(user):
+    from core.models import RoleModuleAccess
+
+    guardian = Role.objects.get(name=Role.Name.GUARDIAN)
+    user.role = guardian
+    user.is_superuser = False
+    user.is_staff = False
+    user.save(update_fields=["role", "is_superuser", "is_staff"])
+    RoleModuleAccess.objects.filter(
+        role=guardian,
+        module_key__in=("finance_overview", "finance_billings"),
+    ).update(can_view=False, can_create=False, can_edit=False, can_deactivate=False)
+    RoleModuleAccess.objects.filter(role=guardian, module_key="finance_overview").update(
+        can_view=True
+    )
+
+    labels = _labels(build_school_navigation(user, "finance_dashboard"))
+    assert labels["Acompanhamento"][-1:] == ["Visão Financeira"]
+
+    RoleModuleAccess.objects.filter(role=guardian, module_key="finance_billings").update(
+        can_view=True
+    )
+    del user._role_access_cache
+    labels = _labels(build_school_navigation(user, "billing_list"))
+    assert labels["Acompanhamento"][-2:] == ["Visão Financeira", "Cobranças"]
 
 
 @pytest.mark.parametrize(
@@ -75,10 +144,10 @@ def test_build_school_navigation_hides_unauthorized_items():
                     "Responsáveis",
                     "Matrículas",
                     "Salas",
-                    "Aspectos da rotina",
+                    "Itens da Agenda",
                 ],
                 "Coordenação": ["Calendário", "Feriados", "Anos Letivos", "Comunicados"],
-                "Financeiro": ["Visão Financeira"],
+                "Financeiro": FINANCE_ITEMS,
                 "Administração": ["Unidades", "Escola", "Usuários", "Acessos"],
             },
         ),
@@ -92,7 +161,7 @@ def test_build_school_navigation_hides_unauthorized_items():
                     "Responsáveis",
                     "Matrículas",
                     "Salas",
-                    "Aspectos da rotina",
+                    "Itens da Agenda",
                 ],
             },
         ),
@@ -111,7 +180,7 @@ def test_build_school_navigation_hides_unauthorized_items():
                     "Professores",
                     "Alunos",
                     "Responsáveis",
-                    "Aspectos da rotina",
+                    "Itens da Agenda",
                 ],
                 "Coordenação": ["Calendário", "Feriados", "Anos Letivos", "Comunicados"],
             },
@@ -153,16 +222,25 @@ def test_build_school_navigation_uses_exact_taxonomy(role_name, expected):
         ("teacher_edit", "Secretaria", "Professores"),
         ("student_guardian_link_edit", "Secretaria", "Alunos"),
         ("guardian_edit", "Secretaria", "Responsáveis"),
-        ("billing_detail", "Financeiro", "Visão Financeira"),
+        ("financial_template_detail", "Financeiro", "Modelos"),
+        ("contract_detail", "Financeiro", "Contratos"),
+        ("contract_materialize_billings", "Financeiro", "Cobranças"),
+        ("billing_detail", "Financeiro", "Cobranças"),
+        ("billing_register_payment", "Financeiro", "Baixas e Conciliações"),
+        ("payment_detail", "Financeiro", "Baixas e Conciliações"),
+        ("billing_send_reminder", "Financeiro", "Lembretes"),
+        ("finance_revenue_report", "Financeiro", "Competência e Caixa"),
+        ("finance_overdue_report", "Financeiro", "Inadimplência"),
+        ("payment_receipt_pdf", "Financeiro", "Cobranças"),
         ("attendance_record_fill", "Acadêmico", "Frequência"),
         ("event_detail", "Coordenação", "Calendário"),
         ("diary_daily", "Acadêmico", "Agenda"),
         ("rooms_list", "Secretaria", "Salas"),
         ("room_edit", "Secretaria", "Salas"),
-        ("diary_configuration", "Secretaria", "Aspectos da rotina"),
-        ("diary_aspect_detail", "Secretaria", "Aspectos da rotina"),
-        ("diary_aspect_toggle", "Secretaria", "Aspectos da rotina"),
-        ("diary_option_edit", "Secretaria", "Aspectos da rotina"),
+        ("diary_configuration", "Secretaria", "Itens da Agenda"),
+        ("diary_aspect_detail", "Secretaria", "Itens da Agenda"),
+        ("diary_aspect_toggle", "Secretaria", "Itens da Agenda"),
+        ("diary_option_edit", "Secretaria", "Itens da Agenda"),
         ("school_settings_edit", "Administração", "Escola"),
     ],
 )

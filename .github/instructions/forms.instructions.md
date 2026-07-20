@@ -50,6 +50,9 @@ class MyModelForm(forms.ModelForm):
 Usado quando o form não mapeia diretamente para um model (ex: criação com FK manual):
 
 ```python
+from collections.abc import Iterable
+
+
 class TeacherForm(forms.Form):
     """Formulário de criação de professor a partir de usuário existente."""
 
@@ -68,15 +71,18 @@ class TeacherForm(forms.Form):
         widget=forms.DateInput(attrs={"class": "form-control", "type": "date"}),
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(
+        self,
+        *args,
+        user_choices: Iterable[tuple[object, str]] = (),
+        **kwargs,
+    ) -> None:
         super().__init__(*args, **kwargs)
-        # Choices avaliados lazy — nunca no topo do módulo
-        from core.models import CustomUser
-        self.fields["user_id"].choices = [
-            (u.pk, u.get_full_name() or u.email)
-            for u in CustomUser.objects.filter(is_active=True).order_by("first_name")
-        ]
+        self.fields["user_id"].choices = list(user_choices)
 ```
+
+A view obtém `user_choices` por selector ou contrato público do domínio responsável e injeta as
+opções ao construir o form. O form não importa models estrangeiros nem executa ORM.
 
 ## Widgets por Tipo de Campo
 
@@ -116,5 +122,6 @@ def clean_registration_number(self):
 - **Sempre** `class="form-select"` nos widgets Select
 - **Sempre** `type="date"` em `DateInput` para ativar o date picker do browser
 - **Sempre** `rows=3` em Textarea (evita campo gigante)
-- Choices de FK: carregar no `__init__` (lazy), nunca no topo do módulo
+- Choices de FK: injetar no `__init__` a partir de selector ou contrato público chamado pela view;
+  nunca importar model estrangeiro nem executar ORM no form
 - Labels em português no `Meta.labels` ou no campo

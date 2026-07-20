@@ -53,13 +53,13 @@ core/           Configuração e modelos tenant-specific (Role, CustomUser, Busi
 accounts/       App de gestão de usuários
 audit/          App de auditoria
 templates/      Templates base e auth
-static/          Assets locais curados usados em produção
-design_system/  Pacote Duralux mantido somente como referência visual
+static/          Assets locais curados publicados diretamente
+design_system/  Fonte do tema Duralux; o CSS canônico participa do collectstatic
 docker/         Configs de Traefik, Prometheus, Grafana e Loki
 ```
 
-Somente `static/` participa de `collectstatic`. O conteúdo completo em `design_system/` não é
-publicado e serve como fonte de consulta para evoluções do tema.
+`static/` e `design_system/refs/duralux/css` participam de `collectstatic`. O restante de
+`design_system/` permanece apenas como referência visual e não é publicado.
 
 ## Documentação
 

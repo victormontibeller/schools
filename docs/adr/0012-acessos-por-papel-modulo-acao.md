@@ -22,6 +22,9 @@ segura por tenant e tratando todas as operações de um módulo como equivalente
 - Chaves desconhecidas são negadas. Novos módulos herdam defaults do departamento somente ao
   serem registrados; `post_migrate` cria ausências sem sobrescrever escolhas existentes.
 - Usuários, Escola, Unidades e a Central de Acessos permanecem exclusivamente administrativos.
+- Calendário e eventos permanecem em `academic_calendar`; Feriados e Anos Letivos possuem as
+  capacidades independentes `holidays` e `academic_years`, configuráveis para Secretaria,
+  Coordenação e Financeiro somente com visualizar, cadastrar e editar.
 - A Central apresenta módulos nas linhas e os cinco papéis configuráveis nas colunas. Cada célula
   envia um conjunto de ações e a matriz completa é validada e persistida em uma única transação.
 - `get_full_matrix()` e `update_access_matrix()` são as únicas interfaces públicas da Central;
@@ -35,4 +38,8 @@ Professor e Responsável continuam sujeitos aos filtros de objetos vinculados.
 
 O formulário envia a versão de cada papel. Todas são verificadas antes da primeira escrita, de
 modo que um conflito impede alterações parciais. Essa representação visual não altera o modelo
-persistido `RoleModuleAccess` nem introduz migrations adicionais.
+persistido `RoleModuleAccess` nem exige migração de schema.
+
+A separação posterior de Feriados e Anos Letivos não alterou o schema. Uma migração de dados
+criou somente os registros ausentes copiando as ações equivalentes de `academic_calendar`, sem
+copiar Desativar nem sobrescrever configurações já existentes.

@@ -1,92 +1,104 @@
-{% extends "base.html" %}
+{% extends "page_shell_base.html" %}
 {% load ui_helpers %}
-
 {% block title %}Financeiro — School Manager{% endblock %}
-
-{% block content %}
-{% can_access_action "financeiro" "create" as can_create_finance %}
-{% can_access_action "financeiro" "edit" as can_edit_finance %}
-<div class="page-header">
-    <div class="page-header-left d-flex align-items-center">
-        <div class="page-header-title"><h5 class="m-b-10">Financeiro</h5></div>
-        <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
-            <li class="breadcrumb-item active">Financeiro</li>
-        </ul>
-    </div>
-    <div class="page-header-right ms-auto">
-        <div class="d-flex align-items-center gap-2">
-            {% if can_edit_finance %}<a href="{% url 'bulk_generate_billings' %}" class="btn btn-outline-primary btn-sm">
-                <i class="feather-layers me-1"></i> Gerar Lote
-            </a>{% endif %}
-            {% if can_create_finance %}<a href="{% url 'plan_create' %}" class="btn btn-primary btn-sm">
-                <i class="feather-plus me-1"></i> NOVO
-            </a>{% endif %}
-        </div>
+{% block page_heading %}Financeiro{% endblock %}
+{% block page_breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+<li class="breadcrumb-item active">Financeiro</li>
+{% endblock %}
+{% block page_header_actions %}
+{% can_access_url "payment_create" as can_create_payment %}
+{% can_access_url "contract_create" as can_create_contract %}
+{% if can_create_payment or can_create_contract %}
+<div class="page-header-right ms-auto">
+    <div class="d-flex gap-2">
+        {% if can_create_payment %}
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'payment_create' %}">NOVA BAIXA</a>
+        {% endif %}
+        {% if can_create_contract %}
+        <a class="btn btn-sm btn-primary" href="{% url 'contract_create' %}">NOVO CONTRATO</a>
+        {% endif %}
     </div>
 </div>
-
-<div class="main-content">
-    <div class="row g-3">
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <span class="text-muted">Total em aberto</span>
-                    <h4 class="mb-0">R$ {{ kpis.total_aberto|floatformat:2 }}</h4>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <span class="text-muted">Total vencido</span>
-                    <h4 class="mb-0">R$ {{ kpis.total_vencido|floatformat:2 }}</h4>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <span class="text-muted">Recebido no mês</span>
-                    <h4 class="mb-0">R$ {{ kpis.recebido_mes|floatformat:2 }}</h4>
-                </div>
-            </div>
-        </div>
+{% endif %}
+{% endblock %}
+{% block page_content %}
+{% can_access_url "finance_revenue_report" as can_view_revenue %}
+{% can_access_url "payment_queue" as can_view_payments %}
+{% can_access_url "reminder_history" as can_view_reminders %}
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <span class="text-muted">Base: saldo atual por vencimento e caixa do mês corrente</span>
+    <span class="badge bg-soft-info text-info">Período visível</span>
+</div>
+<div class="row g-3">
+    <div class="col-6 col-xl-3">
+        <div class="card h-100"><div class="card-body">
+            <span class="text-muted">A vencer</span>
+            <h4 class="mb-0">R$ {{ kpis.total_aberto|floatformat:2 }}</h4>
+        </div></div>
     </div>
-
-    <div class="row g-3 mt-1">
-        <div class="col-md-6 col-xl-3">
-            <a href="{% url 'plan_list' %}" class="card text-decoration-none">
-                <div class="card-body d-flex align-items-center gap-3">
-                    <i class="feather-file-text text-primary"></i>
-                    <span class="fw-semibold text-dark">Planos financeiros</span>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-6 col-xl-3">
-            <a href="{% url 'billing_list' %}" class="card text-decoration-none">
-                <div class="card-body d-flex align-items-center gap-3">
-                    <i class="feather-credit-card text-primary"></i>
-                    <span class="fw-semibold text-dark">Cobranças</span>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-6 col-xl-3">
-            <a href="{% url 'finance_revenue_report' %}" class="card text-decoration-none">
-                <div class="card-body d-flex align-items-center gap-3">
-                    <i class="feather-bar-chart-2 text-primary"></i>
-                    <span class="fw-semibold text-dark">Receita</span>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-6 col-xl-3">
-            <a href="{% url 'finance_overdue_report' %}" class="card text-decoration-none">
-                <div class="card-body d-flex align-items-center gap-3">
-                    <i class="feather-alert-circle text-primary"></i>
-                    <span class="fw-semibold text-dark">Inadimplência</span>
-                </div>
-            </a>
-        </div>
+    <div class="col-6 col-xl-3">
+        <div class="card h-100"><div class="card-body">
+            <span class="text-muted">Vencido</span>
+            <h4 class="mb-0">R$ {{ kpis.total_vencido|floatformat:2 }}</h4>
+        </div></div>
     </div>
+    <div class="col-6 col-xl-3">
+        <div class="card h-100"><div class="card-body">
+            <span class="text-muted">Parciais</span>
+            <h4 class="mb-0">{{ kpis.partial_count }}</h4>
+        </div></div>
+    </div>
+    {% if can_view_revenue %}
+    <div class="col-6 col-xl-3">
+        <div class="card h-100"><div class="card-body">
+            <span class="text-muted">Caixa do mês</span>
+            <h4 class="mb-0">R$ {{ kpis.recebido_mes|floatformat:2 }}</h4>
+        </div></div>
+    </div>
+    {% endif %}
+    {% if can_view_payments %}
+    <div class="col-6 col-xl-3">
+        <div class="card h-100"><div class="card-body">
+            <span class="text-muted">Conciliações pendentes</span>
+            <h4 class="mb-0">{{ kpis.pending_reconciliation }}</h4>
+        </div></div>
+    </div>
+    {% endif %}
+    {% if can_view_reminders %}
+    <div class="col-6 col-xl-3">
+        <div class="card h-100"><div class="card-body">
+            <span class="text-muted">Lembretes com falha</span>
+            <h4 class="mb-0">{{ kpis.reminder_failures }}</h4>
+        </div></div>
+    </div>
+    {% endif %}
+</div>
+<div class="row g-3 mt-1">
+    {% can_access_url "billing_list" as can_view_billings %}
+    {% if can_view_billings %}
+    <div class="col-6 col-xl-3"><a href="{% url 'billing_list' %}" class="card h-100 text-decoration-none"><div class="card-body">Cobranças</div></a></div>
+    {% endif %}
+    {% can_access_url "contract_list" as can_view_contracts %}
+    {% if can_view_contracts %}
+    <div class="col-6 col-xl-3"><a href="{% url 'contract_list' %}" class="card h-100 text-decoration-none"><div class="card-body">Contratos</div></a></div>
+    {% endif %}
+    {% can_access_url "financial_template_list" as can_view_templates %}
+    {% if can_view_templates %}
+    <div class="col-6 col-xl-3"><a href="{% url 'financial_template_list' %}" class="card h-100 text-decoration-none"><div class="card-body">Modelos</div></a></div>
+    {% endif %}
+    {% if can_view_revenue %}
+    <div class="col-6 col-xl-3"><a href="{% url 'finance_revenue_report' %}" class="card h-100 text-decoration-none"><div class="card-body">Competência e caixa</div></a></div>
+    {% endif %}
+    {% can_access_url "finance_overdue_report" as can_view_overdue %}
+    {% if can_view_overdue %}
+    <div class="col-6 col-xl-3"><a href="{% url 'finance_overdue_report' %}" class="card h-100 text-decoration-none"><div class="card-body">Inadimplência</div></a></div>
+    {% endif %}
+    {% if can_view_payments %}
+    <div class="col-6 col-xl-3"><a href="{% url 'payment_queue' %}" class="card h-100 text-decoration-none"><div class="card-body">Baixas e conciliações</div></a></div>
+    {% endif %}
+    {% if can_view_reminders %}
+    <div class="col-6 col-xl-3"><a href="{% url 'reminder_history' %}" class="card h-100 text-decoration-none"><div class="card-body">Lembretes</div></a></div>
+    {% endif %}
 </div>
 {% endblock %}

@@ -23,6 +23,10 @@ Todo código deverá ser escrito como se fosse ser mantido por outra pessoa no f
 - Toda regra de negócio deverá residir na camada `services`.
 - Toda consulta complexa deverá residir na camada `selectors`.
 - Toda operação de escrita deverá passar por um `service`.
+- Comandos públicos usam os prefixos de `MUTATION_PREFIXES` ou declaração explícita:
+  `@service_command` para ações de usuário e `@system_command` somente para infraestrutura,
+  webhooks e orquestração interna. Ambos garantem atomicidade; o primeiro também aplica a matriz
+  de autorização.
 - O princípio **DRY** deverá ser aplicado: nenhum trecho de lógica poderá ser duplicado.
 - Os princípios **SOLID** deverão guiar toda decisão de design.
 - Escritas concorrentes usam a versão apresentada pelo cliente e update condicionado à versão
@@ -31,7 +35,7 @@ Todo código deverá ser escrito como se fosse ser mantido por outra pessoa no f
   da mesma transação da auditoria quando há invariantes agregadas.
 - Dependências entre domínios usam `contracts.py`, selectors ou services públicos. O checker do
   CI é absoluto: não admite imports de modelos estrangeiros, ORM em views, SQL direto, dependência
-  de `base` para apps nem módulos produtivos acima de 400 linhas.
+  de `base` para apps, comandos de escrita sem contrato nem módulos produtivos acima de 400 linhas.
 - Publicações Celery decorrentes de uma escrita usam `transaction.on_commit()`. Rollback não pode
   publicar tarefas; indisponibilidade do broker após o commit é registrada sem desfazer os dados.
 

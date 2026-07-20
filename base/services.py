@@ -7,8 +7,9 @@ e apenas avisando em prod, para evitar derrubar serviços por log ruidoso.
 """
 
 import logging
+from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
 from base import context
 
@@ -16,6 +17,48 @@ if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractBaseUser
 
 logger = logging.getLogger(__name__)
+CommandCallable = TypeVar("CommandCallable", bound=Callable)
+
+MUTATION_PREFIXES = (
+    "create_",
+    "update_",
+    "deactivate_",
+    "restore_",
+    "change_",
+    "assign_",
+    "remove_",
+    "enroll_",
+    "transfer_",
+    "record_",
+    "cancel_",
+    "approve_",
+    "reject_",
+    "submit_",
+    "complete_",
+    "add_",
+    "mark_",
+    "send_",
+    "generate_",
+    "register_",
+    "apply_",
+    "reconcile_",
+    "consume_",
+    "expire_",
+    "open_",
+    "batch_",
+    "unenroll_",
+    "request_",
+    "refresh_",
+    "set_",
+    "save_",
+    "renegotiate_",
+    "suspend_",
+    "activate_",
+    "verify_",
+    "bulk_",
+    "import_",
+    "log_",
+)
 
 # Chaves de `extra` que NUNCA devem carregar PII — ver docs/04_SECURITY.md §39.
 _PII_KEYS: frozenset[str] = frozenset(
@@ -38,6 +81,42 @@ _PII_KEYS: frozenset[str] = frozenset(
 def _check_no_pii(extra: dict) -> list[str]:
     """Retorna lista de chaves de `extra` que parecem PII (vazão potencia)."""
     return [k for k in extra if k in _PII_KEYS or "email" in k.lower() or "password" in k.lower()]
+
+
+def service_command(method: CommandCallable) -> CommandCallable:
+    """Declara um comando de usuário autorizado e transacional."""
+    from django.db import transaction
+
+    if getattr(method, "_base_service_atomic", False):
+        return method
+
+    @wraps(method)
+    def authorized(self, *args, **kwargs):
+        from base.exceptions import PermissionDeniedError
+        from base.ports import can_execute
+
+        app_label = type(self).__module__.split(".", maxsplit=1)[0]
+        if not can_execute(self.user, app_label, method.__name__, type(self).__name__):
+            raise PermissionDeniedError("Sem permissão para executar esta operação.")
+        return method(self, *args, **kwargs)
+
+    wrapped = transaction.atomic(authorized)
+    wrapped._base_service_atomic = True
+    wrapped._service_command_kind = "user"
+    return wrapped
+
+
+def system_command(method: CommandCallable) -> CommandCallable:
+    """Declara um comando interno transacional sem autorização de usuário."""
+    from django.db import transaction
+
+    if getattr(method, "_base_service_atomic", False):
+        return method
+
+    wrapped = transaction.atomic(method)
+    wrapped._base_service_atomic = True
+    wrapped._service_command_kind = "system"
+    return wrapped
 
 
 class BaseService:
@@ -209,51 +288,11 @@ class BaseService:
             )
         )
 
-    _MUTATION_PREFIXES = (
-        "create_",
-        "update_",
-        "deactivate_",
-        "restore_",
-        "change_",
-        "assign_",
-        "remove_",
-        "enroll_",
-        "transfer_",
-        "record_",
-        "cancel_",
-        "approve_",
-        "reject_",
-        "submit_",
-        "complete_",
-        "add_",
-        "mark_",
-        "send_",
-        "generate_",
-        "register_",
-        "apply_",
-        "reconcile_",
-        "consume_",
-        "expire_",
-        "open_",
-        "batch_",
-        "unenroll_",
-        "request_",
-        "refresh_",
-        "set_",
-        "save_",
-        "renegotiate_",
-        "suspend_",
-        "activate_",
-        "verify_",
-        "bulk_",
-        "import_",
-        "log_",
-    )
+    _MUTATION_PREFIXES = MUTATION_PREFIXES
 
     def __init_subclass__(cls, **kwargs) -> None:
-        """Envolve automaticamente comandos públicos em transação atômica."""
+        """Declara comandos legados por prefixo como autorizados e atômicos."""
         super().__init_subclass__(**kwargs)
-        from django.db import transaction
 
         methods = dict(cls.__dict__)
         for base_class in cls.__mro__[1:]:
@@ -265,17 +304,4 @@ class BaseService:
                 continue
             if getattr(method, "_base_service_atomic", False):
                 continue
-            app_label = cls.__module__.split(".", maxsplit=1)[0]
-
-            @wraps(method)
-            def authorized(self, *args, __method=method, __name=name, __app=app_label, **kwargs):
-                from base.exceptions import PermissionDeniedError
-                from base.ports import can_execute
-
-                if not can_execute(self.user, __app, __name, type(self).__name__):
-                    raise PermissionDeniedError("Sem permissão para executar esta operação.")
-                return __method(self, *args, **kwargs)
-
-            wrapped = transaction.atomic(authorized)
-            wrapped._base_service_atomic = True
-            setattr(cls, name, wrapped)
+            setattr(cls, name, service_command(method))

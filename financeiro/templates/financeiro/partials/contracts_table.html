@@ -1,0 +1,48 @@
+<div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Lista de {{ list_page.title }}">
+<table class="table table-hover mb-0 sm-sticky-table sm-sticky-table--first-column">
+    <thead class="table-light">
+        <tr>
+            <th aria-sort="{{ sorting.name.aria_sort }}"><a href="?{{ sorting.name.query }}" class="sm-sort-link{% if sorting.name.active %} is-active{% endif %}" hx-get="?{{ sorting.name.query }}" hx-target="#contracts-table">Contrato</a></th>
+            <th>Aluno</th>
+            <th>Turma</th>
+            <th aria-sort="{{ sorting.academic_year.aria_sort }}"><a href="?{{ sorting.academic_year.query }}" class="sm-sort-link{% if sorting.academic_year.active %} is-active{% endif %}" hx-get="?{{ sorting.academic_year.query }}" hx-target="#contracts-table">Ano</a></th>
+            <th>Situação</th>
+            <th>Parcela</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for contract in result.items %}
+        <tr>
+            <td><a href="{% url 'contract_detail' contract.pk %}" class="fw-semibold">{{ contract.name }}</a></td>
+            <td>{{ contract.student }}</td>
+            <td>{{ contract.class_obj|default:"—" }}</td>
+            <td>{{ contract.academic_year }}</td>
+            <td><span class="badge bg-soft-secondary text-secondary">{{ contract.get_status_display }}</span></td>
+            <td>R$ {{ contract.installment_value|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-muted py-4">Nenhum contrato financeiro encontrado.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+{% if result.total_pages > 1 %}
+<div class="d-flex justify-content-center py-3">
+    <nav>
+        <ul class="pagination pagination-sm mb-0">
+            {% if result.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ result.page|add:'-1' }}{% if q %}&q={{ q }}{% endif %}{% if status %}&status={{ status }}{% endif %}" hx-get="?page={{ result.page|add:'-1' }}{% if q %}&q={{ q }}{% endif %}{% if status %}&status={{ status }}{% endif %}" hx-target="#contracts-table" hx-swap="innerHTML">«</a>
+            </li>
+            {% endif %}
+            <li class="page-item active"><span class="page-link">{{ result.page }} / {{ result.total_pages }}</span></li>
+            {% if result.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ result.page|add:'1' }}{% if q %}&q={{ q }}{% endif %}{% if status %}&status={{ status }}{% endif %}" hx-get="?page={{ result.page|add:'1' }}{% if q %}&q={{ q }}{% endif %}{% if status %}&status={{ status }}{% endif %}" hx-target="#contracts-table" hx-swap="innerHTML">»</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endif %}

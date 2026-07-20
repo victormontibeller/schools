@@ -1,0 +1,8 @@
+{% extends "form_base.html" %}
+
+{% block breadcrumb %}
+{% include "financeiro/partials/finance_breadcrumb.html" %}
+<li class="breadcrumb-item"><a href="{% url 'contract_list' %}">Contratos</a></li>
+{% endblock %}
+
+{% block cancel_url %}{% url 'contract_list' %}{% endblock %}

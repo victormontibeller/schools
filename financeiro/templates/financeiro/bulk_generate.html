@@ -1,9 +1,9 @@
 {% extends "form_base.html" %}
 
 {% block breadcrumb %}
-<li class="breadcrumb-item"><a href="{% url 'finance_dashboard' %}">Financeiro</a></li>
+{% include "financeiro/partials/finance_breadcrumb.html" %}
 <li class="breadcrumb-item"><a href="{% url 'billing_list' %}">Cobranças</a></li>
 {% endblock %}
 
-{% block cancel_url %}{% url 'finance_dashboard' %}{% endblock %}
+{% block cancel_url %}{% url 'billing_list' %}{% endblock %}
 {% block submit_label %}Gerar{% endblock %}

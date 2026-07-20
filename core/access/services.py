@@ -16,6 +16,7 @@ from core.access_catalog import (
     MODULES,
     MODULES_BY_KEY,
     VIEW,
+    allowed_actions,
     default_actions,
 )
 
@@ -119,7 +120,7 @@ class AccessConfigurationService(BaseService):
         for module_key, submitted in access_matrix.items():
             module = MODULES_BY_KEY[module_key]
             selected = set(submitted)
-            if selected - module.supported_actions:
+            if selected - allowed_actions(module, role_name):
                 raise ValidationError(errors={"access": ["Ação não suportada pelo módulo."]})
             if selected - {VIEW}:
                 selected.add(VIEW)

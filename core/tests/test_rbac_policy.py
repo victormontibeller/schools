@@ -7,6 +7,7 @@ import pytest
 from django.urls import reverse
 
 from base import context
+from core.access_catalog import DEACTIVATE, EDIT, action_for_operation
 from core.permissions import (
     can_access_module,
     can_configure_student_diary,
@@ -44,6 +45,29 @@ def test_each_restricted_role_receives_403_outside_module(client, role_name, den
     user = _role_user(role_name, f"{role_name.lower()}@roles.test")
     client.force_login(user)
     assert client.get(reverse(denied_url)).status_code == 403
+
+
+@pytest.mark.django_db
+def test_finance_overview_does_not_grant_other_finance_processes(client):
+    from core.models import RoleModuleAccess
+
+    secretary = _role_user("SECRETARY", "finance-overview-only@roles.test")
+    RoleModuleAccess.objects.filter(role=secretary.role, module_key="finance_overview").update(
+        can_view=True
+    )
+    client.force_login(secretary)
+
+    assert client.get(reverse("finance_dashboard")).status_code == 200
+    for route_name in (
+        "financial_template_list",
+        "contract_list",
+        "billing_list",
+        "payment_queue",
+        "reminder_history",
+        "finance_revenue_report",
+        "finance_overdue_report",
+    ):
+        assert client.get(reverse(route_name)).status_code == 403
 
 
 @pytest.mark.django_db
@@ -130,8 +154,8 @@ def test_admin_has_unrestricted_access_only_inside_school_tenant():
     tenant_token = context.current_tenant.set("school_demo")
     try:
         assert has_unrestricted_tenant_access(admin)
-        assert can_access_module(admin, "financeiro")
-        assert can_execute_service(admin, "financeiro", "create_charge")
+        assert can_access_module(admin, "finance_overview")
+        assert can_execute_service(admin, "financeiro", "create_contract", "FinanceService")
     finally:
         context.current_tenant.reset(tenant_token)
 
@@ -150,5 +174,20 @@ def test_anonymous_and_demo_policies_deny_privileged_operations():
         access_mode="DEMO",
         role=SimpleNamespace(name="TEACHER"),
     )
-    assert can_execute_service(demo_teacher, "financeiro", "create_plan") is False
+    assert (
+        can_execute_service(demo_teacher, "financeiro", "create_contract", "FinanceService")
+        is False
+    )
     assert can_execute_service(demo_teacher, "accounts", "change_password") is True
+
+
+@pytest.mark.parametrize(
+    ("method_name", "expected_action"),
+    [
+        ("link_student", EDIT),
+        ("unlink_student", DEACTIVATE),
+        ("reconcile", EDIT),
+    ],
+)
+def test_explicit_service_commands_preserve_action_mapping(method_name, expected_action):
+    assert action_for_operation(method_name) == expected_action

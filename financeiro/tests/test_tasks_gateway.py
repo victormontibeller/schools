@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from financeiro.gateway import GatewayChargeResult, ManualGateway, get_payment_gateway
-from financeiro.tasks import charge_via_gateway_task, refresh_overdue_task
+from financeiro.tasks import charge_via_gateway_task
 
 
 def test_manual_gateway_implements_complete_contract():
@@ -23,16 +23,6 @@ def test_manual_gateway_implements_complete_contract():
     assert created == GatewayChargeResult(success=True, external_id="manual-billing-1")
     assert gateway.check_status(created.external_id) == "PENDING"
     assert gateway.cancel_charge(created.external_id).success is True
-
-
-def test_refresh_overdue_task_delegates_inside_received_schema():
-    service = Mock()
-    service.refresh_overdue_status.return_value = 3
-    with patch("financeiro.services.FinanceService", return_value=service):
-        result = refresh_overdue_task.run("public")
-
-    assert result == 3
-    service.refresh_overdue_status.assert_called_once_with()
 
 
 def test_charge_gateway_task_returns_external_id_and_handles_failure():

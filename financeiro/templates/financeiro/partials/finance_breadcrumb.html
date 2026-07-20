@@ -1,0 +1,5 @@
+{% load ui_helpers %}
+{% can_access_url "finance_dashboard" as can_view_finance_overview %}
+<li class="breadcrumb-item{% if not can_view_finance_overview %} active{% endif %}">
+    {% if can_view_finance_overview %}<a href="{% url 'finance_dashboard' %}">Financeiro</a>{% else %}Financeiro{% endif %}
+</li>

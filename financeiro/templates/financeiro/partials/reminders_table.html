@@ -1,0 +1,12 @@
+{% load ui_helpers %}
+{% can_access_action "finance_billings" "view" as can_view_billings %}
+<div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Histórico de lembretes financeiros">
+<table class="table table-hover mb-0 sm-sticky-table sm-sticky-table--first-column">
+    <thead class="table-light"><tr><th>Cobrança</th><th aria-sort="{{ sorting.scheduled_for.aria_sort }}"><a href="?{{ sorting.scheduled_for.query }}" class="sm-sort-link{% if sorting.scheduled_for.active %} is-active{% endif %}" hx-get="?{{ sorting.scheduled_for.query }}" hx-target="#reminders-table">Data</a></th><th>Regra</th><th>Canal</th><th aria-sort="{{ sorting.status.aria_sort }}"><a href="?{{ sorting.status.query }}" class="sm-sort-link{% if sorting.status.active %} is-active{% endif %}" hx-get="?{{ sorting.status.query }}" hx-target="#reminders-table">Situação</a></th></tr></thead>
+    <tbody>{% for item in result.items %}<tr>
+        <td>{% if can_view_billings %}<a class="fw-semibold" href="{% url 'billing_detail' item.billing_id %}">{{ item.billing.description }}</a>{% else %}{{ item.billing.description }}{% endif %}</td>
+        <td>{{ item.scheduled_for|date:"d/m/Y" }}</td><td>{{ item.rule_offset_days }} dia(s)</td><td>{{ item.channel }}</td>
+        <td><span class="badge bg-soft-secondary text-secondary">{{ item.get_status_display }}</span></td>
+    </tr>{% empty %}<tr><td colspan="5" class="text-center text-muted py-4">Nenhum lembrete registrado.</td></tr>{% endfor %}</tbody>
+</table>
+</div>

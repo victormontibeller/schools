@@ -1,29 +1,26 @@
-"""Modelos do modulo de Financeiro Escolar.
+"""Entidades centrais de contratos, cobranças e pagamentos financeiros."""
 
-Encadeamento: FinancialPlan -> BillingEntry -> PaymentRecord.
-- FinancialPlan: plano de cobranca por aluno/turma para um ano letivo.
-- BillingEntry: cada parcela/mensalidade gerada a partir de um plano.
-- PaymentRecord: baixa de pagamento (parcial ou total) sobre uma cobranca.
-"""
+from __future__ import annotations
 
-from django.conf import settings
+from datetime import date
+from decimal import Decimal
+
 from django.db import models
 
 from base.models import BaseModel
 
+ZERO = Decimal("0.00")
 
-class FinancialPlan(BaseModel):
-    """Plano financeiro de um aluno para um ano letivo.
 
-    Agrupa a configuracao de mensalidades, descontos e politicas de multa/juros
-    que geram cobrancas (BillingEntry) ao longo do ano.
-    """
+class StudentFinancialContract(BaseModel):
+    """Contrato financeiro individual de um aluno para um ano letivo."""
 
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Rascunho"
         ACTIVE = "ACTIVE", "Ativo"
         SUSPENDED = "SUSPENDED", "Suspenso"
         CLOSED = "CLOSED", "Encerrado"
+        CANCELLED = "CANCELLED", "Cancelado"
 
     class BillingFrequency(models.TextChoices):
         MONTHLY = "MONTHLY", "Mensal"
@@ -31,70 +28,82 @@ class FinancialPlan(BaseModel):
         QUARTERLY = "QUARTERLY", "Trimestral"
         ANNUAL = "ANNUAL", "Anual"
 
+    template = models.ForeignKey(
+        "financeiro.FinancialPlanTemplate",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="contracts",
+        verbose_name="Modelo de Plano",
+    )
     student = models.ForeignKey(
         "students.Student",
-        on_delete=models.CASCADE,  # CASCADE: sem aluno, o plano financeiro perde sentido.
-        related_name="financial_plans",
+        on_delete=models.CASCADE,  # Sem aluno, o contrato perde o objeto de cobrança.
+        related_name="financial_contracts",
         verbose_name="Aluno",
     )
     class_obj = models.ForeignKey(
         "classes.Class",
         null=True,
         blank=True,
-        on_delete=models.CASCADE,  # CASCADE: plano de turma acompanha a turma removida.
-        related_name="financial_plans",
+        on_delete=models.CASCADE,  # A referência escolar acompanha a turma do contrato.
+        related_name="financial_contracts",
         verbose_name="Turma",
     )
     academic_year = models.PositiveIntegerField(verbose_name="Ano Letivo")
-    name = models.CharField(max_length=200, verbose_name="Nome do Plano")
+    name = models.CharField(max_length=200, verbose_name="Nome do Contrato")
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
         default=Status.DRAFT,
-        verbose_name="Situacao",
+        verbose_name="Situação",
     )
     billing_frequency = models.CharField(
         max_length=20,
         choices=BillingFrequency.choices,
         default=BillingFrequency.MONTHLY,
-        verbose_name="Frequencia de Cobranca",
+        verbose_name="Frequência de Cobrança",
     )
-    installment_count = models.PositiveIntegerField(verbose_name="Numero de Parcelas")
+    installment_count = models.PositiveIntegerField(verbose_name="Número de Parcelas")
     installment_value = models.DecimalField(
         max_digits=10, decimal_places=2, verbose_name="Valor da Parcela"
     )
     due_day = models.PositiveSmallIntegerField(
         verbose_name="Dia de Vencimento",
-        help_text="Dia do mes para vencimento padrao das parcelas (1-28).",
+        help_text="Dia do mês para vencimento das parcelas (1-28).",
     )
     discount_value = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        default=0,
-        verbose_name="Valor de Desconto por Parcela",
+        default=ZERO,
+        verbose_name="Desconto por Parcela",
     )
     late_fee_percent = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=0,
+        default=ZERO,
         verbose_name="Multa por Atraso (%)",
     )
     daily_interest_percent = models.DecimalField(
         max_digits=6,
         decimal_places=4,
-        default=0,
-        verbose_name="Juros Diarios (%)",
+        default=ZERO,
+        verbose_name="Juros Diários (%)",
     )
-    notes = models.TextField(blank=True, default="", verbose_name="Observacoes")
+    start_competency = models.DateField(null=True, blank=True, verbose_name="Competência Inicial")
+    end_competency = models.DateField(null=True, blank=True, verbose_name="Competência Final")
+    terms_revision = models.PositiveIntegerField(default=1, verbose_name="Revisão dos Termos")
+    notes = models.TextField(blank=True, default="", verbose_name="Observações")
 
     class Meta:
         ordering = ["-academic_year", "name"]
-        verbose_name = "Plano Financeiro"
-        verbose_name_plural = "Planos Financeiros"
+        verbose_name = "Contrato Financeiro"
+        verbose_name_plural = "Contratos Financeiros"
         indexes = [
             models.Index(fields=["status"]),
             models.Index(fields=["academic_year"]),
             models.Index(fields=["class_obj", "academic_year"]),
+            models.Index(fields=["student", "academic_year"]),
         ]
         constraints = [
             models.UniqueConstraint(
@@ -102,185 +111,203 @@ class FinancialPlan(BaseModel):
                 condition=models.Q(
                     is_active=True,
                     deleted_at__isnull=True,
-                    status__in=["DRAFT", "ACTIVE"],
+                    status__in=["DRAFT", "ACTIVE", "SUSPENDED"],
                 ),
-                name="uniq_active_financial_plan_per_student_year",
+                name="uniq_current_financial_contract_student_year",
             )
         ]
 
     def __str__(self) -> str:
-        return f"{self.name} — {self.student} ({self.academic_year})"
+        return f"{self.name} - {self.student} ({self.academic_year})"
 
 
 class BillingEntry(BaseModel):
-    """Cobranca individual gerada a partir de um plano financeiro.
-
-    Status: aberto, pago, vencido, cancelado. O estado 'pago' e derivado
-    quando o total pago cobre o valor; 'vencido' e derivado da data de
-    vencimento + ausencia de quitacao.
-    """
+    """Título a receber originado de contrato ou lançamento avulso."""
 
     class Status(models.TextChoices):
-        OPEN = "OPEN", "Aberto"
-        PAID = "PAID", "Pago"
-        OVERDUE = "OVERDUE", "Vencido"
-        CANCELLED = "CANCELLED", "Cancelado"
+        ACTIVE = "ACTIVE", "Ativa"
+        CANCELLED = "CANCELLED", "Cancelada"
 
-    plan = models.ForeignKey(
-        FinancialPlan,
-        on_delete=models.CASCADE,  # CASCADE: cobrança é derivada do plano.
+    class Category(models.TextChoices):
+        TUITION = "TUITION", "Mensalidade"
+        FEE = "FEE", "Taxa"
+        MATERIAL = "MATERIAL", "Material"
+        ADJUSTMENT = "ADJUSTMENT", "Ajuste"
+
+    contract = models.ForeignKey(
+        StudentFinancialContract,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,  # Títulos contratuais acompanham seu contrato.
         related_name="billings",
-        verbose_name="Plano",
+        verbose_name="Contrato",
+    )
+    amendment = models.ForeignKey(
+        "financeiro.FinancialContractAmendment",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="generated_billings",
+        verbose_name="Aditivo",
     )
     student = models.ForeignKey(
         "students.Student",
-        on_delete=models.CASCADE,  # CASCADE: cobrança não existe sem aluno.
+        on_delete=models.CASCADE,  # O título não existe sem seu devedor escolar.
         related_name="billings",
         verbose_name="Aluno",
     )
-    installment_number = models.PositiveSmallIntegerField(verbose_name="Parcela")
-    description = models.CharField(max_length=200, verbose_name="Descricao")
-    original_value = models.DecimalField(
-        max_digits=10, decimal_places=2, verbose_name="Valor Original"
+    installment_number = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name="Parcela"
     )
+    schedule_revision = models.PositiveIntegerField(default=1, verbose_name="Revisão da Agenda")
+    category = models.CharField(
+        max_length=20,
+        choices=Category.choices,
+        default=Category.TUITION,
+        verbose_name="Categoria",
+    )
+    description = models.CharField(max_length=200, verbose_name="Descrição")
+    principal_value = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Principal")
     discount_value = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=0,
-        verbose_name="Desconto Aplicado",
+        max_digits=10, decimal_places=2, default=ZERO, verbose_name="Desconto"
+    )
+    late_fee_value = models.DecimalField(
+        max_digits=10, decimal_places=2, default=ZERO, verbose_name="Multa"
+    )
+    interest_value = models.DecimalField(
+        max_digits=10, decimal_places=2, default=ZERO, verbose_name="Juros"
     )
     paid_value = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=0,
-        verbose_name="Valor Pago",
+        max_digits=10, decimal_places=2, default=ZERO, verbose_name="Total Pago"
     )
+    paid_principal_value = models.DecimalField(
+        max_digits=10, decimal_places=2, default=ZERO, verbose_name="Principal Pago"
+    )
+    paid_late_fee_value = models.DecimalField(
+        max_digits=10, decimal_places=2, default=ZERO, verbose_name="Multa Paga"
+    )
+    paid_interest_value = models.DecimalField(
+        max_digits=10, decimal_places=2, default=ZERO, verbose_name="Juros Pagos"
+    )
+    competency = models.DateField(null=True, blank=True, verbose_name="Competência")
     due_date = models.DateField(verbose_name="Vencimento")
+    interest_calculated_until = models.DateField(
+        null=True, blank=True, verbose_name="Juros Calculados Até"
+    )
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
-        default=Status.OPEN,
-        verbose_name="Situacao",
+        default=Status.ACTIVE,
+        verbose_name="Situação",
     )
-    cancelled_reason = models.TextField(
-        blank=True, default="", verbose_name="Motivo de Cancelamento"
-    )
+    cancelled_reason = models.TextField(blank=True, default="", verbose_name="Motivo")
     renegotiated_from = models.ForeignKey(
         "self",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
         related_name="renegotiated_to",
-        verbose_name="Originada por Renegociacao",
+        verbose_name="Originada por Renegociação",
     )
-    notes = models.TextField(blank=True, default="", verbose_name="Observacoes")
+    notes = models.TextField(blank=True, default="", verbose_name="Observações Internas")
 
     class Meta:
         ordering = ["due_date", "installment_number"]
-        verbose_name = "Cobranca"
-        verbose_name_plural = "Cobrancas"
-        unique_together = [("plan", "installment_number")]
+        verbose_name = "Cobrança"
+        verbose_name_plural = "Cobranças"
         indexes = [
             models.Index(fields=["status"]),
             models.Index(fields=["due_date"]),
+            models.Index(fields=["competency"]),
             models.Index(fields=["student", "status"]),
+            models.Index(fields=["contract", "installment_number"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["contract", "installment_number", "schedule_revision"],
+                condition=models.Q(contract__isnull=False),
+                name="uniq_contract_installment_revision",
+            )
         ]
 
     def __str__(self) -> str:
-        return f"{self.description} — {self.student} ({self.get_status_display()})"
+        return f"{self.description} - {self.student}"
 
     @property
-    def outstanding_value(self):
-        """Saldo devedor apos desconto e pagamentos."""
-        return max(self.net_value - self.paid_value, 0)
+    def contractual_value(self) -> Decimal:
+        """Valor principal líquido do desconto contratual."""
+        return max((self.principal_value or ZERO) - (self.discount_value or ZERO), ZERO)
 
     @property
-    def net_value(self):
-        """Valor liquido apos desconto."""
-        return self.original_value - self.discount_value
+    def net_value(self) -> Decimal:
+        """Total devido já acrescido dos encargos efetivamente apurados."""
+        return (
+            self.contractual_value + (self.late_fee_value or ZERO) + (self.interest_value or ZERO)
+        )
+
+    @property
+    def outstanding_value(self) -> Decimal:
+        """Saldo total após pagamentos confirmados."""
+        return max(self.net_value - (self.paid_value or ZERO), ZERO)
 
     @property
     def is_settled(self) -> bool:
-        """Indica se a cobranca esta quitada (saldo devedor zero)."""
-        return self.outstanding_value == 0
+        return self.outstanding_value == ZERO
 
-    def computed_status(self, *, reference_date=None):
-        """Deriva o status a partir dos pagamentos e da data de vencimento.
-
-        Mantido como funcao pura para uso no service sem acoplar save.
-        """
-        from datetime import date
-
-        reference = reference_date or date.today()
-        if self.status == BillingEntry.Status.CANCELLED:
-            return BillingEntry.Status.CANCELLED
+    @property
+    def settlement_status(self) -> str:
         if self.is_settled:
-            return BillingEntry.Status.PAID
-        return (
-            BillingEntry.Status.OVERDUE if self.due_date < reference else BillingEntry.Status.OPEN
-        )
+            return "PAID"
+        if (self.paid_value or ZERO) > ZERO:
+            return "PARTIAL"
+        return "UNPAID"
+
+    @property
+    def settlement_status_label(self) -> str:
+        return {
+            "PAID": "Paga",
+            "PARTIAL": "Parcial",
+            "UNPAID": "Não paga",
+        }[self.settlement_status]
+
+    def due_status(self, *, reference_date: date | None = None) -> str:
+        reference = reference_date or date.today()
+        if self.is_settled or self.status == self.Status.CANCELLED:
+            return "CLOSED"
+        if self.due_date < reference:
+            return "OVERDUE"
+        if self.due_date == reference:
+            return "DUE"
+        return "UPCOMING"
+
+    @property
+    def due_status_label(self) -> str:
+        return {
+            "CLOSED": "Encerrada",
+            "OVERDUE": "Vencida",
+            "DUE": "Vence hoje",
+            "UPCOMING": "A vencer",
+        }[self.due_status()]
 
 
-class PaymentRecord(BaseModel):
-    """Registro de pagamento efetuado sobre uma cobranca (baixa)."""
+from financeiro.receivables_models import (  # noqa: E402,F401
+    CollectionReminder,
+    CollectionReminderPolicy,
+    FinancialContractAmendment,
+    FinancialPlanTemplate,
+    FinancialSequence,
+    PaymentAllocation,
+    PaymentRecord,
+)
 
-    class ReconciliationStatus(models.TextChoices):
-        PENDING = "PENDING", "Pendente"
-        CONFIRMED = "CONFIRMED", "Conciliado"
-        REJECTED = "REJECTED", "Estornado"
-
-    class PaymentMethod(models.TextChoices):
-        CASH = "CASH", "Dinheiro"
-        PIX = "PIX", "PIX"
-        BANK_TRANSFER = "BANK_TRANSFER", "Transferencia Bancaria"
-        CHECK = "CHECK", "Cheque"
-        CARD = "CARD", "Cartao"
-        OTHER = "OTHER", "Outro"
-
-    billing = models.ForeignKey(
-        BillingEntry,
-        on_delete=models.CASCADE,  # CASCADE: pagamento acompanha sua cobrança.
-        related_name="payments",
-        verbose_name="Cobranca",
-    )
-    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor Pago")
-    paid_date = models.DateField(verbose_name="Data de Pagamento")
-    payment_method = models.CharField(
-        max_length=20,
-        choices=PaymentMethod.choices,
-        default=PaymentMethod.CASH,
-        verbose_name="Forma de Pagamento",
-    )
-    received_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="received_payments",
-        verbose_name="Recebido por",
-    )
-    reconciliation_status = models.CharField(
-        max_length=20,
-        choices=ReconciliationStatus.choices,
-        default=ReconciliationStatus.PENDING,
-        verbose_name="Situacao da Conciliacao",
-    )
-    reconciled_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        verbose_name="Conciliado em",
-    )
-    notes = models.TextField(blank=True, default="", verbose_name="Observacoes")
-
-    class Meta:
-        ordering = ["-paid_date"]
-        verbose_name = "Pagamento"
-        verbose_name_plural = "Pagamentos"
-        indexes = [
-            models.Index(fields=["paid_date"]),
-            models.Index(fields=["reconciliation_status"]),
-            models.Index(fields=["billing", "paid_date"]),
-        ]
-
-    def __str__(self) -> str:
-        return f"PaymentRecord({self.billing_id}, {self.amount})"
+__all__ = [
+    "BillingEntry",
+    "CollectionReminder",
+    "CollectionReminderPolicy",
+    "FinancialContractAmendment",
+    "FinancialPlanTemplate",
+    "FinancialSequence",
+    "PaymentAllocation",
+    "PaymentRecord",
+    "StudentFinancialContract",
+]

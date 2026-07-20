@@ -1,40 +1,104 @@
-"""FinanceSelector: consultas somente-leitura para o modulo Financeiro.
-
-Inclui listagem por status com busca, faixas de inadimplencia e relatorio
-mensal de receita prevista x recebida.
-"""
+"""Consultas tenant-scoped do contas a receber financeiro."""
 
 from __future__ import annotations
 
 import datetime as dt
 from decimal import Decimal
 
-from django.db.models import Q, Sum
+from django.db.models import DecimalField, ExpressionWrapper, F, Q
 
 from base.exceptions import ObjectNotFoundError
-from base.selectors import MAX_PAGE_SIZE, BaseSelector, PageResult
+from base.selectors import BaseSelector, PageResult
+from financeiro.report_selectors import BillingReportingMixin
+
+ZERO = Decimal("0.00")
+MONEY = DecimalField(max_digits=12, decimal_places=2)
 
 
-class FinancialPlanSelector(BaseSelector):
-    """Consultas somente-leitura de planos financeiros."""
+def _billing_balance_expression():
+    return ExpressionWrapper(
+        F("principal_value")
+        - F("discount_value")
+        + F("late_fee_value")
+        + F("interest_value")
+        - F("paid_value"),
+        output_field=MONEY,
+    )
+
+
+class FinanceScopeMixin:
+    """Aplica o escopo de guarda quando o ator é Responsável."""
+
+    def __init__(self, user=None):
+        self.user = user
+
+    def _scope_students(self, queryset, *, prefix: str = "student"):
+        if not self.user:
+            return queryset
+        from core.access_catalog import GUARDIAN
+        from core.permissions import role_name
+
+        if role_name(self.user) != GUARDIAN:
+            return queryset
+        filters = {
+            f"{prefix}__guardians__guardian__user_id": self.user.pk,
+            f"{prefix}__guardians__guardian__is_active": True,
+            f"{prefix}__guardians__has_custody": True,
+        }
+        return queryset.filter(**filters).distinct()
+
+    def _is_guardian(self) -> bool:
+        from core.access_catalog import GUARDIAN
+        from core.permissions import role_name
+
+        return bool(self.user and role_name(self.user) == GUARDIAN)
+
+
+class FinancialTemplateSelector(BaseSelector):
+    """Leituras dos modelos reutilizáveis de plano."""
 
     @property
     def model_class(self):
-        from financeiro.models import FinancialPlan
+        from financeiro.models import FinancialPlanTemplate
 
-        return FinancialPlan
+        return FinancialPlanTemplate
 
-    def list_plans(
+    def list_templates(
+        self, *, search="", year=None, order_by="-academic_year", page=1, page_size=20
+    ) -> PageResult:
+        qs = self.model_class.objects.all()
+        if search:
+            qs = qs.filter(Q(name__icontains=search) | Q(description__icontains=search))
+        if year:
+            qs = qs.filter(academic_year=year)
+        return self._paginate(qs.order_by(order_by, "name"), page=page, page_size=page_size)
+
+    def get_template(self, template_id):
+        try:
+            return self.model_class.objects.get(pk=template_id)
+        except self.model_class.DoesNotExist:
+            raise ObjectNotFoundError("FinancialPlanTemplate", str(template_id)) from None
+
+
+class FinancialContractSelector(FinanceScopeMixin, BaseSelector):
+    """Leituras de contratos financeiros individuais."""
+
+    @property
+    def model_class(self):
+        from financeiro.models import StudentFinancialContract
+
+        return StudentFinancialContract
+
+    def list_contracts(
         self,
         search: str = "",
         status: str = "",
+        order_by: str = "name",
         page: int = 1,
         page_size: int = 20,
     ) -> PageResult:
-        """Lista planos com busca por aluno/plano e filtro por status."""
-        from financeiro.models import FinancialPlan
-
-        qs = FinancialPlan.objects.all().select_related("student", "class_obj")
+        qs = self.model_class.objects.select_related("student", "class_obj", "template")
+        qs = self._scope_students(qs)
         if status:
             qs = qs.filter(status=status)
         if search:
@@ -44,28 +108,20 @@ class FinancialPlanSelector(BaseSelector):
                 | Q(student__last_name__icontains=search)
                 | Q(student__enrollment_number__icontains=search)
             )
-        qs = qs.order_by("-academic_year", "name")
-        return self._paginate(qs, page=page, page_size=page_size)
+        return self._paginate(qs.order_by(order_by), page=page, page_size=page_size)
 
-    def get_plan_by_id(self, plan_id):
-        """Retorna o plano por id com relacionamentos ou lanca ObjectNotFoundError."""
-        from financeiro.models import FinancialPlan
-
+    def get_contract(self, contract_id):
+        qs = self._scope_students(
+            self.model_class.objects.select_related("student", "class_obj", "template")
+        )
         try:
-            return FinancialPlan.objects.select_related("student", "class_obj").get(pk=plan_id)
-        except FinancialPlan.DoesNotExist:
-            raise ObjectNotFoundError("FinancialPlan", str(plan_id)) from None
+            return qs.get(pk=contract_id)
+        except self.model_class.DoesNotExist:
+            raise ObjectNotFoundError("StudentFinancialContract", str(contract_id)) from None
 
 
-class BillingSelector(BaseSelector):
-    """Consultas somente-leitura de cobrancas."""
-
-    # Faixas de atraso em dias: (label, min_days, max_days)
-    OVERDUE_BANDS = (
-        ("1-30 dias", 1, 30),
-        ("31-60 dias", 31, 60),
-        ("60+ dias", 61, None),
-    )
+class BillingSelector(BillingReportingMixin, FinanceScopeMixin, BaseSelector):
+    """Cobranças, extratos, inadimplência e indicadores."""
 
     @property
     def model_class(self):
@@ -73,17 +129,27 @@ class BillingSelector(BaseSelector):
 
         return BillingEntry
 
+    def base_queryset(self):
+        qs = self.model_class.objects.select_related("student", "contract", "amendment").annotate(
+            balance=_billing_balance_expression()
+        )
+        return self._scope_students(qs)
+
     def list_billings(
         self,
         search: str = "",
         status: str = "",
         page: int = 1,
         page_size: int = 20,
+        class_id=None,
+        contract_id=None,
+        date_from=None,
+        date_to=None,
+        order_by="-due_date",
     ) -> PageResult:
-        """Lista cobrancas com busca por aluno/descricao e filtro por status."""
         from financeiro.models import BillingEntry
 
-        qs = BillingEntry.objects.all().select_related("student", "plan")
+        qs = self.base_queryset()
         if search:
             qs = qs.filter(
                 Q(description__icontains=search)
@@ -91,177 +157,132 @@ class BillingSelector(BaseSelector):
                 | Q(student__last_name__icontains=search)
                 | Q(student__enrollment_number__icontains=search)
             )
-        qs = qs.order_by("-due_date")
-        if status in (
-            BillingEntry.Status.OPEN,
-            BillingEntry.Status.OVERDUE,
-            BillingEntry.Status.PAID,
-        ):
-            items = self._billings_by_computed_status(qs, status)
-            return self._paginate_items(items, page=page, page_size=page_size)
-        if status:
-            qs = qs.filter(status=status)
-        return self._paginate(qs, page=page, page_size=page_size)
+        if class_id:
+            qs = qs.filter(contract__class_obj_id=class_id)
+        if contract_id:
+            qs = qs.filter(contract_id=contract_id)
+        if date_from:
+            qs = qs.filter(due_date__gte=date_from)
+        if date_to:
+            qs = qs.filter(due_date__lte=date_to)
+        today = dt.date.today()
+        if status == "CANCELLED":
+            qs = qs.filter(status=BillingEntry.Status.CANCELLED)
+        elif status == "PAID":
+            qs = qs.exclude(status=BillingEntry.Status.CANCELLED).filter(balance__lte=ZERO)
+        elif status == "OVERDUE":
+            qs = qs.exclude(status=BillingEntry.Status.CANCELLED).filter(
+                balance__gt=ZERO, due_date__lt=today
+            )
+        elif status == "PARTIAL":
+            qs = qs.exclude(status=BillingEntry.Status.CANCELLED).filter(
+                paid_value__gt=ZERO, balance__gt=ZERO
+            )
+        elif status == "OPEN":
+            qs = qs.exclude(status=BillingEntry.Status.CANCELLED).filter(
+                balance__gt=ZERO, due_date__gte=today
+            )
+        return self._paginate(qs.order_by(order_by), page=page, page_size=page_size)
 
     def get_billing_by_id(self, billing_id):
-        """Retorna a cobranca por id com plan, student e pagamentos ou lanca erro."""
-        from financeiro.models import BillingEntry
-
         try:
-            return BillingEntry.objects.select_related("student", "plan", "renegotiated_from").get(
-                pk=billing_id
-            )
-        except BillingEntry.DoesNotExist:
+            return self.base_queryset().get(pk=billing_id)
+        except self.model_class.DoesNotExist:
             raise ObjectNotFoundError("BillingEntry", str(billing_id)) from None
 
     def get_payments(self, billing_id):
-        """Retorna pagamentos de uma cobranca ordenados por data (mais novo primeiro)."""
         from financeiro.models import PaymentRecord
 
-        return PaymentRecord.all_objects.filter(billing_id=billing_id).order_by("-paid_date")
-
-    def get_billings_for_plan(self, plan_id):
-        """Retorna todas as cobrancas de um plano, ordenadas por vencimento."""
-
-        from financeiro.models import BillingEntry
-
-        return BillingEntry.objects.filter(plan_id=plan_id).order_by(
-            "due_date", "installment_number"
-        )
-
-    def inadimplencia_por_faixa(self, *, reference_date: dt.date | None = None) -> list[dict]:
-        """Inadimplencia por faixa de atraso (1-30, 31-60, 60+).
-
-        Returns:
-            [{"faixa": str, "quantidade": int, "total": Decimal}, ...]
-        """
-        from financeiro.models import BillingEntry
-
-        reference = reference_date or dt.date.today()
-        base_items = self._billings_by_computed_status(
-            BillingEntry.objects.exclude(status=BillingEntry.Status.CANCELLED),
-            BillingEntry.Status.OVERDUE,
-            reference_date=reference,
-        )
-        result = []
-        for label, min_d, max_d in self.OVERDUE_BANDS:
-            items = [
-                billing
-                for billing in base_items
-                if billing.due_date <= reference - dt.timedelta(days=min_d)
-                and (max_d is None or billing.due_date >= reference - dt.timedelta(days=max_d))
-            ]
-            total = sum((b.outstanding_value for b in items), Decimal("0.00"))
-            result.append({"faixa": label, "quantidade": len(items), "total": total})
-        return result
-
-    def relatorio_previsto_x_recebido(
-        self,
-        *,
-        year: int | None = None,
-        month: int | None = None,
-    ) -> dict:
-        """Relatorio mensal de receita prevista x recebida.
-
-        Se `month` for None, agrega o ano inteiro.
-        """
-        from financeiro.models import BillingEntry
-
-        today = dt.date.today()
-        y = year or today.year
-        qs = BillingEntry.objects.exclude(status=BillingEntry.Status.CANCELLED)
-        if month:
-            start = dt.date(y, month, 1)
-            end = dt.date(y + (month // 12), (month % 12) + 1, 1)
-            qs = qs.filter(due_date__gte=start, due_date__lt=end)
-            month_label = f"{month:02d}/{y}"
-        else:
-            start = dt.date(y, 1, 1)
-            end = dt.date(y + 1, 1, 1)
-            qs = qs.filter(due_date__gte=start, due_date__lt=end)
-            month_label = str(y)
-
-        rows = list(qs)
-        previsto = sum((b.net_value for b in rows), Decimal("0.00"))
-        recebido = sum((b.paid_value for b in rows), Decimal("0.00"))
-        a_receber = sum((b.outstanding_value for b in rows), Decimal("0.00"))
-        vencido = sum(
-            (
-                b.outstanding_value
-                for b in rows
-                if b.computed_status() == BillingEntry.Status.OVERDUE
-            ),
-            Decimal("0.00"),
-        )
-        return {
-            "periodo": month_label,
-            "quantidade_cobrancas": len(rows),
-            "previsto": previsto,
-            "recebido": recebido,
-            "a_receber": a_receber,
-            "vencido": vencido,
-        }
-
-    def finance_kpis(self, *, reference_date: dt.date | None = None) -> dict:
-        """KPIs financeiros para o dashboard escolar:
-        total em aberto, total vencido, recebido no mes.
-        """
-        from financeiro.models import BillingEntry
-
-        reference = reference_date or dt.date.today()
-        active_qs = BillingEntry.objects.exclude(status=BillingEntry.Status.CANCELLED)
-        open_items = self._billings_by_computed_status(
-            active_qs,
-            BillingEntry.Status.OPEN,
-            reference_date=reference,
-        )
-        overdue_items = self._billings_by_computed_status(
-            active_qs,
-            BillingEntry.Status.OVERDUE,
-            reference_date=reference,
-        )
-        month_start = reference.replace(day=1)
-        next_month = (
-            (month_start.replace(month=12, day=1) + dt.timedelta(days=31)).replace(day=1)
-            if month_start.month == 12
-            else month_start.replace(month=month_start.month + 1)
-        )
-
-        received_this_month = (
-            BillingEntry.objects.filter(
-                payments__paid_date__gte=month_start,
-                payments__paid_date__lt=next_month,
-                payments__deleted_at__isnull=True,
-            )
-            .exclude(payments__reconciliation_status="REJECTED")
+        # Revalida o objeto antes de expor as transações relacionadas. Isso mantém
+        # o mesmo escopo de guarda mesmo quando o selector é reutilizado fora da view.
+        self.get_billing_by_id(billing_id)
+        return (
+            PaymentRecord.all_objects.filter(Q(allocations__billing_id=billing_id))
+            .select_related("received_by", "confirmed_by", "reversed_by")
             .distinct()
-            .aggregate(total=Sum("payments__amount"))
+            .order_by("-paid_date", "-created_at")
         )
 
-        def _sum(items):
-            return sum((b.outstanding_value for b in items), Decimal("0.00"))
-
-        return {
-            "total_aberto": _sum(open_items),
-            "total_vencido": _sum(overdue_items),
-            "recebido_mes": received_this_month["total"] or Decimal("0.00"),
-        }
-
-    @staticmethod
-    def _billings_by_computed_status(qs, status: str, *, reference_date: dt.date | None = None):
-        reference = reference_date or dt.date.today()
-        return [
-            billing for billing in qs if billing.computed_status(reference_date=reference) == status
-        ]
-
-    def _paginate_items(self, items: list, page: int = 1, page_size: int = 20) -> PageResult:
-        page_size = min(max(1, page_size), MAX_PAGE_SIZE)
-        page = max(1, page)
-        total = len(items)
-        offset = (page - 1) * page_size
-        return PageResult(
-            items=items[offset : offset + page_size],
-            total=total,
-            page=page,
-            page_size=page_size,
+    def get_billings_for_contract(self, contract_id):
+        return (
+            self.base_queryset()
+            .filter(contract_id=contract_id)
+            .order_by("due_date", "installment_number", "schedule_revision")
         )
+
+    def student_statement(self, student_id):
+        return self._scope_students(self.base_queryset().filter(student_id=student_id)).order_by(
+            "competency", "due_date"
+        )
+
+    def open_for_student(self, student_id):
+        from financeiro.models import BillingEntry
+
+        return (
+            self._scope_students(self.base_queryset().filter(student_id=student_id))
+            .exclude(status=BillingEntry.Status.CANCELLED)
+            .filter(balance__gt=ZERO)
+            .order_by("due_date")
+        )
+
+
+class PaymentSelector(FinanceScopeMixin, BaseSelector):
+    """Fila operacional de conciliações."""
+
+    def list_payments(
+        self, *, search="", status="PENDING", order_by="-paid_date", page=1, page_size=20
+    ) -> PageResult:
+        from financeiro.models import PaymentRecord
+
+        qs = PaymentRecord.objects.prefetch_related("allocations__billing__student")
+        qs = self._scope_students(qs, prefix="allocations__billing__student")
+        if search:
+            qs = qs.filter(Q(receipt_number__icontains=search) | Q(reference__icontains=search))
+        if status:
+            qs = qs.filter(status=status)
+        return self._paginate(qs.order_by(order_by, "-created_at"), page=page, page_size=page_size)
+
+    def get_payment(self, payment_id):
+        from financeiro.models import PaymentRecord
+
+        try:
+            qs = PaymentRecord.all_objects.prefetch_related("allocations__billing__student")
+            qs = self._scope_students(qs, prefix="allocations__billing__student")
+            payment = qs.get(pk=payment_id)
+            if self._is_guardian():
+                allocation_count = payment.allocations.count()
+                allowed_count = (
+                    payment.allocations.filter(
+                        billing__student__guardians__guardian__user_id=self.user.pk,
+                        billing__student__guardians__guardian__is_active=True,
+                        billing__student__guardians__has_custody=True,
+                    )
+                    .distinct()
+                    .count()
+                )
+                if allowed_count != allocation_count:
+                    raise PaymentRecord.DoesNotExist
+            return payment
+        except PaymentRecord.DoesNotExist:
+            raise ObjectNotFoundError("PaymentRecord", str(payment_id)) from None
+
+
+class ReminderSelector(BaseSelector):
+    """Políticas e histórico de lembretes."""
+
+    def get_policy(self):
+        from financeiro.models import CollectionReminderPolicy
+
+        return CollectionReminderPolicy.objects.order_by("created_at").first()
+
+    def list_reminders(
+        self, *, search="", status="", order_by="-scheduled_for", page=1, page_size=20
+    ) -> PageResult:
+        from financeiro.models import CollectionReminder
+
+        qs = CollectionReminder.objects.select_related("billing", "guardian", "recipient")
+        if search:
+            qs = qs.filter(billing__description__icontains=search)
+        if status:
+            qs = qs.filter(status=status)
+        return self._paginate(qs.order_by(order_by), page=page, page_size=page_size)

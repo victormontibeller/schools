@@ -1,9 +1,15 @@
 {% extends "form_base.html" %}
+{% load ui_helpers %}
 
 {% block breadcrumb %}
-<li class="breadcrumb-item"><a href="{% url 'finance_dashboard' %}">Financeiro</a></li>
+{% include "financeiro/partials/finance_breadcrumb.html" %}
+{% can_access_action "finance_billings" "view" as can_view_billings %}
+{% if can_view_billings %}
 <li class="breadcrumb-item"><a href="{% url 'billing_list' %}">Cobranças</a></li>
 <li class="breadcrumb-item"><a href="{% url 'billing_detail' billing.pk %}">{{ billing.description }}</a></li>
+{% else %}
+<li class="breadcrumb-item"><a href="{% url 'payment_queue' %}">Baixas e Conciliações</a></li>
+{% endif %}
 {% endblock %}
 
-{% block cancel_url %}{% url 'billing_detail' billing.pk %}{% endblock %}
+{% block cancel_url %}{% can_access_action "finance_billings" "view" as can_view_billings %}{% if can_view_billings %}{% url 'billing_detail' billing.pk %}{% else %}{% url 'payment_queue' %}{% endif %}{% endblock %}

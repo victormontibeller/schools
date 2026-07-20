@@ -5,7 +5,7 @@
         {% for item in tabs %}
         <li class="nav-item">
             <a class="nav-link {% if tab == item.id %}active{% endif %}"
-               href="?tab={{ item.id }}{% if q %}&q={{ q }}{% endif %}">{{ item.label }}</a>
+               href="?tab={{ item.id }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}">{{ item.label }}</a>
         </li>
         {% endfor %}
     </ul>

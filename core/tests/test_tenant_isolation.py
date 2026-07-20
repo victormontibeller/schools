@@ -142,22 +142,27 @@ class TestTenantSchemaIsolation(TenantTestCase):
         assert not isolated_a.check_password("SenhaB123")
 
     def test_student_diary_configuration_is_isolated_between_tenants(self):
-        """A ativação dos aspectos fixos nunca atravessa schemas escolares."""
+        """A configuração dos itens da Agenda nunca atravessa schemas escolares."""
         from student_diary.models import DiaryCategory
 
-        assert DiaryCategory.objects.count() == 4
-        mood_a = DiaryCategory.objects.get(code=DiaryCategory.Aspect.MOOD)
+        assert DiaryCategory.objects.count() == 7
+        mood_a = DiaryCategory.objects.get(name="Humor")
         mood_a.is_enabled = False
         mood_a.save(update_fields=["is_enabled"])
+        lunch_a = DiaryCategory.objects.get(name="Almoço")
+        lunch_a.applies_afternoon = False
+        lunch_a.save(update_fields=["applies_afternoon"])
 
         connection.set_tenant(self.tenant_b)
         context.current_tenant.set("escola_b")
-        assert DiaryCategory.objects.count() == 4
-        assert DiaryCategory.objects.get(code=DiaryCategory.Aspect.MOOD).is_enabled is True
+        assert DiaryCategory.objects.count() == 7
+        assert DiaryCategory.objects.get(name="Humor").is_enabled is True
+        assert DiaryCategory.objects.get(name="Almoço").applies_afternoon is True
 
         connection.set_tenant(self.tenant)
         context.current_tenant.set("escola_a")
-        assert DiaryCategory.objects.get(code=DiaryCategory.Aspect.MOOD).is_enabled is False
+        assert DiaryCategory.objects.get(name="Humor").is_enabled is False
+        assert DiaryCategory.objects.get(name="Almoço").applies_afternoon is False
 
     def test_role_access_configuration_is_isolated_between_tenants(self):
         """Cada escola mantém sua própria matriz de módulos e ações."""
@@ -182,14 +187,14 @@ class TestTenantSchemaIsolation(TenantTestCase):
             for role_name, role_values in current.values.items()
         }
         versions = {role.name: role.version for role in current.roles}
-        access_matrix["SECRETARY"]["financeiro"].add("view")
+        access_matrix["SECRETARY"]["finance_contracts"].add("view")
         AccessConfigurationService(user=actor).update_access_matrix(access_matrix, versions)
 
         connection.set_tenant(self.tenant_b)
         context.current_tenant.set("escola_b")
         access_b = RoleModuleAccess.objects.get(
             role__name="SECRETARY",
-            module_key="financeiro",
+            module_key="finance_contracts",
         )
         assert access_b.can_view is False
 
@@ -197,9 +202,57 @@ class TestTenantSchemaIsolation(TenantTestCase):
         context.current_tenant.set("escola_a")
         access_a = RoleModuleAccess.objects.get(
             role__name="SECRETARY",
-            module_key="financeiro",
+            module_key="finance_contracts",
         )
         assert access_a.can_view is True
+
+    def test_financial_contracts_and_receipt_sequences_are_tenant_scoped(self):
+        """Contratos, títulos, alocações e REC anual nunca atravessam schemas."""
+        import datetime as dt
+        from decimal import Decimal
+
+        from financeiro.models import BillingEntry, StudentFinancialContract
+        from financeiro.services import FinanceService, PaymentService
+
+        def create_and_confirm(suffix):
+            actor = CustomUser.objects.create_user(
+                email=f"finance-{suffix}@tenant.test",
+                password="Senha123",
+                is_superuser=True,
+            )
+            student = self._make_student(f"FIN-{suffix}", f"Aluno {suffix}")
+            contract = FinanceService(user=actor).create_contract(
+                {
+                    "student_id": student.pk,
+                    "academic_year": 2026,
+                    "name": f"Contrato {suffix}",
+                    "installment_count": 1,
+                    "installment_value": Decimal("100.00"),
+                    "due_day": 10,
+                }
+            )
+            FinanceService(user=actor).activate_contract(contract.pk)
+            billing = BillingEntry.objects.get(contract=contract)
+            payment = PaymentService(user=actor).create_payment(
+                allocations=[{"billing_id": billing.pk, "amount": Decimal("100.00")}],
+                paid_date=dt.date(2026, 7, 19),
+            )
+            return contract, PaymentService(user=actor).confirm_payment(payment.pk)
+
+        contract_a, payment_a = create_and_confirm("A")
+        assert payment_a.receipt_number == "REC-2026-000001"
+
+        connection.set_tenant(self.tenant_b)
+        context.current_tenant.set("escola_b")
+        assert StudentFinancialContract.objects.count() == 0
+        contract_b, payment_b = create_and_confirm("B")
+        assert payment_b.receipt_number == "REC-2026-000001"
+        assert not StudentFinancialContract.objects.filter(pk=contract_a.pk).exists()
+
+        connection.set_tenant(self.tenant)
+        context.current_tenant.set("escola_a")
+        assert StudentFinancialContract.objects.get().pk == contract_a.pk
+        assert not StudentFinancialContract.objects.filter(pk=contract_b.pk).exists()
 
     def test_demo_seed_is_idempotent_on_postgresql_tenant(self):
         """O seed canônico pode ser repetido no schema sem duplicar dados."""

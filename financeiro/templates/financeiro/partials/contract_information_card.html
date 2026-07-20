@@ -1,0 +1,33 @@
+{% load ui_helpers %}
+{% can_access_action "finance_contracts" "edit" as can_edit_contract %}
+{% can_access_action "finance_billings" "view" as can_view_billings %}
+<div class="card mb-0 sm-detail-card" id="contract-information-card">
+    <div class="card-header d-flex align-items-center justify-content-between gap-2">
+        <h6 class="card-title mb-0">Informações do contrato</h6>
+        {% if can_edit_contract and contract.status == "DRAFT" %}
+        <a class="btn btn-sm btn-outline-primary"
+           href="{% url 'contract_edit' contract.pk %}"
+           hx-get="{% url 'contract_edit' contract.pk %}"
+           hx-target="#contract-information-card"
+           hx-swap="outerHTML">
+            <i class="feather-edit-2 me-1"></i>Editar
+        </a>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        {% if saved %}<div class="alert alert-success py-2">Rascunho atualizado com sucesso.</div>{% endif %}
+        <dl class="row mb-0 sm-detail-definition">
+            <dt class="col-5">Aluno</dt>
+            <dd class="col-7">{% if can_view_billings %}<a href="{% url 'student_financial_statement' contract.student_id %}">{{ contract.student }}</a>{% else %}{{ contract.student }}{% endif %}</dd>
+            <dt class="col-5">Modelo</dt><dd class="col-7">{{ contract.template|default:"—" }}</dd>
+            <dt class="col-5">Turma</dt><dd class="col-7">{{ contract.class_obj|default:"—" }}</dd>
+            <dt class="col-5">Ano</dt><dd class="col-7">{{ contract.academic_year }}</dd>
+            <dt class="col-5">Vigência</dt>
+            <dd class="col-7">{{ contract.start_competency|date:"m/Y" }}–{{ contract.end_competency|date:"m/Y" }}</dd>
+            <dt class="col-5">Situação</dt>
+            <dd class="col-7"><span class="badge bg-soft-secondary text-secondary">{{ contract.get_status_display }}</span></dd>
+            <dt class="col-5">Parcela</dt><dd class="col-7">R$ {{ contract.installment_value|floatformat:2 }}</dd>
+            <dt class="col-5">Revisão</dt><dd class="col-7">{{ contract.terms_revision }}</dd>
+        </dl>
+    </div>
+</div>

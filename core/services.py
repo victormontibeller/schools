@@ -5,14 +5,13 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from django.db import transaction
 from django.utils import timezone
 
 if TYPE_CHECKING:
     from tenancy.contracts import School
 
 from base.exceptions import ObjectNotFoundError, ValidationError
-from base.services import BaseService
+from base.services import BaseService, system_command
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +21,7 @@ class RegistrationSequenceService(BaseService):
 
     PREFIXES = {"teacher": "PRO", "student": "ALU"}
 
-    @transaction.atomic
+    @system_command
     def next_number(self, scope: str) -> str:
         """Incrementa e retorna a próxima matrícula do escopo no ano corrente."""
         from core.models import RegistrationSequence

@@ -12,6 +12,7 @@ from core.access_catalog import (
     MODULES,
     ROLE_LABELS,
     VIEW,
+    allowed_actions,
 )
 
 
@@ -40,12 +41,13 @@ class AccessConfigurationForm(forms.Form):
                     choices=tuple(
                         (action, ACTION_LABELS[action])
                         for action in ACTIONS
-                        if action in module.supported_actions
+                        if action in allowed_actions(module, role_name)
                     ),
                     initial=tuple(
                         action
                         for action in ACTIONS
-                        if action in module.supported_actions and current.get(action, False)
+                        if action in allowed_actions(module, role_name)
+                        and current.get(action, False)
                     ),
                     widget=forms.CheckboxSelectMultiple(
                         attrs={

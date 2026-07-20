@@ -16,6 +16,7 @@ help:
 	@echo "  make test       Run all tests with coverage (SQLite)"
 	@echo "  make test-tenant Run PostgreSQL multi-tenant isolation tests"
 	@echo "  make test-ui    Run Chromium visual contract tests"
+	@echo "  make check-contracts Validate import, service and UI contracts"
 	@echo "  make check-ui   Validate canonical page and grid contracts"
 	@echo "  make lint       Run ruff and black checks"
 	@echo "  make format     Fix code with ruff and black"
@@ -87,6 +88,12 @@ test-ui:
 
 .PHONY: check-ui
 check-ui:
+	$(VENV_BIN)/python scripts/check_ui_contracts.py
+
+.PHONY: check-contracts
+check-contracts:
+	$(VENV_BIN)/python scripts/check_import_contracts.py
+	$(VENV_BIN)/python scripts/check_service_contracts.py
 	$(VENV_BIN)/python scripts/check_ui_contracts.py
 
 # ============================================================

@@ -1,38 +1,4 @@
-{% extends "base.html" %}
-
-{% block title %}Relatório de Receita — School Manager{% endblock %}
-
-{% block content %}
-<div class="page-header">
-    <div class="page-header-left d-flex align-items-center">
-        <div class="page-header-title"><h5 class="m-b-10">Relatório de Receita</h5></div>
-        <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
-            <li class="breadcrumb-item"><a href="{% url 'finance_dashboard' %}">Financeiro</a></li>
-            <li class="breadcrumb-item active">Receita</li>
-        </ul>
-    </div>
-</div>
-
-<div class="main-content">
-    <div class="card mb-3">
-        <div class="card-body">
-            <form method="get" class="row g-3 align-items-end">
-                {% for field in form %}
-                    {% include "partials/form_field.html" with field=field %}
-                {% endfor %}
-                <div class="col-lg-3">
-                    <button class="btn btn-primary btn-sm" type="submit">Filtrar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div class="row g-3">
-        <div class="col-md-3"><div class="card"><div class="card-body"><span class="text-muted">Período</span><h5 class="mb-0">{{ report.periodo }}</h5></div></div></div>
-        <div class="col-md-3"><div class="card"><div class="card-body"><span class="text-muted">Previsto</span><h5 class="mb-0">R$ {{ report.previsto|floatformat:2 }}</h5></div></div></div>
-        <div class="col-md-3"><div class="card"><div class="card-body"><span class="text-muted">Recebido</span><h5 class="mb-0">R$ {{ report.recebido|floatformat:2 }}</h5></div></div></div>
-        <div class="col-md-3"><div class="card"><div class="card-body"><span class="text-muted">A receber</span><h5 class="mb-0">R$ {{ report.a_receber|floatformat:2 }}</h5></div></div></div>
-    </div>
-</div>
-{% endblock %}
+{% extends "page_shell_base.html" %}
+{% block title %}Competência e caixa — School Manager{% endblock %}{% block page_heading %}Relatórios financeiros{% endblock %}
+{% block page_breadcrumbs %}{% include "financeiro/partials/finance_breadcrumb.html" %}<li class="breadcrumb-item active">Competência e caixa</li>{% endblock %}
+{% block page_content %}<div class="card mb-3"><div class="card-body"><form method="get" class="row g-3 align-items-end">{% for field in form %}<div class="col-12 col-md-4"><label class="form-label">{{ field.label }}</label>{{ field }}</div>{% endfor %}<div class="col-auto"><button class="btn btn-primary" type="submit">Filtrar</button></div></form></div></div><div class="alert alert-info">Período: {{ competence.period }}. Competência usa a competência das cobranças; caixa usa a data real do pagamento e a data do estorno.</div><div class="row g-3"><div class="col-12 col-xl-6"><div class="card h-100"><div class="card-header"><h6 class="card-title mb-0">Competência</h6></div><div class="card-body"><dl class="row mb-0"><dt class="col-7">Previsto líquido</dt><dd class="col-5 text-end">R$ {{ competence.expected|floatformat:2 }}</dd><dt class="col-7">Encargos</dt><dd class="col-5 text-end">R$ {{ competence.charges|floatformat:2 }}</dd><dt class="col-7">Recebido alocado</dt><dd class="col-5 text-end">R$ {{ competence.received|floatformat:2 }}</dd><dt class="col-7">Saldo</dt><dd class="col-5 text-end fw-semibold">R$ {{ competence.outstanding|floatformat:2 }}</dd></dl></div></div></div><div class="col-12 col-xl-6"><div class="card h-100"><div class="card-header"><h6 class="card-title mb-0">Caixa</h6></div><div class="card-body"><dl class="row mb-0"><dt class="col-7">Entradas confirmadas</dt><dd class="col-5 text-end">R$ {{ cash.inflow|floatformat:2 }}</dd><dt class="col-7">Estornos</dt><dd class="col-5 text-end text-danger">− R$ {{ cash.reversals|floatformat:2 }}</dd><dt class="col-7">Caixa líquido</dt><dd class="col-5 text-end fw-semibold">R$ {{ cash.net|floatformat:2 }}</dd></dl></div></div></div></div>{% endblock %}

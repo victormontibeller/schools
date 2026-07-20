@@ -1,0 +1,4 @@
+interface:
+  display_name: "School Manager — Construir interface"
+  short_description: "Criar interfaces Django/HTMX canônicas e acessíveis"
+  default_prompt: "Use $school-manager-build-ui para criar ou revisar uma interface Django/HTMX canônica no School Manager."

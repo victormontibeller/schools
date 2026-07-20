@@ -1,0 +1,14 @@
+<div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Lista de modelos financeiros">
+<table class="table table-hover mb-0 sm-sticky-table sm-sticky-table--first-column">
+    <thead class="table-light"><tr><th aria-sort="{{ sorting.name.aria_sort }}"><a href="?{{ sorting.name.query }}" class="sm-sort-link{% if sorting.name.active %} is-active{% endif %}" hx-get="?{{ sorting.name.query }}" hx-target="#financial-templates-table">Modelo</a></th><th aria-sort="{{ sorting.academic_year.aria_sort }}"><a href="?{{ sorting.academic_year.query }}" class="sm-sort-link{% if sorting.academic_year.active %} is-active{% endif %}" hx-get="?{{ sorting.academic_year.query }}" hx-target="#financial-templates-table">Ano</a></th><th>Frequência</th><th>Parcelas</th><th class="text-end">Valor</th></tr></thead>
+    <tbody>
+    {% for item in result.items %}
+    <tr>
+        <td><a class="fw-semibold" href="{% url 'financial_template_detail' item.pk %}">{{ item.name }}</a></td>
+        <td>{{ item.academic_year }}</td><td>{{ item.get_billing_frequency_display }}</td>
+        <td>{{ item.installment_count }}</td><td class="text-end">R$ {{ item.installment_value|floatformat:2 }}</td>
+    </tr>
+    {% empty %}<tr><td colspan="5" class="text-center text-muted py-4">Nenhum modelo cadastrado.</td></tr>{% endfor %}
+    </tbody>
+</table>
+</div>

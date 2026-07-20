@@ -66,7 +66,6 @@ class DashboardService(BaseService):
                 "students_at_risk": self._cached(
                     "students_at_risk", selector.get_students_at_risk_count
                 ),
-                "financial_kpis": self._cached("financial_kpis", selector.get_financial_kpis),
                 "pending_activities": self._cached(
                     "pending_activities", selector.get_pending_activities
                 ),
@@ -77,6 +76,18 @@ class DashboardService(BaseService):
             }
             self._safe_cache_set(cache_key, data, CACHE_TTL["school_dashboard"])
         result = dict(data)
+        from core.permissions import VIEW, can_access
+
+        financial_modules = (
+            "finance_overview",
+            "finance_revenue_reports",
+            "finance_overdue_reports",
+        )
+        result["financial_kpis"] = (
+            selector.get_financial_kpis(self.user)
+            if any(can_access(self.user, module, VIEW) for module in financial_modules)
+            else {}
+        )
         from django.conf import settings
 
         from tenancy.selectors import SchoolSelector

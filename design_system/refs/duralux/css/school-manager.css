@@ -415,6 +415,21 @@ html.app-skin-dark .sm-sticky-table--first-column > tbody > tr:hover > :first-ch
 }
 
 @media (max-width: 575.98px) {
+    .sm-page-header .breadcrumb {
+        display: none;
+    }
+
+    .sm-page-header .page-header-left {
+        min-width: 0;
+    }
+
+    .sm-sticky-table--first-column tr > :first-child:not([colspan]) {
+        width: 16rem;
+        max-width: calc(100vw - 5rem);
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
     .nxl-container .nxl-content .main-content.sm-page-content {
         padding-right: var(--sm-content-gutter-mobile);
         padding-left: var(--sm-content-gutter-mobile);

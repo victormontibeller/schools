@@ -12,6 +12,7 @@ from academic_calendar.services import CalendarService
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 from base.forms import apply_validation_errors
 from base.listing import build_querystring, build_sorting, resolve_listing_state
+from core.permissions import CREATE, EDIT, VIEW, access_policy
 
 logger = logging.getLogger(__name__)
 EVENT_SORTS = {
@@ -181,6 +182,7 @@ def event_cancel(request, pk):
 
 
 @login_required
+@access_policy("holidays", VIEW)
 def holidays_list(request):
     """Lista feriados seguindo o padrão de listagem compartilhada."""
     page = int(request.GET.get("page", 1))
@@ -197,7 +199,6 @@ def holidays_list(request):
         sortable_fields=["name", "date", "type"],
         breadcrumbs=[
             {"label": "Home", "url": "dashboard"},
-            {"label": "Calendário", "url": "calendar_month"},
             {"label": "Feriados", "url": None},
         ],
     )
@@ -207,6 +208,7 @@ def holidays_list(request):
 
 
 @login_required
+@access_policy("holidays", CREATE)
 def holiday_create(request):
     """Cria um feriado no formulário compacto."""
     form = HolidayForm(request.POST or None)
@@ -222,6 +224,7 @@ def holiday_create(request):
 
 
 @login_required
+@access_policy("holidays", EDIT)
 def holiday_edit(request, pk):
     """Edita um feriado pela primeira coluna da listagem."""
     holiday = HolidaySelector().get_by_id(pk)
@@ -235,6 +238,7 @@ def holiday_edit(request, pk):
 
 
 @login_required
+@access_policy("academic_years", VIEW)
 def academic_years_list(request):
     """Lista anos letivos seguindo o padrão de listagem compartilhada."""
     page = int(request.GET.get("page", 1))
@@ -254,7 +258,6 @@ def academic_years_list(request):
         sortable_fields=["name", "start_date", "status"],
         breadcrumbs=[
             {"label": "Home", "url": "dashboard"},
-            {"label": "Calendário", "url": "calendar_month"},
             {"label": "Anos Letivos", "url": None},
         ],
     )
@@ -264,6 +267,7 @@ def academic_years_list(request):
 
 
 @login_required
+@access_policy("academic_years", CREATE)
 def academic_year_create(request):
     """Cria um ano letivo no formulário compacto."""
     form = AcademicYearForm(request.POST or None)
@@ -281,6 +285,7 @@ def academic_year_create(request):
 
 
 @login_required
+@access_policy("academic_years", EDIT)
 def academic_year_edit(request, pk):
     """Edita um ano letivo pela primeira coluna da listagem."""
     academic_year = AcademicYearSelector().get_by_id(pk)

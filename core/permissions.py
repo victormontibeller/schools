@@ -11,10 +11,16 @@ from core.access_catalog import (
     CREATE,
     DEACTIVATE,
     EDIT,
+    FINANCE_BILLINGS,
+    FINANCE_CONTRACTS,
+    FINANCE_PAYMENTS,
+    FINANCE_REMINDERS,
+    FINANCE_TEMPLATES,
     MODULES,
     MODULES_BY_KEY,
     VIEW,
     action_for_operation,
+    allowed_actions,
     default_actions,
     module_for_app,
 )
@@ -91,6 +97,12 @@ GUARDIAN_VIEW_NAMES = frozenset(
         "notification_mark_read",
         "notification_mark_all_read",
         "unread_count",
+        "finance_dashboard",
+        "billing_list",
+        "billing_detail",
+        "student_financial_statement",
+        "student_financial_statement_pdf",
+        "payment_receipt_pdf",
         "profile",
         "change_password",
         "logout",
@@ -107,12 +119,39 @@ _SERVICE_CLASS_MODULES = {
     "PlatformSchoolService": "__admin__",
 }
 _SERVICE_METHOD_MODULES = {
+    ("CalendarService", "create_holiday"): "holidays",
+    ("CalendarService", "update_holiday"): "holidays",
+    ("CalendarService", "create_academic_year"): "academic_years",
+    ("CalendarService", "update_academic_year"): "academic_years",
     ("StudentDiaryService", "create_routine_aspect"): "diary_configuration",
     ("StudentDiaryService", "update_routine_aspect"): "diary_configuration",
     ("StudentDiaryService", "set_routine_aspect_enabled"): "diary_configuration",
     ("StudentDiaryService", "create_routine_option"): "diary_configuration",
     ("StudentDiaryService", "update_routine_option"): "diary_configuration",
     ("StudentDiaryService", "set_routine_option_enabled"): "diary_configuration",
+}
+_SERVICE_METHOD_POLICIES = {
+    ("FinanceService", "create_financial_template"): (FINANCE_TEMPLATES, CREATE),
+    ("FinanceService", "update_financial_template"): (FINANCE_TEMPLATES, EDIT),
+    ("FinanceService", "deactivate_financial_template"): (FINANCE_TEMPLATES, EDIT),
+    ("FinanceService", "create_contract"): (FINANCE_CONTRACTS, CREATE),
+    ("FinanceService", "activate_contract"): (FINANCE_CONTRACTS, EDIT),
+    ("FinanceService", "update_contract_draft"): (FINANCE_CONTRACTS, EDIT),
+    ("FinanceService", "suspend_contract"): (FINANCE_CONTRACTS, EDIT),
+    ("FinanceService", "cancel_contract"): (FINANCE_CONTRACTS, EDIT),
+    ("FinanceService", "close_contract"): (FINANCE_CONTRACTS, EDIT),
+    ("FinanceService", "create_amendment"): (FINANCE_CONTRACTS, EDIT),
+    ("FinanceService", "materialize_contract_billings"): (FINANCE_BILLINGS, CREATE),
+    ("FinanceService", "materialize_billings_by_class"): (FINANCE_BILLINGS, CREATE),
+    ("FinanceService", "create_ad_hoc_billing"): (FINANCE_BILLINGS, CREATE),
+    ("FinanceService", "cancel_billing"): (FINANCE_BILLINGS, EDIT),
+    ("FinanceService", "renegotiate_billing"): (FINANCE_BILLINGS, EDIT),
+    ("FinanceService", "assess_late_charges"): (FINANCE_BILLINGS, EDIT),
+    ("FinanceService", "configure_reminder_policy"): (FINANCE_REMINDERS, EDIT),
+    ("FinanceService", "send_manual_reminder"): (FINANCE_REMINDERS, EDIT),
+    ("PaymentService", "create_payment"): (FINANCE_PAYMENTS, CREATE),
+    ("PaymentService", "confirm_payment"): (FINANCE_PAYMENTS, EDIT),
+    ("PaymentService", "reverse_payment"): (FINANCE_PAYMENTS, EDIT),
 }
 _SYSTEM_SERVICE_METHODS = frozenset(
     {"create_notification", "create_notifications_bulk", "log_delivery"}
@@ -149,7 +188,7 @@ def can_access(user, module_key: str, action: str = VIEW) -> bool:
 
     current_role = role_name(user)
     module = MODULES_BY_KEY[module_key]
-    if current_role not in module.eligible_roles or action not in module.supported_actions:
+    if action not in allowed_actions(module, current_role):
         return False
 
     role = getattr(user, "role", None)
@@ -243,21 +282,26 @@ def can_execute_service(
     if method_name in SELF_SERVICE_METHODS:
         return True
 
-    module_key = _SERVICE_METHOD_MODULES.get((service_name, method_name))
-    if module_key is None:
-        module_key = _SERVICE_CLASS_MODULES.get(service_name)
-    if module_key is None:
-        module_key = module_for_app(
-            app_label,
-            subject=service_name == "SubjectService" or "subject" in method_name,
-        )
-    if module_key is None and app_label == "addresses":
-        module_key = _address_module(method_name)
+    explicit_policy = _SERVICE_METHOD_POLICIES.get((service_name, method_name))
+    if explicit_policy:
+        module_key, action = explicit_policy
+    else:
+        module_key = _SERVICE_METHOD_MODULES.get((service_name, method_name))
+        if module_key is None:
+            module_key = _SERVICE_CLASS_MODULES.get(service_name)
+        if module_key is None:
+            module_key = module_for_app(
+                app_label,
+                subject=service_name == "SubjectService" or "subject" in method_name,
+            )
+        if module_key is None and app_label == "addresses":
+            module_key = _address_module(method_name)
+        action = action_for_operation(method_name)
     if module_key is None:
         return False
     if getattr(user, "access_mode", "") == "DEMO" and module_key not in DEMO_COMMAND_MODULES:
         return False
-    return can_access(user, module_key, action_for_operation(method_name))
+    return can_access(user, module_key, action)
 
 
 def modules_for_user(user) -> frozenset[str]:
@@ -268,7 +312,7 @@ def modules_for_user(user) -> frozenset[str]:
 
 
 def can_configure_student_diary(user) -> bool:
-    """Indica se o usuário pode configurar os aspectos fixos da rotina."""
+    """Indica se o usuário pode configurar os itens da Agenda."""
     return can_access(user, "diary_configuration", EDIT)
 
 

@@ -313,7 +313,9 @@ charset-normalizer==3.4.9 \
     --hash=sha256:f86c6358749bd4fda175388691e3ba8c46e24c5347d0afd20f9b7edfc9faf07d \
     --hash=sha256:fa36ec09ef71d158186bc79e359ff5fdd6e7996fe8ab638f00d6b93139ba4fcf \
     --hash=sha256:fe2c7201c642b7c308f1675355ad7ff7b66acfe3541625efe5a3ad38f29d6115
-    # via requests
+    # via
+    #   reportlab
+    #   requests
 click==8.4.2 \
     --hash=sha256:9a6cea6e60b17ebe0a44c5cc636d94f09bd66142c1cd7d8b4cd731c4917a15f6 \
     --hash=sha256:e6f9f66136c816745b9d65817da91d61d957fb16e02e4dcd0552553c5a197b76
@@ -968,7 +970,9 @@ pillow==12.3.0 \
     --hash=sha256:fdafc9cce40277e0f7a0feabce0ee50dd2fa1800f3b38015e51296b5e814048d \
     --hash=sha256:fe3cca2e4e8a592be0f269a1ca4835c25199d9f3ce815c8491048f785b0a0198 \
     --hash=sha256:ffd0c5368496f41b0944be820fcb7a838aa6e623d250b01acf2643939c3f99d7
-    # via -r requirements.txt
+    # via
+    #   -r requirements.txt
+    #   reportlab
 pip-api==0.0.34 \
     --hash=sha256:8b2d7d7c37f2447373aa2cf8b1f60a2f2b27a84e1e9e0294a3f6ef10eb3ba6bb \
     --hash=sha256:9b75e958f14c5a2614bae415f2adf7eeb54d50a2cfbe7e24fd4826471bac3625
@@ -1318,6 +1322,10 @@ redis==5.2.1 \
     # via
     #   -r requirements.txt
     #   django-redis
+reportlab==4.4.9 \
+    --hash=sha256:68e2d103ae8041a37714e8896ec9b79a1c1e911d68c3bd2ea17546568cf17bfd \
+    --hash=sha256:7cf487764294ee791a4781f5a157bebce262a666ae4bbb87786760a9676c9378
+    # via -r requirements.txt
 requests==2.34.2 \
     --hash=sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0 \
     --hash=sha256:f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed

@@ -10,12 +10,12 @@ from django.db.models import Q, QuerySet
 from base.exceptions import ObjectNotFoundError
 from core.access_catalog import (
     ACTION_FIELDS,
-    ACTIONS,
     ADMIN,
     CONFIGURABLE_ROLES,
     MODULES,
     MODULES_BY_KEY,
     ROLE_LABELS,
+    allowed_actions,
 )
 
 if TYPE_CHECKING:
@@ -48,10 +48,15 @@ class AccessConfigurationSelector:
         from core.models import CustomUser
 
         module = MODULES_BY_KEY.get(module_key)
-        if module is None or action not in module.supported_actions:
+        eligible_roles = (
+            [role for role in module.eligible_roles if action in allowed_actions(module, role)]
+            if module
+            else []
+        )
+        if module is None or not eligible_roles:
             return CustomUser.objects.none()
         configured_access = {
-            "role__name__in": module.eligible_roles,
+            "role__name__in": eligible_roles,
             "role__module_accesses__module_key": module_key,
             f"role__module_accesses__{ACTION_FIELDS[action]}": True,
         }
@@ -85,7 +90,7 @@ class AccessConfigurationSelector:
                 access = accesses.get(module.key)
                 role_values[module.key] = {
                     action: bool(access and getattr(access, ACTION_FIELDS[action]))
-                    for action in ACTIONS
+                    for action in allowed_actions(module, role_name)
                 }
             values[role_name] = role_values
             columns.append(

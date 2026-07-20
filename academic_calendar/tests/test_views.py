@@ -1,9 +1,38 @@
 """Testes de renderização das listas do calendário."""
 
+import datetime as dt
+
 import pytest
 from django.urls import reverse
 
 from academic_calendar.models import AcademicYear, CalendarEvent, Holiday
+from academic_calendar.services import CalendarService
+from base.exceptions import PermissionDeniedError
+
+
+def _create_role_user(role_name: str, email: str):
+    from core.models import CustomUser, Role
+
+    role = Role.objects.get(name=role_name)
+    return CustomUser.objects.create_user(
+        email=email,
+        password="Senha123",
+        first_name="Teste",
+        last_name="Calendário",
+        role=role,
+    )
+
+
+def _set_access(user, module_key: str, actions: set[str]) -> None:
+    from core.access_catalog import ACTION_FIELDS
+    from core.models import RoleModuleAccess
+
+    access = RoleModuleAccess.objects.get(role=user.role, module_key=module_key)
+    for action, field in ACTION_FIELDS.items():
+        setattr(access, field, action in actions)
+    access.save()
+    if hasattr(user, "_role_access_cache"):
+        del user._role_access_cache
 
 
 @pytest.mark.django_db
@@ -38,6 +67,131 @@ def test_calendar_create_forms_use_compact_card(client, user, url_name):
     assert response.status_code == 200
     assert b"col-12 col-xl-5" in response.content
     assert b"row g-2" in response.content
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("role_name", ["TEACHER", "GUARDIAN"])
+@pytest.mark.parametrize("url_name", ["holidays_list", "academic_years_list"])
+def test_calendar_management_denies_teacher_and_guardian(client, role_name, url_name):
+    restricted_user = _create_role_user(
+        role_name,
+        f"{role_name.lower()}-{url_name}@calendar.test",
+    )
+    client.force_login(restricted_user)
+
+    assert client.get(reverse(url_name)).status_code == 403
+
+
+@pytest.mark.django_db
+def test_holidays_view_only_hides_mutation_controls_and_isolated_routes(client, user):
+    secretary = _create_role_user("SECRETARY", "secretary-holidays-view@calendar.test")
+    _set_access(secretary, "holidays", {"view"})
+    holiday = Holiday.objects.create(
+        name="Feriado somente leitura",
+        date="2026-08-15",
+        type=Holiday.Type.SCHOOL,
+        created_by=user,
+        updated_by=user,
+    )
+    client.force_login(secretary)
+
+    response = client.get(reverse("holidays_list"))
+
+    assert response.status_code == 200
+    assert reverse("holiday_create") not in response.content.decode()
+    assert reverse("holiday_edit", args=[holiday.pk]) not in response.content.decode()
+    assert client.get(reverse("holiday_create")).status_code == 403
+    assert client.get(reverse("holiday_edit", args=[holiday.pk])).status_code == 403
+    assert client.get(reverse("academic_years_list")).status_code == 403
+    assert client.get(reverse("calendar_month")).status_code == 403
+
+
+@pytest.mark.django_db
+def test_academic_years_view_only_hides_mutation_controls_and_isolated_routes(client, user):
+    secretary = _create_role_user("SECRETARY", "secretary-years-view@calendar.test")
+    _set_access(secretary, "academic_years", {"view"})
+    academic_year = AcademicYear.objects.create(
+        name="Ano somente leitura",
+        start_date="2029-02-01",
+        end_date="2029-12-15",
+        created_by=user,
+        updated_by=user,
+    )
+    client.force_login(secretary)
+
+    response = client.get(reverse("academic_years_list"))
+
+    assert response.status_code == 200
+    assert reverse("academic_year_create") not in response.content.decode()
+    assert reverse("academic_year_edit", args=[academic_year.pk]) not in response.content.decode()
+    assert client.get(reverse("academic_year_create")).status_code == 403
+    assert client.get(reverse("academic_year_edit", args=[academic_year.pk])).status_code == 403
+    assert client.get(reverse("holidays_list")).status_code == 403
+    assert client.get(reverse("calendar_month")).status_code == 403
+
+
+@pytest.mark.django_db
+def test_calendar_service_enforces_separate_management_permissions():
+    secretary = _create_role_user("SECRETARY", "secretary-calendar-service@calendar.test")
+    _set_access(secretary, "holidays", {"view", "create"})
+    service = CalendarService(user=secretary)
+
+    holiday = service.create_holiday(
+        {
+            "name": "Feriado autorizado",
+            "date": dt.date(2026, 9, 8),
+            "type": Holiday.Type.SCHOOL,
+        }
+    )
+    with pytest.raises(PermissionDeniedError):
+        service.update_holiday(
+            holiday.pk,
+            {
+                "name": "Alteração negada",
+                "date": holiday.date,
+                "type": holiday.type,
+            },
+        )
+    with pytest.raises(PermissionDeniedError):
+        service.create_academic_year(
+            {
+                "name": "2028",
+                "start_date": dt.date(2028, 2, 1),
+                "end_date": dt.date(2028, 12, 15),
+            }
+        )
+
+    _set_access(secretary, "holidays", {"view", "edit"})
+    _set_access(secretary, "academic_years", {"view", "create"})
+    academic_year = service.create_academic_year(
+        {
+            "name": "2028",
+            "start_date": dt.date(2028, 2, 1),
+            "end_date": dt.date(2028, 12, 15),
+        }
+    )
+    service.update_holiday(
+        holiday.pk,
+        {
+            "name": "Feriado atualizado",
+            "date": holiday.date,
+            "type": holiday.type,
+        },
+    )
+    with pytest.raises(PermissionDeniedError):
+        service.update_academic_year(
+            academic_year.pk,
+            {
+                "name": academic_year.name,
+                "start_date": academic_year.start_date,
+                "end_date": academic_year.end_date,
+                "status": academic_year.status,
+            },
+        )
+
+    holiday.refresh_from_db()
+    assert holiday.name == "Feriado atualizado"
+    assert AcademicYear.objects.filter(name="2028").exists() is True
 
 
 @pytest.mark.django_db

@@ -8,18 +8,18 @@ from django.urls import reverse
 from classes.models import Class
 from core.models import CustomUser, Role
 from guardians.models import Guardian, StudentGuardian
-from student_diary.models import DailyDiary, DiaryCategory, DiaryMeal
+from student_diary.models import DailyDiary, DiaryCategory
 from student_diary.tests.test_services import (
     _class,
     _enroll,
-    _fixed_answers,
+    _seeded_answers,
     _student,
     _teacher,
 )
 
 
 def _daily_post(class_obj, students, *, missing_answer=False, notes="Registro pela tela"):
-    answers = _fixed_answers()
+    answers = _seeded_answers(class_obj.shift)
     data = {"class_id": str(class_obj.pk), "date": "2026-07-12"}
     for index, student in enumerate(students):
         prefix = f"student-{student.pk}"
@@ -27,8 +27,6 @@ def _daily_post(class_obj, students, *, missing_answer=False, notes="Registro pe
             omit_answer = missing_answer and index == len(students) - 1 and answer_index == 0
             if not omit_answer:
                 data[f"{prefix}-answer_{category_id}"] = option_id
-        data[f"{prefix}-meal_MORNING_SNACK"] = DiaryMeal.Status.ATE_WELL
-        data[f"{prefix}-meal_LUNCH"] = DiaryMeal.Status.ATE_PARTIALLY
         data[f"{prefix}-notes"] = notes
     return data
 
@@ -64,7 +62,8 @@ def test_diary_daily_renders_canonical_roster_for_admin(client, user):
     assert reverse("diary_student_history", args=[student.pk]).encode() in response.content
     assert b"Caf\xc3\xa9 da manh\xc3\xa3" in response.content
     assert b"N\xc3\xa3o estava presente" in response.content
-    assert f'name="student-{student.pk}-meal_MORNING_SNACK"'.encode() in response.content
+    breakfast = DiaryCategory.objects.get(name="Café da manhã")
+    assert f'name="student-{student.pk}-answer_{breakfast.pk}"'.encode() in response.content
     assert f'name="student-{student.pk}-notes"'.encode() in response.content
     assert response.content.count(b"Salvar Agenda") == 1
     assert response.content.count(reverse("diary_configuration").encode()) == 1
@@ -115,7 +114,7 @@ def test_diary_daily_renders_meal_columns_for_class_shift(
 
 @pytest.mark.django_db
 def test_diary_daily_renders_only_enabled_aspect_columns(client, user):
-    disabled = DiaryCategory.objects.get(code=DiaryCategory.Aspect.BOWEL_MOVEMENT)
+    disabled = DiaryCategory.objects.get(name="Evacuação")
     disabled.is_enabled = False
     disabled.save(update_fields=["is_enabled"])
     class_obj = _class(user)
@@ -227,12 +226,15 @@ def test_diary_configuration_lists_catalog_and_create_action(client, user):
     response = client.get(reverse("diary_configuration"))
 
     assert response.status_code == 200
-    assert b"Aspectos da rotina" in response.content
+    assert b"Itens da Agenda" in response.content
     assert b"diary-categories-table" in response.content
     assert b"Humor" in response.content
     assert b"Descanso" in response.content
     assert b"Evacua\xc3\xa7\xc3\xa3o" in response.content
     assert b"Participa\xc3\xa7\xc3\xa3o" in response.content
+    assert b"Caf\xc3\xa9 da manh\xc3\xa3" in response.content
+    assert b"Almo\xc3\xa7o" in response.content
+    assert b"Caf\xc3\xa9 da tarde" in response.content
     assert b"NOVO" in response.content
 
 
@@ -243,7 +245,15 @@ def test_diary_aspect_create_starts_inactive_and_redirects_to_detail(client, use
 
     response = client.post(
         reverse("diary_aspect_create"),
-        {"name": "Hidratação", "display_order": 5, "is_required": "on"},
+        {
+            "name": "Hidratação",
+            "section": DiaryCategory.Section.ROUTINE,
+            "display_order": 5,
+            "is_required": "on",
+            "applies_morning": "on",
+            "applies_afternoon": "on",
+            "applies_full": "on",
+        },
     )
 
     aspect = DiaryCategory.objects.get(name="Hidratação")
@@ -251,7 +261,6 @@ def test_diary_aspect_create_starts_inactive_and_redirects_to_detail(client, use
     assert b'value="5"' in form_response.content
     assert response.status_code == 302
     assert response.url == reverse("diary_aspect_detail", args=[aspect.pk])
-    assert aspect.code is None
     assert aspect.is_enabled is False
     assert aspect.is_required is True
 
@@ -261,15 +270,19 @@ def test_diary_aspect_and_option_edit_replace_only_their_cards(client, user):
     from student_diary.models import DiaryOption
 
     client.force_login(user)
-    aspect = DiaryCategory.objects.get(code=DiaryCategory.Aspect.MOOD)
-    option = DiaryOption.objects.get(code=DiaryOption.FixedCode.MOOD_HAPPY)
+    aspect = DiaryCategory.objects.get(name="Humor")
+    option = DiaryOption.objects.get(category=aspect, label="Alegre")
 
     aspect_response = client.post(
         reverse("diary_aspect_edit", args=[aspect.pk]),
         {
             "name": "Estado emocional",
+            "section": DiaryCategory.Section.ROUTINE,
             "display_order": 1,
             "is_required": "on",
+            "applies_morning": "on",
+            "applies_afternoon": "on",
+            "applies_full": "on",
             "version": aspect.version,
         },
         HTTP_HX_REQUEST="true",
@@ -364,7 +377,7 @@ def test_diary_configuration_htmx_returns_only_table(client, user):
 @pytest.mark.django_db
 def test_diary_aspect_detail_and_toggle_replace_information_card(client, user):
     client.force_login(user)
-    aspect = DiaryCategory.objects.get(code=DiaryCategory.Aspect.MOOD)
+    aspect = DiaryCategory.objects.get(name="Humor")
 
     detail = client.get(reverse("diary_aspect_detail", args=[aspect.pk]))
     toggle = client.post(
@@ -396,7 +409,7 @@ def test_diary_configuration_is_forbidden_to_teacher(client, user):
 @pytest.mark.django_db
 def test_secretary_can_configure_aspects_without_accessing_agenda(client):
     secretary = _user_for_role("SECRETARY", "secretary-diary-configuration@test.com")
-    aspect = DiaryCategory.objects.get(code=DiaryCategory.Aspect.MOOD)
+    aspect = DiaryCategory.objects.get(name="Humor")
     client.force_login(secretary)
 
     configuration = client.get(reverse("diary_configuration"))
@@ -431,7 +444,7 @@ def test_view_only_diary_configuration_hides_edit_control(client):
         role=secretary.role,
         module_key="diary_configuration",
     ).update(can_view=True, can_create=False, can_edit=False)
-    aspect = DiaryCategory.objects.get(code=DiaryCategory.Aspect.MOOD)
+    aspect = DiaryCategory.objects.get(name="Humor")
     client.force_login(secretary)
 
     detail = client.get(reverse("diary_aspect_detail", args=[aspect.pk]))
