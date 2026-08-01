@@ -59,6 +59,21 @@ def test_students_list_restores_saved_state_when_query_is_omitted(force_login_cl
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("raw_page", ["invalid", "0", "-4"])
+def test_students_list_normalizes_invalid_page_without_persisting_it(
+    force_login_client, student, raw_page
+):
+    response = force_login_client.get("/students/", {"page": raw_page})
+
+    assert response.status_code == 200
+    assert response.context["result"].page == 1
+    assert force_login_client.session["listing_state"]["students_list"] == {
+        "q": "",
+        "sort": "name",
+    }
+
+
+@pytest.mark.django_db
 def test_student_profile_exposes_inline_information_edit(force_login_client, student):
     response = force_login_client.get(f"/students/{student.pk}/")
 

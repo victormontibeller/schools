@@ -2,9 +2,18 @@
 
 from __future__ import annotations
 
+from typing import TypedDict
 from urllib.parse import urlencode
 
 LISTING_SESSION_KEY = "listing_state"
+
+
+class ListingState(TypedDict):
+    """Estado validado de uma listagem canônica."""
+
+    q: str
+    sort: str
+    page: int
 
 
 def build_querystring(params: dict[str, object], *, include_blank: bool = False) -> str:
@@ -26,8 +35,8 @@ def resolve_listing_state(
     scope: str,
     allowed_sorts: set[str],
     default_sort: str,
-) -> dict[str, str]:
-    """Resolve busca e ordenacao da listagem, persistindo por usuario na sessao."""
+) -> ListingState:
+    """Resolve busca, ordenação e página; persiste somente filtros por usuário."""
     session_state = request.session.get(LISTING_SESSION_KEY, {}).get(scope, {})
     has_q_param = "q" in request.GET
     has_sort_param = "sort" in request.GET
@@ -38,13 +47,18 @@ def resolve_listing_state(
     search = (search or "").strip()
     if sort not in allowed_sorts:
         sort = default_sort
+    try:
+        page = int(request.GET.get("page", 1))
+    except (TypeError, ValueError):
+        page = 1
+    page = max(1, page)
 
     listing_state = request.session.get(LISTING_SESSION_KEY, {})
     listing_state[scope] = {"q": search, "sort": sort}
     request.session[LISTING_SESSION_KEY] = listing_state
     request.session.modified = True
 
-    return {"q": search, "sort": sort}
+    return {"q": search, "sort": sort, "page": page}
 
 
 def build_sorting(

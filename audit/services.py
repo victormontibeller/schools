@@ -8,7 +8,7 @@ from base.services import BaseService
 
 logger = logging.getLogger(__name__)
 
-EXCLUDED_FIELDS: frozenset[str] = frozenset(
+SENSITIVE_FIELD_FRAGMENTS: frozenset[str] = frozenset(
     {
         "password",
         "token",
@@ -19,13 +19,72 @@ EXCLUDED_FIELDS: frozenset[str] = frozenset(
         "last_name",
         "phone",
         "cpf",
-        "rg",
         "address",
         "avatar",
-        "file",
         "document",
     }
 )
+SENSITIVE_EXACT_FIELDS: frozenset[str] = frozenset(
+    {
+        "recipient",
+        "street",
+        "number",
+        "complement",
+        "district",
+        "postal_code",
+        "city",
+        "state",
+        "birth_date",
+    }
+)
+SENSITIVE_TEXT_TOKENS: frozenset[str] = frozenset(
+    {
+        "reason",
+        "justification",
+        "note",
+        "notes",
+        "observation",
+        "observations",
+        "rg",
+        "file",
+        "feedback",
+        "message",
+        "body",
+        "content",
+        "description",
+        "title",
+    }
+)
+
+
+def is_sensitive_audit_field(field_name: str) -> bool:
+    """Identifica campos cujo conteúdo futuro deve ser redigido da auditoria."""
+    normalized = field_name.strip().lower()
+    if normalized == "id" or normalized.endswith("_id"):
+        return False
+    if normalized in SENSITIVE_EXACT_FIELDS:
+        return True
+    if any(fragment in normalized for fragment in SENSITIVE_FIELD_FRAGMENTS):
+        return True
+    return bool(set(normalized.split("_")) & SENSITIVE_TEXT_TOKENS)
+
+
+def redact_nested_audit_value(value):
+    """Redige recursivamente conteúdo sensível em estruturas serializáveis."""
+    if isinstance(value, dict):
+        return {
+            key: (
+                "[REDACTED]"
+                if is_sensitive_audit_field(str(key))
+                else redact_nested_audit_value(item)
+            )
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [redact_nested_audit_value(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(redact_nested_audit_value(item) for item in value)
+    return value
 
 
 class AuditService(BaseService):
@@ -76,11 +135,13 @@ class AuditService(BaseService):
             if not hasattr(field, "attname"):
                 continue
             name: str = field.attname
-            if any(ex in name.lower() for ex in EXCLUDED_FIELDS):
+            if is_sensitive_audit_field(name):
                 data[name] = "[REDACTED]"
                 continue
             value = getattr(instance, name, None)
-            if hasattr(value, "isoformat"):
+            if isinstance(value, dict | list | tuple):
+                value = redact_nested_audit_value(value)
+            elif hasattr(value, "isoformat"):
                 value = value.isoformat()
             elif not isinstance(value, int | float | bool | str | type(None)):
                 value = str(value)
@@ -92,7 +153,4 @@ class AuditService(BaseService):
         """Redige PII de snapshots fornecidos explicitamente pelo service."""
         if values is None:
             return None
-        return {
-            key: ("[REDACTED]" if any(ex in key.lower() for ex in EXCLUDED_FIELDS) else value)
-            for key, value in values.items()
-        }
+        return redact_nested_audit_value(values)

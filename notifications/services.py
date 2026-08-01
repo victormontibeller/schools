@@ -10,7 +10,12 @@ from django.db.models import QuerySet
 from django.utils import timezone
 
 from base import context
-from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+from base.exceptions import (
+    BusinessRuleViolationError,
+    ObjectNotFoundError,
+    PermissionDeniedError,
+    ValidationError,
+)
 from base.repositories import BaseRepository
 from base.services import BaseService
 
@@ -50,6 +55,12 @@ class _TemplateRepo(BaseRepository):
 class NotificationService(BaseService):
     """Servico de aplicacao para notificacoes individuais in-app."""
 
+    def _actor_id(self):
+        """Retorna o destinatário autenticado sem aceitar escopo fornecido pelo cliente."""
+        if self.user is None or not getattr(self.user, "is_authenticated", False):
+            raise PermissionDeniedError("Ator autenticado obrigatório para esta operação.")
+        return self.user.pk
+
     def create_notification(self, data: dict) -> Notification:
         """Cria uma notificacao para um usuario e registra auditoria.
 
@@ -84,46 +95,27 @@ class NotificationService(BaseService):
         return notification
 
     def mark_as_read(self, notification_id) -> Notification:
-        """Marca uma notificacao como lida.
-
-        Raises:
-            ObjectNotFoundError: se a notificacao nao existir.
-            BusinessRuleViolationError: se ja estiver lida.
-        """
+        """Marca como lida uma notificação do próprio destinatário, de forma idempotente."""
         from notifications.contracts import Notification
 
         try:
-            notification = Notification.objects.get(pk=notification_id)
+            notification = Notification.objects.select_for_update().get(
+                pk=notification_id, recipient_id=self._actor_id()
+            )
         except Notification.DoesNotExist:
             raise ObjectNotFoundError("Notification", str(notification_id)) from None
 
-        if notification.read_at is not None:
-            raise BusinessRuleViolationError("Notificacao ja foi lida.")
-
-        old = {"read_at": None}
-        notification.read_at = timezone.now()
-        notification.save(update_fields=["read_at", "updated_at"])
-        self._record_audit("UPDATE", notification, old_values=old)
-        return notification
-
-    def mark_as_read_for_user(self, notification_id, user_id) -> Notification:
-        """Marca como lida somente uma notificação do próprio destinatário."""
-        from notifications.contracts import Notification
-
-        try:
-            notification = Notification.objects.get(pk=notification_id, recipient_id=user_id)
-        except Notification.DoesNotExist:
-            raise ObjectNotFoundError("Notification", str(notification_id)) from None
         if notification.read_at is not None:
             return notification
-        old = {"read_at": None}
+        old = self._snapshot(notification, ["read_at", "updated_by_id", "version"])
         notification.read_at = timezone.now()
         notification.updated_by = self.user
-        notification.save(update_fields=["read_at", "updated_by", "updated_at"])
+        notification.save(update_fields=["read_at", "updated_by"])
         self._record_audit("UPDATE", notification, old_values=old)
+        self._log("notification_marked_as_read", notification_id=str(notification.pk))
         return notification
 
-    def mark_all_as_read(self, user_id) -> int:
+    def mark_all_as_read(self) -> int:
         """Marca todas as notificacoes nao lidas de um usuario como lidas.
 
         Returns:
@@ -131,20 +123,25 @@ class NotificationService(BaseService):
         """
         from notifications.contracts import Notification
 
+        actor_id = self._actor_id()
         notifications = list(
-            Notification.objects.filter(recipient_id=user_id, read_at__isnull=True)
+            Notification.objects.select_for_update().filter(
+                recipient_id=actor_id, read_at__isnull=True
+            )
         )
         if not notifications:
             return 0
 
         now = timezone.now()
-        Notification.objects.filter(pk__in=[item.pk for item in notifications]).update(read_at=now)
         for notification in notifications:
+            old = self._snapshot(notification, ["read_at", "updated_by_id", "version"])
             notification.read_at = now
-            self._record_audit("UPDATE", notification, old_values={"read_at": None})
+            notification.updated_by = self.user
+            notification.save(update_fields=["read_at", "updated_by"])
+            self._record_audit("UPDATE", notification, old_values=old)
 
         count = len(notifications)
-        self._log("Notificacoes marcadas como lidas", user_id=str(user_id), count=count)
+        self._log("notifications_marked_as_read", count=count)
         return count
 
     def create_notifications_bulk(self, recipient_ids: list, data: dict) -> int:

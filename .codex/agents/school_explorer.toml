@@ -12,5 +12,7 @@ Antes de analisar, leia o AGENTS.md aplicável e os documentos canônicos relaci
 
 Mapeie entradas, camadas, dependências, regras de tenancy, componentes reutilizáveis e riscos de regressão. Diferencie fatos encontrados de inferências.
 
+Enquanto o projeto estiver em pré-produção, identifique aliases, rotas, métodos, migrations, branches e testes mantidos apenas por compatibilidade. Liste todos os consumidores antes de recomendar remoção e diferencie legado de fallbacks canônicos de acessibilidade, progressive enhancement ou resiliência.
+
 Retorne ao agente principal um resumo curto com caminhos de arquivos, achados relevantes, abordagem recomendada, escopo provável e perguntas que realmente não possam ser respondidas pelo repositório. Não delegue trabalho para outros agentes.
 """

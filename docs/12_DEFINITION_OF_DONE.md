@@ -14,11 +14,16 @@ Um item **só pode ser considerado concluído** quando todos os critérios abaix
 - [ ] Nenhum `print()` no código
 - [ ] Nenhum secret em código (variáveis de ambiente)
 - [ ] Nenhum PII em logs
+- [ ] Caminhos substituídos foram removidos no mesmo lote; não restam aliases ou branches de
+      compatibilidade pré-produção sem ADR
+- [ ] Churn de produto, testes, migrations e documentação foi reportado separadamente
 
 ## Banco de Dados
 
-- [ ] Migration criada com `python manage.py makemigrations`
-- [ ] Migration revisada (sem drops acidentais, índices adequados)
+- [ ] Grafo inicial regenerado com `python manage.py makemigrations` quando models mudaram
+- [ ] `python scripts/check_preproduction_contracts.py` verde
+- [ ] Migrations iniciais e seeds permitidos revisados; nenhuma evolução ou reconciliação legada
+- [ ] Reset integral dev/demo executado e seed atual validado após alteração de schema
 - [ ] Soft delete utilizado (nunca `instance.delete()`)
 
 ## Arquitetura
@@ -65,3 +70,4 @@ Um item **só pode ser considerado concluído** quando todos os critérios abaix
 - [ ] Docstrings em módulos, classes e funções públicas
 - [ ] Documentação atualizada se decisão arquitetural
 - [ ] ADR criado em `docs/adr/` se nova decisão significativa
+- [ ] Exceções à política de clean break pré-produção possuem ADR com justificativa e prazo

@@ -32,6 +32,9 @@ Implementar a interface a partir dos componentes e contratos existentes, mantend
 7. Alterar CSS customizado somente em `design_system/refs/duralux/css/school-manager.css`; não copiar o arquivo para `static/css` nem adicionar CDN.
 8. Preferir Bootstrap, Duralux e Feather existentes. Manter JavaScript customizado pequeno; usar Alpine.js somente para estado local e reinicializar comportamento após HTMX quando necessário.
 9. Garantir HTML semântico, foco visível, operação por teclado, nomes acessíveis, `alt`, `aria-label` e respeito a `prefers-reduced-motion`.
+10. Em pré-produção, remover na mesma mudança rotas, views, templates e testes substituídos;
+    compatibilidade retroativa exige ADR. Preservar o fallback sem JavaScript da rota canônica,
+    pois progressive enhancement não é legado.
 
 ## 4. Verificar conforme o risco
 
@@ -50,3 +53,4 @@ Executar também:
 - `./.venv/bin/ruff check .` e `./.venv/bin/black --check .` quando houver Python alterado.
 
 Revisar que somente `.sm-scroll-region` rola, que não existe overflow no documento, que cabeçalho e primeira coluna permanecem fixos quando exigidos e que tema escuro e navegação por teclado continuam funcionais.
+Confirmar também, com busca global, que nenhuma navegação ou action referencia a rota removida.

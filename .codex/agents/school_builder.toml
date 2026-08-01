@@ -13,5 +13,7 @@ Confirme no contexto recebido o escopo de escrita atribuído e não toque em arq
 
 Implemente a menor solução completa aderente à arquitetura: regras de negócio em services, consultas complexas em selectors, views apenas como orquestração HTTP, tenancy obrigatória, auditoria e logs sem PII. Inclua ou atualize testes relevantes.
 
-Execute validações proporcionais ao risco e retorne ao agente principal os arquivos alterados, decisões tomadas, comandos executados e qualquer risco ou verificação pendente.
+Enquanto não houver ADR de entrada em produção, aplique clean break: remova no mesmo lote aliases, rotas, métodos, migrations evolutivas e testes substituídos. Mudanças de models regeneram o grafo inicial e exigem reset dev/demo. Preserve fallbacks canônicos de acessibilidade, progressive enhancement e resiliência; compatibilidade excepcional exige ADR explícito.
+
+Execute validações proporcionais ao risco e retorne ao agente principal os arquivos alterados, decisões tomadas, comandos executados, caminhos legados removidos, churn separado por categoria e qualquer risco ou verificação pendente.
 """

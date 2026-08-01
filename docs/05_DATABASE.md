@@ -49,6 +49,24 @@ O Soft Delete deverá ser utilizado em todas as entidades de domínio.
 
 ## Convenções
 
+### Histórico de migrations em pré-produção
+
+Enquanto não existir ADR declarando a entrada em produção, o histórico do banco é descartável e
+representa diretamente o schema atual:
+
+- mudanças em models regeneram todas as migrations próprias e são validadas após reset completo
+  de `schools_db`, `schools_test_db`, tenants demo, mídia, cache e filas locais;
+- o grafo pode conter mais de um arquivo `initial=True` por app quando o Django precisar quebrar
+  dependências circulares; esses arquivos formam uma única instalação inicial, não evolução;
+- somente `locations/0002_seed_locations.py` e
+  `student_diary/0002_seed_agenda_items.py` podem ser migrations de dados;
+- `replaces`, backfills, reconciliações e migrations evolutivas são proibidos e bloqueados pelo
+  contrato de pré-produção no CI;
+- a configuração do tenant demo pertence a `seed_dev`, não a migration.
+
+A primeira entrada em produção exige novo ADR. Depois desse marco, migrations publicadas serão
+imutáveis e qualquer alteração de schema seguirá uma cadeia evolutiva revisada.
+
 - `RoleModuleAccess` é único por papel e chave de módulo em cada schema. Seus quatro booleanos
   representam Visualizar, Cadastrar, Editar e Desativar; mudanças incrementam `version` e são
   auditadas. O papel Administrador não possui linhas nessa tabela.
@@ -81,8 +99,9 @@ O Soft Delete deverá ser utilizado em todas as entidades de domínio.
   atomicamente. Soft delete, restore e transições seguem a mesma regra; conflitos não
   sobrescrevem o registro atual. Invariantes agregadas usam `select_for_update` em transação.
 
-- Toda migration deverá ser revisada antes de ser aplicada.
-- Migrations destrutivas (drop de colunas ou tabelas) deverão ser documentadas como ADR.
+- Toda migration deverá ser gerada, revisada e validada antes do reset dos ambientes.
+- Durante a pré-produção, alterações destrutivas são absorvidas no novo grafo inicial; após o
+  go-live, exigirão ADR e estratégia de migração compatível com dados persistentes.
 - Índices deverão ser criados para todos os campos usados em filtros frequentes.
 - Chaves estrangeiras deverão ter `on_delete` explícito e justificado.
 - O campo `version` deverá ser incrementado a cada atualização para suportar controle otimista de concorrência.
@@ -105,8 +124,8 @@ O Soft Delete deverá ser utilizado em todas as entidades de domínio.
 - `CollectionReminderPolicy` começa desabilitada. `CollectionReminder` possui constraint de
   deduplicação por cobrança, responsável, canal, regra e data programada.
 
-A migration `financeiro/0001_initial.py` instala diretamente o schema final do contas a receber.
-Não há backfill, aliases de modelos ou estados financeiros legados.
+O grafo inicial do `financeiro` instala diretamente o schema final do contas a receber. Não há
+backfill, aliases de modelos ou estados financeiros legados.
 
 ---
 

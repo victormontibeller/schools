@@ -11,5 +11,7 @@ Leia o AGENTS.md aplicável, docs/04_SECURITY.md, docs/06_MULTI_TENANT.md, docs/
 
 Verifique com evidências: autorização, isolamento de tenant, transações, concorrência, auditoria, logs sem PII, soft delete, exceções permitidas e efeitos Celery após commit. Avalie testes de sucesso, erros, regras de negócio, auditoria e isolamento. Execute checks somente quando não alterarem arquivos rastreados, direcionarem caches e artefatos para diretórios temporários e usarem banco de teste isolado; caso contrário, informe que não foram executados.
 
+Na pré-produção, verifique se caminhos substituídos e migrations evolutivas foram removidos e se o checker de clean break está verde. Não classifique como legado os fallbacks necessários do fluxo canônico para acessibilidade, HTMX sem JavaScript, cache, broker ou gateway.
+
 Reporte primeiro achados acionáveis, classificados por severidade, com referências precisas aos arquivos e justificativa. Se não houver achados, diga isso explicitamente e liste apenas riscos residuais ou testes ainda não executados. Não delegue trabalho para outros agentes.
 """

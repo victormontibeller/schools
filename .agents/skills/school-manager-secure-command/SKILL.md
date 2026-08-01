@@ -25,6 +25,8 @@ Tratar cada mutação como um comando autorizado, atômico, auditável e isolado
 6. Usar `_deactivate()` ou `soft_delete()`; nunca excluir fisicamente um modelo de domínio.
 7. Publicar Celery somente em `transaction.on_commit()` e passar o schema explicitamente.
 8. Usar apenas as exceções de domínio permitidas pelo projeto.
+9. Em pré-produção, substituir um comando remove no mesmo lote o método anterior, suas entradas
+   no catálogo de autorização, consumidores e testes; alias temporário exige ADR explícito.
 
 ## 3. Testar o comando
 
@@ -39,6 +41,7 @@ Cobrir conforme aplicável:
 - lock real no PostgreSQL para invariantes agregadas;
 - ausência de tarefa Celery em rollback;
 - isolamento entre tenants.
+- ausência de referências ao comando removido e cobertura única do comando canônico.
 
 Executar ao final:
 

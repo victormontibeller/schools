@@ -17,7 +17,6 @@ from teachers.selectors import TeacherSelector
 @login_required
 def time_slots_list(request):
     """Lista horários cadastrados usando busca, ordenação e paginação HTMX."""
-    page = int(request.GET.get("page", 1))
     state = resolve_listing_state(
         request,
         scope="time_slots_list",
@@ -35,7 +34,7 @@ def time_slots_list(request):
     )
     search = state["q"]
     sort = state["sort"]
-    result = TimeSlotSelector().list_time_slots(search=search, order_by=sort, page=page)
+    result = TimeSlotSelector().list_time_slots(search=search, order_by=sort, page=state["page"])
     context = {
         "result": result,
         "q": search,

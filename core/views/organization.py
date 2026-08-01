@@ -14,7 +14,6 @@ def business_unit_list(request: HttpRequest) -> HttpResponse:
     from base.listing import build_querystring, build_sorting, resolve_listing_state
     from core.selectors import BusinessUnitSelector
 
-    page = int(request.GET.get("page", 1))
     state = resolve_listing_state(
         request,
         scope="business_unit_list",
@@ -22,7 +21,9 @@ def business_unit_list(request: HttpRequest) -> HttpResponse:
         default_sort="name",
     )
     search, sort = state["q"], state["sort"]
-    result = BusinessUnitSelector().list_business_units(search=search, order_by=sort, page=page)
+    result = BusinessUnitSelector().list_business_units(
+        search=search, order_by=sort, page=state["page"]
+    )
     ctx = {
         "result": result,
         "q": search,

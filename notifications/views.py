@@ -113,15 +113,13 @@ def notification_list(request) -> HttpResponse:
 
 
 @login_required
+@require_POST
 def notification_mark_read(request, pk) -> HttpResponse:
     """Marca uma notificacao como lida e redireciona para a lista."""
-    notification = NotificationSelector().get_by_id(pk)
     from notifications.services import NotificationService
 
     try:
-        NotificationService(user=request.user).mark_as_read_for_user(
-            notification.pk, request.user.pk
-        )
+        NotificationService(user=request.user).mark_as_read(pk)
     except (ObjectNotFoundError, BusinessRuleViolationError) as exc:
         logger.warning(
             "Erro ao marcar notificacao",
@@ -134,11 +132,12 @@ def notification_mark_read(request, pk) -> HttpResponse:
 
 
 @login_required
+@require_POST
 def notification_mark_all_read(request) -> HttpResponse:
     """Marca todas as notificacoes como lidas."""
     from notifications.services import NotificationService
 
-    NotificationService(user=request.user).mark_all_as_read(request.user.pk)
+    NotificationService(user=request.user).mark_all_as_read()
     if request.headers.get("HX-Request"):
         return _render_header_notifications(request)
     return redirect("notification_list")
@@ -165,7 +164,6 @@ def _render_header_notifications(request) -> HttpResponse:
 @login_required
 def announcement_list(request) -> HttpResponse:
     """Lista comunicados enviados."""
-    page = int(request.GET.get("page", 1))
     state = resolve_listing_state(
         request,
         scope="announcements_list",
@@ -174,7 +172,7 @@ def announcement_list(request) -> HttpResponse:
     )
     context = {
         "result": AnnouncementSelector().list_sent(
-            state["q"], ANNOUNCEMENT_SORTS[state["sort"]], page
+            state["q"], ANNOUNCEMENT_SORTS[state["sort"]], state["page"]
         ),
         "q": state["q"],
         "sort": state["sort"],

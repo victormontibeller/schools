@@ -34,11 +34,16 @@ class StudentSelector(BaseSelector):
         page_size: int = 20,
     ) -> PageResult:
         """Aplica os escopos obrigatórios de professor e responsável à listagem."""
+        from classes.contracts import Enrollment
+
         qs = self.model_class.objects.all()
         if role_name == "TEACHER":
             qs = qs.filter(
                 Q(enrollments__class_obj__class_teacher__user_id=user_id)
-                | Q(enrollments__class_obj__schedules__teacher__user_id=user_id)
+                | Q(enrollments__class_obj__schedules__teacher__user_id=user_id),
+                enrollments__status=Enrollment.Status.ACTIVE,
+                enrollments__is_active=True,
+                enrollments__deleted_at__isnull=True,
             )
         elif role_name == "GUARDIAN":
             qs = qs.filter(guardians__guardian__user_id=user_id)
@@ -46,6 +51,29 @@ class StudentSelector(BaseSelector):
             qs = qs.filter(Q(first_name__icontains=search) | Q(last_name__icontains=search))
         qs = qs.distinct().order_by(order_by, "last_name")
         return self._paginate(qs, page=page, page_size=page_size)
+
+    def eligible_for_justification(self, user):
+        """Retorna alunos que o ator pode selecionar ao justificar uma ausência."""
+        from classes.contracts import Enrollment
+
+        qs = self.model_class.objects.all()
+        actor_role = getattr(getattr(user, "role", None), "name", "")
+        if actor_role == "TEACHER":
+            qs = qs.filter(
+                Q(enrollments__class_obj__class_teacher__user_id=user.pk)
+                | Q(enrollments__class_obj__schedules__teacher__user_id=user.pk),
+                enrollments__status=Enrollment.Status.ACTIVE,
+                enrollments__is_active=True,
+                enrollments__deleted_at__isnull=True,
+            )
+        elif actor_role == "GUARDIAN":
+            qs = qs.filter(
+                guardians__guardian__user_id=user.pk,
+                guardians__guardian__is_active=True,
+                guardians__is_active=True,
+                guardians__has_custody=True,
+            )
+        return qs.distinct().order_by("first_name", "last_name")
 
     def get_student_by_id(self, student_id):
         """Retorna o aluno pelo id ou lança `ObjectNotFoundError`."""

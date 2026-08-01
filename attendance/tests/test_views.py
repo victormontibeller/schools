@@ -8,11 +8,34 @@ import pytest
 from django.urls import reverse
 
 from agenda.models import Schedule, TimeSlot
+from attendance.models import AttendanceJustification
 from attendance.services import AttendanceService
+from audit.models import AuditLog
 from classes.models import Class, Enrollment
-from core.models import CustomUser
+from core.models import CustomUser, Role
+from guardians.models import Guardian, StudentGuardian
 from students.models import Student
 from teachers.models import Subject, Teacher
+
+
+def _guardian_actor(user, email):
+    role, _ = Role.objects.get_or_create(name=Role.Name.GUARDIAN)
+    actor = CustomUser.objects.create_user(email=email, password="Senha123", role=role)
+    guardian = Guardian.objects.create(
+        user=actor, first_name="Responsável", created_by=user, updated_by=user
+    )
+    return actor, guardian
+
+
+def _student(user, enrollment_number, last_name):
+    return Student.objects.create(
+        first_name="Aluno",
+        last_name=last_name,
+        birth_date=dt.date(2014, 1, 1),
+        enrollment_number=enrollment_number,
+        created_by=user,
+        updated_by=user,
+    )
 
 
 @pytest.mark.django_db
@@ -205,6 +228,67 @@ def test_justification_create_approve_and_reject_views(client, user):
     assert get_response.status_code == 302
     approve.assert_called_once_with(object_id)
     reject.assert_called_once_with(object_id, "Documento ilegível")
+
+
+@pytest.mark.django_db
+def test_guardian_justification_view_lists_only_active_custody_students(client, user):
+    actor, guardian = _guardian_actor(user, "guardian-view@attendance.test")
+    eligible = _student(user, "VIEW-ELIGIBLE", "Vinculado")
+    no_custody = _student(user, "VIEW-NO-CUSTODY", "Sem guarda")
+    inactive_link = _student(user, "VIEW-INACTIVE-LINK", "Vínculo inativo")
+    StudentGuardian.objects.create(
+        student=eligible,
+        guardian=guardian,
+        has_custody=True,
+        created_by=user,
+        updated_by=user,
+    )
+    StudentGuardian.objects.create(
+        student=no_custody,
+        guardian=guardian,
+        has_custody=False,
+        created_by=user,
+        updated_by=user,
+    )
+    link = StudentGuardian.objects.create(
+        student=inactive_link,
+        guardian=guardian,
+        has_custody=True,
+        created_by=user,
+        updated_by=user,
+    )
+    link.is_active = False
+    link.save(update_fields=["is_active", "updated_at"])
+    client.force_login(actor)
+
+    response = client.get(reverse("justification_create"))
+
+    assert response.status_code == 200
+    assert str(eligible.pk).encode() in response.content
+    assert str(no_custody.pk).encode() not in response.content
+    assert str(inactive_link.pk).encode() not in response.content
+
+
+@pytest.mark.django_db
+def test_guardian_tampered_justification_post_does_not_write_or_audit(client, user):
+    actor, _ = _guardian_actor(user, "guardian-tampered@attendance.test")
+    outsider = _student(user, "VIEW-TAMPERED", "Alheio")
+    audit_count = AuditLog.objects.count()
+    client.force_login(actor)
+
+    response = client.post(
+        reverse("justification_create"),
+        {
+            "student": outsider.pk,
+            "start_date": "2026-07-10",
+            "end_date": "2026-07-11",
+            "reason": "Consulta",
+        },
+    )
+
+    assert response.status_code == 200
+    assert not AttendanceJustification.objects.filter(student=outsider).exists()
+    assert AuditLog.objects.count() == audit_count
 
 
 @pytest.mark.django_db

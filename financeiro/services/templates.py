@@ -1,8 +1,6 @@
 """Ciclo de vida dos modelos reutilizáveis de plano financeiro."""
 
-from decimal import Decimal
-
-from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError
 from base.repositories import BaseRepository
 from base.services import service_command
 
@@ -98,42 +96,3 @@ class TemplateLifecycleMixin:
         from financeiro.models import FinancialPlanTemplate
 
         return self._deactivate(FinancialPlanTemplate, template_id, "FinancialPlanTemplate")
-
-    def _validated_template_values(self, data: dict) -> dict:
-        from financeiro.models import StudentFinancialContract
-
-        count = int(data["installment_count"])
-        due_day = int(data["due_day"])
-        value = self._to_decimal(data["installment_value"])
-        discount = self._to_decimal(data.get("discount_value", 0))
-        late_fee = self._to_decimal(data.get("late_fee_percent", 0))
-        interest = Decimal(str(data.get("daily_interest_percent", 0))).quantize(Decimal("0.0001"))
-        if count < 1 or count > 60:
-            raise ValidationError(errors={"installment_count": ["Informe entre 1 e 60 parcelas."]})
-        if due_day < 1 or due_day > 28:
-            raise ValidationError(errors={"due_day": ["Informe um dia entre 1 e 28."]})
-        if value <= 0:
-            raise ValidationError(errors={"installment_value": ["O valor deve ser positivo."]})
-        if discount < 0 or discount >= value:
-            raise ValidationError(
-                errors={"discount_value": ["O desconto deve ser menor que o valor da parcela."]}
-            )
-        if late_fee < 0 or interest < 0:
-            raise ValidationError(
-                errors={"late_fee_percent": ["Encargos não podem ser negativos."]}
-            )
-        frequency = data.get("billing_frequency", StudentFinancialContract.BillingFrequency.MONTHLY)
-        if frequency not in StudentFinancialContract.BillingFrequency.values:
-            raise ValidationError(errors={"billing_frequency": ["Frequência inválida."]})
-        return {
-            "name": str(data["name"]).strip(),
-            "academic_year": int(data["academic_year"]),
-            "billing_frequency": frequency,
-            "installment_count": count,
-            "installment_value": value,
-            "due_day": due_day,
-            "discount_value": discount,
-            "late_fee_percent": late_fee,
-            "daily_interest_percent": interest,
-            "description": str(data.get("description", "")).strip(),
-        }

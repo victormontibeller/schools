@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 @login_required
 def classes_list(request):
     """Lista turmas paginadas; suporta busca por nome."""
-    page = int(request.GET.get("page", 1))
     state = resolve_listing_state(
         request,
         scope="classes_list",
@@ -47,7 +46,7 @@ def classes_list(request):
     result = ClassSelector().list_classes(
         filters=filters,
         order_by=sort,
-        page=page,
+        page=state["page"],
         user_id=request.user.pk,
         role_name=role_name,
     )

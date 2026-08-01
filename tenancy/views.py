@@ -6,6 +6,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 
 from base.exceptions import AppBaseError, PermissionDeniedError
+from base.listing import resolve_listing_state
 
 
 @login_required
@@ -19,14 +20,19 @@ def platform_dashboard(request: HttpRequest) -> HttpResponse:
     if not is_platform_request(request):
         raise PermissionDeniedError("O painel da plataforma exige o domínio administrativo.")
 
-    page = int(request.GET.get("page", 1))
+    state = resolve_listing_state(
+        request,
+        scope="platform_dashboard",
+        allowed_sorts={"name"},
+        default_sort="name",
+    )
     selector = SchoolSelector()
     return render(
         request,
         "tenancy/platform_dashboard.html",
         {
             "overview": selector.get_platform_overview(),
-            "result": selector.list_platform_tenants(page=page),
+            "result": selector.list_platform_tenants(page=state["page"]),
         },
     )
 
@@ -37,11 +43,15 @@ def platform_school_list(request: HttpRequest) -> HttpResponse:
     _require_platform_superuser(request)
     from tenancy.selectors import SchoolSelector
 
-    page = int(request.GET.get("page", 1))
-    search = request.GET.get("q", "").strip()
+    state = resolve_listing_state(
+        request,
+        scope="platform_school_list",
+        allowed_sorts={"name"},
+        default_sort="name",
+    )
     context = {
-        "result": SchoolSelector().list_platform_tenants(search=search, page=page),
-        "q": search,
+        "result": SchoolSelector().list_platform_tenants(search=state["q"], page=state["page"]),
+        "q": state["q"],
     }
     if request.headers.get("HX-Request"):
         return render(request, "tenancy/partials/platform_schools_table.html", context)

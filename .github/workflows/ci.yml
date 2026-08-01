@@ -46,6 +46,21 @@ jobs:
       - name: Check canonical UI contracts
         run: python scripts/check_ui_contracts.py
 
+      - name: Check pre-production migration contracts
+        run: python scripts/check_preproduction_contracts.py
+
+      - name: Validate deterministic production settings and static assets
+        run: |
+          python manage.py check --deploy --fail-level WARNING
+          python manage.py collectstatic --noinput
+        env:
+          DJANGO_ENV: production
+          DEBUG: "False"
+          SECRET_KEY: ci-production-check-secret-key-with-more-than-fifty-characters-only
+          ALLOWED_HOSTS: platform.example.test,.schools.example.test
+          PLATFORM_DOMAIN: platform.example.test
+          TENANT_BASE_DOMAIN: schools.example.test
+
   test:
     name: Tests (SQLite)
     runs-on: ubuntu-latest
@@ -71,7 +86,7 @@ jobs:
       - name: Enforce critical-flow coverage
         run: >-
           coverage report
-          --include='accounts/*,tenancy/*,core/permissions.py,audit/*,financeiro/*'
+          --include='accounts/*,tenancy/*,core/permissions.py,base/media.py,audit/*,financeiro/*'
           --fail-under=90
           --skip-empty
 
@@ -107,6 +122,17 @@ jobs:
       - name: Install dev dependencies
         run: pip install --require-hashes -r requirements-dev.lock
 
+      - name: Check tenant migrations
+        run: python manage.py makemigrations --check --dry-run
+        env:
+          DJANGO_ENV: test_pg
+          DJANGO_SETTINGS_MODULE: core.settings
+          DB_HOST: localhost
+          DB_PORT: "5432"
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_NAME: schools_test_db
+
       - name: Run tenant isolation tests
         run: DJANGO_ENV=test_pg pytest -m tenant -v
         env:
@@ -115,6 +141,7 @@ jobs:
           DB_PORT: "5432"
           DB_USER: postgres
           DB_PASSWORD: postgres
+          DB_NAME: schools_test_db
           DB_TEST_NAME: schools_test_db
 
   test-ui:

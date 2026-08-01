@@ -1,8 +1,17 @@
 """Testes dos servicos de notificacao."""
 
+import uuid
+from unittest.mock import patch
+
 import pytest
 
-from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+from audit.models import AuditLog
+from base.exceptions import (
+    BusinessRuleViolationError,
+    ObjectNotFoundError,
+    PermissionDeniedError,
+    ValidationError,
+)
 from core.models import CustomUser
 from notifications.models import Announcement, MessageTemplate, Notification
 from notifications.services import AnnouncementService, NotificationService
@@ -55,17 +64,38 @@ class TestMarkAsRead:
         notif = NotificationService(user=user).create_notification(
             {"recipient_id": recipient.pk, "title": "Teste", "message": "Corpo"}
         )
-        result = NotificationService(user=user).mark_as_read(notif.pk)
-        assert result.read_at is not None
+        initial_version = notif.version
+        initial_updated_at = notif.updated_at
+        service = NotificationService(user=recipient)
+        with patch.object(service, "_log") as log:
+            result = service.mark_as_read(notif.pk)
 
-    def test_already_read(self, user):
+        assert result.read_at is not None
+        assert result.updated_by == recipient
+        assert result.version == initial_version + 1
+        assert result.updated_at > initial_updated_at
+        log.assert_called_once_with("notification_marked_as_read", notification_id=str(notif.pk))
+        audit = AuditLog.objects.filter(
+            model_name="Notification", object_id=str(notif.pk), operation="UPDATE"
+        ).get()
+        assert audit.old_values["version"] == initial_version
+        assert audit.old_values["read_at"] is None
+
+    def test_already_read_is_idempotent(self, user):
         recipient = _make_user("already@test.com")
         notif = NotificationService(user=user).create_notification(
             {"recipient_id": recipient.pk, "title": "Teste", "message": "Corpo"}
         )
-        NotificationService(user=user).mark_as_read(notif.pk)
-        with pytest.raises(BusinessRuleViolationError):
-            NotificationService(user=user).mark_as_read(notif.pk)
+        service = NotificationService(user=recipient)
+        with patch.object(service, "_log") as log:
+            first = service.mark_as_read(notif.pk)
+            audit_count = AuditLog.objects.count()
+            second = service.mark_as_read(notif.pk)
+
+        assert second.read_at == first.read_at
+        assert second.version == first.version
+        assert AuditLog.objects.count() == audit_count
+        log.assert_called_once()
 
     def test_not_found(self, user):
         import uuid
@@ -78,21 +108,71 @@ class TestMarkAsRead:
 class TestMarkAllAsRead:
     def test_success(self, user):
         recipient = _make_user("markall@test.com")
-        NotificationService(user=user).create_notification(
+        first = NotificationService(user=user).create_notification(
             {"recipient_id": recipient.pk, "title": "N1", "message": "M1"}
         )
-        NotificationService(user=user).create_notification(
+        second = NotificationService(user=user).create_notification(
             {"recipient_id": recipient.pk, "title": "N2", "message": "M2"}
         )
-        count = NotificationService(user=user).mark_all_as_read(recipient.pk)
+        service = NotificationService(user=recipient)
+        initial_updated_at = {item.pk: item.updated_at for item in (first, second)}
+        with patch.object(service, "_log") as log:
+            count = service.mark_all_as_read()
+
         assert count == 2
         unread = NotificationService(user=user).get_unread_count(recipient.pk)
         assert unread == 0
+        for notification in (first, second):
+            notification.refresh_from_db()
+            assert notification.updated_by == recipient
+            assert notification.version == 1
+            assert notification.updated_at > initial_updated_at[notification.pk]
+        assert AuditLog.objects.filter(model_name="Notification", operation="UPDATE").count() == 2
+        log.assert_called_once_with("notifications_marked_as_read", count=2)
 
     def test_no_unread(self, user):
         recipient = _make_user("noread@test.com")
-        count = NotificationService(user=user).mark_all_as_read(recipient.pk)
+        count = NotificationService(user=recipient).mark_all_as_read()
         assert count == 0
+
+    def test_only_actor_notifications_are_marked(self, user):
+        other = _make_user("markall-other@test.com")
+        own = NotificationService(user=user).create_notification(
+            {"recipient_id": user.pk, "title": "Própria", "message": "M1"}
+        )
+        foreign = NotificationService(user=user).create_notification(
+            {"recipient_id": other.pk, "title": "Alheia", "message": "M2"}
+        )
+
+        assert NotificationService(user=user).mark_all_as_read() == 1
+
+        own.refresh_from_db()
+        foreign.refresh_from_db()
+        assert own.read_at is not None
+        assert foreign.read_at is None
+
+
+@pytest.mark.django_db
+class TestMarkActorScope:
+    def test_mark_as_read_rejects_foreign_notification(self, user):
+        other = _make_user("foreign-mark@test.com")
+        notification = NotificationService(user=user).create_notification(
+            {"recipient_id": other.pk, "title": "Alheia", "message": "Corpo"}
+        )
+
+        with pytest.raises(ObjectNotFoundError):
+            NotificationService(user=user).mark_as_read(notification.pk)
+
+        notification.refresh_from_db()
+        assert notification.read_at is None
+
+    def test_mark_single_requires_actor(self):
+        with pytest.raises(PermissionDeniedError):
+            NotificationService(user=None).mark_as_read(uuid.uuid4())
+
+    def test_mark_all_requires_actor(self):
+        with pytest.raises(PermissionDeniedError):
+            NotificationService(user=None).mark_all_as_read()
 
 
 # ── AnnouncementService ──────────────────────────────────────────────────────

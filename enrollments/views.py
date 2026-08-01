@@ -48,7 +48,6 @@ APPLICATION_TABS = [
 def secretary_dashboard(request):
     """Tela unica de secretaria com tabs por etapa do processo."""
     tab = request.GET.get("tab", "pre-matricula")
-    page = int(request.GET.get("page", 1))
     state = resolve_listing_state(
         request,
         scope="secretary",
@@ -65,9 +64,9 @@ def secretary_dashboard(request):
         EnrollmentApplication.Status.PRE_ENROLLMENT,
         EnrollmentApplication.Status.UNDER_REVIEW,
     ):
-        result = selector.list_pending_review(search=search, page=page)
+        result = selector.list_pending_review(search=search, page=state["page"])
     else:
-        result = selector.list_by_status(status=status, search=search, page=page)
+        result = selector.list_by_status(status=status, search=search, page=state["page"])
 
     ctx = {
         "result": result,
@@ -300,11 +299,12 @@ def document_reject(request, pk):
 def document_download(request, pk):
     """Entrega documento privado após validar RBAC e vínculo com o aluno."""
     document = EnrollmentApplicationSelector().get_document_by_id(pk)
+    from core.access_catalog import VIEW
     from core.access_selectors import ObjectAccessSelector
-    from core.permissions import can_access_module, role_name
+    from core.permissions import can_access, role_name
 
     role = role_name(request.user)
-    allowed = can_access_module(request.user, "enrollments")
+    allowed = can_access(request.user, "enrollments", VIEW)
     if role == "GUARDIAN":
         allowed = ObjectAccessSelector.guardian_can_access_student(
             request.user.pk, document.student_id

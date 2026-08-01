@@ -187,9 +187,7 @@ class DiaryWorkflowService(BaseService):
         receipt.save()
         self._record_audit("UPDATE", receipt, old_values=old)
         if receipt.notification_id:
-            NotificationService(user=self.user).mark_as_read_for_user(
-                receipt.notification_id, self.user.pk
-            )
+            NotificationService(user=self.user).mark_as_read(receipt.notification_id)
         self._log("agenda_visualizada", entry_id=str(entry.pk))
         return receipt
 

@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from classes.models import Enrollment
 from core.access_selectors import ObjectAccessSelector
 
 
@@ -31,3 +32,15 @@ def test_teacher_class_scope_checks_teacher_and_schedule_relationships():
     with patch("classes.models.Class.objects", manager):
         assert ObjectAccessSelector.teacher_can_access_class("u", "c") is True
     manager.filter.return_value.filter.return_value.exists.assert_called_once_with()
+
+
+def test_teacher_student_scope_requires_active_enrollment():
+    manager = MagicMock()
+    manager.filter.return_value.exists.return_value = True
+    with patch("classes.models.Enrollment.objects", manager):
+        assert ObjectAccessSelector.teacher_can_access_student("u", "s") is True
+
+    assert manager.filter.call_args.kwargs == {
+        "student_id": "s",
+        "status": Enrollment.Status.ACTIVE,
+    }

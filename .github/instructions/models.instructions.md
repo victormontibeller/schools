@@ -74,4 +74,8 @@ class MyModel(BaseModel):
 - **Sempre** índices em campos de filtro frequente e FKs
 - **Sempre** `on_delete` explícito com justificativa em comentário
 - **Nunca** lógica de negócio em models — apenas schema, campos e `__str__`
-- Migrations devem ser criadas com `python manage.py makemigrations` e revisadas antes de aplicar
+- Antes da produção, qualquer mudança de model regenera o grafo inicial completo e exige reset
+  dev/demo; não criar migration evolutiva, backfill, `replaces` ou reconciliação
+- Preservar divisões `initial=True` geradas pelo Django e somente os seeds autorizados em
+  `docs/05_DATABASE.md`
+- Executar `python scripts/check_preproduction_contracts.py` e revisar o grafo antes do reset

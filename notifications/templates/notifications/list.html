@@ -26,8 +26,10 @@
           <small class="text-muted">{{ n.created_at|date:"d/m/Y H:i" }}</small>
         </div>
         {% if not n.read_at %}
-        <a href="{% url 'notification_mark_read' n.pk %}"
-           class="btn btn-sm btn-outline-primary">Marcar lida</a>
+        <form method="post" action="{% url 'notification_mark_read' n.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-sm btn-outline-primary">Marcar lida</button>
+        </form>
         {% endif %}
       </li>
       {% endfor %}

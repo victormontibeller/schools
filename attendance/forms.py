@@ -59,6 +59,14 @@ class AttendanceRecordForm(forms.ModelForm):
 class JustificationForm(forms.ModelForm):
     """Formulário para submissão de justificativa de ausência."""
 
+    def __init__(self, *args, student_queryset=None, **kwargs):
+        """Limita o seletor aos alunos previamente autorizados pela view."""
+        super().__init__(*args, **kwargs)
+        queryset = student_queryset
+        if queryset is None:
+            queryset = self.fields["student"].queryset.none()
+        self.fields["student"].queryset = queryset
+
     class Meta:
         model = AttendanceJustification
         fields = ["student", "start_date", "end_date", "reason", "document"]

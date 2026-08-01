@@ -28,11 +28,12 @@ STUDENT_SORTS = {
 def student_photo(request, pk):
     """Entrega foto privada após validar papel e vínculo com o aluno."""
     student = StudentSelector().get_student_by_id(pk)
+    from core.access_catalog import VIEW
     from core.access_selectors import ObjectAccessSelector
-    from core.permissions import can_access_module, role_name
+    from core.permissions import can_access, role_name
 
     role = role_name(request.user)
-    allowed = can_access_module(request.user, "students")
+    allowed = can_access(request.user, "students", VIEW)
     if role == "GUARDIAN":
         allowed = ObjectAccessSelector.guardian_can_access_student(request.user.pk, pk)
     elif role == "TEACHER":
@@ -47,7 +48,6 @@ def student_photo(request, pk):
 @login_required
 def students_list(request):
     """Lista alunos paginados, com busca por nome e suporte a HTMX."""
-    page = int(request.GET.get("page", 1))
     state = resolve_listing_state(
         request,
         scope="students_list",
@@ -62,7 +62,7 @@ def students_list(request):
         role_name=role_name,
         search=search,
         order_by=STUDENT_SORTS[sort],
-        page=page,
+        page=state["page"],
     )
     ctx = {
         "result": result,

@@ -25,9 +25,6 @@ class ContractAmendmentMixin:
             raise ObjectNotFoundError("StudentFinancialContract", str(contract_id)) from None
         if contract.status != StudentFinancialContract.Status.ACTIVE:
             raise BusinessRuleViolationError("Somente contratos ativos recebem aditivos.")
-        effective = data["effective_competency"].replace(day=1)
-        if effective <= date.today().replace(day=1):
-            raise ValidationError(errors={"effective_competency": ["A vigência deve ser futura."]})
         allowed = {
             "installment_count",
             "installment_value",
@@ -36,9 +33,30 @@ class ContractAmendmentMixin:
             "late_fee_percent",
             "daily_interest_percent",
         }
-        changed = {key: data[key] for key in allowed if key in data and data[key] not in (None, "")}
-        if not changed:
+        submitted = {
+            key: data[key] for key in allowed if key in data and data[key] not in (None, "")
+        }
+        if not submitted:
             raise ValidationError(errors={"changed_terms": ["Informe ao menos uma alteração."]})
+        merged = {
+            field: submitted.get(field, getattr(contract, field))
+            for field in (
+                "academic_year",
+                "name",
+                "billing_frequency",
+                "installment_count",
+                "installment_value",
+                "due_day",
+                "discount_value",
+                "late_fee_percent",
+                "daily_interest_percent",
+            )
+        }
+        validated = self._validated_contract_values(merged)
+        changed = {field: validated[field] for field in submitted}
+        effective = data["effective_competency"].replace(day=1)
+        if effective <= date.today().replace(day=1):
+            raise ValidationError(errors={"effective_competency": ["A vigência deve ser futura."]})
         future = list(
             BillingEntry.objects.select_for_update()
             .filter(contract=contract, competency__gte=effective)

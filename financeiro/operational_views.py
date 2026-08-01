@@ -52,7 +52,7 @@ def financial_template_list(request: HttpRequest) -> HttpResponse:
         search=state["q"],
         year=request.GET.get("year") or None,
         order_by=state["sort"],
-        page=int(request.GET.get("page", 1)),
+        page=state["page"],
     )
     sorting = build_sorting(
         current_sort=state["sort"],
@@ -266,7 +266,7 @@ def payment_queue(request: HttpRequest) -> HttpResponse:
         search=state["q"],
         status=status,
         order_by=state["sort"],
-        page=int(request.GET.get("page", 1)),
+        page=state["page"],
     )
     sorting = build_sorting(
         current_sort=state["sort"],
@@ -372,7 +372,7 @@ def reminder_history(request: HttpRequest) -> HttpResponse:
         search=state["q"],
         status=request.GET.get("status", ""),
         order_by=state["sort"],
-        page=int(request.GET.get("page", 1)),
+        page=state["page"],
     )
     sorting = build_sorting(
         current_sort=state["sort"],

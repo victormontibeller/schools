@@ -48,11 +48,12 @@ JUSTIFICATION_SORTS = {
 def justification_document(request, pk):
     """Entrega o anexo privado de uma justificativa após validar escopo do aluno."""
     justification = JustificationSelector().get_by_id(pk)
+    from core.access_catalog import VIEW
     from core.access_selectors import ObjectAccessSelector
-    from core.permissions import can_access_module, role_name
+    from core.permissions import can_access, role_name
 
     role = role_name(request.user)
-    allowed = can_access_module(request.user, "attendance")
+    allowed = can_access(request.user, "attendance", VIEW)
     if role == "GUARDIAN":
         allowed = ObjectAccessSelector.guardian_can_access_student(
             request.user.pk, justification.student_id
@@ -76,7 +77,6 @@ def attendance_records_list(request):
     if getattr(getattr(request.user, "role", None), "name", "") == "TEACHER":
         teacher = getattr(request.user, "teacher_profile", None)
         teacher_id = teacher.pk if teacher else None
-    page = int(request.GET.get("page", 1))
     state = resolve_listing_state(
         request,
         scope="attendance_records_list",
@@ -99,7 +99,7 @@ def attendance_records_list(request):
             teacher_id=teacher_id,
             search=search,
             order_by=RECORD_SORTS[sort],
-            page=page,
+            page=state["page"],
         ),
         "q": search,
         "sort": sort,
@@ -252,7 +252,6 @@ def students_at_risk(request):
 def justifications_list(request):
     """Lista justificativas de ausência; filtra por situação via ?status=."""
     status = request.GET.get("status") or None
-    page = int(request.GET.get("page", 1))
     state = resolve_listing_state(
         request,
         scope="justifications_list",
@@ -274,7 +273,7 @@ def justifications_list(request):
             status=status,
             search=search,
             order_by=JUSTIFICATION_SORTS[sort],
-            page=page,
+            page=state["page"],
         ),
         "q": search,
         "sort": sort,
@@ -300,7 +299,12 @@ def justifications_list(request):
 @login_required
 def justification_create(request):
     """Submissão de justificativa por responsável/aluno."""
-    form = JustificationForm(request.POST or None, request.FILES or None)
+    eligible_students = StudentSelector().eligible_for_justification(request.user)
+    form = JustificationForm(
+        request.POST or None,
+        request.FILES or None,
+        student_queryset=eligible_students,
+    )
     if request.method == "POST" and form.is_valid():
         try:
             cd = form.cleaned_data

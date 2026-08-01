@@ -10,11 +10,6 @@ urlpatterns = [
     path("teachers/<uuid:pk>/", views.teacher_detail, name="teacher_detail"),
     path("teachers/<uuid:pk>/foto/", views.teacher_avatar, name="teacher_avatar"),
     path("teachers/<uuid:pk>/editar/", views.teacher_edit, name="teacher_edit"),
-    path(
-        "teachers/<uuid:pk>/disciplinas/",
-        views.teacher_subjects_edit,
-        name="teacher_subjects_edit",
-    ),
     path("subjects/", views.subjects_list, name="subjects_list"),
     path("subjects/novo/", views.subject_create, name="subject_create"),
     path("subjects/<uuid:pk>/", views.subject_detail, name="subject_detail"),

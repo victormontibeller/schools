@@ -65,14 +65,13 @@ def calendar_month(request, year: int | None = None, month: int | None = None):
 @login_required
 def events_list(request):
     """Lista os próximos eventos e oferece atalho para criar."""
-    page = int(request.GET.get("page", 1))
     state = resolve_listing_state(
         request, scope="events_list", allowed_sorts=set(EVENT_SORTS), default_sort="start_date"
     )
     context = _listing_context(
         request,
         result=CalendarSelector().list_upcoming_events(
-            state["q"], EVENT_SORTS[state["sort"]], page
+            state["q"], EVENT_SORTS[state["sort"]], state["page"]
         ),
         q=state["q"],
         sort=state["sort"],
@@ -124,7 +123,7 @@ def event_create(request):
 
 @login_required
 def event_detail(request, pk):
-    """Retorna ficha no card da agenda ou preserva rota legada por redirecionamento."""
+    """Retorna o card HTMX ou redireciona o fluxo completo para o calendário."""
     event = CalendarSelector().get_by_id(pk)
     if request.headers.get("HX-Request"):
         return render(
@@ -185,14 +184,16 @@ def event_cancel(request, pk):
 @access_policy("holidays", VIEW)
 def holidays_list(request):
     """Lista feriados seguindo o padrão de listagem compartilhada."""
-    page = int(request.GET.get("page", 1))
     state = resolve_listing_state(
         request, scope="holidays_list", allowed_sorts=set(HOLIDAY_SORTS), default_sort="date"
     )
     context = _listing_context(
         request,
         result=HolidaySelector().list_holidays(
-            dt.date.today().year, state["q"], HOLIDAY_SORTS[state["sort"]], page
+            dt.date.today().year,
+            state["q"],
+            HOLIDAY_SORTS[state["sort"]],
+            state["page"],
         ),
         q=state["q"],
         sort=state["sort"],
@@ -241,7 +242,6 @@ def holiday_edit(request, pk):
 @access_policy("academic_years", VIEW)
 def academic_years_list(request):
     """Lista anos letivos seguindo o padrão de listagem compartilhada."""
-    page = int(request.GET.get("page", 1))
     state = resolve_listing_state(
         request,
         scope="academic_years_list",
@@ -251,7 +251,7 @@ def academic_years_list(request):
     context = _listing_context(
         request,
         result=AcademicYearSelector().list_academic_years(
-            state["q"], ACADEMIC_YEAR_SORTS[state["sort"]], page
+            state["q"], ACADEMIC_YEAR_SORTS[state["sort"]], state["page"]
         ),
         q=state["q"],
         sort=state["sort"],

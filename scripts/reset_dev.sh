@@ -2,10 +2,19 @@
 set -eu
 
 if [ "${CONFIRM_RESET_DEV:-}" != "RESET" ]; then
-    printf 'Esta operação apaga schools_db, schools_test_db e toda a mídia local. Digite RESET: '
+    printf 'Esta operação apaga schools_db, schools_test_db, mídia, cache e filas locais. Digite RESET: '
     read -r confirmation
     [ "$confirmation" = "RESET" ] || { echo "Reset cancelado."; exit 1; }
 fi
+
+db_host="${DB_HOST:-localhost}"
+case "$db_host" in
+    localhost|127.0.0.1|::1|postgres) ;;
+    *)
+        echo "Reset recusado: DB_HOST deve apontar para um PostgreSQL local." >&2
+        exit 1
+        ;;
+esac
 
 if [ -z "${DEV_PLATFORM_ADMIN_PASSWORD:-}" ] || [ -z "${DEV_DEMO_ADMIN_PASSWORD:-}" ]; then
     echo "Defina DEV_PLATFORM_ADMIN_PASSWORD e DEV_DEMO_ADMIN_PASSWORD antes do reset."
@@ -13,11 +22,16 @@ if [ -z "${DEV_PLATFORM_ADMIN_PASSWORD:-}" ] || [ -z "${DEV_DEMO_ADMIN_PASSWORD:
 fi
 export DEV_PLATFORM_ADMIN_PASSWORD DEV_DEMO_ADMIN_PASSWORD
 
-if command -v docker >/dev/null 2>&1; then
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
     docker compose stop app worker beat >/dev/null 2>&1 || true
+    for service in redis rabbitmq; do
+        if [ -n "$(docker compose ps --all --quiet "$service")" ]; then
+            docker compose rm --stop --force "$service" >/dev/null
+            docker compose up --detach "$service" >/dev/null
+        fi
+    done
 fi
 
-db_host="${DB_HOST:-localhost}"
 db_port="${DB_PORT:-5432}"
 db_user="${DB_USER:-postgres}"
 export PGPASSWORD="${DB_PASSWORD:-postgres}"

@@ -15,6 +15,7 @@ class ObjectAccessSelector:
             guardian__user_id=user_id,
             guardian__is_active=True,
             student_id=student_id,
+            is_active=True,
             has_custody=True,
         ).exists()
 
@@ -94,4 +95,5 @@ class ObjectAccessSelector:
             Q(class_obj__class_teacher__user_id=user_id)
             | Q(class_obj__schedules__teacher__user_id=user_id),
             student_id=student_id,
+            status=Enrollment.Status.ACTIVE,
         ).exists()

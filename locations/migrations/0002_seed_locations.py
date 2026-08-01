@@ -7,6 +7,7 @@ from django.db import migrations
 
 
 def seed_locations(apps, schema_editor):
+    """Insere ou atualiza estados e municípios pelo identificador canônico."""
     State = apps.get_model("locations", "State")
     City = apps.get_model("locations", "City")
     data_path = Path(__file__).resolve().parents[1] / "data" / "brazil_locations.json"
@@ -27,5 +28,7 @@ def seed_locations(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    """Popula dados de referência permitidos pela política pré-produção."""
+
     dependencies = [("locations", "0001_initial")]
     operations = [migrations.RunPython(seed_locations, migrations.RunPython.noop)]

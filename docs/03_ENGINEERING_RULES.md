@@ -39,6 +39,20 @@ Todo código deverá ser escrito como se fosse ser mantido por outra pessoa no f
 - Publicações Celery decorrentes de uma escrita usam `transaction.on_commit()`. Rollback não pode
   publicar tarefas; indisponibilidade do broker após o commit é registrada sem desfazer os dados.
 
+### Clean break enquanto não há produção
+
+- A implementação nova substitui a anterior por completo. No mesmo lote devem sair aliases,
+  rotas, métodos, branches, schemas e testes que só sustentavam o caminho superado.
+- Compatibilidade retroativa é proibida por padrão. Uma exceção exige solicitação explícita e ADR
+  que identifique consumidor, prazo e remoção futura.
+- Resiliência do comportamento canônico não é legado: progressive enhancement, fallback sem
+  JavaScript e tolerância controlada a cache, broker ou gateway permanecem quando fazem parte do
+  produto atual.
+- A revisão deve buscar consumidores antes da remoção e comparar churn de produto, testes,
+  migrations e documentação, sem usar volume de testes como justificativa para duplicação.
+- O primeiro go-live exige ADR próprio para encerrar esta política e instituir compatibilidade e
+  evolução de dados adequadas a instalações persistentes.
+
 ### Observabilidade
 
 - Todo `service` deverá emitir logs estruturados em JSON.
@@ -73,6 +87,7 @@ Todo código deverá ser escrito como se fosse ser mantido por outra pessoa no f
 | Ignorar auditoria em operações de escrita | Usar `BaseService` que já audita automaticamente |
 | Secrets em código fonte | Usar variáveis de ambiente |
 | Migrations sem revisão | Toda migration deve ser revisada antes de aplicar |
+| Compatibilidade pré-produção não aprovada | Remover o caminho substituído ou registrar exceção em ADR |
 | Chamada direta a API de terceiros em tasks | Usar `channels/` SDK — `BaseChannel.send()` |
 
 ---

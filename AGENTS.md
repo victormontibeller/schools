@@ -37,6 +37,23 @@ School Manager é um monólito modular Django 5.2, Python 3.13 e PostgreSQL com 
 - O schema do tenant é obrigatório em requests e tarefas Celery.
 - Não usar `print()` para logging.
 
+## Política pré-produção: clean break
+
+Até um ADR declarar a primeira entrada em produção, dados e instalações são descartáveis:
+
+- substituir uma interface exige remover no mesmo lote aliases, rotas, métodos, schemas e testes
+  superados; compatibilidade retroativa só existe por decisão explícita registrada em ADR;
+- alterações de models regeneram o grafo de migrations iniciais e exigem reset integral dos
+  ambientes dev/demo; são permitidas apenas migrations `initial=True` geradas pelo Django e os
+  seeds expressamente documentados;
+- fallbacks do fluxo canônico para acessibilidade, HTMX sem JavaScript, cache, broker ou gateway
+  são resiliência atual e não devem ser removidos como se fossem compatibilidade histórica;
+- toda entrega reporta separadamente o churn de produto, testes, migrations e documentação, além
+  dos caminhos legados efetivamente removidos.
+
+A entrada em produção exige novo ADR encerrando esta política; a partir desse marco, migrations
+publicadas tornam-se imutáveis e a estratégia de compatibilidade deve ser redefinida.
+
 ## Helpers obrigatórios
 
 Não reimplementar métodos de `BaseService`:

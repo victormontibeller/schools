@@ -70,6 +70,10 @@ somente para scripts/estilos legados do tema e deverá ser removida conforme for
   delegáveis somente a Secretaria, Coordenação e Financeiro e não ampliam a leitura do calendário.
 - Professor acessa somente turmas, alunos e registros atribuídos. Responsável acessa somente
   alunos vinculados e os dados derivados desses vínculos; a matriz não remove esses filtros.
+- A submissão de justificativa por Responsável limita o formulário e repete no service o vínculo
+  ativo com o aluno, o perfil ativo do responsável e a guarda vigente. Identificadores de alunos
+  fora desse escopo são recusados antes de qualquer escrita ou auditoria; administradores
+  autorizados permanecem sujeitos apenas ao isolamento do tenant.
 - Ausência de registro, módulo desconhecido, ação incompatível ou contrato de escopo ausente
   resulta em negação. A DEMO aplica ainda seu teto próprio de comandos.
 
@@ -79,6 +83,11 @@ somente para scripts/estilos legados do tema e deverá ser removida conforme for
   access log.
 - Logs de aplicação incluem tenant, usuário e correlation ID por identificadores opacos.
   Mensagens não interpolam exceções nem PII.
+- Novos registros de auditoria redigem credenciais, contato, endereço, data de nascimento,
+  documentos e textos livres potencialmente pessoais, incluindo motivos, justificativas,
+  observações, feedback, mensagens, conteúdo, descrições e títulos. Status, identificadores
+  opacos, datas operacionais e valores permanecem disponíveis; o controle vale prospectivamente,
+  sem reescrever o histórico já persistido.
 - Secrets e credenciais ACME existem apenas em secrets/variáveis de ambiente.
 
 ### Agenda, convites e PWA

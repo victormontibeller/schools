@@ -14,7 +14,6 @@ from rooms.services import RoomService
 @login_required
 def rooms_list(request):
     """Lista salas paginadas; suporta busca por nome e partial HTMX."""
-    page = int(request.GET.get("page", 1))
     state = resolve_listing_state(
         request,
         scope="rooms_list",
@@ -37,7 +36,7 @@ def rooms_list(request):
     if search:
         filters["name__icontains"] = search
 
-    result = RoomSelector().list_rooms(filters=filters, order_by=sort, page=page)
+    result = RoomSelector().list_rooms(filters=filters, order_by=sort, page=state["page"])
 
     ctx = {
         "result": result,

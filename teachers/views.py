@@ -34,9 +34,10 @@ TEACHER_SORTS = {
 def teacher_avatar(request, pk):
     """Entrega avatar privado do professor dentro do escopo autorizado."""
     teacher = TeacherSelector().get_teacher_by_id(pk)
-    from core.permissions import can_access_module
+    from core.access_catalog import VIEW
+    from core.permissions import can_access
 
-    allowed = teacher.user_id == request.user.pk or can_access_module(request.user, "teachers")
+    allowed = teacher.user_id == request.user.pk or can_access(request.user, "teachers", VIEW)
     if not allowed:
         raise PermissionDeniedError("Sem permissão para acessar esta foto.")
     if not teacher.user.avatar:
@@ -47,7 +48,6 @@ def teacher_avatar(request, pk):
 @login_required
 def teachers_list(request):
     """Lista professores paginados, com busca por nome e suporte a HTMX."""
-    page = int(request.GET.get("page", 1))
     state = resolve_listing_state(
         request,
         scope="teachers_list",
@@ -59,7 +59,7 @@ def teachers_list(request):
     result = TeacherSelector().list_teachers(
         search=search,
         order_by=TEACHER_SORTS[sort],
-        page=page,
+        page=state["page"],
     )
     ctx = {
         "result": result,
@@ -199,13 +199,6 @@ def teacher_edit(request, pk):
     )
 
 
-@login_required
-def teacher_subjects_edit(request, pk):
-    """Mantém compatibilidade com a rota dedicada de disciplinas."""
-    teacher = TeacherSelector().get_by_id(pk)
-    return _teacher_subjects_response(request, teacher)
-
-
 def _teacher_subjects_response(request, teacher):
     """Renderiza e processa o componente de vínculos de disciplinas."""
     if request.method == "POST":
@@ -241,7 +234,6 @@ def _teacher_subjects_response(request, teacher):
 @login_required
 def subjects_list(request):
     """Lista disciplinas paginadas, com busca por nome e suporte a HTMX."""
-    page = int(request.GET.get("page", 1))
     state = resolve_listing_state(
         request,
         scope="subjects_list",
@@ -256,7 +248,7 @@ def subjects_list(request):
     result = SubjectSelector().list_subjects(
         filters=filters,
         order_by=sort,
-        page=page,
+        page=state["page"],
         user_id=request.user.pk,
         role_name=role_name,
     )

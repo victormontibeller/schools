@@ -7,9 +7,9 @@ import pytest
 from django.urls import reverse
 
 from base import context
-from core.access_catalog import DEACTIVATE, EDIT, action_for_operation
+from core.access_catalog import DEACTIVATE, EDIT, VIEW, action_for_operation
 from core.permissions import (
-    can_access_module,
+    can_access,
     can_configure_student_diary,
     can_edit_student_diary,
     can_execute_service,
@@ -154,7 +154,7 @@ def test_admin_has_unrestricted_access_only_inside_school_tenant():
     tenant_token = context.current_tenant.set("school_demo")
     try:
         assert has_unrestricted_tenant_access(admin)
-        assert can_access_module(admin, "finance_overview")
+        assert can_access(admin, "finance_overview", VIEW)
         assert can_execute_service(admin, "financeiro", "create_contract", "FinanceService")
     finally:
         context.current_tenant.reset(tenant_token)
@@ -164,7 +164,7 @@ def test_admin_has_unrestricted_access_only_inside_school_tenant():
 
 def test_anonymous_and_demo_policies_deny_privileged_operations():
     anonymous = SimpleNamespace(is_authenticated=False, is_superuser=False)
-    assert can_access_module(anonymous, "students") is False
+    assert can_access(anonymous, "students", VIEW) is False
     assert can_configure_student_diary(anonymous) is False
     assert can_edit_student_diary(anonymous) is False
 

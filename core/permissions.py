@@ -61,7 +61,6 @@ SELF_SERVICE_METHODS = frozenset(
     {
         "change_password",
         "mark_as_read",
-        "mark_as_read_for_user",
         "mark_all_as_read",
         "submit_justification",
         "mark_entry_viewed",
@@ -205,12 +204,6 @@ def can_access(user, module_key: str, action: str = VIEW) -> bool:
     return action in cache.get(module_key, frozenset())
 
 
-def can_access_module(user, app_label: str) -> bool:
-    """Compatibilidade pública: acesso ao módulo equivale a Visualizar."""
-    module_key = app_label if app_label in MODULES_BY_KEY else module_for_app(app_label)
-    return bool(module_key and can_access(user, module_key, VIEW))
-
-
 def access_policy(module_key: str, action: str) -> Callable[[_ViewCallable], _ViewCallable]:
     """Declara de forma explícita a capacidade exigida por uma view."""
     if module_key != "__admin__" and module_key not in MODULES_BY_KEY:
@@ -345,7 +338,6 @@ __all__ = [
     "VIEW",
     "access_policy",
     "can_access",
-    "can_access_module",
     "can_configure_student_diary",
     "can_edit_student_diary",
     "can_execute_service",

@@ -291,7 +291,7 @@ class BaseService:
     _MUTATION_PREFIXES = MUTATION_PREFIXES
 
     def __init_subclass__(cls, **kwargs) -> None:
-        """Declara comandos legados por prefixo como autorizados e atômicos."""
+        """Declara comandos nomeados por prefixo como autorizados e atômicos."""
         super().__init_subclass__(**kwargs)
 
         methods = dict(cls.__dict__)

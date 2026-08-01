@@ -58,11 +58,10 @@ def contract_list(request: HttpRequest) -> HttpResponse:
         default_sort="name",
     )
     search = state["q"]
-    page = int(request.GET.get("page", 1))
     status = request.GET.get("status", "")
 
     result = FinancialContractSelector(user=request.user).list_contracts(
-        search=search, status=status, order_by=state["sort"], page=page
+        search=search, status=status, order_by=state["sort"], page=state["page"]
     )
     sorting = build_sorting(
         current_sort=state["sort"], search=search, sortable_fields=["name", "academic_year"]
@@ -195,7 +194,6 @@ def contract_materialize_billings(request: HttpRequest, pk) -> HttpResponse:
 def billing_list(request: HttpRequest) -> HttpResponse:
     """Lista cobrancas com tabs por status e busca."""
     tab = request.GET.get("tab", "aberto")
-    page = int(request.GET.get("page", 1))
     state = resolve_listing_state(
         request,
         scope="finance_billings",
@@ -208,7 +206,7 @@ def billing_list(request: HttpRequest) -> HttpResponse:
     status = tab_map.get(tab, "OPEN")
 
     result = BillingSelector(user=request.user).list_billings(
-        search=search, status=status, order_by=state["sort"], page=page
+        search=search, status=status, order_by=state["sort"], page=state["page"]
     )
     sorting = build_sorting(
         current_sort=state["sort"],

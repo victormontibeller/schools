@@ -95,6 +95,11 @@ def test_deactivate_fails_when_already_inactive(service, my_model_factory):
 - Fixtures do projeto estão em `conftest.py` — `db_user`, etc.
 - **Nunca** testar lógica de banco em testes unitários de service puro
 - Cobrir: caminho feliz, validação de obrigatórios, unicidade, not found, regras de negócio
+- Reutilizar fixtures e factories existentes e parametrizar variações da mesma regra
+- Remover testes exclusivos de aliases, rotas ou comportamentos substituídos no mesmo lote
+- Não duplicar no nível HTTP todas as combinações já cobertas pelo helper/service; manter um caso
+  representativo de integração e os cenários distintos de autorização, rollback e tenancy
+- Reportar separadamente churn de testes e de código produtivo
 
 ## Rodando os testes
 

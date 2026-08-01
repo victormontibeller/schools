@@ -26,9 +26,10 @@ from guardians.services import GuardianService
 def guardian_avatar(request, pk):
     """Entrega a foto privada do responsável dentro do escopo autorizado."""
     guardian = GuardianSelector().get_by_id(pk)
-    from core.permissions import can_access_module
+    from core.access_catalog import VIEW
+    from core.permissions import can_access
 
-    allowed = guardian.user_id == request.user.pk or can_access_module(request.user, "guardians")
+    allowed = guardian.user_id == request.user.pk or can_access(request.user, "guardians", VIEW)
     if not allowed:
         raise PermissionDeniedError("Sem permissão para acessar esta foto.")
     if not guardian.avatar:
@@ -44,7 +45,7 @@ def guardians_list(request):
     )
     order = "-first_name" if state["sort"] == "-name" else "first_name"
     result = GuardianSelector().list_guardians(
-        search=state["q"], order_by=order, page=int(request.GET.get("page", 1))
+        search=state["q"], order_by=order, page=state["page"]
     )
     context = {
         "result": result,

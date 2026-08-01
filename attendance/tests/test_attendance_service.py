@@ -7,10 +7,18 @@ import pytest
 from agenda.models import Schedule, TimeSlot
 from attendance.models import AttendanceEntry, AttendanceJustification
 from attendance.services import AttendanceService
-from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+from audit.models import AuditLog
+from base.exceptions import (
+    BusinessRuleViolationError,
+    ObjectNotFoundError,
+    PermissionDeniedError,
+    ValidationError,
+)
 from classes.models import Class, Enrollment
-from core.models import CustomUser, Role
+from core.models import CustomUser, Role, RoleModuleAccess
+from guardians.models import Guardian, StudentGuardian
 from students.models import Student
+from students.selectors import StudentSelector
 from teachers.models import Subject, Teacher
 
 
@@ -88,12 +96,61 @@ def _make_student(user, enrollment_number="ATT-S001"):
     )
 
 
-def _enroll(user, cls, student):
+def _make_guardian_actor(user, suffix="SCOPE"):
+    role, _ = Role.objects.get_or_create(name=Role.Name.GUARDIAN)
+    actor = CustomUser.objects.create_user(
+        email=f"guardian-{suffix.lower()}@attendance.test",
+        password="Senha123",
+        role=role,
+    )
+    guardian = Guardian.objects.create(
+        user=actor,
+        first_name="Responsável",
+        created_by=user,
+        updated_by=user,
+    )
+    return actor, guardian
+
+
+def _set_teacher_attendance_access(user, teacher, *, can_create):
+    role, _ = Role.objects.get_or_create(name=Role.Name.TEACHER)
+    RoleModuleAccess.objects.update_or_create(
+        role=role,
+        module_key="attendance",
+        defaults={
+            "can_view": True,
+            "can_create": can_create,
+            "created_by": user,
+            "updated_by": user,
+        },
+    )
+    teacher.user.role = role
+    teacher.user.save(update_fields=["role", "updated_at"])
+
+
+def _justification_payload(student):
+    return {
+        "student_id": student.pk,
+        "start_date": dt.date(2026, 7, 10),
+        "end_date": dt.date(2026, 7, 11),
+        "reason": "Consulta",
+    }
+
+
+def _assert_justification_denied_without_write(actor, student):
+    audit_count = AuditLog.objects.count()
+    with pytest.raises(PermissionDeniedError):
+        AttendanceService(user=actor).submit_justification(_justification_payload(student))
+    assert not AttendanceJustification.objects.filter(student=student).exists()
+    assert AuditLog.objects.count() == audit_count
+
+
+def _enroll(user, cls, student, *, status=Enrollment.Status.ACTIVE):
     return Enrollment.objects.create(
         student=student,
         class_obj=cls,
         enrollment_date=dt.date.today(),
-        status=Enrollment.Status.ACTIVE,
+        status=status,
         created_by=user,
         updated_by=user,
     )
@@ -340,8 +397,8 @@ class TestRecordAttendance:
         ).latest("created_at")
         assert log.old_values == {
             "status": AttendanceEntry.Status.PRESENT,
-            "justification": "",
-            "note": "",
+            "justification": "[REDACTED]",
+            "note": "[REDACTED]",
         }
 
     def test_invalid_status(self, user):
@@ -432,6 +489,141 @@ class TestSubmitJustification:
                     "reason": "Erro",
                 }
             )
+
+    def test_guardian_with_active_custody_can_submit(self, user):
+        student = _make_student(user, "JUS-GUARDIAN-OK")
+        actor, guardian = _make_guardian_actor(user, "OK")
+        StudentGuardian.objects.create(
+            student=student,
+            guardian=guardian,
+            has_custody=True,
+            created_by=user,
+            updated_by=user,
+        )
+
+        justification = AttendanceService(user=actor).submit_justification(
+            _justification_payload(student)
+        )
+
+        assert justification.student_id == student.pk
+
+    @pytest.mark.parametrize(
+        ("linked", "link_active", "has_custody", "guardian_active"),
+        [
+            (False, True, True, True),
+            (True, False, True, True),
+            (True, True, False, True),
+            (True, True, True, False),
+        ],
+    )
+    def test_guardian_outside_scope_is_denied_without_write_or_audit(
+        self, user, linked, link_active, has_custody, guardian_active
+    ):
+        student = _make_student(
+            user,
+            (
+                f"JUS-DENIED-{int(linked)}-{int(link_active)}-"
+                f"{int(has_custody)}-{int(guardian_active)}"
+            ),
+        )
+        actor, guardian = _make_guardian_actor(
+            user,
+            (
+                f"DENIED-{int(linked)}-{int(link_active)}-"
+                f"{int(has_custody)}-{int(guardian_active)}"
+            ),
+        )
+        if linked:
+            guardian.is_active = guardian_active
+            guardian.save(update_fields=["is_active", "updated_at"])
+            link = StudentGuardian.objects.create(
+                student=student,
+                guardian=guardian,
+                has_custody=has_custody,
+                created_by=user,
+                updated_by=user,
+            )
+            if not link_active:
+                link.is_active = False
+                link.save(update_fields=["is_active", "updated_at"])
+        _assert_justification_denied_without_write(actor, student)
+
+    def test_missing_actor_is_denied_without_write_or_audit(self, user):
+        student = _make_student(user, "JUS-NO-ACTOR")
+        _assert_justification_denied_without_write(None, student)
+
+    def test_non_guardian_without_attendance_create_is_denied(self, user):
+        role, _ = Role.objects.get_or_create(name=Role.Name.SECRETARY)
+        actor = CustomUser.objects.create_user(
+            email="secretary-no-attendance-create@test.com",
+            password="Senha123",
+            role=role,
+        )
+        student = _make_student(user, "JUS-NO-CREATE")
+        _assert_justification_denied_without_write(actor, student)
+
+    def test_teacher_can_submit_only_for_assigned_student(self, user):
+        assigned_class = _make_class(user, "TEACHER-SCOPE")
+        _make_subject(user)
+        teacher = _make_teacher(user, "JUS-SCOPE")
+        _set_teacher_attendance_access(user, teacher, can_create=True)
+        assigned_student = _make_student(user, "JUS-TEACHER-ASSIGNED")
+        outsider = _make_student(user, "JUS-TEACHER-OUTSIDER")
+        _enroll(user, assigned_class, assigned_student)
+        outsider_class = _make_class(user, "TEACHER-OUTSIDER")
+        _enroll(user, outsider_class, outsider)
+        service = AttendanceService(user=teacher.user)
+
+        justification = service.submit_justification(_justification_payload(assigned_student))
+
+        assert justification.student_id == assigned_student.pk
+        _assert_justification_denied_without_write(teacher.user, outsider)
+
+    def test_teacher_with_assigned_student_but_without_create_is_denied(self, user):
+        assigned_class = _make_class(user, "TEACHER-REVOKED")
+        _make_subject(user)
+        teacher = _make_teacher(user, "JUS-REVOKED")
+        _set_teacher_attendance_access(user, teacher, can_create=False)
+        assigned_student = _make_student(user, "JUS-TEACHER-REVOKED")
+        _enroll(user, assigned_class, assigned_student)
+        _assert_justification_denied_without_write(teacher.user, assigned_student)
+
+    @pytest.mark.parametrize("status", [Enrollment.Status.TRANSFERRED, Enrollment.Status.CANCELLED])
+    def test_teacher_cannot_submit_for_inactive_enrollment_without_write_or_audit(
+        self, user, status
+    ):
+        assigned_class = _make_class(user, f"TEACHER-{status}")
+        _make_subject(user)
+        teacher = _make_teacher(user, f"JUS-{status}")
+        _set_teacher_attendance_access(user, teacher, can_create=True)
+        student = _make_student(user, f"JUS-{status}")
+        _enroll(user, assigned_class, student, status=status)
+
+        assert (
+            not StudentSelector()
+            .eligible_for_justification(teacher.user)
+            .filter(pk=student.pk)
+            .exists()
+        )
+        _assert_justification_denied_without_write(teacher.user, student)
+
+    def test_teacher_cannot_submit_for_soft_deleted_active_enrollment(self, user):
+        assigned_class = _make_class(user, "TEACHER-SOFT-DELETED")
+        _make_subject(user)
+        teacher = _make_teacher(user, "JUS-SOFT-DELETED")
+        _set_teacher_attendance_access(user, teacher, can_create=True)
+        student = _make_student(user, "JUS-SOFT-DELETED")
+        enrollment = _enroll(user, assigned_class, student)
+        enrollment.soft_delete(user=user)
+
+        selector = StudentSelector()
+        listed = selector.list_students_for_user(
+            user_id=teacher.user_id,
+            role_name=Role.Name.TEACHER,
+        )
+        assert student not in listed.items
+        assert not selector.eligible_for_justification(teacher.user).filter(pk=student.pk).exists()
+        _assert_justification_denied_without_write(teacher.user, student)
 
 
 @pytest.mark.django_db

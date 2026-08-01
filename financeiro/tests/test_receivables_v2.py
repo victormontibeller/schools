@@ -17,8 +17,10 @@ from financeiro.models import (
     BillingEntry,
     CollectionReminder,
     CollectionReminderPolicy,
+    FinancialContractAmendment,
     FinancialPlanTemplate,
     PaymentRecord,
+    StudentFinancialContract,
 )
 from financeiro.pdf_documents import render_payment_receipt, render_student_statement
 from financeiro.selectors import (
@@ -69,6 +71,23 @@ def _contract(user, student, **overrides):
     data.update(overrides)
     contract = FinanceService(user=user).create_contract(data)
     return FinanceService(user=user).activate_contract(contract.pk)
+
+
+def _add_months(value: dt.date, months: int) -> dt.date:
+    absolute = value.year * 12 + value.month - 1 + months
+    return dt.date(absolute // 12, absolute % 12 + 1, 1)
+
+
+def _amendable_contract(user, student):
+    effective = _add_months(dt.date.today().replace(day=1), 2)
+    start = _add_months(effective, -8)
+    contract = _contract(
+        user,
+        student,
+        academic_year=start.year,
+        start_competency=start,
+    )
+    return contract, effective
 
 
 @pytest.mark.django_db
@@ -138,14 +157,14 @@ def test_activation_materializes_exact_calendar_and_is_idempotent(user):
 
 @pytest.mark.django_db
 def test_future_amendment_replaces_only_future_unpaid_billings(user):
-    contract = _contract(user, _student(user, "AMD"))
+    contract, effective = _amendable_contract(user, _student(user, "AMD"))
     previous = BillingEntry.objects.get(contract=contract, installment_number=8)
     future = BillingEntry.objects.get(contract=contract, installment_number=9)
 
     amendment = FinanceService(user=user).create_amendment(
         contract.pk,
         {
-            "effective_competency": dt.date(2026, 9, 1),
+            "effective_competency": effective,
             "reason": "Revisão anual",
             "installment_value": Decimal("120.00"),
             "installment_count": 10,
@@ -167,6 +186,126 @@ def test_future_amendment_replaces_only_future_unpaid_billings(user):
         installment_number__gt=10,
         schedule_revision=amendment.revision,
     ).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "changed_terms",
+    [
+        {"installment_count": 0},
+        {"installment_count": 61},
+        {"installment_value": Decimal("0.00")},
+        {"installment_value": Decimal("-1.00")},
+        {"discount_value": Decimal("-1.00")},
+        {"discount_value": Decimal("100.00")},
+        {"due_day": 0},
+        {"due_day": 29},
+        {"late_fee_percent": Decimal("-0.01")},
+        {"daily_interest_percent": Decimal("-0.0001")},
+    ],
+)
+def test_amendment_rejects_invalid_merged_contract_before_any_write(user, changed_terms):
+    contract, effective = _amendable_contract(
+        user, _student(user, f"AMD-INVALID-{uuid.uuid4().hex[:8]}")
+    )
+    active_ids = set(BillingEntry.objects.filter(contract=contract).values_list("pk", flat=True))
+    payload = {
+        "effective_competency": effective,
+        "reason": "Revisão inválida",
+        **changed_terms,
+    }
+
+    with pytest.raises(ValidationError):
+        FinanceService(user=user).create_amendment(contract.pk, payload)
+
+    contract.refresh_from_db()
+    assert contract.terms_revision == 1
+    assert not FinancialContractAmendment.objects.filter(contract=contract).exists()
+    assert (
+        set(
+            BillingEntry.objects.filter(
+                contract=contract, status=BillingEntry.Status.ACTIVE
+            ).values_list("pk", flat=True)
+        )
+        == active_ids
+    )
+
+
+@pytest.mark.django_db
+def test_amendment_validates_combination_of_current_and_changed_terms(user):
+    contract, effective = _amendable_contract(user, _student(user, "AMD-MERGED"))
+    contract.discount_value = Decimal("20.00")
+    contract.save(update_fields=["discount_value", "updated_at"])
+
+    with pytest.raises(ValidationError):
+        FinanceService(user=user).create_amendment(
+            contract.pk,
+            {
+                "effective_competency": effective,
+                "reason": "Valor abaixo do desconto vigente",
+                "installment_value": Decimal("10.00"),
+            },
+        )
+
+    assert not FinancialContractAmendment.objects.filter(contract=contract).exists()
+    assert not BillingEntry.objects.filter(
+        contract=contract, status=BillingEntry.Status.CANCELLED
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_amendment_rejects_invalid_current_frequency_before_any_write(user):
+    contract, effective = _amendable_contract(user, _student(user, "AMD-FREQUENCY"))
+    StudentFinancialContract.objects.filter(pk=contract.pk).update(billing_frequency="WEEKLY")
+
+    with pytest.raises(ValidationError):
+        FinanceService(user=user).create_amendment(
+            contract.pk,
+            {
+                "effective_competency": effective,
+                "reason": "Frequência inválida",
+                "installment_value": Decimal("120.00"),
+            },
+        )
+
+    assert not FinancialContractAmendment.objects.filter(contract=contract).exists()
+    assert not BillingEntry.objects.filter(
+        contract=contract, status=BillingEntry.Status.CANCELLED
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_amendment_rolls_back_contract_billings_and_amendment_on_replacement_failure(user):
+    contract, effective = _amendable_contract(user, _student(user, "AMD-ROLLBACK"))
+    initial_value = contract.installment_value
+    initial_active_ids = set(
+        BillingEntry.objects.filter(contract=contract).values_list("pk", flat=True)
+    )
+    service = FinanceService(user=user)
+
+    with patch.object(service, "_create_replacement", side_effect=RuntimeError("replacement down")):
+        with pytest.raises(RuntimeError, match="replacement down"):
+            service.create_amendment(
+                contract.pk,
+                {
+                    "effective_competency": effective,
+                    "reason": "Teste de atomicidade",
+                    "installment_value": Decimal("120.00"),
+                },
+            )
+
+    contract.refresh_from_db()
+    assert contract.installment_value == initial_value
+    assert contract.terms_revision == 1
+    assert not FinancialContractAmendment.objects.filter(contract=contract).exists()
+    assert (
+        set(
+            BillingEntry.objects.filter(
+                contract=contract, status=BillingEntry.Status.ACTIVE
+            ).values_list("pk", flat=True)
+        )
+        == initial_active_ids
+    )
 
 
 @pytest.mark.django_db

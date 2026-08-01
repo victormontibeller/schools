@@ -31,10 +31,13 @@ Executar mudanças completas sem duplicar regras nem ignorar os contratos do rep
 
 1. Escrever ou ajustar testes junto da regra de negócio.
 2. Implementar o menor conjunto coeso de mudanças.
-3. Preservar compatibilidade de rotas e interfaces existentes, salvo decisão explícita em contrário.
-4. Criar migration apenas quando o estado dos models mudar e revisá-la antes de aplicar.
+3. Enquanto não houver produção, aplicar clean break: localizar consumidores e remover aliases,
+   rotas, métodos, schemas e testes substituídos no mesmo lote. Compatibilidade exige ADR.
+4. Antes da produção, mudanças de models regeneram o grafo inicial, preservam apenas os seeds
+   autorizados e exigem reset dev/demo; não criar migration evolutiva.
 5. Atualizar documentos canônicos quando o comportamento ou uma decisão arquitetural mudar.
 6. Não reescrever documentos históricos de sprint.
+7. Não confundir fallback canônico de acessibilidade, HTMX ou resiliência com legado removível.
 
 ## 4. Verificar conforme o risco
 
@@ -46,6 +49,7 @@ Executar sempre:
 ./.venv/bin/python scripts/check_import_contracts.py
 ./.venv/bin/python scripts/check_service_contracts.py
 ./.venv/bin/python scripts/check_ui_contracts.py
+./.venv/bin/python scripts/check_preproduction_contracts.py
 ./.venv/bin/python manage.py makemigrations --check --dry-run
 ```
 
@@ -56,4 +60,5 @@ Executar também:
 - suíte Chromium para shell, listagem, grade ou CSS;
 - suíte completa quando a mudança atingir `base`, permissões, middleware ou contratos compartilhados.
 
-Concluir somente após revisar o diff, preservar alterações alheias e relatar validações executadas e limitações restantes.
+Concluir somente após revisar o diff, preservar alterações alheias, confirmar que não restaram
+consumidores do caminho removido e relatar churn separado de produto, testes, migrations e docs.

@@ -11,5 +11,7 @@ Leia o AGENTS.md aplicável, a documentação canônica do domínio, as instruç
 
 Priorize bugs reais, regressões de comportamento, violações de camadas, uso incorreto de helpers, problemas de tenancy, inconsistências de interface, testes insuficientes e riscos de manutenção. Evite comentários apenas estilísticos quando os checks automatizados já os cobrem.
 
+Enquanto não houver produção, rejeite aliases, rotas, métodos, branches, testes ou migrations evolutivas mantidos por compatibilidade sem ADR. Exija busca por consumidores, preserve fallbacks canônicos de resiliência e avalie separadamente o churn de produto, testes, migrations e documentação, apontando duplicação injustificada.
+
 Entregue achados acionáveis em ordem de severidade, com referências precisas aos arquivos e explicação do impacto. Se não houver achados, declare isso e informe riscos residuais e validações não executadas. Não corrija o diff e não delegue trabalho para outros agentes.
 """

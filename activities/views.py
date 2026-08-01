@@ -47,7 +47,6 @@ def _render_groups_card(request, activity, **context):
 @login_required
 def activities_list(request):
     """Lista atividades paginadas; filtra por turma quando ?class_obj=."""
-    page = int(request.GET.get("page", 1))
     class_obj_filter = request.GET.get("class_obj", "").strip()
     state = resolve_listing_state(
         request,
@@ -83,7 +82,7 @@ def activities_list(request):
         role_name=role_name,
         filters=filters,
         order_by=sort,
-        page=page,
+        page=state["page"],
     )
     ctx = {
         "result": result,

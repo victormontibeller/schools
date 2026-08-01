@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import date
-from decimal import Decimal
 
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 from base.services import service_command
@@ -356,31 +355,6 @@ class ContractLifecycleMixin:
         self._record_audit("UPDATE", contract, old_values=old)
         self._log("financial_contract_closed", contract_id=str(contract.pk))
         return contract
-
-    def _validated_contract_values(self, data: dict) -> dict:
-        count = int(data["installment_count"])
-        value = self._to_decimal(data["installment_value"])
-        discount = self._to_decimal(data.get("discount_value", 0))
-        due_day = int(data["due_day"])
-        if count < 1 or count > 60:
-            raise ValidationError(errors={"installment_count": ["Informe entre 1 e 60 parcelas."]})
-        if value <= ZERO or discount < ZERO or discount >= value:
-            raise ValidationError(errors={"installment_value": ["Valores contratuais inválidos."]})
-        if due_day < 1 or due_day > 28:
-            raise ValidationError(errors={"due_day": ["Informe um dia entre 1 e 28."]})
-        return {
-            "academic_year": int(data["academic_year"]),
-            "name": str(data["name"]).strip(),
-            "billing_frequency": data.get("billing_frequency", "MONTHLY"),
-            "installment_count": count,
-            "installment_value": value,
-            "due_day": due_day,
-            "discount_value": discount,
-            "late_fee_percent": self._to_decimal(data.get("late_fee_percent", 0)),
-            "daily_interest_percent": Decimal(str(data.get("daily_interest_percent", 0))).quantize(
-                Decimal("0.0001")
-            ),
-        }
 
     @staticmethod
     def _add_months(value: date, months: int) -> date:

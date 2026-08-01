@@ -5,7 +5,12 @@ import logging
 from django.db import transaction
 from django.utils import timezone
 
-from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+from base.exceptions import (
+    BusinessRuleViolationError,
+    ObjectNotFoundError,
+    PermissionDeniedError,
+    ValidationError,
+)
 from base.repositories import BaseRepository
 from base.services import BaseService
 
@@ -241,9 +246,29 @@ class AttendanceService(BaseService):
     def submit_justification(self, data: dict):
         """Aluno/responsável envia justificativa de ausência."""
         from attendance.models import AttendanceJustification
+        from core.access_selectors import ObjectAccessSelector
+        from core.permissions import CREATE, can_access, role_name
         from students.contracts import Student
 
         self.validate_required(data, ["student_id", "start_date", "end_date", "reason"])
+
+        if self.user is None or not getattr(self.user, "is_authenticated", False):
+            raise PermissionDeniedError("Ator autenticado obrigatório para esta operação.")
+        actor_role = role_name(self.user)
+        if actor_role == "GUARDIAN":
+            if not ObjectAccessSelector.guardian_can_access_student(
+                self.user.pk, data["student_id"]
+            ):
+                raise PermissionDeniedError("Aluno fora do escopo deste responsável.")
+        elif actor_role == "TEACHER":
+            if not can_access(self.user, "attendance", CREATE):
+                raise PermissionDeniedError("Sem permissão para enviar justificativas.")
+            if not ObjectAccessSelector.teacher_can_access_student(
+                self.user.pk, data["student_id"]
+            ):
+                raise PermissionDeniedError("Aluno fora do escopo deste professor.")
+        elif not can_access(self.user, "attendance", CREATE):
+            raise PermissionDeniedError("Sem permissão para enviar justificativas.")
 
         try:
             student = Student.objects.get(pk=data["student_id"])

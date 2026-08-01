@@ -169,9 +169,7 @@ class PermissionPolicyMiddleware(MiddlewareMixin):
         if view_name in PUBLIC_VIEW_NAMES or not request.user.is_authenticated:
             return None
         current_role = getattr(getattr(request.user, "role", None), "name", "")
-        if view_name in SELF_SERVICE_VIEW_NAMES or (
-            view_name == "justification_create" and current_role == "GUARDIAN"
-        ):
+        if view_name in SELF_SERVICE_VIEW_NAMES:
             return None
         module_key, action = resolve_view_access(
             view_func,
@@ -196,6 +194,8 @@ class PermissionPolicyMiddleware(MiddlewareMixin):
         ):
             raise PermissionDenied("Ação indisponível no ambiente DEMO.")
         if current_role == "GUARDIAN":
+            if view_name == "justification_create":
+                return None
             if view_name not in GUARDIAN_VIEW_NAMES:
                 raise PermissionDenied("Sem permissão para esta operação.")
             from core.access_selectors import ObjectAccessSelector

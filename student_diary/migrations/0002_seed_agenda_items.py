@@ -82,5 +82,7 @@ def seed_agenda_items(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    """Popula dados iniciais permitidos pela política pré-produção."""
+
     dependencies = [("student_diary", "0001_initial")]
     operations = [migrations.RunPython(seed_agenda_items, migrations.RunPython.noop)]

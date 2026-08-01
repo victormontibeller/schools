@@ -17,6 +17,9 @@ Este diretório define a equipe persistente de subagentes do projeto. O Codex ca
 - Espere todos os agentes solicitados e consolide os resultados; não copie saídas intermediárias sem curadoria.
 - Mantenha a profundidade padrão de um nível. Os subagentes não criam novos subagentes.
 - A permissão ativa da tarefa principal pode restringir ainda mais o sandbox configurado no agente.
+- Até um ADR declarar produção, todos os agentes aplicam a política de clean break do `AGENTS.md`:
+  o explorador localiza legado e consumidores, o builder remove o caminho substituído, o guardian
+  separa compatibilidade de resiliência e o reviewer rejeita duplicação e migrations evolutivas.
 
 Depois de adicionar ou alterar esses arquivos, abra uma nova tarefa ou recarregue o Codex para garantir que a configuração seja reconhecida.
 

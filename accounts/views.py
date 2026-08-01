@@ -159,7 +159,7 @@ def logout_view(request):
 
 @login_required
 def profile_view(request):
-    """Mantém a URL legada redirecionando para a ficha do usuário autenticado."""
+    """Redireciona o usuário autenticado para a própria ficha canônica."""
     return redirect("user_detail", pk=request.user.pk)
 
 
@@ -184,7 +184,6 @@ def change_password_view(request):
 @login_required
 def users_list_view(request):
     """Lista usuários paginados, renderizando parcial para HTMX quando aplicável."""
-    page = int(request.GET.get("page", 1))
     state = resolve_listing_state(
         request,
         scope="users_list",
@@ -193,7 +192,9 @@ def users_list_view(request):
     )
     search = state["q"]
     sort = state["sort"]
-    result = AccountSelector().list_users(search=search, order_by=USER_SORTS[sort], page=page)
+    result = AccountSelector().list_users(
+        search=search, order_by=USER_SORTS[sort], page=state["page"]
+    )
     ctx = {
         "result": result,
         "q": search,
@@ -273,7 +274,6 @@ def user_edit_view(request, pk):
 def platform_user_list_view(request):
     """Lista operadores persistentes do schema público."""
     _require_platform_superuser(request)
-    page = int(request.GET.get("page", 1))
     state = resolve_listing_state(
         request,
         scope="platform_users_list",
@@ -286,7 +286,7 @@ def platform_user_list_view(request):
         "result": AccountSelector().list_platform_users(
             search=search,
             order_by=PLATFORM_USER_SORTS[sort],
-            page=page,
+            page=state["page"],
         ),
         "q": search,
         "sort": sort,

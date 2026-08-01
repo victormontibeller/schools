@@ -42,7 +42,7 @@ def diary_configuration(request):
     result = StudentDiarySelector().list_categories_page(
         search=state["q"],
         order_by=state["sort"],
-        page=int(request.GET.get("page", 1)),
+        page=state["page"],
     )
     context = {
         "result": result,
