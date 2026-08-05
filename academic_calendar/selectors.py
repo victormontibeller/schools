@@ -3,6 +3,7 @@
 import datetime as dt
 
 from django.db.models import Q
+from django.utils import timezone
 
 from base.selectors import BaseSelector
 
@@ -16,7 +17,57 @@ class CalendarSelector(BaseSelector):
 
         return CalendarEvent
 
-    def get_events_by_month(self, year: int, month: int):
+    @staticmethod
+    def _scope_events_for_user(queryset, user):
+        """Aplica a projeção familiar sem alterar os demais papéis."""
+        from core.permissions import role_name
+
+        if role_name(user) != "GUARDIAN":
+            return queryset
+        from academic_calendar.models import CalendarEvent
+        from classes.contracts import Enrollment
+        from guardians.selectors import GuardianSelector
+
+        class_ids = Enrollment.objects.filter(
+            student_id__in=GuardianSelector().custodial_student_ids_for_user(user.pk),
+            status=Enrollment.Status.ACTIVE,
+            is_active=True,
+            deleted_at__isnull=True,
+            class_obj__is_active=True,
+            class_obj__deleted_at__isnull=True,
+        ).values_list("class_obj_id", flat=True)
+        public_global = Q(
+            class_obj__isnull=True,
+            audience__in=[
+                CalendarEvent.Audience.ALL,
+                CalendarEvent.Audience.GUARDIANS,
+                CalendarEvent.Audience.STUDENTS,
+            ],
+        )
+        custodial_class = Q(
+            audience=CalendarEvent.Audience.CLASS,
+            class_obj_id__in=class_ids,
+        )
+        return queryset.filter(is_cancelled=False, is_public=True).filter(
+            public_global | custodial_class
+        )
+
+    def get_event_for_user(self, event_id, user):
+        """Retorna um evento apenas quando ele pertence à projeção do usuário."""
+        from base.exceptions import ObjectNotFoundError
+
+        event = (
+            self._scope_events_for_user(
+                self.model_class.objects.select_related("class_obj", "academic_year"), user
+            )
+            .filter(pk=event_id)
+            .first()
+        )
+        if event is None:
+            raise ObjectNotFoundError("CalendarEvent", str(event_id))
+        return event
+
+    def get_events_by_month(self, year: int, month: int, *, user=None):
         """Retorna eventos ativos (não cancelados) que tocam o mês dado.
 
         Um evento que inicia antes do mês e termina dentro dele é incluído.
@@ -29,16 +80,18 @@ class CalendarSelector(BaseSelector):
         else:
             last = dt.date(year, month + 1, 1) - dt.timedelta(days=1)
 
-        return (
-            CalendarEvent.objects.filter(
-                is_cancelled=False, start_date__lte=last, end_date__gte=first
-            )
-            .select_related("class_obj", "academic_year")
-            .order_by("start_date", "start_time")
-        )
+        queryset = CalendarEvent.objects.filter(
+            is_cancelled=False, start_date__lte=last, end_date__gte=first
+        ).select_related("class_obj", "academic_year")
+        return self._scope_events_for_user(queryset, user).order_by("start_date", "start_time")
 
     def get_events_by_range(
-        self, start_date: dt.date, end_date: dt.date, audience: str | None = None
+        self,
+        start_date: dt.date,
+        end_date: dt.date,
+        audience: str | None = None,
+        *,
+        user=None,
     ):
         """Retorna eventos ativos num intervalo, opcionalmente filtrados por público."""
         from academic_calendar.models import CalendarEvent
@@ -48,25 +101,25 @@ class CalendarSelector(BaseSelector):
         )
         if audience:
             qs = qs.filter(audience=audience)
+        qs = self._scope_events_for_user(qs, user)
         return qs.select_related("class_obj").order_by("start_date", "start_time")
 
-    def get_upcoming_events(self, days: int = 7):
+    def get_upcoming_events(self, days: int = 7, *, user=None):
         """Retorna eventos ativos a partir de hoje até `days` à frente."""
         from academic_calendar.models import CalendarEvent
 
-        today = dt.date.today()
+        today = timezone.localdate()
         horizon = today + dt.timedelta(days=days)
-        return (
-            CalendarEvent.objects.filter(
-                is_cancelled=False, start_date__gte=today, start_date__lte=horizon
-            )
-            .select_related("class_obj")
-            .order_by("start_date", "start_time")
-        )
+        queryset = CalendarEvent.objects.filter(
+            is_cancelled=False, start_date__gte=today, start_date__lte=horizon
+        ).select_related("class_obj")
+        return self._scope_events_for_user(queryset, user).order_by("start_date", "start_time")
 
-    def list_upcoming_events(self, search="", order_by="start_date", page=1, page_size=20):
+    def list_upcoming_events(
+        self, search="", order_by="start_date", page=1, page_size=20, *, user=None
+    ):
         """Lista os próximos eventos com busca, ordenação e paginação."""
-        queryset = self.get_upcoming_events(days=30)
+        queryset = self.get_upcoming_events(days=30, user=user)
         if search:
             queryset = queryset.filter(
                 Q(title__icontains=search)
@@ -75,7 +128,7 @@ class CalendarSelector(BaseSelector):
             )
         return self._paginate(queryset.order_by(order_by, "start_time"), page, page_size)
 
-    def get_month_grid(self, year: int, month: int):
+    def get_month_grid(self, year: int, month: int, *, user=None):
         """Retorna grade mensal 6x7 com eventos e feriados indexados por dia.
 
         Returns:
@@ -84,10 +137,10 @@ class CalendarSelector(BaseSelector):
         """
         import calendar as cal
 
-        today = dt.date.today()
+        today = timezone.localdate()
         from academic_calendar.models import Holiday
 
-        events = self.get_events_by_month(year, month)
+        events = self.get_events_by_month(year, month, user=user)
         first = dt.date(year, month, 1)
         if month == 12:
             last = dt.date(year, month, 31)
@@ -133,11 +186,11 @@ class CalendarSelector(BaseSelector):
             "next_month": next_d.month,
         }
 
-    def get_day_agenda(self, selected_date: dt.date) -> list[dict]:
+    def get_day_agenda(self, selected_date: dt.date, *, user=None) -> list[dict]:
         """Compõe eventos, feriados e dias não letivos da data selecionada."""
         from academic_calendar.models import Holiday
 
-        events = self.get_events_by_range(selected_date, selected_date)
+        events = self.get_events_by_range(selected_date, selected_date, user=user)
         items = [
             {
                 "kind": "event",
@@ -157,15 +210,14 @@ class CalendarSelector(BaseSelector):
         )
         return sorted(items, key=lambda entry: (not entry["all_day"], entry["time"] or dt.time.min))
 
-    def get_academic_year_events(self, academic_year_id):
+    def get_academic_year_events(self, academic_year_id, *, user=None):
         """Retorna os eventos vinculados a um ano letivo."""
         from academic_calendar.models import CalendarEvent
 
-        return (
-            CalendarEvent.objects.filter(academic_year_id=academic_year_id, is_cancelled=False)
-            .select_related("class_obj")
-            .order_by("start_date", "start_time")
-        )
+        queryset = CalendarEvent.objects.filter(
+            academic_year_id=academic_year_id, is_cancelled=False
+        ).select_related("class_obj")
+        return self._scope_events_for_user(queryset, user).order_by("start_date", "start_time")
 
 
 class HolidaySelector(BaseSelector):

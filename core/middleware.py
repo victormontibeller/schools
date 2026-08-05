@@ -2,7 +2,6 @@
 
 import json
 import logging
-import uuid
 from collections.abc import Callable
 
 from django.http import HttpRequest, HttpResponse
@@ -111,7 +110,7 @@ class CorrelationIdMiddleware:
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
         """Define o correlation_id no contexto e o devolve no response."""
-        cid = request.META.get("HTTP_X_CORRELATION_ID", "").strip() or str(uuid.uuid4())
+        cid = context.normalize_http_correlation_id(request.META.get("HTTP_X_CORRELATION_ID", ""))
         token = context.correlation_id.set(cid)
         try:
             response = self.get_response(request)
@@ -211,7 +210,7 @@ class PermissionPolicyMiddleware(MiddlewareMixin):
             from core.access_selectors import ObjectAccessSelector
 
             student_id = view_kwargs.get("student_id")
-            if view_name == "student_profile":
+            if view_name in {"student_profile", "student_photo"}:
                 student_id = view_kwargs.get("pk")
             if student_id and not ObjectAccessSelector.guardian_can_access_student(
                 request.user.pk, student_id

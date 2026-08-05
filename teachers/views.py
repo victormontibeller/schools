@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
+from base.events import publish_task_after_commit
 from base.exceptions import (
     BusinessRuleViolationError,
     ObjectNotFoundError,
@@ -119,7 +120,7 @@ def teacher_create(request):
         try:
             teacher = TeacherService(user=request.user).create_teacher(form.cleaned_data)
             if teacher.accepts_email_notifications and not teacher.user.is_active:
-                from django.db import connection, transaction
+                from django.db import connection
 
                 from accounts.services import AccountService
                 from accounts.tasks import send_teacher_invitation_task
@@ -130,10 +131,12 @@ def teacher_create(request):
                 )
                 tenant_schema = connection.schema_name
                 invited_user_id = str(teacher.user_id)
-                transaction.on_commit(
-                    lambda: send_teacher_invitation_task.delay(
-                        tenant_schema, invited_user_id, invitation_url
-                    )
+                publish_task_after_commit(
+                    send_teacher_invitation_task,
+                    tenant_schema,
+                    invited_user_id,
+                    invitation_url,
+                    tenant_schema=tenant_schema,
                 )
             return redirect("teachers_list")
         except ValidationError as exc:

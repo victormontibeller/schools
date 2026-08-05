@@ -48,7 +48,7 @@ def _dashboard_quick_actions(role_name: str) -> list[dict[str, str]]:
         "GUARDIAN": [
             {"label": "Dados do aluno", "url": "students_list", "icon": "feather-user"},
             {"label": "Calendário", "url": "calendar_month", "icon": "feather-calendar"},
-            {"label": "Comunicados", "url": "announcement_list", "icon": "feather-bell"},
+            {"label": "Comunicados", "url": "notification_list", "icon": "feather-bell"},
             {"label": "Meu perfil", "url": "profile", "icon": "feather-settings"},
         ],
     }

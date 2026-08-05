@@ -7,6 +7,7 @@ from django.db import connection, transaction
 from django.urls import reverse
 from django.utils import timezone
 
+from base.events import publish_task_after_commit
 from base.exceptions import BusinessRuleViolationError, PermissionDeniedError, ValidationError
 from base.services import BaseService
 
@@ -301,14 +302,14 @@ class DiaryWorkflowService(BaseService):
         from notifications.tasks import send_diary_email_task
 
         schema_name = getattr(connection, "schema_name", "public")
-        transaction.on_commit(
-            lambda: send_diary_email_task.delay(
-                schema_name,
-                str(user_id),
-                "publication",
-                action_url,
-                str(publication_id),
-            )
+        publish_task_after_commit(
+            send_diary_email_task,
+            schema_name,
+            str(user_id),
+            "publication",
+            action_url,
+            str(publication_id),
+            tenant_schema=schema_name,
         )
 
     @staticmethod
@@ -317,11 +318,11 @@ class DiaryWorkflowService(BaseService):
         from notifications.tasks import send_diary_email_task
 
         schema_name = getattr(connection, "schema_name", "public")
-        transaction.on_commit(
-            lambda: send_diary_email_task.delay(
-                schema_name,
-                str(user_id),
-                event,
-                action_url,
-            )
+        publish_task_after_commit(
+            send_diary_email_task,
+            schema_name,
+            str(user_id),
+            event,
+            action_url,
+            tenant_schema=schema_name,
         )

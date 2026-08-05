@@ -37,6 +37,52 @@ class GuardianSelector(BaseSelector):
         guardian = self.get_by_id(guardian_id)
         return guardian.students.select_related("student").all()
 
+    def custodial_links_for_user(self, user_id):
+        """Retorna vínculos de guarda válidos para o responsável autenticado."""
+        from guardians.models import StudentGuardian
+
+        return StudentGuardian.objects.filter(
+            guardian__user_id=user_id,
+            guardian__user__is_active=True,
+            guardian__user__deleted_at__isnull=True,
+            guardian__is_active=True,
+            guardian__deleted_at__isnull=True,
+            student__is_active=True,
+            student__deleted_at__isnull=True,
+            has_custody=True,
+            is_active=True,
+            deleted_at__isnull=True,
+        )
+
+    def custodial_student_ids_for_user(self, user_id):
+        """Retorna IDs de alunos ativos sob guarda válida do responsável."""
+        return self.custodial_links_for_user(user_id).values_list("student_id", flat=True)
+
+    def custodial_links_for_students(self, student_ids):
+        """Retorna destinatários de guarda válidos para um conjunto de alunos."""
+        from guardians.models import StudentGuardian
+
+        return StudentGuardian.objects.filter(
+            student_id__in=student_ids,
+            guardian__user__is_active=True,
+            guardian__user__deleted_at__isnull=True,
+            guardian__is_active=True,
+            guardian__deleted_at__isnull=True,
+            student__is_active=True,
+            student__deleted_at__isnull=True,
+            has_custody=True,
+            is_active=True,
+            deleted_at__isnull=True,
+        ).select_related("guardian__user", "student")
+
+    def scope_students_for_user(self, queryset, user_id):
+        """Restringe um queryset que possui PK de aluno ao escopo de guarda vigente."""
+        return queryset.filter(pk__in=self.custodial_student_ids_for_user(user_id))
+
+    def user_can_access_student(self, user_id, student_id) -> bool:
+        """Confirma que o aluno permanece no escopo de guarda vigente."""
+        return self.custodial_links_for_user(user_id).filter(student_id=student_id).exists()
+
     def search_reusable(self, query: str):
         """Busca responsáveis ativos para vinculação a um aluno."""
         if not query:

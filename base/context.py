@@ -35,6 +35,18 @@ def generate_correlation_id() -> str:
     return str(uuid.uuid4())
 
 
+def normalize_http_correlation_id(value: object) -> str:
+    """Normaliza um UUID recebido por HTTP ou gera um UUID v4 seguro."""
+    if not isinstance(value, str) or not value or len(value) > 36:
+        return generate_correlation_id()
+    if any(ord(character) < 32 or ord(character) == 127 for character in value):
+        return generate_correlation_id()
+    try:
+        return str(uuid.UUID(value))
+    except (ValueError, AttributeError, TypeError):
+        return generate_correlation_id()
+
+
 def active_tenant_schema() -> str:
     """Retorna o schema escolar ativo, recusando contexto ausente ou público."""
     from base.exceptions import BusinessRuleViolationError

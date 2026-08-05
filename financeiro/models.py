@@ -6,6 +6,7 @@ from datetime import date
 from decimal import Decimal
 
 from django.db import models
+from django.utils import timezone
 
 from base.models import BaseModel
 
@@ -271,7 +272,7 @@ class BillingEntry(BaseModel):
         }[self.settlement_status]
 
     def due_status(self, *, reference_date: date | None = None) -> str:
-        reference = reference_date or date.today()
+        reference = reference_date or timezone.localdate()
         if self.is_settled or self.status == self.Status.CANCELLED:
             return "CLOSED"
         if self.due_date < reference:

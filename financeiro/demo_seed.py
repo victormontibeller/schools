@@ -7,6 +7,7 @@ from decimal import Decimal
 from uuid import NAMESPACE_URL, uuid5
 
 from django.db import IntegrityError
+from django.utils import timezone
 
 from base.services import system_command
 
@@ -34,7 +35,7 @@ class FinanceDemoSeedMixin:
         from financeiro.services import FinanceService, PaymentService
         from students.contracts import Student
 
-        today = date.today()
+        today = timezone.localdate()
         academic_year = today.year
         month_start = today.replace(day=1)
         finance_service = FinanceService(user=self.user)
@@ -304,7 +305,7 @@ class FinanceDemoSeedMixin:
         )
         for name, billing, target_status in scenarios:
             key = uuid5(NAMESPACE_URL, f"{self._PAYMENT_NAMESPACE}/{year}/{name}")
-            paid_date = min(billing.due_date, date.today())
+            paid_date = min(billing.due_date, timezone.localdate())
             payment = service.create_payment(
                 allocations=[{"billing_id": billing.pk, "amount": billing.contractual_value}],
                 paid_date=paid_date,

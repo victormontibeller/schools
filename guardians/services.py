@@ -158,23 +158,51 @@ class GuardianService(BaseService):
         except Student.DoesNotExist:
             raise ObjectNotFoundError("Student", str(student_id)) from None
 
-        if StudentGuardian.objects.filter(guardian=guardian, student=student).exists():
+        existing = (
+            StudentGuardian.all_objects.select_for_update()
+            .filter(guardian=guardian, student=student)
+            .first()
+        )
+        if existing is not None and existing.is_active and not existing.is_deleted:
             raise BusinessRuleViolationError("Responsável já vinculado a este aluno.")
 
-        link = StudentGuardian.objects.create(
-            guardian=guardian,
-            student=student,
-            is_primary=data.get("is_primary", False),
-            has_custody=data.get("has_custody", True),
-            can_pickup=data.get("can_pickup", True),
-            relationship_type=data.get("relationship_type", Guardian.Relationship.OTHER),
-            created_by=self.user,
-            updated_by=self.user,
-        )
+        is_primary = bool(data.get("is_primary", False))
+        has_custody = bool(data.get("has_custody", True))
+        can_pickup = bool(data.get("can_pickup", True))
+        relationship_type = data.get("relationship_type", Guardian.Relationship.OTHER)
+        operation = "INSERT"
+        if existing is None:
+            link = StudentGuardian.objects.create(
+                guardian=guardian,
+                student=student,
+                is_primary=is_primary,
+                has_custody=has_custody,
+                can_pickup=can_pickup,
+                relationship_type=relationship_type,
+                created_by=self.user,
+                updated_by=self.user,
+            )
+        else:
+            link = existing
+            link.restore(user=self.user)
+            operation = "RESTORE"
+            link.is_primary = is_primary
+            link.has_custody = has_custody
+            link.can_pickup = can_pickup
+            link.relationship_type = relationship_type
+            link.updated_by = self.user
+            link.save()
         if link.is_primary:
             self._clear_other_primaries(student_id, link.pk)
-        self._record_audit("INSERT", link)
-        self._log("Vinculo aluno-responsavel criado", link_id=str(link.pk))
+        self._record_audit(operation, link)
+        self._log(
+            (
+                "Vinculo aluno-responsavel restaurado"
+                if operation == "RESTORE"
+                else "Vinculo aluno-responsavel criado"
+            ),
+            link_id=str(link.pk),
+        )
         return link
 
     @transaction.atomic

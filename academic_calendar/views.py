@@ -5,6 +5,7 @@ import logging
 
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
+from django.utils import timezone
 
 from academic_calendar.forms import AcademicYearForm, EventForm, HolidayForm
 from academic_calendar.selectors import AcademicYearSelector, CalendarSelector, HolidaySelector
@@ -44,15 +45,16 @@ ACADEMIC_YEAR_SORTS = {
 @login_required
 def calendar_month(request, year: int | None = None, month: int | None = None):
     """Exibe o calendário mensal navegável por HTMX."""
-    today = dt.date.today()
+    today = timezone.localdate()
     year = int(year) if year else today.year
     month = int(month) if month else today.month
     selected_date = _resolve_selected_date(request.GET.get("selected_date"), year, month, today)
-    ctx = CalendarSelector().get_month_grid(year, month)
+    selector = CalendarSelector()
+    ctx = selector.get_month_grid(year, month, user=request.user)
     ctx.update(
         {
             "selected_date": selected_date,
-            "day_agenda": CalendarSelector().get_day_agenda(selected_date),
+            "day_agenda": selector.get_day_agenda(selected_date, user=request.user),
         }
     )
     if request.headers.get("HX-Request"):
@@ -71,7 +73,7 @@ def events_list(request):
     context = _listing_context(
         request,
         result=CalendarSelector().list_upcoming_events(
-            state["q"], EVENT_SORTS[state["sort"]], state["page"]
+            state["q"], EVENT_SORTS[state["sort"]], state["page"], user=request.user
         ),
         q=state["q"],
         sort=state["sort"],
@@ -116,15 +118,15 @@ def event_create(request):
         return render(
             request,
             "academic_calendar/partials/event_information_form.html",
-            {"form": form, "selected_date": initial.get("start_date") or dt.date.today()},
+            {"form": form, "selected_date": initial.get("start_date") or timezone.localdate()},
         )
-    return redirect(_calendar_url(initial.get("start_date") or dt.date.today()))
+    return redirect(_calendar_url(initial.get("start_date") or timezone.localdate()))
 
 
 @login_required
 def event_detail(request, pk):
     """Retorna o card HTMX ou redireciona o fluxo completo para o calendário."""
-    event = CalendarSelector().get_by_id(pk)
+    event = CalendarSelector().get_event_for_user(pk, request.user)
     if request.headers.get("HX-Request"):
         return render(
             request,
@@ -190,7 +192,7 @@ def holidays_list(request):
     context = _listing_context(
         request,
         result=HolidaySelector().list_holidays(
-            dt.date.today().year,
+            timezone.localdate().year,
             state["q"],
             HOLIDAY_SORTS[state["sort"]],
             state["page"],
@@ -357,6 +359,6 @@ def _render_day_agenda(request, selected_date: dt.date):
         "academic_calendar/partials/day_agenda.html",
         {
             "selected_date": selected_date,
-            "day_agenda": CalendarSelector().get_day_agenda(selected_date),
+            "day_agenda": CalendarSelector().get_day_agenda(selected_date, user=request.user),
         },
     )

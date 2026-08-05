@@ -45,44 +45,84 @@
     </section>{% endif %}
     <section class="row g-3 mb-3" aria-label="Indicadores da escola">
         <div class="col-12 col-sm-6 col-xl-3">
+            {% if data.is_guardian %}
+            <div class="card sm-dashboard-kpi h-100">
+            {% else %}
             <a href="{% url 'students_list' %}" class="card sm-dashboard-kpi h-100 text-decoration-none">
+            {% endif %}
                 <div class="card-body">
                     <div class="sm-dashboard-kpi-icon bg-soft-primary text-primary"><i class="feather-users" aria-hidden="true"></i></div>
-                    <span class="text-muted small">Alunos ativos</span>
+                    <span class="text-muted small">{% if data.is_guardian %}Alunos vinculados{% else %}Alunos ativos{% endif %}</span>
                     <strong>{{ data.total_students|default_if_none:"—" }}</strong>
+                    {% if not data.is_guardian %}
                     <span class="sm-dashboard-kpi-link">Ver alunos <i class="feather-arrow-right" aria-hidden="true"></i></span>
+                    {% endif %}
                 </div>
+            {% if data.is_guardian %}
+            </div>
+            {% else %}
             </a>
+            {% endif %}
         </div>
         <div class="col-12 col-sm-6 col-xl-3">
+            {% if data.is_guardian %}
+            <div class="card sm-dashboard-kpi h-100">
+            {% else %}
             <a href="{% url 'classes_list' %}" class="card sm-dashboard-kpi h-100 text-decoration-none">
+            {% endif %}
                 <div class="card-body">
                     <div class="sm-dashboard-kpi-icon bg-soft-info text-info"><i class="feather-layers" aria-hidden="true"></i></div>
-                    <span class="text-muted small">Turmas ativas</span>
+                    <span class="text-muted small">{% if data.is_guardian %}Turmas dos alunos{% else %}Turmas ativas{% endif %}</span>
                     <strong>{{ data.total_classes|default_if_none:"—" }}</strong>
+                    {% if not data.is_guardian %}
                     <span class="sm-dashboard-kpi-link">Ver turmas <i class="feather-arrow-right" aria-hidden="true"></i></span>
+                    {% endif %}
                 </div>
+            {% if data.is_guardian %}
+            </div>
+            {% else %}
             </a>
+            {% endif %}
         </div>
         <div class="col-12 col-sm-6 col-xl-3">
+            {% if data.is_guardian %}
+            <div class="card sm-dashboard-kpi h-100">
+            {% else %}
             <a href="{% url 'attendance_records_list' %}" class="card sm-dashboard-kpi h-100 text-decoration-none">
+            {% endif %}
                 <div class="card-body">
                     <div class="sm-dashboard-kpi-icon bg-soft-success text-success"><i class="feather-check-circle" aria-hidden="true"></i></div>
                     <span class="text-muted small">Frequência hoje</span>
                     <strong>{% if data.today_attendance %}{{ data.today_attendance.rate|floatformat:0 }}%{% else %}—{% endif %}</strong>
+                    {% if not data.is_guardian %}
                     <span class="sm-dashboard-kpi-link">Ver frequência <i class="feather-arrow-right" aria-hidden="true"></i></span>
+                    {% endif %}
                 </div>
+            {% if data.is_guardian %}
+            </div>
+            {% else %}
             </a>
+            {% endif %}
         </div>
         <div class="col-12 col-sm-6 col-xl-3">
+            {% if data.is_guardian %}
+            <div class="card sm-dashboard-kpi h-100{% if data.students_at_risk %} is-alert{% endif %}">
+            {% else %}
             <a href="{% url 'students_at_risk' %}" class="card sm-dashboard-kpi h-100 text-decoration-none{% if data.students_at_risk %} is-alert{% endif %}">
+            {% endif %}
                 <div class="card-body">
                     <div class="sm-dashboard-kpi-icon bg-soft-warning text-warning"><i class="feather-alert-triangle" aria-hidden="true"></i></div>
-                    <span class="text-muted small">Alunos em risco</span>
+                    <span class="text-muted small">{% if data.is_guardian %}Alunos vinculados em risco{% else %}Alunos em risco{% endif %}</span>
                     <strong>{{ data.students_at_risk|default_if_none:"—" }}</strong>
+                    {% if not data.is_guardian %}
                     <span class="sm-dashboard-kpi-link">Ver acompanhamento <i class="feather-arrow-right" aria-hidden="true"></i></span>
+                    {% endif %}
                 </div>
+            {% if data.is_guardian %}
+            </div>
+            {% else %}
             </a>
+            {% endif %}
         </div>
     </section>
 
@@ -98,11 +138,18 @@
                 <div class="card-body p-0">
                     <div class="sm-dashboard-attention-list">
                         {% if data.students_at_risk %}
+                        {% if data.is_guardian %}
+                        <div class="sm-dashboard-attention-item">
+                            <span class="sm-dashboard-attention-icon bg-soft-warning text-warning"><i class="feather-alert-triangle" aria-hidden="true"></i></span>
+                            <span><strong>{{ data.students_at_risk }} aluno{{ data.students_at_risk|pluralize }} vinculado{{ data.students_at_risk|pluralize }} em risco</strong><small>Frequência abaixo do limite recomendado.</small></span>
+                        </div>
+                        {% else %}
                         <a href="{% url 'students_at_risk' %}" class="sm-dashboard-attention-item">
                             <span class="sm-dashboard-attention-icon bg-soft-warning text-warning"><i class="feather-alert-triangle" aria-hidden="true"></i></span>
                             <span><strong>{{ data.students_at_risk }} aluno{{ data.students_at_risk|pluralize }} em risco</strong><small>Frequência abaixo do limite recomendado.</small></span>
                             <i class="feather-chevron-right ms-auto" aria-hidden="true"></i>
                         </a>
+                        {% endif %}
                         {% endif %}
                         {% if data.financial_kpis.total_vencido and can_view_overdue %}
                         <a href="{% url 'finance_overdue_report' %}" class="sm-dashboard-attention-item">
@@ -141,11 +188,19 @@
                 </div>
                 <div class="card-body p-0">
                     {% for event in data.upcoming_events %}
+                    {% if data.is_guardian %}
+                    <div class="sm-dashboard-event">
+                    {% else %}
                     <a href="{% url 'event_detail' event.id %}" class="sm-dashboard-event">
+                    {% endif %}
                         <span class="sm-dashboard-event-date"><strong>{{ event.start_date|slice:"8:10" }}</strong><small>{{ event.start_date|slice:"5:7" }}/{{ event.start_date|slice:"0:4" }}</small></span>
                         <span><strong>{{ event.title }}</strong><small>{{ event.type }}</small></span>
-                        <i class="feather-chevron-right ms-auto" aria-hidden="true"></i>
+                        {% if not data.is_guardian %}<i class="feather-chevron-right ms-auto" aria-hidden="true"></i>{% endif %}
+                    {% if data.is_guardian %}
+                    </div>
+                    {% else %}
                     </a>
+                    {% endif %}
                     {% empty %}
                     <div class="sm-dashboard-empty">
                         <i class="feather-calendar" aria-hidden="true"></i>
@@ -163,18 +218,27 @@
             <section class="card h-100" aria-labelledby="school-summary-title">
                 <div class="card-header">
                     <div>
-                        <h6 id="school-summary-title" class="card-title mb-1">Resumo da escola</h6>
-                        <p class="text-muted small mb-0">Estrutura e movimentação atual.</p>
+                        <h6 id="school-summary-title" class="card-title mb-1">{% if data.is_guardian %}Resumo da família{% else %}Resumo da escola{% endif %}</h6>
+                        <p class="text-muted small mb-0">{% if data.is_guardian %}Dados dos alunos sob sua guarda.{% else %}Estrutura e movimentação atual.{% endif %}</p>
                     </div>
                 </div>
                 <div class="card-body">
                     <div class="sm-dashboard-summary-grid">
+                        {% if data.is_guardian %}
+                        <a href="{% url 'students_list' %}" class="sm-dashboard-summary-item">
+                            <span>Alunos vinculados</span><strong>{{ data.total_students|default_if_none:"—" }}</strong>
+                        </a>
+                        <div class="sm-dashboard-summary-item">
+                            <span>Turmas atuais</span><strong>{{ data.total_classes|default_if_none:"—" }}</strong>
+                        </div>
+                        {% else %}
                         <a href="{% url 'teachers_list' %}" class="sm-dashboard-summary-item">
                             <span>Professores ativos</span><strong>{{ data.total_teachers|default_if_none:"—" }}</strong>
                         </a>
                         <a href="{% url 'guardians_list' %}" class="sm-dashboard-summary-item">
                             <span>Responsáveis ativos</span><strong>{{ data.total_guardians|default_if_none:"—" }}</strong>
                         </a>
+                        {% endif %}
                         <a href="{% url 'activities_list' %}" class="sm-dashboard-summary-item">
                             <span>Atividades próximas</span><strong>{{ data.pending_activities|length }}</strong>
                         </a>
@@ -193,7 +257,11 @@
                         <h6 id="weekly-attendance-title" class="card-title mb-1">Frequência da semana</h6>
                         <p class="text-muted small mb-0">Últimos sete dias.</p>
                     </div>
+                    {% if data.is_guardian %}
+                    <a href="{% url 'students_list' %}" class="btn btn-outline-secondary btn-sm">Detalhes</a>
+                    {% else %}
                     <a href="{% url 'attendance_records_list' %}" class="btn btn-outline-secondary btn-sm">Detalhes</a>
+                    {% endif %}
                 </div>
                 <div class="card-body">
                     <div class="sm-dashboard-weekly-attendance">
@@ -238,7 +306,9 @@
                         <h6 id="announcements-title" class="card-title mb-1">Comunicados recentes</h6>
                         <p class="text-muted small mb-0">Últimas publicações da escola.</p>
                     </div>
+                    {% if not data.is_guardian %}
                     <a href="{% url 'announcement_list' %}" class="btn btn-outline-secondary btn-sm">Ver todos</a>
+                    {% endif %}
                 </div>
                 <div class="card-body p-0">
                     {% include "dashboard/partials/recent_announcements.html" %}
@@ -255,7 +325,9 @@
                 <h6 id="announcements-title" class="card-title mb-1">Comunicados recentes</h6>
                 <p class="text-muted small mb-0">Últimas publicações enviadas à comunidade escolar.</p>
             </div>
+            {% if not data.is_guardian %}
             <a href="{% url 'announcement_list' %}" class="btn btn-outline-secondary btn-sm">Ver todos</a>
+            {% endif %}
         </div>
         <div class="card-body p-0">
             {% include "dashboard/partials/recent_announcements.html" %}

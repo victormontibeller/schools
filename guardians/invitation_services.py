@@ -1,9 +1,10 @@
 """Convites de acesso para responsáveis já cadastrados pela escola."""
 
 from django.core import signing
-from django.db import connection, transaction
+from django.db import connection
 from django.utils import timezone
 
+from base.events import publish_task_after_commit
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 from base.services import BaseService, system_command
 
@@ -61,8 +62,12 @@ class GuardianInvitationService(BaseService):
         from guardians.tasks import send_guardian_invitation_task
 
         schema_name = getattr(connection, "schema_name", "public")
-        transaction.on_commit(
-            lambda: send_guardian_invitation_task.delay(schema_name, str(user.pk), invitation_url)
+        publish_task_after_commit(
+            send_guardian_invitation_task,
+            schema_name,
+            str(user.pk),
+            invitation_url,
+            tenant_schema=schema_name,
         )
         self._log("guardian_invitation_sent", guardian_id=str(guardian.pk))
         return user

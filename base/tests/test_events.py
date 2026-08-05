@@ -8,7 +8,13 @@ import logging
 
 import pytest
 
-from base.events import DomainEvent, Event, EventDispatcher
+from base.events import (
+    DomainEvent,
+    Event,
+    EventDispatcher,
+    publish_task_after_commit,
+    publish_task_safely,
+)
 from base.services import BaseService
 
 
@@ -63,6 +69,37 @@ class TestDomainEvent:
         assert e.operation == "INSERT"
         assert e.user == "u1"
         assert e.correlation_id == "c1"
+
+
+class TestSafeTaskPublishing:
+    def test_publish_task_safely_contains_broker_failure_without_payload(self, caplog):
+        caplog.set_level(logging.ERROR, logger="base.events")
+        task = type("Task", (), {"name": "example.task", "delay": lambda *args: 1 / 0})()
+
+        assert publish_task_safely(task, "sensitive", tenant_schema="school_a") is False
+        record = next(
+            item for item in caplog.records if item.message == "celery_task_publish_failed"
+        )
+        assert record.task == "example.task"
+        assert record.tenant == "school_a"
+        assert record.exception_type == "ZeroDivisionError"
+        assert "sensitive" not in record.getMessage()
+
+    @pytest.mark.django_db(transaction=True)
+    def test_publish_task_after_commit_waits_and_is_discarded_on_rollback(self):
+        calls = []
+        task = type("Task", (), {"name": "example.task", "delay": lambda _, *a: calls.append(a)})()
+        from django.db import transaction
+
+        with transaction.atomic():
+            publish_task_after_commit(task, "committed", tenant_schema="school_a")
+            assert calls == []
+        assert calls == [("committed",)]
+
+        with pytest.raises(RuntimeError), transaction.atomic():
+            publish_task_after_commit(task, "rolled-back", tenant_schema="school_a")
+            raise RuntimeError("rollback")
+        assert calls == [("committed",)]
 
 
 class TestBaseServiceDispatchesDomainEvent:

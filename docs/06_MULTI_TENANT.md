@@ -81,4 +81,11 @@ O correlation ID é propagado automaticamente nos headers Celery. O schema conti
 explícito e obrigatório das tarefas tenant-scoped; sinais apenas transportam observabilidade,
 não inferem autorização nem tenant.
 
+Publicações comuns usam os helpers resilientes de `base.events`, capturam o schema explicitamente
+e são registradas somente após commit. O dispatcher diário da régua financeira consulta o catálogo
+público, exclui `public` e publica uma tarefa isolada por escola ativa; falha em um schema não
+interrompe os seguintes. O Beat o executa às 08:00 em `America/Sao_Paulo`. A recuperação de
+lembretes de matrícula mantém sua reconciliação especializada; expiração DEMO e dashboards não
+possuem agendamento neste estágio.
+
 Toda chave Redis que represente dados escolares deve começar com `tenant:<schema>:`.

@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
+from django.utils import timezone
+
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 from base.services import service_command
 from financeiro.services.rules import ZERO
@@ -158,7 +160,7 @@ class BillingLifecycleMixin:
             )
         except BillingEntry.DoesNotExist:
             raise ObjectNotFoundError("BillingEntry", str(billing_id)) from None
-        self._assess_late_charges(billing, reference_date or date.today())
+        self._assess_late_charges(billing, reference_date or timezone.localdate())
         return billing
 
     def _assess_late_charges(self, billing, reference: date) -> None:

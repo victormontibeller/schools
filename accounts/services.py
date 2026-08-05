@@ -8,9 +8,10 @@ from django.contrib.auth.password_validation import validate_password
 from django.core import signing
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import connection, transaction
+from django.db import connection
 from django.utils import timezone
 
+from base.events import publish_task_after_commit
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 from base.repositories import BaseRepository
 from base.services import BaseService, system_command
@@ -176,12 +177,12 @@ class AccountService(BaseService):
 
         from accounts.tasks import send_demo_verification_task
 
-        transaction.on_commit(
-            lambda: send_demo_verification_task.delay(
-                demo_schema,
-                str(user.pk),
-                verification_url,
-            )
+        publish_task_after_commit(
+            send_demo_verification_task,
+            demo_schema,
+            str(user.pk),
+            verification_url,
+            tenant_schema=demo_schema,
         )
         self._record_audit("INSERT", user)
         self._log("demo_user_created", user_id=str(user.pk))

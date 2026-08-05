@@ -46,36 +46,60 @@ class DashboardService(BaseService):
 
         Se Redis estiver indisponivel, consulta o banco diretamente.
         """
-        cache_key = self._cache_key("school_dashboard")
-        data = self._safe_cache_get(cache_key)
+        from core.permissions import role_name
         from dashboard.selectors import DashboardSelector
 
         selector = DashboardSelector()
-        if data is None:
+        is_guardian = role_name(self.user) == "GUARDIAN"
+        if is_guardian:
+            # O escopo do responsável pode mudar durante a própria sessão. Esses
+            # indicadores não usam o cache agregado do tenant para que uma
+            # desvinculação revogue o acesso na requisição seguinte.
             data = {
-                "total_students": self._cached("total_students", selector.get_total_students),
-                "total_teachers": self._cached("total_teachers", selector.get_total_teachers),
-                "total_classes": self._cached("total_classes", selector.get_total_classes),
-                "total_guardians": self._cached("total_guardians", selector.get_total_guardians),
-                "today_attendance": self._cached(
-                    "today_attendance", selector.get_today_attendance_rate
-                ),
-                "weekly_attendance": self._cached(
-                    "weekly_attendance", selector.get_weekly_attendance
-                ),
-                "students_at_risk": self._cached(
-                    "students_at_risk", selector.get_students_at_risk_count
-                ),
-                "pending_activities": self._cached(
-                    "pending_activities", selector.get_pending_activities
-                ),
-                "upcoming_events": self._cached("upcoming_events", selector.get_upcoming_events),
-                "recent_announcements": self._cached(
-                    "recent_announcements", selector.get_recent_announcements
-                ),
+                "total_students": selector.get_total_students(self.user),
+                "total_teachers": None,
+                "total_classes": selector.get_total_classes(self.user),
+                "total_guardians": None,
+                "today_attendance": selector.get_today_attendance_rate(self.user),
+                "weekly_attendance": selector.get_weekly_attendance(self.user),
+                "students_at_risk": selector.get_students_at_risk_count(self.user),
+                "pending_activities": selector.get_pending_activities(user=self.user),
+                "upcoming_events": selector.get_upcoming_events(user=self.user),
+                "recent_announcements": selector.get_recent_announcements(user=self.user),
             }
-            self._safe_cache_set(cache_key, data, CACHE_TTL["school_dashboard"])
+        else:
+            cache_key = self._cache_key("school_dashboard")
+            data = self._safe_cache_get(cache_key)
+            if data is None:
+                data = {
+                    "total_students": self._cached("total_students", selector.get_total_students),
+                    "total_teachers": self._cached("total_teachers", selector.get_total_teachers),
+                    "total_classes": self._cached("total_classes", selector.get_total_classes),
+                    "total_guardians": self._cached(
+                        "total_guardians", selector.get_total_guardians
+                    ),
+                    "today_attendance": self._cached(
+                        "today_attendance", selector.get_today_attendance_rate
+                    ),
+                    "weekly_attendance": self._cached(
+                        "weekly_attendance", selector.get_weekly_attendance
+                    ),
+                    "students_at_risk": self._cached(
+                        "students_at_risk", selector.get_students_at_risk_count
+                    ),
+                    "pending_activities": self._cached(
+                        "pending_activities", selector.get_pending_activities
+                    ),
+                    "upcoming_events": self._cached(
+                        "upcoming_events", selector.get_upcoming_events
+                    ),
+                    "recent_announcements": self._cached(
+                        "recent_announcements", selector.get_recent_announcements
+                    ),
+                }
+                self._safe_cache_set(cache_key, data, CACHE_TTL["school_dashboard"])
         result = dict(data)
+        result["is_guardian"] = is_guardian
         from core.permissions import VIEW, can_access
 
         financial_modules = (

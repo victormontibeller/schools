@@ -1,11 +1,11 @@
 """Views de relatórios financeiros, separadas do fluxo transacional."""
 
 import csv
-import datetime as dt
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
+from django.utils import timezone
 
 from core.permissions import VIEW, access_policy
 from financeiro.forms import ReportFilterForm
@@ -17,7 +17,7 @@ from financeiro.selectors import BillingSelector
 def revenue_report(request: HttpRequest) -> HttpResponse:
     """Renderiza receita prevista e recebida para o período solicitado."""
     initial = {
-        "year": request.GET.get("year", dt.date.today().year),
+        "year": request.GET.get("year", timezone.localdate().year),
         "month": request.GET.get("month", ""),
     }
     form = ReportFilterForm(request.GET or None, initial=initial)
@@ -26,7 +26,7 @@ def revenue_report(request: HttpRequest) -> HttpResponse:
         month_str = form.cleaned_data["month"]
         month = int(month_str) if month_str else None
     else:
-        year = dt.date.today().year
+        year = timezone.localdate().year
         month = None
     selector = BillingSelector(user=request.user)
     competence = selector.competence_report(year=year, month=month)

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import datetime as dt
 from decimal import Decimal
 
 from django.db.models import DecimalField, ExpressionWrapper, F, Q
+from django.utils import timezone
 
 from base.exceptions import ObjectNotFoundError
 from base.selectors import BaseSelector, PageResult
@@ -40,12 +40,11 @@ class FinanceScopeMixin:
 
         if role_name(self.user) != GUARDIAN:
             return queryset
-        filters = {
-            f"{prefix}__guardians__guardian__user_id": self.user.pk,
-            f"{prefix}__guardians__guardian__is_active": True,
-            f"{prefix}__guardians__has_custody": True,
-        }
-        return queryset.filter(**filters).distinct()
+        from guardians.selectors import GuardianSelector
+
+        return queryset.filter(
+            **{f"{prefix}_id__in": GuardianSelector().custodial_student_ids_for_user(self.user.pk)}
+        ).distinct()
 
     def _is_guardian(self) -> bool:
         from core.access_catalog import GUARDIAN
@@ -165,7 +164,7 @@ class BillingSelector(BillingReportingMixin, FinanceScopeMixin, BaseSelector):
             qs = qs.filter(due_date__gte=date_from)
         if date_to:
             qs = qs.filter(due_date__lte=date_to)
-        today = dt.date.today()
+        today = timezone.localdate()
         if status == "CANCELLED":
             qs = qs.filter(status=BillingEntry.Status.CANCELLED)
         elif status == "PAID":
@@ -250,12 +249,14 @@ class PaymentSelector(FinanceScopeMixin, BaseSelector):
             qs = self._scope_students(qs, prefix="allocations__billing__student")
             payment = qs.get(pk=payment_id)
             if self._is_guardian():
+                from guardians.selectors import GuardianSelector
+
                 allocation_count = payment.allocations.count()
                 allowed_count = (
                     payment.allocations.filter(
-                        billing__student__guardians__guardian__user_id=self.user.pk,
-                        billing__student__guardians__guardian__is_active=True,
-                        billing__student__guardians__has_custody=True,
+                        billing__student_id__in=GuardianSelector().custodial_student_ids_for_user(
+                            self.user.pk
+                        ),
                     )
                     .distinct()
                     .count()

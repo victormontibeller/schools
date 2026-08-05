@@ -1,11 +1,10 @@
 """Orquestração HTTP de cobranças contratuais e avulsas."""
 
-import datetime as dt
-
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 from base.forms import apply_validation_errors
@@ -239,7 +238,7 @@ def bulk_materialize_billings(request: HttpRequest) -> HttpResponse:
             except (ObjectNotFoundError, BusinessRuleViolationError, ValidationError) as exc:
                 _service_error(request, form, exc)
     else:
-        form = MaterializeBillingsByClassForm(initial={"academic_year": dt.date.today().year})
+        form = MaterializeBillingsByClassForm(initial={"academic_year": timezone.localdate().year})
     return render(
         request,
         "financeiro/bulk_generate.html",

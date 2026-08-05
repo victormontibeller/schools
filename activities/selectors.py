@@ -33,8 +33,16 @@ class ActivitySelector(BaseSelector):
         if role_name == "TEACHER":
             queryset = queryset.filter(teacher__user_id=user_id)
         elif role_name == "GUARDIAN":
+            from classes.contracts import Enrollment
+            from guardians.selectors import GuardianSelector
+
             queryset = queryset.filter(
-                class_obj__enrollments__student__guardians__guardian__user_id=user_id
+                class_obj__enrollments__student_id__in=GuardianSelector().custodial_student_ids_for_user(
+                    user_id
+                ),
+                class_obj__enrollments__status=Enrollment.Status.ACTIVE,
+                class_obj__enrollments__is_active=True,
+                class_obj__enrollments__deleted_at__isnull=True,
             )
         queryset = queryset.distinct().order_by(order_by)
         from base.selectors import MAX_PAGE_SIZE
@@ -54,20 +62,45 @@ class ActivitySelector(BaseSelector):
         """Retorna a atividade pelo ID."""
         return self.get_by_id(activity_id)
 
-    def list_submissions(self, activity_id):
+    def list_submissions(self, activity_id, *, guardian_user_id=None):
         """Retorna entregas em ordem estável por nome e matrícula."""
         from activities.models import ActivitySubmission
 
-        return (
-            ActivitySubmission.objects.filter(activity_id=activity_id)
-            .select_related("student")
-            .order_by(
-                "student__first_name",
-                "student__last_name",
-                "student__enrollment_number",
-                "pk",
-            )
+        queryset = ActivitySubmission.objects.filter(activity_id=activity_id).select_related(
+            "student"
         )
+        if guardian_user_id is not None:
+            from classes.contracts import Enrollment
+            from guardians.selectors import GuardianSelector
+
+            queryset = queryset.filter(
+                student_id__in=GuardianSelector().custodial_student_ids_for_user(guardian_user_id),
+                student__enrollments__class_obj__activities__pk=activity_id,
+                student__enrollments__status=Enrollment.Status.ACTIVE,
+                student__enrollments__is_active=True,
+                student__enrollments__deleted_at__isnull=True,
+            )
+        return queryset.distinct().order_by(
+            "student__first_name",
+            "student__last_name",
+            "student__enrollment_number",
+            "pk",
+        )
+
+    def guardian_can_access_activity(self, user_id, activity_id) -> bool:
+        """Confirma guarda e matrícula ativa de ao menos um filho na turma."""
+        from classes.contracts import Enrollment
+        from guardians.selectors import GuardianSelector
+
+        return self.model_class.objects.filter(
+            pk=activity_id,
+            class_obj__enrollments__student_id__in=GuardianSelector().custodial_student_ids_for_user(
+                user_id
+            ),
+            class_obj__enrollments__status=Enrollment.Status.ACTIVE,
+            class_obj__enrollments__is_active=True,
+            class_obj__enrollments__deleted_at__isnull=True,
+        ).exists()
 
     def list_groups(self, activity_id):
         """Lista grupos ativos com seus integrantes."""

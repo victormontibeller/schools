@@ -127,15 +127,25 @@ def activity_create(request):
 def activity_detail(request, pk):
     """Exibe atividade e lista de entregas/notas."""
     activity = ActivitySelector().get_by_id(pk)
+    role_name = getattr(getattr(request.user, "role", None), "name", "")
+    guardian_user_id = request.user.pk if role_name == "GUARDIAN" else None
     if request.headers.get("HX-Request") and request.GET.get("component") == "information":
         return render(
             request,
             "activities/partials/activity_information_card.html",
             information_context(activity),
         )
-    if request.headers.get("HX-Request") and request.GET.get("component") == "groups":
+    if (
+        guardian_user_id is None
+        and request.headers.get("HX-Request")
+        and request.GET.get("component") == "groups"
+    ):
         return render_groups_card(request, activity)
-    return render(request, "activities/activity_detail.html", activity_detail_context(activity))
+    return render(
+        request,
+        "activities/activity_detail.html",
+        activity_detail_context(activity, guardian_user_id=guardian_user_id),
+    )
 
 
 @login_required

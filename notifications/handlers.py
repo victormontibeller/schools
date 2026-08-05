@@ -3,37 +3,12 @@
 from __future__ import annotations
 
 import logging
-from functools import partial
 
-from base.events import DomainEvent, dispatcher
+from base.events import DomainEvent, dispatcher, publish_task_after_commit
 
 logger = logging.getLogger(__name__)
 
 _HANDLERS_REGISTERED = False
-
-
-def _enqueue_calendar_audience_all(
-    schema_name: str,
-    *,
-    title: str,
-    message: str,
-    correlation_id: str,
-) -> None:
-    """Publica a tarefa após commit e registra indisponibilidade do broker."""
-    from notifications.tasks import notify_audience_all_task
-
-    try:
-        notify_audience_all_task.delay(
-            schema_name,
-            title=title,
-            message=message,
-            correlation_id=correlation_id,
-        )
-    except Exception as exc:  # o commit já ocorreu; não há dado a reverter
-        logger.error(
-            "Falha ao publicar notificacao de calendario",
-            extra={"tenant": schema_name, "exception_type": type(exc).__name__},
-        )
 
 
 # ── Helpers de notificacao DRY ───────────────────────────────────────────────
@@ -50,9 +25,10 @@ def _notify_guardians(
     correlation_id: str,
 ) -> None:
     """Envia notificacao para responsaveis principais de um aluno."""
+    from guardians.selectors import GuardianSelector
     from notifications.services import NotificationService
 
-    qs = student.guardians.filter(is_primary=True).select_related("guardian__user")
+    qs = GuardianSelector().custodial_links_for_students([student.pk]).filter(is_primary=True)
     for link in qs:
         guardian_user = link.guardian.user
         if guardian_user is None:
@@ -180,18 +156,20 @@ def _handle_calendar_event_created(event: DomainEvent) -> None:
     msg = cal_event.description or f"Evento em {cal_event.start_date}."
 
     if audience == "ALL":
-        from django.db import connection, transaction
+        from django.db import connection
 
         from base import context
+        from notifications.tasks import notify_audience_all_task
 
-        callback = partial(
-            _enqueue_calendar_audience_all,
-            getattr(connection, "schema_name", context.current_tenant.get()),
+        schema_name = getattr(connection, "schema_name", context.current_tenant.get())
+        publish_task_after_commit(
+            notify_audience_all_task,
+            schema_name,
             title=title,
             message=msg,
             correlation_id=event.correlation_id,
+            tenant_schema=schema_name,
         )
-        transaction.on_commit(callback)
     elif audience == "CLASS" and cal_event.class_obj:
         _notify_class_students(
             cal_event.class_obj,

@@ -47,6 +47,26 @@ class TestDashboardService:
         assert data["financial_kpis"] == expected
         get_financial_kpis.assert_called_once_with(guardian)
 
+    def test_guardian_dashboard_never_uses_tenant_wide_cache(self, django_user_model):
+        from core.models import Role
+
+        guardian_role = Role.objects.get(name=Role.Name.GUARDIAN)
+        guardian = django_user_model.objects.create_user(
+            email="guardian-dashboard-no-cache@test.com",
+            password="Senha123",
+            role=guardian_role,
+        )
+
+        with (
+            patch.object(DashboardService, "_safe_cache_get") as cache_get,
+            patch.object(DashboardService, "_safe_cache_set") as cache_set,
+        ):
+            data = DashboardService(user=guardian).get_school_dashboard_data()
+
+        assert data["is_guardian"] is True
+        cache_get.assert_not_called()
+        cache_set.assert_not_called()
+
     def test_get_executive_dashboard(self, user):
         data = DashboardService(user=user).get_executive_dashboard_data()
         assert "total_tenants" in data

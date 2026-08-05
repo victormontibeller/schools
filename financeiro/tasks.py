@@ -7,8 +7,10 @@ from datetime import date
 from types import SimpleNamespace
 
 from celery import shared_task
+from django.utils import timezone
 
 from base.context import tenant_schema_context
+from base.events import publish_task_safely
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +21,24 @@ def process_collection_reminders_task(tenant_schema: str, reference_date: str | 
     with tenant_schema_context(tenant_schema):
         from financeiro.services import FinanceService
 
-        parsed = date.fromisoformat(reference_date) if reference_date else date.today()
+        parsed = date.fromisoformat(reference_date) if reference_date else timezone.localdate()
         return FinanceService(user=None).run_scheduled_reminders(reference_date=parsed)
+
+
+@shared_task(name="financeiro.dispatch_collection_reminders")
+def dispatch_collection_reminders_task() -> int:
+    """Publica uma execução tenant-scoped para cada escola ativa."""
+    from tenancy.selectors import SchoolSelector
+
+    published = 0
+    for schema_name in SchoolSelector().list_active_schemas().iterator():
+        if publish_task_safely(
+            process_collection_reminders_task,
+            schema_name,
+            tenant_schema=schema_name,
+        ):
+            published += 1
+    return published
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=120)
@@ -30,7 +48,7 @@ def deliver_collection_reminder_task(self, tenant_schema: str, reminder_id: str)
         from core.permissions import can_access
         from financeiro.models import CollectionReminder
         from financeiro.services import FinanceService
-        from guardians.contracts import StudentGuardian
+        from guardians.selectors import GuardianSelector
 
         reminder = (
             CollectionReminder.objects.select_related("billing", "guardian", "recipient")
@@ -40,12 +58,15 @@ def deliver_collection_reminder_task(self, tenant_schema: str, reminder_id: str)
         if reminder is None:
             return
         service = FinanceService(user=None)
-        valid_guard = StudentGuardian.objects.filter(
-            student_id=reminder.billing.student_id,
-            guardian_id=reminder.guardian_id,
-            has_custody=True,
-            guardian__is_active=True,
-        ).exists()
+        valid_guard = (
+            GuardianSelector()
+            .custodial_links_for_user(reminder.recipient_id)
+            .filter(
+                student_id=reminder.billing.student_id,
+                guardian_id=reminder.guardian_id,
+            )
+            .exists()
+        )
         if (
             not valid_guard
             or reminder.recipient is None

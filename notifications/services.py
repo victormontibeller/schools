@@ -10,6 +10,7 @@ from django.db.models import QuerySet
 from django.utils import timezone
 
 from base import context
+from base.events import publish_task_after_commit
 from base.exceptions import (
     BusinessRuleViolationError,
     ObjectNotFoundError,
@@ -268,8 +269,11 @@ class AnnouncementService(BaseService):
             from notifications.tasks import send_announcement_email_task
 
             schema_name = connection.schema_name
-            transaction.on_commit(
-                lambda: send_announcement_email_task.delay(schema_name, str(announcement.pk))
+            publish_task_after_commit(
+                send_announcement_email_task,
+                schema_name,
+                str(announcement.pk),
+                tenant_schema=schema_name,
             )
 
         if announcement.send_whatsapp:

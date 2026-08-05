@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import datetime as dt
 
-from django.db import connection, transaction
+from django.db import connection
 from django.utils import timezone
 
+from base.events import publish_task_after_commit
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 from base.services import service_command, system_command
 
@@ -65,7 +66,7 @@ class ReminderLifecycleMixin:
         selected = channels or ["IN_APP"]
         return self._enqueue_for_billing(
             billing,
-            reference_date=dt.date.today(),
+            reference_date=timezone.localdate(),
             rule_offset_days=0,
             channels=selected,
         )
@@ -75,7 +76,7 @@ class ReminderLifecycleMixin:
         """Materializa somente regras que vencem na data da execução."""
         from financeiro.models import BillingEntry, CollectionReminderPolicy
 
-        reference = reference_date or dt.date.today()
+        reference = reference_date or timezone.localdate()
         policy = CollectionReminderPolicy.objects.filter(enabled=True).first()
         if policy is None or not policy.offset_days or not policy.channels:
             return 0
@@ -107,14 +108,9 @@ class ReminderLifecycleMixin:
         from core.access_catalog import FINANCE_BILLINGS, VIEW
         from core.permissions import can_access
         from financeiro.models import CollectionReminder
-        from guardians.contracts import StudentGuardian
+        from guardians.selectors import GuardianSelector
 
-        relations = StudentGuardian.objects.select_related("guardian__user").filter(
-            student_id=billing.student_id,
-            has_custody=True,
-            guardian__is_active=True,
-            guardian__user__is_active=True,
-        )
+        relations = GuardianSelector().custodial_links_for_students([billing.student_id])
         created_ids = []
         for relation in relations:
             guardian = relation.guardian
@@ -139,12 +135,13 @@ class ReminderLifecycleMixin:
             tenant_schema = getattr(connection, "schema_name", "public")
             from financeiro.tasks import deliver_collection_reminder_task
 
-            transaction.on_commit(
-                lambda: [
-                    deliver_collection_reminder_task.delay(tenant_schema, reminder_id)
-                    for reminder_id in created_ids
-                ]
-            )
+            for reminder_id in created_ids:
+                publish_task_after_commit(
+                    deliver_collection_reminder_task,
+                    tenant_schema,
+                    reminder_id,
+                    tenant_schema=tenant_schema,
+                )
         self._log(
             "collection_reminders_enqueued",
             billing_id=str(billing.pk),

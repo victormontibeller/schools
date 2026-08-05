@@ -6,8 +6,71 @@ import logging
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from functools import partial
 
 logger = logging.getLogger(__name__)
+
+
+def publish_task_safely(task, *args, tenant_schema: str | None = None, **kwargs) -> bool:
+    """Publica uma task sem deixar indisponibilidade do broker escapar após o commit."""
+    from base import context
+
+    tenant = tenant_schema or context.current_tenant.get() or "public"
+    try:
+        task.delay(*args, **kwargs)
+    except Exception as exc:
+        logger.error(
+            "celery_task_publish_failed",
+            extra={
+                "task": getattr(task, "name", type(task).__name__),
+                "tenant": tenant,
+                "exception_type": type(exc).__name__,
+            },
+        )
+        return False
+    return True
+
+
+def _publish_task_with_context(
+    task,
+    args: tuple,
+    kwargs: dict,
+    tenant_schema: str,
+    correlation_id: str,
+) -> None:
+    """Restaura o contexto capturado antes de publicar a task."""
+    from base import context
+
+    tenant_token = context.current_tenant.set(tenant_schema)
+    correlation_token = context.correlation_id.set(correlation_id)
+    try:
+        publish_task_safely(task, *args, tenant_schema=tenant_schema, **kwargs)
+    finally:
+        context.correlation_id.reset(correlation_token)
+        context.current_tenant.reset(tenant_token)
+
+
+def publish_task_after_commit(
+    task,
+    *args,
+    tenant_schema: str | None = None,
+    **kwargs,
+) -> None:
+    """Registra uma publicação Celery isolada para executar somente após o commit."""
+    from django.db import transaction
+
+    from base import context
+
+    tenant = tenant_schema or context.current_tenant.get() or "public"
+    callback = partial(
+        _publish_task_with_context,
+        task,
+        args,
+        kwargs,
+        tenant,
+        context.correlation_id.get(),
+    )
+    transaction.on_commit(callback)
 
 
 @dataclass

@@ -106,6 +106,13 @@ imutáveis e qualquer alteração de schema seguirá uma cadeia evolutiva revisa
 - Atividades mantêm o workflow de notas `DRAFT` e `LAUNCHED`, com a data do lançamento oficial.
   O estado oficial bloqueia alterações individuais e coletivas até uma reabertura auditada com
   motivo obrigatório.
+- A leitura familiar das atividades combina guarda vigente e matrícula ativa na turma. Durante
+  `DRAFT`, o resultado permanece não publicado; em `LAUNCHED`, cada Responsável vê exclusivamente
+  nota e observação de seus próprios filhos. A composição de grupos é sempre operacional e nunca
+  integra a projeção familiar.
+- Um vínculo `StudentGuardian` previamente desativado é restaurado na mesma linha sob
+  `select_for_update()`, atualiza os metadados de guarda e parentesco e gera auditoria `RESTORE`;
+  a restrição única continua rejeitando duplicidade de vínculo ainda ativo.
 - Atividades e chamadas aceitam apenas combinações professor–turma–disciplina existentes e
   vigentes na grade horária, inclusive quando o professor é o responsável da turma.
 - A grade horária usa `TimeSlot` como período comum da escola, sem dia da semana, vinculado

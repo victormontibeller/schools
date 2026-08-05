@@ -36,7 +36,7 @@ class PaymentService(FinanceRulesMixin, BaseService):
 
         if not allocations:
             raise ValidationError(errors={"allocations": ["Selecione ao menos uma cobrança."]})
-        if not isinstance(paid_date, date) or paid_date > date.today():
+        if not isinstance(paid_date, date) or paid_date > timezone.localdate():
             raise ValidationError(errors={"paid_date": ["A data não pode ser futura."]})
         if idempotency_key:
             existing = PaymentRecord.all_objects.filter(idempotency_key=idempotency_key).first()

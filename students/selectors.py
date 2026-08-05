@@ -50,7 +50,9 @@ class StudentSelector(BaseSelector):
                 enrollments__deleted_at__isnull=True,
             )
         elif role_name == "GUARDIAN":
-            qs = qs.filter(guardians__guardian__user_id=user_id)
+            from guardians.selectors import GuardianSelector
+
+            qs = GuardianSelector().scope_students_for_user(qs, user_id)
         if search:
             qs = qs.filter(Q(first_name__icontains=search) | Q(last_name__icontains=search))
         qs = qs.distinct().order_by(order_by, "last_name")
@@ -71,12 +73,9 @@ class StudentSelector(BaseSelector):
                 enrollments__deleted_at__isnull=True,
             )
         elif actor_role == "GUARDIAN":
-            qs = qs.filter(
-                guardians__guardian__user_id=user.pk,
-                guardians__guardian__is_active=True,
-                guardians__is_active=True,
-                guardians__has_custody=True,
-            )
+            from guardians.selectors import GuardianSelector
+
+            qs = GuardianSelector().scope_students_for_user(qs, user.pk)
         return qs.distinct().order_by("first_name", "last_name")
 
     def get_student_by_id(self, student_id):

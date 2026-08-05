@@ -18,7 +18,7 @@
         {% include "activities/partials/activity_information_card.html" %}
     </div>
     <div class="col-12 col-xl-7 sm-workspace-column">
-    {% if activity.modality == 'GROUP' %}
+    {% if activity.modality == 'GROUP' and not guardian_view %}
     {% include "activities/partials/activity_groups_card.html" %}
     {% endif %}
     {% include "activities/partials/activity_score_card.html" %}

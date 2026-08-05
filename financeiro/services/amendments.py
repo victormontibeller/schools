@@ -1,6 +1,6 @@
 """Aditivos futuros dos contratos financeiros ativos."""
 
-from datetime import date
+from django.utils import timezone
 
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 from base.services import service_command
@@ -55,7 +55,7 @@ class ContractAmendmentMixin:
         validated = self._validated_contract_values(merged)
         changed = {field: validated[field] for field in submitted}
         effective = data["effective_competency"].replace(day=1)
-        if effective <= date.today().replace(day=1):
+        if effective <= timezone.localdate().replace(day=1):
             raise ValidationError(errors={"effective_competency": ["A vigência deve ser futura."]})
         future = list(
             BillingEntry.objects.select_for_update()

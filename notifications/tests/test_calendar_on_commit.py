@@ -53,7 +53,7 @@ def test_calendar_task_is_immediate_without_active_transaction():
 
 @pytest.mark.django_db(transaction=True)
 def test_broker_failure_after_commit_is_logged_without_escaping(caplog):
-    caplog.set_level(logging.ERROR, logger="notifications.handlers")
+    caplog.set_level(logging.ERROR, logger="base.events")
     with patch(
         "notifications.tasks.notify_audience_all_task.delay",
         side_effect=ConnectionError("broker unavailable"),
@@ -61,4 +61,7 @@ def test_broker_failure_after_commit_is_logged_without_escaping(caplog):
         with transaction.atomic():
             _handle_calendar_event_created(_event())
 
-    assert "Falha ao publicar notificacao de calendario" in caplog.text
+    record = next(item for item in caplog.records if item.message == "celery_task_publish_failed")
+    assert record.task == "notifications.tasks.notify_audience_all_task"
+    assert record.exception_type == "ConnectionError"
+    assert "broker unavailable" not in record.getMessage()

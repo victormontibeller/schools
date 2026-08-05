@@ -330,23 +330,30 @@ class TestTenantSchemaIsolation(TenantTestCase):
             last_name="B",
             is_superuser=True,
         )
-        StudentService(user=actor).create_student(
-            {
-                "first_name": "X",
-                "last_name": "Y",
-                "birth_date": "2010-01-01",
-                "enrollment_number": "AUD-001",
-                "gender": "M",
-                "blood_type": "O+",
-                "nationality": "Brasileira",
-                "cpf": "390.533.447-05",
-                "rg_number": "1234567",
-                "rg_issuer": "SSP",
-                "rg_state": "SP",
-                "phone_mobile": "11999990000",
-                "email": "x@example.com",
-            }
+        correlation_id = context.normalize_http_correlation_id(
+            "550E8400-E29B-41D4-A716-446655440000"
         )
+        correlation_token = context.correlation_id.set(correlation_id)
+        try:
+            StudentService(user=actor).create_student(
+                {
+                    "first_name": "X",
+                    "last_name": "Y",
+                    "birth_date": "2010-01-01",
+                    "enrollment_number": "AUD-001",
+                    "gender": "M",
+                    "blood_type": "O+",
+                    "nationality": "Brasileira",
+                    "cpf": "390.533.447-05",
+                    "rg_number": "1234567",
+                    "rg_issuer": "SSP",
+                    "rg_state": "SP",
+                    "phone_mobile": "11999990000",
+                    "email": "x@example.com",
+                }
+            )
+        finally:
+            context.correlation_id.reset(correlation_token)
 
         log = AuditLog.objects.get(
             operation=AuditLog.Operation.INSERT,
@@ -354,6 +361,7 @@ class TestTenantSchemaIsolation(TenantTestCase):
         )
         assert log.tenant_schema == "escola_a"
         assert log.model_name == "Student"
+        assert log.correlation_id == correlation_id
 
 
 @_requires_pg

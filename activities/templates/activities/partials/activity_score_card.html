@@ -15,12 +15,13 @@
         {% csrf_token %}
         <div class="card-header d-flex justify-content-between align-items-center gap-2">
             <div>
-                <h6 class="card-title mb-0">Lançamento de notas</h6>
-                <small class="text-muted">{{ recorded_count|default:0 }}/{{ total_count|default:0 }} preenchidas</small>
+                <h6 class="card-title mb-0">{% if guardian_view %}Resultados da atividade{% else %}Lançamento de notas{% endif %}</h6>
+                {% if not guardian_view or activity.score_status == 'LAUNCHED' %}<small class="text-muted">{{ recorded_count|default:0 }}/{{ total_count|default:0 }} preenchidas</small>{% endif %}
             </div>
         </div>
         {% if saved is not None %}<div class="alert alert-success m-3 mb-0 py-2" role="status">{{ saved }} nota{{ saved|pluralize }} salva{{ saved|pluralize }} com sucesso.</div>{% endif %}
         {% if component_error %}<div class="alert alert-danger m-3 mb-0 py-2" role="alert">{{ component_error }}</div>{% endif %}
+        {% if guardian_view and activity.score_status != 'LAUNCHED' %}<div class="alert alert-info m-3 mb-0 py-2" role="status">Resultado ainda não publicado.</div>{% endif %}
         <div class="card-body p-0 sm-viewport-body">
             <div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Grade de lançamento de notas">
                 <table class="table table-hover align-middle mb-0 sm-compact-table sm-sticky-table sm-sticky-table--first-column sm-activity-score-table">
@@ -42,7 +43,7 @@
                             {% for error in row.form.score.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
                             {% for error in row.form.version.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
                             {% for error in row.form.submission_id.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-                            {% elif row.submission.score is not None %}{{ row.submission.score }}{% else %}—{% endif %}
+                            {% elif guardian_view and activity.score_status != 'LAUNCHED' %}—{% elif row.submission.score is not None %}{{ row.submission.score }}{% else %}—{% endif %}
                         </td>
                         <td class="sm-activity-score-feedback-column">
                             {% if can_edit_activity and activity.score_status == 'DRAFT' %}
@@ -79,7 +80,7 @@
                                 {% for error in row.form.feedback.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
                                 {% for error in row.form.non_field_errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
                             </div>
-                            {% elif row.submission.feedback %}{{ row.submission.feedback }}{% else %}—{% endif %}
+                            {% elif guardian_view and activity.score_status != 'LAUNCHED' %}—{% elif row.submission.feedback %}{{ row.submission.feedback }}{% else %}—{% endif %}
                         </td>
                     </tr>
                     {% empty %}

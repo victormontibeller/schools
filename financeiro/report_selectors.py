@@ -7,6 +7,7 @@ from decimal import Decimal
 
 from django.db.models import Case, CharField, Count, DecimalField, F, Min, Sum, Value, When
 from django.db.models.functions import Coalesce
+from django.utils import timezone
 
 ZERO = Decimal("0.00")
 MONEY = DecimalField(max_digits=12, decimal_places=2)
@@ -24,7 +25,7 @@ class BillingReportingMixin:
     def inadimplencia_por_faixa(self, *, reference_date=None) -> list[dict]:
         from financeiro.models import BillingEntry
 
-        reference = reference_date or dt.date.today()
+        reference = reference_date or timezone.localdate()
         base = (
             self.base_queryset()
             .exclude(status=BillingEntry.Status.CANCELLED)
@@ -51,7 +52,7 @@ class BillingReportingMixin:
     def competence_report(self, *, year=None, month=None) -> dict:
         from financeiro.models import BillingEntry
 
-        today = dt.date.today()
+        today = timezone.localdate()
         selected_year = year or today.year
         start = dt.date(selected_year, month or 1, 1)
         end = (
@@ -85,7 +86,7 @@ class BillingReportingMixin:
         """Drill-down agrupado no banco por faixa, aluno, turma e contrato."""
         from financeiro.models import BillingEntry
 
-        reference = reference_date or dt.date.today()
+        reference = reference_date or timezone.localdate()
         qs = (
             self.base_queryset()
             .exclude(status=BillingEntry.Status.CANCELLED)
@@ -125,7 +126,7 @@ class BillingReportingMixin:
     def cash_report(self, *, year=None, month=None) -> dict:
         from financeiro.models import PaymentRecord
 
-        today = dt.date.today()
+        today = timezone.localdate()
         selected_year = year or today.year
         start = dt.date(selected_year, month or 1, 1)
         end = (
@@ -157,7 +158,7 @@ class BillingReportingMixin:
     def finance_kpis(self, *, reference_date=None) -> dict:
         from financeiro.models import BillingEntry, CollectionReminder, PaymentRecord
 
-        reference = reference_date or dt.date.today()
+        reference = reference_date or timezone.localdate()
         qs = (
             self.base_queryset()
             .exclude(status=BillingEntry.Status.CANCELLED)

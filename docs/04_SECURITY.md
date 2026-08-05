@@ -74,6 +74,20 @@ somente para scripts/estilos legados do tema e deverá ser removida conforme for
   explícita. Professor nunca herda o catálogo ao receber escrita na grade.
 - Professor acessa somente turmas, alunos e registros atribuídos. Responsável acessa somente
   alunos vinculados e os dados derivados desses vínculos; a matriz não remove esses filtros.
+- O escopo canônico do Responsável exige simultaneamente vínculo ativo e não excluído, guarda
+  vigente, perfil de responsável ativo e não excluído, conta ativa e aluno ativo e não excluído.
+  Atividades exigem ainda matrícula ativa na turma. Desvincular ou invalidar qualquer componente
+  revoga imediatamente listas, fichas, mídia, frequência, atividades, Agenda e Financeiro,
+  inclusive por URL conhecida.
+- Na ficha de atividade, o Responsável recebe somente as linhas dos próprios filhos com matrícula
+  ativa. Nota e observação só são expostas após o lançamento oficial; grupos, integrantes e nomes
+  de colegas nunca são renderizados para esse papel.
+- O dashboard familiar recalcula a cada requisição os totais, frequência, risco, atividades,
+  eventos e comunicados dentro do mesmo escopo de guarda. Ele não reutiliza o cache agregado da
+  escola, para que uma desvinculação produza revogação já na próxima requisição da mesma sessão.
+- No calendário, o Responsável vê somente eventos marcados como públicos: eventos globais para
+  famílias e eventos de turmas nas quais um filho sob guarda possua matrícula ativa. Eventos de
+  professores, privados ou de outras turmas permanecem ausentes do mês, agenda e detalhe direto.
 - A submissão de justificativa por Responsável limita o formulário e repete no service o vínculo
   ativo com o aluno, o perfil ativo do responsável e a guarda vigente. Identificadores de alunos
   fora desse escopo são recusados antes de qualquer escrita ou auditoria; administradores
@@ -87,12 +101,17 @@ somente para scripts/estilos legados do tema e deverá ser removida conforme for
   access log.
 - Logs de aplicação incluem tenant, usuário e correlation ID por identificadores opacos.
   Mensagens não interpolam exceções nem PII.
+- O `X-Correlation-ID` recebido por HTTP nunca é confiável: somente UUID válido é aceito e
+  canonicalizado; entrada ausente, longa, malformada ou com caracteres de controle é substituída
+  por UUID v4 antes de alcançar contexto, resposta, logs ou auditoria.
 - Novos registros de auditoria redigem credenciais, contato, endereço, data de nascimento,
   documentos e textos livres potencialmente pessoais, incluindo motivos, justificativas,
   observações, feedback, mensagens, conteúdo, descrições e títulos. Status, identificadores
   opacos, datas operacionais e valores permanecem disponíveis; o controle vale prospectivamente,
   sem reescrever o histórico já persistido.
 - Secrets e credenciais ACME existem apenas em secrets/variáveis de ambiente.
+- O contexto de build Docker exclui `.env*`, repositório Git, ambientes virtuais, mídia, bancos
+  locais, caches, cobertura, logs, staticfiles gerado e artefatos de navegador.
 
 ### Agenda, convites e PWA
 

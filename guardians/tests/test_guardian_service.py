@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
+from audit.models import AuditLog
 from base.exceptions import (
     BusinessRuleViolationError,
     ObjectNotFoundError,
@@ -154,6 +155,43 @@ class TestLinkStudent:
         GuardianService(user=user).link_student(g.pk, student.pk)
         GuardianService(user=user).unlink_student(g.pk, student.pk)
         assert not StudentGuardian.objects.filter(guardian=g, student=student).exists()
+
+    def test_relink_restores_same_soft_deleted_link_with_new_metadata(self, user):
+        guardian = GuardianService(user=user).create_guardian(_guardian_data(None))
+        student = _make_student(user, "RESTORE-LINK")
+        original = GuardianService(user=user).link_student(
+            guardian.pk,
+            student.pk,
+            {"relationship_type": "MAE", "has_custody": True},
+        )
+        GuardianService(user=user).unlink_student(guardian.pk, student.pk)
+        deleted_version = StudentGuardian.all_objects.get(pk=original.pk).version
+
+        restored = GuardianService(user=user).link_student(
+            guardian.pk,
+            student.pk,
+            {
+                "relationship_type": "LEGAL",
+                "has_custody": False,
+                "can_pickup": False,
+                "is_primary": True,
+            },
+        )
+
+        assert restored.pk == original.pk
+        assert restored.version > deleted_version
+        assert restored.deleted_at is None
+        assert restored.is_active is True
+        assert restored.relationship_type == "LEGAL"
+        assert restored.has_custody is False
+        assert restored.can_pickup is False
+        assert restored.is_primary is True
+        assert StudentGuardian.all_objects.filter(guardian=guardian, student=student).count() == 1
+        assert AuditLog.objects.filter(
+            model_name="StudentGuardian",
+            object_id=str(restored.pk),
+            operation=AuditLog.Operation.RESTORE,
+        ).exists()
 
     def test_unlink_not_found(self, user):
         g_user = _make_user("g_unf@test.com")

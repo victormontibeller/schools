@@ -4,9 +4,11 @@ from activities.forms import ActivityScoreForm, ActivityScoresLaunchForm, Activi
 from activities.selectors import ActivitySelector
 
 
-def build_score_rows(activity, data=None):
+def build_score_rows(activity, data=None, *, guardian_user_id=None):
     """Monta a grade e seus formulários por aluno, preservando POST inválido."""
-    submissions = ActivitySelector().list_submissions(activity.pk)
+    submissions = ActivitySelector().list_submissions(
+        activity.pk, guardian_user_id=guardian_user_id
+    )
     rows = []
     for submission in submissions:
         form = ActivityScoreForm(
@@ -23,14 +25,23 @@ def build_score_rows(activity, data=None):
     return rows
 
 
-def score_context(activity, *, rows=None, saved=None, launch_form=None, reopen_form=None):
+def score_context(
+    activity,
+    *,
+    rows=None,
+    saved=None,
+    launch_form=None,
+    reopen_form=None,
+    guardian_user_id=None,
+):
     """Monta o contexto de apresentação da grade já carregada."""
-    rows = build_score_rows(activity) if rows is None else rows
+    rows = build_score_rows(activity, guardian_user_id=guardian_user_id) if rows is None else rows
     return {
         "score_rows": rows,
         "recorded_count": sum(row["submission"].score is not None for row in rows),
         "total_count": len(rows),
         "saved": saved,
+        "guardian_view": guardian_user_id is not None,
         "launch_form": launch_form
         or ActivityScoresLaunchForm(initial={"version": activity.version}),
         "reopen_form": reopen_form

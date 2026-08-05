@@ -54,14 +54,19 @@ class AttendanceSelector(BaseSelector):
             page_size=page_size,
         )
 
-    def get_class_attendance_summary(self, class_id):
+    def get_class_attendance_summary(self, class_id, *, student_ids=None):
         """Resumo por aluno da turma: presenças, ausências, justificadas, %."""
         from attendance.models import AttendanceEntry
         from classes.contracts import Enrollment
 
         active = Enrollment.objects.filter(
-            class_obj_id=class_id, status=Enrollment.Status.ACTIVE
+            class_obj_id=class_id,
+            status=Enrollment.Status.ACTIVE,
+            is_active=True,
+            deleted_at__isnull=True,
         ).select_related("student")
+        if student_ids is not None:
+            active = active.filter(student_id__in=student_ids)
 
         summary: list[dict] = []
         at_risk: list[dict] = []
@@ -109,9 +114,9 @@ class AttendanceSelector(BaseSelector):
             qs = qs.filter(record__class_obj_id=class_id)
         return qs.order_by("-record__date", "-record__lesson_number")
 
-    def get_students_at_risk(self, class_id, threshold: float = 75.0):
+    def get_students_at_risk(self, class_id, threshold: float = 75.0, *, student_ids=None):
         """Lista alunos com frequência abaixo do limite (default 75%)."""
-        summary = self.get_class_attendance_summary(class_id)
+        summary = self.get_class_attendance_summary(class_id, student_ids=student_ids)
         return [
             item
             for item in summary["summary"]

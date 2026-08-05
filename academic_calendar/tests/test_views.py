@@ -35,6 +35,92 @@ def _set_access(user, module_key: str, actions: set[str]) -> None:
         del user._role_access_cache
 
 
+def _guardian_calendar_context(user):
+    from classes.models import Class, Enrollment
+    from guardians.models import Guardian, StudentGuardian
+    from students.models import Student
+
+    guardian_user = _create_role_user("GUARDIAN", "guardian-family-calendar@calendar.test")
+    guardian = Guardian.objects.create(
+        user=guardian_user,
+        first_name="Responsável",
+        created_by=user,
+        updated_by=user,
+    )
+    child = Student.objects.create(
+        first_name="Filho",
+        last_name="Calendário",
+        birth_date=dt.date(2014, 1, 1),
+        enrollment_number="CAL-GUARD-1",
+        created_by=user,
+        updated_by=user,
+    )
+    own_class = Class.objects.create(
+        name="Turma familiar",
+        grade=Class.Grade.ELEMENTARY_4,
+        education_stage=Class.EducationStage.ELEMENTARY_I,
+        academic_year=2026,
+        created_by=user,
+        updated_by=user,
+    )
+    other_class = Class.objects.create(
+        name="Turma alheia",
+        grade=Class.Grade.ELEMENTARY_5,
+        education_stage=Class.EducationStage.ELEMENTARY_I,
+        academic_year=2026,
+        created_by=user,
+        updated_by=user,
+    )
+    Enrollment.objects.create(
+        student=child,
+        class_obj=own_class,
+        academic_year=2026,
+        enrollment_date=dt.date(2026, 1, 20),
+        status=Enrollment.Status.ACTIVE,
+        created_by=user,
+        updated_by=user,
+    )
+    link = StudentGuardian.objects.create(
+        guardian=guardian,
+        student=child,
+        has_custody=True,
+        created_by=user,
+        updated_by=user,
+    )
+    selected_date = dt.date(2026, 8, 12)
+
+    def event(title, *, audience, class_obj=None, is_public=True):
+        return CalendarEvent.objects.create(
+            title=title,
+            start_date=selected_date,
+            end_date=selected_date,
+            audience=audience,
+            class_obj=class_obj,
+            is_public=is_public,
+            created_by=user,
+            updated_by=user,
+        )
+
+    events = {
+        "global": event("Global família", audience=CalendarEvent.Audience.ALL),
+        "guardians": event("Todos responsáveis", audience=CalendarEvent.Audience.GUARDIANS),
+        "own_class": event(
+            "Evento da turma", audience=CalendarEvent.Audience.CLASS, class_obj=own_class
+        ),
+        "teacher": event("Evento professor", audience=CalendarEvent.Audience.TEACHERS),
+        "other_class": event(
+            "Evento alheio", audience=CalendarEvent.Audience.CLASS, class_obj=other_class
+        ),
+        "private": event(
+            "Evento privado",
+            audience=CalendarEvent.Audience.CLASS,
+            class_obj=own_class,
+            is_public=False,
+        ),
+    }
+    return guardian_user, guardian, child, link, selected_date, events
+
+
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     ("url_name", "target"),
@@ -240,6 +326,70 @@ def test_calendar_day_agenda_includes_events_and_holidays(client, user):
     assert b"Feriado local" in response.content
     assert partial_response.status_code == 200
     assert b"calendar-workspace" in partial_response.content
+
+
+@pytest.mark.django_db
+def test_guardian_calendar_scopes_month_day_agenda_and_htmx(client, user):
+    guardian_user, _guardian, _child, _link, selected_date, events = _guardian_calendar_context(
+        user
+    )
+    client.force_login(guardian_user)
+    url = reverse(
+        "calendar_month_specific",
+        kwargs={"year": selected_date.year, "month": selected_date.month},
+    )
+    params = {"selected_date": selected_date.isoformat()}
+
+    full = client.get(url, params)
+    workspace = client.get(url, params, HTTP_HX_REQUEST="true")
+    agenda = client.get(url, {**params, "component": "agenda"}, HTTP_HX_REQUEST="true")
+
+    assert full.status_code == workspace.status_code == agenda.status_code == 200
+    assert reverse("holidays_list").encode() not in full.content
+    assert reverse("academic_years_list").encode() not in full.content
+    assert b"<html" not in workspace.content
+    assert b'id="calendar-day-agenda"' in agenda.content
+    for response in (full, workspace, agenda):
+        assert events["global"].title.encode() in response.content
+        assert events["guardians"].title.encode() in response.content
+        assert events["own_class"].title.encode() in response.content
+        assert events["teacher"].title.encode() not in response.content
+        assert events["other_class"].title.encode() not in response.content
+        assert events["private"].title.encode() not in response.content
+
+
+@pytest.mark.django_db
+def test_guardian_event_detail_revokes_class_event_immediately_after_unlink(client, user):
+    from guardians.services import GuardianService
+
+    guardian_user, guardian, child, _link, selected_date, events = _guardian_calendar_context(user)
+    client.force_login(guardian_user)
+
+    def detail(event):
+        return client.get(
+            reverse("event_detail", args=[event.pk]),
+            {"selected_date": selected_date.isoformat()},
+            HTTP_HX_REQUEST="true",
+        )
+
+    assert detail(events["global"]).status_code == 200
+    assert detail(events["own_class"]).status_code == 200
+    assert detail(events["teacher"]).status_code == 404
+    assert detail(events["other_class"]).status_code == 404
+    assert detail(events["private"]).status_code == 404
+
+    GuardianService(user=user).unlink_student(guardian.pk, child.pk)
+
+    url = reverse(
+        "calendar_month_specific",
+        kwargs={"year": selected_date.year, "month": selected_date.month},
+    )
+    after = client.get(url, {"selected_date": selected_date.isoformat()})
+
+    assert after.status_code == 200
+    assert events["global"].title.encode() in after.content
+    assert events["own_class"].title.encode() not in after.content
+    assert detail(events["own_class"]).status_code == 404
 
 
 @pytest.mark.django_db

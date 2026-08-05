@@ -94,3 +94,9 @@ class SchoolSelector(BaseSelector):
             )
         except School.DoesNotExist:
             raise ObjectNotFoundError("School", schema_name) from None
+
+    def list_active_schemas(self):
+        """Lista schemas escolares ativos, excluindo o schema público."""
+        from tenancy.models import School
+
+        return School.objects.exclude(schema_name="public").values_list("schema_name", flat=True)

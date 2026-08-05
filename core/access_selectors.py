@@ -10,25 +10,16 @@ class ObjectAccessSelector:
     @staticmethod
     def guardian_can_access_student(user_id, student_id) -> bool:
         """Confirma vínculo ativo entre responsável e aluno."""
-        from guardians.contracts import StudentGuardian
+        from guardians.selectors import GuardianSelector
 
-        return StudentGuardian.objects.filter(
-            guardian__user_id=user_id,
-            guardian__is_active=True,
-            student_id=student_id,
-            is_active=True,
-            has_custody=True,
-        ).exists()
+        return GuardianSelector().user_can_access_student(user_id, student_id)
 
     @staticmethod
     def guardian_can_access_activity(user_id, activity_id) -> bool:
         """Confirma que a atividade pertence a turma de aluno vinculado."""
-        from activities.contracts import Activity
+        from activities.selectors import ActivitySelector
 
-        return Activity.objects.filter(
-            pk=activity_id,
-            class_obj__enrollments__student__guardians__guardian__user_id=user_id,
-        ).exists()
+        return ActivitySelector().guardian_can_access_activity(user_id, activity_id)
 
     @staticmethod
     def teacher_can_access_class(user_id, class_id, on_date=None) -> bool:

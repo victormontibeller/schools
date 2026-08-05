@@ -11,7 +11,9 @@ from activities.models import Activity, ActivityGroup, ActivityGroupMember, Acti
 from agenda.models import Schedule, TimeSlot
 from audit.models import AuditLog
 from classes.models import Class, Enrollment
-from core.models import CustomUser, Role
+from core.models import CustomUser, Role, RoleModuleAccess
+from guardians.models import Guardian, StudentGuardian
+from students.models import Student
 from teachers.models import Subject, Teacher
 
 
@@ -246,6 +248,114 @@ def test_activity_detail_renders_canonical_grade_with_pending_and_zero_score(cli
     assert b'value="0.00"' in rendered.content
     assert b"sm-sticky-table--first-column" in rendered.content
     assert f"/students/{student.pk}/".encode() in rendered.content
+
+
+@pytest.mark.django_db
+def test_guardian_activity_detail_shows_only_children_and_only_official_results(client, user):
+    activity, _, child = _group_activity(user)
+    peer = Student.objects.create(
+        first_name="Colega",
+        last_name="Oculto",
+        birth_date=dt.date(2018, 2, 1),
+        enrollment_number="ACT-GRP-02",
+        created_by=user,
+        updated_by=user,
+    )
+    enrollment = Enrollment.objects.create(
+        class_obj=activity.class_obj,
+        student=peer,
+        academic_year=activity.class_obj.academic_year,
+        enrollment_date=dt.date(2026, 1, 20),
+        status=Enrollment.Status.ACTIVE,
+        created_by=user,
+        updated_by=user,
+    )
+    ActivitySubmission.objects.create(
+        activity=activity,
+        student=child,
+        score=Decimal("8.50"),
+        feedback="Resultado do filho",
+        created_by=user,
+        updated_by=user,
+    )
+    ActivitySubmission.objects.create(
+        activity=activity,
+        student=peer,
+        score=Decimal("9.75"),
+        feedback="Resultado do colega",
+        created_by=user,
+        updated_by=user,
+    )
+    role, _ = Role.objects.get_or_create(name=Role.Name.GUARDIAN)
+    guardian_user = CustomUser.objects.create_user(
+        email="guardian-activity@example.com",
+        password="Senha123",
+        role=role,
+    )
+    RoleModuleAccess.objects.update_or_create(
+        role=role,
+        module_key="activities",
+        defaults={
+            "can_view": True,
+            "can_create": False,
+            "can_edit": False,
+            "can_deactivate": False,
+            "created_by": user,
+            "updated_by": user,
+        },
+    )
+    guardian = Guardian.objects.create(
+        user=guardian_user,
+        first_name="Responsável",
+        created_by=user,
+        updated_by=user,
+    )
+    link = StudentGuardian.objects.create(
+        guardian=guardian,
+        student=child,
+        has_custody=True,
+        created_by=user,
+        updated_by=user,
+    )
+    client.force_login(guardian_user)
+
+    draft = client.get(reverse("activity_detail", kwargs={"pk": activity.pk}))
+
+    assert draft.status_code == 200
+    assert "Resultado ainda não publicado".encode() in draft.content
+    assert child.get_full_name().encode() in draft.content
+    assert peer.get_full_name().encode() not in draft.content
+    assert b"8.50" not in draft.content
+    assert b"Resultado do filho" not in draft.content
+    assert b"Grupos da atividade" not in draft.content
+
+    activity.score_status = Activity.ScoreStatus.LAUNCHED
+    activity.scores_launched_at = timezone.now()
+    activity.save(update_fields=["score_status", "scores_launched_at"])
+    launched = client.get(reverse("activity_detail", kwargs={"pk": activity.pk}))
+
+    assert launched.status_code == 200
+    assert b"8,50" in launched.content
+    assert b"Resultado do filho" in launched.content
+    assert b"9.75" not in launched.content
+    assert b"Resultado do colega" not in launched.content
+
+    groups_component = client.get(
+        f'{reverse("activity_detail", kwargs={"pk": activity.pk})}?component=groups',
+        HTTP_HX_REQUEST="true",
+    )
+    assert b"Grupos da atividade" not in groups_component.content
+    assert peer.get_full_name().encode() not in groups_component.content
+
+    link.soft_delete(user=user)
+    assert client.get(reverse("activity_detail", kwargs={"pk": activity.pk})).status_code == 403
+
+    link.restore(user=user)
+    enrollment.soft_delete(user=user)
+    assert client.get(reverse("activity_detail", kwargs={"pk": activity.pk})).status_code == 200
+    child_enrollment = Enrollment.objects.get(student=child, class_obj=activity.class_obj)
+    child_enrollment.soft_delete(user=user)
+    assert client.get(reverse("activity_detail", kwargs={"pk": activity.pk})).status_code == 403
 
 
 @pytest.mark.django_db

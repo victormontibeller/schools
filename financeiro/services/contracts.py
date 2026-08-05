@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import date
 
+from django.utils import timezone
+
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 from base.services import service_command
 from financeiro.services.rules import ZERO
@@ -236,7 +238,7 @@ class ContractLifecycleMixin:
             class_obj = Class.objects.get(pk=class_id)
         except Class.DoesNotExist:
             raise ObjectNotFoundError("Class", str(class_id)) from None
-        target = date(academic_year, month or date.today().month, 1)
+        target = date(academic_year, month or timezone.localdate().month, 1)
         created = 0
         contracts = StudentFinancialContract.objects.filter(
             class_obj=class_obj,
@@ -325,7 +327,7 @@ class ContractLifecycleMixin:
             contract=contract,
             paid_value=ZERO,
             status=BillingEntry.Status.ACTIVE,
-            competency__gte=date.today().replace(day=1),
+            competency__gte=timezone.localdate().replace(day=1),
         ):
             billing.status = BillingEntry.Status.CANCELLED
             billing.cancelled_reason = reason.strip()

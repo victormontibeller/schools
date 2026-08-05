@@ -269,20 +269,16 @@ class StudentDiarySelector(DiaryConfigurationSelectorMixin, BaseSelector):
 
     def list_custodial_guardians(self, student_ids):
         """Lista destinatários ativos com conta e guarda no momento da publicação."""
-        from guardians.contracts import StudentGuardian
+        from guardians.selectors import GuardianSelector
 
-        return StudentGuardian.objects.filter(
-            student_id__in=student_ids,
-            has_custody=True,
-            guardian__is_active=True,
-            guardian__deleted_at__isnull=True,
-            guardian__user__is_active=True,
-        ).select_related("guardian__user", "student")
+        return GuardianSelector().custodial_links_for_students(student_ids)
 
     def get_published_entry_for_guardian(self, entry_id, user_id):
         """Retorna uma publicação somente quando guarda e destinatário continuam válidos."""
+        from guardians.selectors import GuardianSelector
         from student_diary.models import DiaryPublishedEntry
 
+        student_ids = GuardianSelector().custodial_student_ids_for_user(user_id)
         try:
             return (
                 DiaryPublishedEntry.objects.select_related(
@@ -293,9 +289,8 @@ class StudentDiarySelector(DiaryConfigurationSelectorMixin, BaseSelector):
                     pk=entry_id,
                     view_receipts__guardian__user_id=user_id,
                     view_receipts__guardian__is_active=True,
-                    student__guardians__guardian__user_id=user_id,
-                    student__guardians__guardian__is_active=True,
-                    student__guardians__has_custody=True,
+                    view_receipts__guardian__deleted_at__isnull=True,
+                    student_id__in=student_ids,
                 )
             )
         except DiaryPublishedEntry.DoesNotExist:
@@ -309,12 +304,13 @@ class StudentDiarySelector(DiaryConfigurationSelectorMixin, BaseSelector):
             "student", "publication__sheet__class_obj"
         )
         if guardian_user_id:
+            from guardians.selectors import GuardianSelector
+
             queryset = queryset.filter(
                 view_receipts__guardian__user_id=guardian_user_id,
                 view_receipts__guardian__is_active=True,
-                student__guardians__guardian__user_id=guardian_user_id,
-                student__guardians__guardian__is_active=True,
-                student__guardians__has_custody=True,
+                view_receipts__guardian__deleted_at__isnull=True,
+                student_id__in=GuardianSelector().custodial_student_ids_for_user(guardian_user_id),
             )
         return queryset.distinct().order_by("-publication__published_at")
 

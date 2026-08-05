@@ -38,6 +38,12 @@ Todo código deverá ser escrito como se fosse ser mantido por outra pessoa no f
   de `base` para apps, comandos de escrita sem contrato nem módulos produtivos acima de 400 linhas.
 - Publicações Celery decorrentes de uma escrita usam `transaction.on_commit()`. Rollback não pode
   publicar tarefas; indisponibilidade do broker após o commit é registrada sem desfazer os dados.
+- Publicações comuns reutilizam `base.events.publish_task_after_commit()` e
+  `publish_task_safely()`. A falha registra somente nome da task, schema e tipo da exceção; cada
+  destinatário ou lembrete possui callback próprio para que uma falha não interrompa os demais.
+- Toda decisão baseada no dia corrente usa `django.utils.timezone.localdate()`. `date.today()` é
+  proibido no runtime, porque ignora `TIME_ZONE`; datas recebidas explicitamente por parâmetro são
+  preservadas.
 
 ### Clean break enquanto não há produção
 

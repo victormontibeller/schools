@@ -84,6 +84,7 @@ def render_score_status_response(
 def activity_detail_context(
     activity,
     *,
+    guardian_user_id=None,
     component_error=None,
     status_message=None,
     status_error=None,
@@ -92,11 +93,12 @@ def activity_detail_context(
     """Monta o contexto completo da ficha para o fallback sem JavaScript."""
     return {
         "activity": activity,
-        "group_rows": group_rows(activity),
+        "group_rows": [] if guardian_user_id is not None else group_rows(activity),
+        "guardian_view": guardian_user_id is not None,
         "component_error": component_error,
         "status_message": status_message,
         "status_error": status_error,
-        **score_context(activity, **score_kwargs),
+        **score_context(activity, guardian_user_id=guardian_user_id, **score_kwargs),
     }
 
 

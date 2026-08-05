@@ -85,13 +85,17 @@ SELF_SERVICE_VIEW_NAMES = frozenset(
 GUARDIAN_VIEW_NAMES = frozenset(
     {
         "dashboard",
+        "school_dashboard_partial",
+        "students_list",
         "student_profile",
+        "student_photo",
         "student_attendance",
         "student_attendance_class",
         "justification_create",
         "justification_document",
         "calendar_month",
         "calendar_month_specific",
+        "event_detail",
         "activities_list",
         "activity_detail",
         "diary_student_history",

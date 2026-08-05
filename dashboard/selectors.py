@@ -3,15 +3,12 @@
 from __future__ import annotations
 
 import datetime as dt
-import logging
 import statistics
 
 from django.db.models import Count, F, OuterRef, Q, Subquery
 from django.utils import timezone
 
 from base.selectors import BaseSelector
-
-logger = logging.getLogger(__name__)
 
 
 class DashboardSelector(BaseSelector):
@@ -25,11 +22,47 @@ class DashboardSelector(BaseSelector):
 
     # ── KPIs escolares (por tenant) ──────────────────────────────────────────
 
-    def get_total_students(self) -> int:
+    @staticmethod
+    def _guardian_student_ids(user):
+        """Retorna o escopo canônico quando o usuário é responsável."""
+        from core.permissions import role_name
+
+        if role_name(user) != "GUARDIAN":
+            return None
+        from guardians.selectors import GuardianSelector
+
+        return GuardianSelector().custodial_student_ids_for_user(user.pk)
+
+    @classmethod
+    def _guardian_active_class_ids(cls, user):
+        """Retorna turmas com matrícula ativa dos alunos sob guarda."""
+        student_ids = cls._guardian_student_ids(user)
+        if student_ids is None:
+            return None
+        from classes.contracts import Enrollment
+
+        return (
+            Enrollment.objects.filter(
+                student_id__in=student_ids,
+                status=Enrollment.Status.ACTIVE,
+                is_active=True,
+                deleted_at__isnull=True,
+                class_obj__is_active=True,
+                class_obj__deleted_at__isnull=True,
+            )
+            .values_list("class_obj_id", flat=True)
+            .distinct()
+        )
+
+    def get_total_students(self, user=None) -> int:
         """Total de alunos ativos na escola."""
         from students.contracts import Student
 
-        return Student.objects.filter(is_active=True).count()
+        queryset = Student.objects.filter(is_active=True)
+        student_ids = self._guardian_student_ids(user)
+        if student_ids is not None:
+            queryset = queryset.filter(pk__in=student_ids)
+        return queryset.count()
 
     def get_total_teachers(self) -> int:
         """Total de professores ativos na escola."""
@@ -37,11 +70,15 @@ class DashboardSelector(BaseSelector):
 
         return Teacher.objects.filter(is_active=True).count()
 
-    def get_total_classes(self) -> int:
+    def get_total_classes(self, user=None) -> int:
         """Total de turmas ativas na escola."""
         from classes.contracts import Class
 
-        return Class.objects.filter(is_active=True).count()
+        queryset = Class.objects.filter(is_active=True)
+        class_ids = self._guardian_active_class_ids(user)
+        if class_ids is not None:
+            queryset = queryset.filter(pk__in=class_ids)
+        return queryset.distinct().count()
 
     def get_total_guardians(self) -> int:
         """Total de responsaveis ativos na escola."""
@@ -49,12 +86,15 @@ class DashboardSelector(BaseSelector):
 
         return Guardian.objects.filter(is_active=True).count()
 
-    def get_today_attendance_rate(self) -> dict | None:
+    def get_today_attendance_rate(self, user=None) -> dict | None:
         """Frequencia do dia atual: percentual de alunos presentes."""
         from attendance.contracts import AttendanceEntry
 
-        today = dt.date.today()
+        today = timezone.localdate()
         entries = AttendanceEntry.objects.filter(record__date=today)
+        student_ids = self._guardian_student_ids(user)
+        if student_ids is not None:
+            entries = entries.filter(student_id__in=student_ids)
         total = entries.count()
         if total == 0:
             return None
@@ -63,15 +103,18 @@ class DashboardSelector(BaseSelector):
         ).count()
         return {"rate": round((presences / total) * 100, 2), "total": total, "present": presences}
 
-    def get_weekly_attendance(self) -> list[dict]:
+    def get_weekly_attendance(self, user=None) -> list[dict]:
         """Frequencia dos ultimos 7 dias: [{date, rate, total, present}, ...]."""
         from attendance.contracts import AttendanceEntry
 
-        today = dt.date.today()
+        today = timezone.localdate()
+        student_ids = self._guardian_student_ids(user)
         result = []
         for i in range(6, -1, -1):
             day = today - dt.timedelta(days=i)
             entries = AttendanceEntry.objects.filter(record__date=day)
+            if student_ids is not None:
+                entries = entries.filter(student_id__in=student_ids)
             total = entries.count()
             presences = (
                 entries.filter(
@@ -91,10 +134,24 @@ class DashboardSelector(BaseSelector):
             )
         return result
 
-    def get_students_at_risk_count(self) -> int:
+    def get_students_at_risk_count(self, user=None) -> int:
         """Total de alunos com frequencia abaixo de 75%."""
         from attendance.selectors import AttendanceSelector
         from classes.contracts import Class
+
+        student_ids = self._guardian_student_ids(user)
+        if student_ids is not None:
+            allowed_ids = set(student_ids)
+            class_ids = self._guardian_active_class_ids(user)
+            at_risk_ids = set()
+            for class_id in class_ids:
+                at_risk_ids.update(
+                    item["student"].pk
+                    for item in AttendanceSelector().get_students_at_risk(
+                        class_id, student_ids=allowed_ids
+                    )
+                )
+            return len(at_risk_ids)
 
         count = 0
         for cls in Class.objects.filter(is_active=True):
@@ -108,17 +165,19 @@ class DashboardSelector(BaseSelector):
 
         return BillingSelector(user=user).finance_kpis()
 
-    def get_pending_activities(self, days: int = 3) -> list[dict]:
+    def get_pending_activities(self, days: int = 3, *, user=None) -> list[dict]:
         """Atividades com entrega nos proximos N dias."""
         from activities.contracts import Activity
 
-        today = dt.date.today()
+        today = timezone.localdate()
         horizon = today + dt.timedelta(days=days)
-        qs = (
-            Activity.objects.filter(due_date__gte=today, due_date__lte=horizon, is_active=True)
-            .select_related("subject", "class_obj", "teacher")
-            .order_by("due_date")[:10]
-        )
+        qs = Activity.objects.filter(
+            due_date__gte=today, due_date__lte=horizon, is_active=True
+        ).select_related("subject", "class_obj", "teacher")
+        class_ids = self._guardian_active_class_ids(user)
+        if class_ids is not None:
+            qs = qs.filter(class_obj_id__in=class_ids)
+        qs = qs.distinct().order_by("due_date")[:10]
         return [
             {
                 "id": str(a.pk),
@@ -130,11 +189,11 @@ class DashboardSelector(BaseSelector):
             for a in qs
         ]
 
-    def get_upcoming_events(self, days: int = 7) -> list[dict]:
+    def get_upcoming_events(self, days: int = 7, *, user=None) -> list[dict]:
         """Proximos eventos do calendario."""
         from academic_calendar.selectors import CalendarSelector
 
-        events = CalendarSelector().get_upcoming_events(days=days)[:5]
+        events = CalendarSelector().get_upcoming_events(days=days, user=user)[:5]
         return [
             {
                 "id": str(e.pk),
@@ -145,11 +204,21 @@ class DashboardSelector(BaseSelector):
             for e in events
         ]
 
-    def get_recent_announcements(self, limit: int = 5) -> list[dict]:
+    def get_recent_announcements(self, limit: int = 5, *, user=None) -> list[dict]:
         """Ultimos comunicados enviados."""
         from notifications.contracts import Announcement
 
         qs = Announcement.objects.filter(sent_at__isnull=False).order_by("-sent_at")[:limit]
+        class_ids = self._guardian_active_class_ids(user)
+        if class_ids is not None:
+            qs = (
+                Announcement.objects.filter(sent_at__isnull=False)
+                .filter(
+                    Q(audience__in=[Announcement.Audience.ALL, Announcement.Audience.GUARDIANS])
+                    | Q(audience=Announcement.Audience.CLASS, class_obj_id__in=class_ids)
+                )
+                .order_by("-sent_at")[:limit]
+            )
         return [
             {
                 "id": str(a.pk),
@@ -167,12 +236,13 @@ class DashboardSelector(BaseSelector):
 
         role = role_name(user)
         if role == "GUARDIAN":
+            from guardians.selectors import GuardianSelector
+
             receipts = DiaryViewReceipt.objects.filter(
                 guardian__user=user,
                 guardian__is_active=True,
-                entry__student__guardians__guardian__user=user,
-                entry__student__guardians__guardian__is_active=True,
-                entry__student__guardians__has_custody=True,
+                guardian__deleted_at__isnull=True,
+                entry__student_id__in=GuardianSelector().custodial_student_ids_for_user(user.pk),
             ).distinct()
             return {
                 "role": role,

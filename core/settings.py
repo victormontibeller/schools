@@ -12,6 +12,7 @@ Ver ADR-0001 — Bifurcação TESTING.
 import sys
 from pathlib import Path
 
+from celery.schedules import crontab
 from decouple import Csv, config
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -309,7 +310,11 @@ CELERY_BEAT_SCHEDULE = {
     "reconcile-stale-enrollment-reminders": {
         "task": "enrollments.dispatch_stale_document_reminder_recovery",
         "schedule": 300.0,
-    }
+    },
+    "dispatch-daily-collection-reminders": {
+        "task": "financeiro.dispatch_collection_reminders",
+        "schedule": crontab(hour=8, minute=0),
+    },
 }
 DEMO_SCHEMA_NAME = config("DEMO_SCHEMA_NAME", default="demo")
 DEV_PLATFORM_ADMIN_PASSWORD = config("DEV_PLATFORM_ADMIN_PASSWORD", default="")
