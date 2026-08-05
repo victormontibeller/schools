@@ -4,4 +4,5 @@
     </td>
     <td><span class="badge bg-soft-info text-info">{{ subject.code }}</span></td>
     <td>{{ subject.workload }}h/ano</td>
+    <td>{% if subject.is_active %}<span class="badge bg-soft-success text-success">Ativa</span>{% else %}<span class="badge bg-soft-secondary text-secondary">Inativa</span>{% endif %}</td>
 </tr>

@@ -12,6 +12,7 @@ Ver ADR-0001.
 
 import os
 from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 from unittest.mock import patch
 
 import pytest
@@ -164,6 +165,35 @@ class TestTenantSchemaIsolation(TenantTestCase):
         assert DiaryCategory.objects.get(name="Humor").is_enabled is False
         assert DiaryCategory.objects.get(name="Almoço").applies_afternoon is False
 
+    def test_time_slot_shifts_are_isolated_between_tenant_schemas(self):
+        """Períodos e seus turnos existem somente no schema da escola ativa."""
+        import datetime as dt
+
+        from agenda.models import TimeSlot
+
+        slot_a = TimeSlot.objects.create(
+            slot_number=1,
+            shift=TimeSlot.Shift.MORNING,
+            start_time=dt.time(8),
+            end_time=dt.time(9),
+        )
+
+        connection.set_tenant(self.tenant_b)
+        context.current_tenant.set("escola_b")
+        assert TimeSlot.objects.count() == 0
+        slot_b = TimeSlot.objects.create(
+            slot_number=1,
+            shift=TimeSlot.Shift.NIGHT,
+            start_time=dt.time(8),
+            end_time=dt.time(9),
+        )
+
+        connection.set_tenant(self.tenant)
+        context.current_tenant.set("escola_a")
+        assert TimeSlot.objects.get().pk == slot_a.pk
+        assert TimeSlot.objects.get().shift == TimeSlot.Shift.MORNING
+        assert not TimeSlot.objects.filter(pk=slot_b.pk).exists()
+
     def test_role_access_configuration_is_isolated_between_tenants(self):
         """Cada escola mantém sua própria matriz de módulos e ações."""
         from core.access.selectors import AccessConfigurationSelector
@@ -256,8 +286,10 @@ class TestTenantSchemaIsolation(TenantTestCase):
 
     def test_demo_seed_is_idempotent_on_postgresql_tenant(self):
         """O seed canônico pode ser repetido no schema sem duplicar dados."""
+        from audit.models import AuditLog
         from core.demo_seed import DemoSeedService
         from core.models import Role
+        from financeiro.models import CollectionReminderPolicy, PaymentRecord
         from students.models import Student
 
         role, _ = Role.objects.get_or_create(name=Role.Name.ADMIN)
@@ -274,8 +306,18 @@ class TestTenantSchemaIsolation(TenantTestCase):
             service.populate_core(self.tenant)
             service.populate_calendar()
             service.populate_attendance()
+            service.populate_finance()
 
         assert Student.objects.count() == 13
+        assert PaymentRecord.objects.count() == 3
+        assert CollectionReminderPolicy.objects.get(name="Régua DEMO desabilitada").enabled is False
+        assert AuditLog.objects.filter(
+            tenant_schema="escola_a", model_name="PaymentRecord"
+        ).exists()
+
+        connection.set_tenant(self.tenant_b)
+        context.current_tenant.set("escola_b")
+        assert PaymentRecord.objects.count() == 0
 
     def test_audit_logs_record_tenant_schema(self):
         from audit.models import AuditLog
@@ -348,6 +390,245 @@ class TestDiaryApprovalConcurrency(TransactionTestCase):
 
     def tearDown(self):
         context.current_tenant.reset(self._ctx_token)
+
+    def test_concurrent_overlapping_time_slots_persist_only_one(self):
+        """O lock estável do tenant serializa a validação global de sobreposição."""
+        import datetime as dt
+
+        from agenda.models import TimeSlot
+        from agenda.services import ScheduleService
+        from base.exceptions import ValidationError
+
+        actor = CustomUser.objects.create_user(
+            email="time-slot-lock@tenant.test",
+            password="Senha123",
+            is_superuser=True,
+        )
+        barrier = Barrier(2)
+        specs = (
+            (1, dt.time(8), dt.time(9)),
+            (2, dt.time(8, 30), dt.time(9, 30)),
+        )
+
+        def create_in_connection(spec):
+            thread_connection = connections["default"]
+            thread_connection.set_tenant(self.tenant)
+            token = context.current_tenant.set(self.tenant.schema_name)
+            try:
+                thread_actor = CustomUser.objects.get(pk=actor.pk)
+                barrier.wait()
+                try:
+                    created = ScheduleService(user=thread_actor).create_time_slot(
+                        {
+                            "slot_number": spec[0],
+                            "shift": TimeSlot.Shift.MORNING,
+                            "start_time": spec[1],
+                            "end_time": spec[2],
+                        }
+                    )
+                    return "created", created.pk
+                except ValidationError:
+                    return "blocked", None
+            finally:
+                context.current_tenant.reset(token)
+                thread_connection.close()
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = list(executor.map(create_in_connection, specs))
+
+        assert sorted(result[0] for result in results) == ["blocked", "created"]
+        assert TimeSlot.objects.count() == 1
+
+    def test_class_shift_and_schedule_creation_are_serialized(self):
+        """A turma e a grade nunca confirmam turnos incompatíveis em corrida."""
+        import datetime as dt
+
+        from agenda.models import Schedule, TimeSlot
+        from agenda.services import ScheduleService
+        from base.exceptions import BusinessRuleViolationError
+        from classes.models import Class
+        from classes.services import ClassService
+        from teachers.models import Subject, Teacher
+
+        actor = CustomUser.objects.create_user(
+            email="class-schedule-lock@tenant.test",
+            password="Senha123",
+            is_superuser=True,
+        )
+        teacher_user = CustomUser.objects.create_user(
+            email="class-schedule-teacher@tenant.test",
+            password="Senha123",
+        )
+        teacher = Teacher.objects.create(
+            user=teacher_user,
+            registration_number="LOCK-TEACHER",
+            created_by=actor,
+            updated_by=actor,
+        )
+        subject = Subject.objects.create(
+            name="Disciplina lock", code="LCK", created_by=actor, updated_by=actor
+        )
+        teacher.subjects.add(subject)
+        class_obj = ClassService(user=actor).create_class(
+            {
+                "name": "Turma lock",
+                "grade": Class.Grade.ELEMENTARY_1,
+                "education_stage": Class.EducationStage.ELEMENTARY_I,
+                "academic_year": 2026,
+                "shift": Class.Shift.MORNING,
+            }
+        )
+        slot = ScheduleService(user=actor).create_time_slot(
+            {
+                "slot_number": 1,
+                "shift": TimeSlot.Shift.MORNING,
+                "start_time": dt.time(8),
+                "end_time": dt.time(9),
+            }
+        )
+        barrier = Barrier(2)
+
+        def run_in_connection(command):
+            thread_connection = connections["default"]
+            thread_connection.set_tenant(self.tenant)
+            token = context.current_tenant.set(self.tenant.schema_name)
+            try:
+                thread_actor = CustomUser.objects.get(pk=actor.pk)
+                barrier.wait()
+                try:
+                    if command == "class":
+                        ClassService(user=thread_actor).update_class(
+                            class_obj.pk,
+                            {"shift": Class.Shift.AFTERNOON, "version": class_obj.version},
+                        )
+                    else:
+                        ScheduleService(user=thread_actor).create_schedule(
+                            {
+                                "class_obj_id": class_obj.pk,
+                                "teacher_id": teacher.pk,
+                                "subject_id": subject.pk,
+                                "time_slot_id": slot.pk,
+                                "day_of_week": Schedule.Day.MON,
+                                "valid_from": dt.date(2026, 2, 2),
+                            }
+                        )
+                    return f"{command}_completed"
+                except BusinessRuleViolationError:
+                    return f"{command}_blocked"
+            finally:
+                context.current_tenant.reset(token)
+                thread_connection.close()
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = list(executor.map(run_in_connection, ("class", "schedule")))
+
+        class_obj.refresh_from_db()
+        if Schedule.objects.exists():
+            assert sorted(results) == ["class_blocked", "schedule_completed"]
+            assert class_obj.shift == Class.Shift.MORNING
+        else:
+            assert sorted(results) == ["class_completed", "schedule_blocked"]
+            assert class_obj.shift == Class.Shift.AFTERNOON
+
+    def test_time_slot_update_and_first_schedule_creation_are_serialized(self):
+        """Edição do turno e primeiro uso do período têm resultado linearizável."""
+        import datetime as dt
+
+        from agenda.models import Schedule, TimeSlot
+        from agenda.services import ScheduleService
+        from base.exceptions import BusinessRuleViolationError
+        from classes.models import Class
+        from classes.services import ClassService
+        from teachers.models import Subject, Teacher
+
+        actor = CustomUser.objects.create_user(
+            email="slot-schedule-lock@tenant.test",
+            password="Senha123",
+            is_superuser=True,
+        )
+        teacher_user = CustomUser.objects.create_user(
+            email="slot-schedule-teacher@tenant.test",
+            password="Senha123",
+        )
+        teacher = Teacher.objects.create(
+            user=teacher_user,
+            registration_number="SLOT-LOCK-TEACHER",
+            created_by=actor,
+            updated_by=actor,
+        )
+        subject = Subject.objects.create(
+            name="Disciplina período lock",
+            code="SPL",
+            created_by=actor,
+            updated_by=actor,
+        )
+        teacher.subjects.add(subject)
+        class_obj = ClassService(user=actor).create_class(
+            {
+                "name": "Turma período lock",
+                "grade": Class.Grade.ELEMENTARY_1,
+                "education_stage": Class.EducationStage.ELEMENTARY_I,
+                "academic_year": 2026,
+                "shift": Class.Shift.MORNING,
+            }
+        )
+        slot = ScheduleService(user=actor).create_time_slot(
+            {
+                "slot_number": 1,
+                "shift": TimeSlot.Shift.MORNING,
+                "start_time": dt.time(8),
+                "end_time": dt.time(9),
+            }
+        )
+        barrier = Barrier(2)
+
+        def run_in_connection(command):
+            thread_connection = connections["default"]
+            thread_connection.set_tenant(self.tenant)
+            token = context.current_tenant.set(self.tenant.schema_name)
+            try:
+                thread_actor = CustomUser.objects.get(pk=actor.pk)
+                barrier.wait()
+                try:
+                    if command == "slot":
+                        ScheduleService(user=thread_actor).update_time_slot(
+                            slot.pk,
+                            {
+                                "slot_number": slot.slot_number,
+                                "shift": TimeSlot.Shift.AFTERNOON,
+                                "start_time": slot.start_time,
+                                "end_time": slot.end_time,
+                                "version": slot.version,
+                            },
+                        )
+                    else:
+                        ScheduleService(user=thread_actor).create_schedule(
+                            {
+                                "class_obj_id": class_obj.pk,
+                                "teacher_id": teacher.pk,
+                                "subject_id": subject.pk,
+                                "time_slot_id": slot.pk,
+                                "day_of_week": Schedule.Day.MON,
+                                "valid_from": dt.date(2026, 2, 2),
+                            }
+                        )
+                    return f"{command}_completed"
+                except BusinessRuleViolationError:
+                    return f"{command}_blocked"
+            finally:
+                context.current_tenant.reset(token)
+                thread_connection.close()
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = list(executor.map(run_in_connection, ("slot", "schedule")))
+
+        slot.refresh_from_db()
+        if Schedule.objects.exists():
+            assert sorted(results) == ["schedule_completed", "slot_blocked"]
+            assert slot.shift == TimeSlot.Shift.MORNING
+        else:
+            assert sorted(results) == ["schedule_blocked", "slot_completed"]
+            assert slot.shift == TimeSlot.Shift.AFTERNOON
 
     def test_concurrent_diary_approval_creates_single_revision(self):
         """O lock pessimista impede duas publicações para a mesma revisão."""

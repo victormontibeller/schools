@@ -28,10 +28,10 @@ def test_direct_scope_selectors_return_exists_result(target, method, args):
 
 def test_teacher_class_scope_checks_teacher_and_schedule_relationships():
     manager = MagicMock()
-    manager.filter.return_value.filter.return_value.exists.return_value = True
+    manager.filter.return_value.exists.return_value = True
     with patch("classes.models.Class.objects", manager):
         assert ObjectAccessSelector.teacher_can_access_class("u", "c") is True
-    manager.filter.return_value.filter.return_value.exists.assert_called_once_with()
+    manager.filter.return_value.exists.assert_called_once_with()
 
 
 def test_teacher_student_scope_requires_active_enrollment():

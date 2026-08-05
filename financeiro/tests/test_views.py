@@ -9,6 +9,7 @@ from unittest.mock import patch
 import pytest
 from django.urls import resolve, reverse
 
+from base.selectors import PageResult
 from classes.models import Class
 from core.models import CustomUser, Role, RoleModuleAccess
 from core.permissions import resolve_view_access
@@ -170,11 +171,114 @@ def test_finance_get_views_render_full_and_htmx(client, user, finance_records):
 
 
 @pytest.mark.django_db
+def test_billing_tabs_and_pagination_preserve_query_and_sort(client, user):
+    client.force_login(user)
+    paged_result = PageResult(items=[], total=45, page=2, page_size=20)
+
+    with patch("financeiro.billing_views.BillingSelector.list_billings", return_value=paged_result):
+        response = client.get(
+            reverse("billing_list"),
+            {"tab": "pago", "q": "parcela especial", "sort": "-competency", "page": 2},
+            HTTP_HX_REQUEST="true",
+        )
+
+    content = response.content.decode()
+    assert response.status_code == 200
+    assert '<div class="card sm-viewport-card"' in content
+    assert 'id="billings-table"' in content
+    assert 'aria-label="Situações das cobranças"' in content
+    assert 'class="nav nav-tabs sm-tabs flex-nowrap overflow-auto"' in content
+    assert 'data-sm-list-tabs="billings-table"' in content
+    assert 'data-sm-tab-id="cancelado"' in content
+    assert ">Pago</a>" in content
+    assert 'aria-current="page"' in content
+    assert "page=1&amp;q=parcela+especial&amp;tab=pago&amp;sort=-competency" in content
+    assert "page=3&amp;q=parcela+especial&amp;tab=pago&amp;sort=-competency" in content
+    assert 'hx-swap="outerHTML"' in content
+    assert 'hx-push-url="true"' in content
+    paid_tab = next(item for item in response.context["list_tabs"] if item["id"] == "pago")
+    assert "page=" not in paid_tab["query"]
+    assert "q=parcela+especial" in paid_tab["query"]
+    assert "sort=-competency" in paid_tab["query"]
+
+
+@pytest.mark.django_db
+def test_payment_status_tabs_replace_selector_and_add_pagination(client, user):
+    client.force_login(user)
+    paged_result = PageResult(items=[], total=41, page=2, page_size=20)
+
+    with patch(
+        "financeiro.payment_views.PaymentSelector.list_payments",
+        return_value=paged_result,
+    ):
+        response = client.get(
+            reverse("payment_queue"),
+            {"status": "CONFIRMED", "q": "recibo", "sort": "amount", "page": 2},
+            HTTP_HX_REQUEST="true",
+        )
+
+    content = response.content.decode()
+    assert response.status_code == 200
+    assert 'id="payments-table"' in content
+    assert 'aria-label="Situações das conciliações"' in content
+    assert 'class="nav nav-tabs sm-tabs flex-nowrap overflow-auto"' in content
+    assert 'data-sm-list-tabs="payments-table"' in content
+    assert 'data-sm-tab-id="REVERSED"' in content
+    assert '<select name="status"' not in content
+    assert ">Conciliado</a>" in content
+    assert "page=1&amp;q=recibo&amp;status=CONFIRMED&amp;sort=amount" in content
+    assert "page=3&amp;q=recibo&amp;status=CONFIRMED&amp;sort=amount" in content
+    assert 'hx-swap-oob="outerHTML"' in content
+    confirmed_tab = next(
+        item for item in response.context["list_tabs"] if item["id"] == "CONFIRMED"
+    )
+    assert confirmed_tab["active"] is True
+    assert "page=" not in confirmed_tab["query"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("route_name", "parameter", "context_key", "expected_id", "expected_label"),
+    (
+        ("billing_list", "tab", "tab", "aberto", "Aberto"),
+        ("payment_queue", "status", "status", "PENDING", "Pendente"),
+    ),
+)
+@pytest.mark.parametrize(
+    "request_headers",
+    ({}, {"HTTP_HX_REQUEST": "true"}),
+    ids=("full_page", "htmx"),
+)
+def test_financial_list_invalid_tab_falls_back_to_first_accessible_tab(
+    client,
+    user,
+    route_name,
+    parameter,
+    context_key,
+    expected_id,
+    expected_label,
+    request_headers,
+):
+    client.force_login(user)
+
+    response = client.get(
+        reverse(route_name),
+        {parameter: "situacao-inexistente"},
+        **request_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.context[context_key] == expected_id
+    assert response.context["list_tabs"][0]["active"] is True
+    assert f'aria-current="page">{expected_label}</a>' in response.content.decode()
+
+
+@pytest.mark.django_db
 def test_contract_detail_does_not_query_or_render_billings_without_access(client, finance_records):
     actor = _finance_actor("contracts-only@test.com", {"finance_contracts": {"view"}})
     client.force_login(actor)
 
-    with patch("financeiro.views.BillingSelector.get_billings_for_contract") as query:
+    with patch("financeiro.contract_views.BillingSelector.get_billings_for_contract") as query:
         response = client.get(reverse("contract_detail", args=[finance_records.contract.pk]))
 
     assert response.status_code == 200
@@ -187,7 +291,7 @@ def test_billing_detail_does_not_query_or_render_payments_without_access(client,
     actor = _finance_actor("billings-only@test.com", {"finance_billings": {"view"}})
     client.force_login(actor)
 
-    with patch("financeiro.views.BillingSelector.get_payments") as query:
+    with patch("financeiro.billing_views.BillingSelector.get_payments") as query:
         response = client.get(reverse("billing_detail", args=[finance_records.billing.pk]))
 
     assert response.status_code == 200
@@ -215,7 +319,7 @@ def test_finance_command_views_orchestrate_services(client, user, finance_record
     client.force_login(user)
     contract_result = SimpleNamespace(pk=finance_records.contract.pk)
     with patch(
-        "financeiro.views.FinanceService.create_contract", return_value=contract_result
+        "financeiro.contract_views.FinanceService.create_contract", return_value=contract_result
     ) as create:
         response = client.post(
             reverse("contract_create"),
@@ -252,14 +356,14 @@ def test_finance_command_views_orchestrate_services(client, user, finance_record
         ),
     ]
     for url_name, args, method in action_cases:
-        with patch(f"financeiro.views.{method}", return_value=1) as command:
+        with patch(f"financeiro.contract_views.{method}", return_value=1) as command:
             assert (
                 client.post(reverse(url_name, args=args), {"reason": "Solicitado"}).status_code
                 == 302
             )
             assert command.called
 
-    with patch("financeiro.views.PaymentService.create_payment") as create_payment:
+    with patch("financeiro.billing_views.PaymentService.create_payment") as create_payment:
         response = client.post(
             reverse("billing_register_payment", args=[finance_records.billing.pk]),
             {
@@ -273,7 +377,7 @@ def test_finance_command_views_orchestrate_services(client, user, finance_record
     assert response.status_code == 302
     assert create_payment.called
 
-    with patch("financeiro.views.FinanceService.cancel_billing") as cancel:
+    with patch("financeiro.billing_views.FinanceService.cancel_billing") as cancel:
         response = client.post(
             reverse("billing_cancel", args=[finance_records.billing.pk]),
             {"reason": "Solicitado pela família"},
@@ -281,7 +385,7 @@ def test_finance_command_views_orchestrate_services(client, user, finance_record
     assert response.status_code == 302
     assert cancel.called
 
-    with patch("financeiro.views.FinanceService.renegotiate_billing") as renegotiate:
+    with patch("financeiro.billing_views.FinanceService.renegotiate_billing") as renegotiate:
         response = client.post(
             reverse("billing_renegotiate", args=[finance_records.billing.pk]),
             {
@@ -297,7 +401,9 @@ def test_finance_command_views_orchestrate_services(client, user, finance_record
 @pytest.mark.django_db
 def test_finance_bulk_materialization(client, user, finance_records):
     client.force_login(user)
-    with patch("financeiro.views.FinanceService.materialize_billings_by_class", return_value=3):
+    with patch(
+        "financeiro.billing_views.FinanceService.materialize_billings_by_class", return_value=3
+    ):
         response = client.post(
             reverse("bulk_materialize_billings"),
             {

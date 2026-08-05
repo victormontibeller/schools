@@ -1,357 +1,365 @@
-"""EnrollmentService: regras de negocio para matriculas, rematriculas e transferencias."""
+"""Comandos seguros do workflow canônico de solicitações de matrícula."""
 
 from __future__ import annotations
 
-import logging
-from typing import TYPE_CHECKING
-
-from django.db import transaction
 from django.utils import timezone
 
-from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError
-from base.services import BaseService
-
-if TYPE_CHECKING:
-    from enrollments.models import EnrollmentApplication
-
-logger = logging.getLogger(__name__)
-
-
-def _generate_application_number() -> str:
-    """Gera protocolo unico de matricula baseado em timestamp."""
-    from datetime import datetime
-
-    now = datetime.now()
-    return f"MAT-{now.strftime('%Y%m%d%H%M%S%f')}"
+from base.context import active_tenant_schema
+from base.exceptions import BusinessRuleViolationError, ValidationError
+from base.repositories import BaseRepository
+from base.services import BaseService, service_command
+from enrollments.services.creation import ApplicationCreationMixin
+from enrollments.services.validation import ApplicationValidationMixin
 
 
-class EnrollmentApplicationService(BaseService):
-    """Servico de regras de negocio para solicitacoes de matricula."""
+class _ApplicationRepository(BaseRepository):
+    """Compare-and-swap de solicitações."""
 
-    ACTIVE_STATUSES = (
+    @property
+    def model_class(self):
+        from enrollments.models import EnrollmentApplication
+
+        return EnrollmentApplication
+
+
+class EnrollmentApplicationService(
+    ApplicationValidationMixin, ApplicationCreationMixin, BaseService
+):
+    """Única fronteira pública para criar e movimentar solicitações."""
+
+    OPEN_STATUSES = (
         "PRE_ENROLLMENT",
+        "CORRECTION_REQUIRED",
         "UNDER_REVIEW",
-        "APPROVED",
-        "ENROLLED",
-    )
-    PENDING_STATUSES = (
-        "PRE_ENROLLMENT",
-        "UNDER_REVIEW",
+        "WAITLISTED",
         "APPROVED",
     )
+    TARGET_TYPES = ("NEW", "REENROLLMENT", "INTERNAL_TRANSFER", "INBOUND_TRANSFER")
+    SOURCE_TYPES = ("REENROLLMENT", "INTERNAL_TRANSFER", "OUTBOUND_TRANSFER")
+    REASON_REQUIRED_STATUSES = (
+        "CORRECTION_REQUIRED",
+        "TRANSFERRED",
+        "REJECTED",
+        "CANCELLED",
+    )
+    ALLOWED_TRANSITIONS = {
+        "PRE_ENROLLMENT": {"UNDER_REVIEW"},
+        "CORRECTION_REQUIRED": {"UNDER_REVIEW"},
+        "UNDER_REVIEW": {"CORRECTION_REQUIRED", "APPROVED", "WAITLISTED", "REJECTED", "CANCELLED"},
+        "WAITLISTED": {"APPROVED", "CORRECTION_REQUIRED", "REJECTED", "CANCELLED"},
+        "APPROVED": {"ENROLLED", "TRANSFERRED", "CORRECTION_REQUIRED", "CANCELLED"},
+        "ENROLLED": {"TRANSFERRED", "CANCELLED"},
+        "TRANSFERRED": set(),
+        "REJECTED": set(),
+        "CANCELLED": set(),
+    }
 
-    def create_application(self, data: dict) -> EnrollmentApplication:
-        """Cria uma pre-matricula ou solicitacao de matricula."""
+    @service_command
+    def correct_application(self, application_id, data: dict, *, expected_version: int):
+        """Corrige dados editáveis antes do reenvio, sem alterar o snapshot documental."""
         from classes.contracts import Class
         from enrollments.models import EnrollmentApplication
-        from students.contracts import Student
 
-        self.validate_required(data, ["student_id", "class_obj_id", "academic_year"])
+        application = self._lock_application(application_id, expected_version)
+        if application.status not in {
+            EnrollmentApplication.Status.PRE_ENROLLMENT,
+            EnrollmentApplication.Status.CORRECTION_REQUIRED,
+        }:
+            raise BusinessRuleViolationError("A solicitação não está aberta para correção.")
+        from classes.contracts import Enrollment
 
-        application_type = data.get("application_type", EnrollmentApplication.ApplicationType.NEW)
-
-        if application_type in (
-            EnrollmentApplication.ApplicationType.TRANSFER_INTERNAL,
-            EnrollmentApplication.ApplicationType.TRANSFER_EXTERNAL,
-        ):
-            self.validate_required(data, ["previous_class_id"])
-
-        student_id = data["student_id"]
-        class_id = data["class_obj_id"]
-        academic_year = int(data["academic_year"])
-
-        try:
-            student = Student.objects.get(pk=student_id)
-        except Student.DoesNotExist:
-            raise ObjectNotFoundError("Student", str(student_id)) from None
-
-        try:
-            class_obj = Class.objects.select_for_update().get(pk=class_id)
-        except Class.DoesNotExist:
-            raise ObjectNotFoundError("Class", str(class_id)) from None
-
-        if EnrollmentApplication.objects.filter(
-            student=student,
-            class_obj=class_obj,
-            academic_year=academic_year,
-            status__in=self.ACTIVE_STATUSES,
-        ).exists():
+        self._reject_inconsistent_fields(data, application.application_type)
+        command_data = {
+            **data,
+            "target_class_id": data.get("target_class_id", application.target_class_id),
+            "source_enrollment_id": data.get(
+                "source_enrollment_id", application.source_enrollment_id
+            ),
+        }
+        target = self._resolve_target(command_data, application.application_type, Class)
+        source = self._resolve_source(
+            command_data, application.application_type, application.student, Enrollment
+        )
+        notes = str(data.get("notes", application.notes)).strip()
+        origin_school = str(data.get("origin_school", application.origin_school)).strip()
+        destination_school = str(
+            data.get("destination_school", application.destination_school)
+        ).strip()
+        derived_year = target.academic_year if target else source.academic_year
+        if derived_year != application.academic_year:
             raise BusinessRuleViolationError(
-                "Ja existe uma solicitacao ativa para este aluno nesta turma e ano letivo."
+                "A correção não pode alterar o ano letivo da solicitação."
             )
-
-        pending_count = EnrollmentApplication.objects.filter(
-            class_obj=class_obj,
-            academic_year=academic_year,
-            status__in=self.PENDING_STATUSES,
-        ).count()
-        if (class_obj.enrollment_count + pending_count) >= class_obj.max_students:
-            raise BusinessRuleViolationError("Turma sem vagas disponiveis.")
-
-        previous_class = None
-        previous_school = ""
-        if data.get("previous_class_id"):
-            try:
-                previous_class = Class.objects.get(pk=data["previous_class_id"])
-            except Class.DoesNotExist:
-                raise ObjectNotFoundError("Class", str(data["previous_class_id"])) from None
-        if data.get("previous_school"):
-            previous_school = data["previous_school"].strip()
-
-        application = EnrollmentApplication.objects.create(
-            student=student,
-            class_obj=class_obj,
-            academic_year=academic_year,
-            application_number=_generate_application_number(),
-            application_type=application_type,
-            status=EnrollmentApplication.Status.PRE_ENROLLMENT,
-            priority=data.get("priority", 0),
-            notes=data.get("notes", ""),
-            previous_class=previous_class,
-            previous_school=previous_school,
-            created_by=self.user,
-            updated_by=self.user,
+        self._validate_type_context(
+            application.application_type,
+            target_class=target,
+            source_enrollment=source,
+            origin_school=origin_school,
+            destination_school=destination_school,
+            notes=notes,
         )
-        self._record_audit("INSERT", application)
-        self._log(
-            "Solicitacao de matricula criada",
-            application_id=str(application.pk),
-            application_type=application_type,
-            student_id=str(student.pk),
-            class_id=str(class_obj.pk),
+        updates = {
+            "target_class": target,
+            "source_enrollment": source,
+            "origin_school": origin_school,
+            "destination_school": destination_school,
+            "notes": notes,
+            "priority": self._validate_priority(data.get("priority", application.priority)),
+            "updated_by": self.user,
+        }
+        old = self._snapshot(application, [key for key in updates if key != "updated_by"])
+        application = _ApplicationRepository().update(
+            application, expected_version=expected_version, **updates
         )
+        self._record_audit("UPDATE", application, old_values=old)
+        self._log("enrollment_application_corrected", application_id=str(application.pk))
         return application
 
-    def submit_for_review(self, application_id) -> EnrollmentApplication:
-        """Envia a pre-matricula para analise."""
+    def submit_application(self, application_id, *, expected_version: int):
+        """Envia ou reenvia uma pré-matrícula para análise."""
         from enrollments.models import EnrollmentApplication
 
-        application = self._get_application(application_id)
-
-        if application.status != EnrollmentApplication.Status.PRE_ENROLLMENT:
-            raise BusinessRuleViolationError(
-                "Apenas solicitacoes em pre-matricula podem ser enviadas para analise."
-            )
-        return self._transition_status(
-            application,
-            EnrollmentApplication.Status.UNDER_REVIEW,
-            "Solicitacao enviada para analise",
-        )
-
-    def approve_application(self, application_id) -> EnrollmentApplication:
-        """Aprova a solicitacao de matricula."""
-        from enrollments.models import EnrollmentApplication
-
-        application = self._get_application(application_id)
-
-        if application.status != EnrollmentApplication.Status.UNDER_REVIEW:
-            raise BusinessRuleViolationError("Apenas solicitacoes em analise podem ser aprovadas.")
-
-        application.reviewed_by = self.user
-        application.reviewed_at = timezone.now()
-        return self._transition_status(
-            application,
-            EnrollmentApplication.Status.APPROVED,
-            "Solicitacao aprovada",
-            save_fields=["reviewed_by", "reviewed_at"],
-        )
-
-    def reject_application(self, application_id, reason: str = "") -> EnrollmentApplication:
-        """Recusa a solicitacao de matricula com motivo."""
-        from enrollments.models import EnrollmentApplication
-
-        application = self._get_application(application_id)
-
-        if application.status not in (
+        application = self._lock_application(application_id, expected_version)
+        if application.status not in {
             EnrollmentApplication.Status.PRE_ENROLLMENT,
+            EnrollmentApplication.Status.CORRECTION_REQUIRED,
+        }:
+            raise BusinessRuleViolationError("A solicitação não pode ser enviada para análise.")
+        return self._transition(
+            application,
             EnrollmentApplication.Status.UNDER_REVIEW,
-        ):
-            raise BusinessRuleViolationError(
-                "Apenas solicitacoes pendentes ou em analise podem ser recusadas."
-            )
+            expected_version=expected_version,
+        )
 
-        application.rejection_reason = (reason or "").strip()
-        application.reviewed_by = self.user
-        application.reviewed_at = timezone.now()
-        return self._transition_status(
+    def approve_application(self, application_id, *, expected_version: int):
+        """Reserva a vaga ou posiciona a solicitação na lista de espera."""
+        from classes.contracts import Enrollment
+        from enrollments.models import EnrollmentApplication
+
+        application = self._lock_application(application_id, expected_version)
+        if application.status not in {
+            EnrollmentApplication.Status.UNDER_REVIEW,
+            EnrollmentApplication.Status.WAITLISTED,
+        }:
+            raise BusinessRuleViolationError("A solicitação não pode ser aprovada neste estado.")
+        if application.application_type in {
+            EnrollmentApplication.ApplicationType.NEW,
+            EnrollmentApplication.ApplicationType.INBOUND_TRANSFER,
+            EnrollmentApplication.ApplicationType.REENROLLMENT,
+        }:
+            self._ensure_no_active_enrollment(application.student_id, application.academic_year)
+        target_status = EnrollmentApplication.Status.APPROVED
+        extra = {"reviewed_by": self.user, "reviewed_at": timezone.now()}
+        if application.target_class_id:
+            from classes.contracts import Class
+
+            class_obj = Class.objects.select_for_update().get(pk=application.target_class_id)
+            enrolled = Enrollment.objects.filter(
+                class_obj=class_obj, status=Enrollment.Status.ACTIVE
+            ).count()
+            reserved = (
+                EnrollmentApplication.objects.filter(
+                    target_class=class_obj,
+                    status=EnrollmentApplication.Status.APPROVED,
+                )
+                .exclude(pk=application.pk)
+                .count()
+            )
+            if enrolled + reserved >= class_obj.max_students:
+                if application.status == EnrollmentApplication.Status.WAITLISTED:
+                    raise BusinessRuleViolationError("A turma continua sem vaga disponível.")
+                target_status = EnrollmentApplication.Status.WAITLISTED
+                extra["waitlisted_at"] = application.waitlisted_at or timezone.now()
+        return self._transition(
+            application,
+            target_status,
+            expected_version=expected_version,
+            updates=extra,
+        )
+
+    def request_correction(self, application_id, reason: str, *, expected_version: int):
+        """Devolve uma solicitação em análise ou aprovada para correção."""
+        from enrollments.models import EnrollmentApplication
+
+        application = self._lock_application(application_id, expected_version)
+        if application.status not in {
+            EnrollmentApplication.Status.UNDER_REVIEW,
+            EnrollmentApplication.Status.WAITLISTED,
+            EnrollmentApplication.Status.APPROVED,
+        }:
+            raise BusinessRuleViolationError("A solicitação não pode ser devolvida para correção.")
+        return self._transition(
+            application,
+            EnrollmentApplication.Status.CORRECTION_REQUIRED,
+            expected_version=expected_version,
+            reason=reason,
+        )
+
+    def reject_application(self, application_id, reason: str, *, expected_version: int):
+        """Recusa definitivamente solicitação em análise ou espera."""
+        from enrollments.models import EnrollmentApplication
+
+        application = self._lock_application(application_id, expected_version)
+        if application.status not in {
+            EnrollmentApplication.Status.UNDER_REVIEW,
+            EnrollmentApplication.Status.WAITLISTED,
+        }:
+            raise BusinessRuleViolationError("A solicitação não pode ser recusada neste estado.")
+        return self._transition(
             application,
             EnrollmentApplication.Status.REJECTED,
-            "Solicitacao recusada",
-            save_fields=["rejection_reason", "reviewed_by", "reviewed_at"],
+            expected_version=expected_version,
+            reason=reason,
         )
 
-    def request_correction(self, application_id, notes: str = "") -> EnrollmentApplication:
-        """Solicita correcoes na documentacao ou dados, voltando para pre-matricula."""
-        from enrollments.models import EnrollmentApplication
+    @service_command
+    def finalize_application(self, application_id, *, expected_version: int, reason: str = ""):
+        """Efetiva matrícula ou transferência somente com documentos obrigatórios concluídos."""
+        from classes.services import AcademicEnrollmentService
+        from enrollments.models import EnrollmentApplication, StudentDocument
 
-        application = self._get_application(application_id)
-
-        if application.status != EnrollmentApplication.Status.UNDER_REVIEW:
-            raise BusinessRuleViolationError(
-                "Apenas solicitacoes em analise podem receber pedido de correcao."
-            )
-
-        application.correction_notes = (notes or "").strip()
-        return self._transition_status(
-            application,
-            EnrollmentApplication.Status.PRE_ENROLLMENT,
-            "Solicitacao de correcao enviada",
-            save_fields=["correction_notes"],
-        )
-
-    @transaction.atomic
-    def complete_enrollment(self, application_id) -> EnrollmentApplication:
-        """Efetiva a matricula — cria o registro em classes.Enrollment."""
-        from classes.contracts import Class, Enrollment
-        from enrollments.models import EnrollmentApplication
-
-        application = self._get_application(application_id)
-        try:
-            class_obj = Class.objects.select_for_update().get(pk=application.class_obj_id)
-        except Class.DoesNotExist:
-            raise ObjectNotFoundError("Class", str(application.class_obj_id)) from None
-
+        application = self._lock_application(application_id, expected_version)
         if application.status != EnrollmentApplication.Status.APPROVED:
+            raise BusinessRuleViolationError("Somente solicitações aprovadas podem ser efetivadas.")
+        if (
+            StudentDocument.objects.filter(application=application, is_required=True)
+            .exclude(status__in=[StudentDocument.Status.VERIFIED, StudentDocument.Status.WAIVED])
+            .exists()
+        ):
             raise BusinessRuleViolationError(
-                "Apenas solicitacoes aprovadas podem ser efetivadas como matricula."
+                "Documentos obrigatórios precisam ser verificados ou dispensados."
             )
-
-        pending_count = (
-            EnrollmentApplication.objects.filter(
-                class_obj=class_obj,
+        academic_service = AcademicEnrollmentService(user=self.user)
+        tenant_schema = active_tenant_schema()
+        source_application = None
+        is_transfer = application.application_type in {
+            EnrollmentApplication.ApplicationType.INTERNAL_TRANSFER,
+            EnrollmentApplication.ApplicationType.INBOUND_TRANSFER,
+            EnrollmentApplication.ApplicationType.OUTBOUND_TRANSFER,
+        }
+        transfer_reason = self._required_reason(reason, max_length=200) if is_transfer else ""
+        if application.application_type in {
+            EnrollmentApplication.ApplicationType.INTERNAL_TRANSFER,
+            EnrollmentApplication.ApplicationType.OUTBOUND_TRANSFER,
+        }:
+            source_application = self._lock_source_application(application.source_enrollment_id)
+        if application.application_type == EnrollmentApplication.ApplicationType.OUTBOUND_TRANSFER:
+            academic_service.close_from_application(
+                enrollment_id=application.source_enrollment_id,
+                reason=transfer_reason,
+                tenant_schema=tenant_schema,
+                transferred=True,
+            )
+            new_status = EnrollmentApplication.Status.TRANSFERRED
+            result = None
+        elif (
+            application.application_type == EnrollmentApplication.ApplicationType.INTERNAL_TRANSFER
+        ):
+            result = academic_service.transfer_from_application(
+                source_enrollment_id=application.source_enrollment_id,
+                target_class_id=application.target_class_id,
+                reason=transfer_reason,
+                tenant_schema=tenant_schema,
+            )
+            new_status = EnrollmentApplication.Status.TRANSFERRED
+        else:
+            result = academic_service.create_from_application(
+                student_id=application.student_id,
+                class_id=application.target_class_id,
                 academic_year=application.academic_year,
-                status__in=self.PENDING_STATUSES,
+                tenant_schema=tenant_schema,
             )
-            .exclude(pk=application.pk)
-            .count()
+            new_status = EnrollmentApplication.Status.ENROLLED
+        updates = {"result_enrollment": result} if result else {}
+        application = self._transition(
+            application,
+            new_status,
+            expected_version=expected_version,
+            reason=transfer_reason,
+            updates=updates,
         )
-        if (class_obj.enrollment_count + pending_count) >= class_obj.max_students:
-            raise BusinessRuleViolationError("Turma sem vagas disponiveis.")
+        if source_application:
+            self._transition(
+                source_application,
+                EnrollmentApplication.Status.TRANSFERRED,
+                expected_version=source_application.version,
+                reason=transfer_reason,
+            )
+        return application
 
-        enrollment = Enrollment.objects.create(
-            student=application.student,
-            class_obj=class_obj,
-            enrollment_date=timezone.now().date(),
-            status=Enrollment.Status.ACTIVE,
+    def cancel_application(self, application_id, reason: str, *, expected_version: int):
+        """Cancela a solicitação e, quando efetivada, o vínculo acadêmico correspondente."""
+        from classes.services import AcademicEnrollmentService
+        from enrollments.models import EnrollmentApplication
+
+        application = self._lock_application(application_id, expected_version)
+        if EnrollmentApplication.Status.CANCELLED not in self.ALLOWED_TRANSITIONS.get(
+            application.status, set()
+        ):
+            raise BusinessRuleViolationError("A solicitação não pode ser cancelada neste estado.")
+        clean_reason = self._required_reason(reason, max_length=200)
+        if application.status == EnrollmentApplication.Status.ENROLLED:
+            tenant_schema = active_tenant_schema()
+            AcademicEnrollmentService(user=self.user).close_from_application(
+                enrollment_id=application.result_enrollment_id,
+                reason=clean_reason,
+                tenant_schema=tenant_schema,
+            )
+        return self._transition(
+            application,
+            EnrollmentApplication.Status.CANCELLED,
+            expected_version=expected_version,
+            reason=clean_reason,
+        )
+
+    def _transition(
+        self,
+        application,
+        new_status: str,
+        *,
+        expected_version: int,
+        reason: str = "",
+        updates: dict | None = None,
+    ):
+        """Persiste estado e histórico na mesma transação do comando chamador."""
+        from enrollments.models import EnrollmentTransition
+
+        clean_reason = str(reason or "").strip()
+        if new_status in self.REASON_REQUIRED_STATUSES:
+            clean_reason = self._required_reason(clean_reason)
+        old_status = application.status
+        if new_status not in self.ALLOWED_TRANSITIONS.get(old_status, set()):
+            raise BusinessRuleViolationError("Transição de situação inválida.")
+        values = {"status": new_status, "updated_by": self.user, **(updates or {})}
+        application = _ApplicationRepository().update(
+            application, expected_version=expected_version, **values
+        )
+        transition = EnrollmentTransition.objects.create(
+            application=application,
+            from_status=old_status,
+            to_status=new_status,
+            actor=self.user,
+            reason=clean_reason,
             created_by=self.user,
             updated_by=self.user,
         )
-
-        old_status = application.status
-        application.status = EnrollmentApplication.Status.ENROLLED
-        application.enrollment = enrollment
-        application.updated_by = self.user
-        application.save(update_fields=["status", "enrollment", "updated_by", "updated_at"])
-        self._record_audit("INSERT", enrollment)
         self._record_audit("UPDATE", application, old_values={"status": old_status})
+        self._record_audit("INSERT", transition)
         self._log(
-            "Matricula efetivada",
+            "enrollment_application_transitioned",
             application_id=str(application.pk),
-            enrollment_id=str(enrollment.pk),
-            student_id=str(application.student.pk),
-            class_id=str(class_obj.pk),
+            from_status=old_status,
+            to_status=new_status,
         )
         return application
 
-    @transaction.atomic
-    def bulk_reenroll(
-        self, from_class_id, to_academic_year: int, student_ids: list | None = None
-    ) -> int:
-        """Rematricula em lote: cria pre-matriculas para alunos de uma turma no novo ano letivo.
-
-        Returns:
-            Quantidade de solicitacoes criadas.
-        """
-        from classes.contracts import Class, Enrollment
-        from enrollments.models import EnrollmentApplication
-
-        try:
-            from_class = Class.objects.get(pk=from_class_id)
-        except Class.DoesNotExist:
-            raise ObjectNotFoundError("Class", str(from_class_id)) from None
-
-        active_enrollments = Enrollment.objects.filter(
-            class_obj=from_class, status=Enrollment.Status.ACTIVE
-        ).select_related("student")
-
-        if student_ids:
-            active_enrollments = active_enrollments.filter(student_id__in=student_ids)
-
-        count = 0
-        for enr in active_enrollments:
-            already_exists = EnrollmentApplication.objects.filter(
-                student=enr.student,
-                academic_year=to_academic_year,
-                status__in=self.ACTIVE_STATUSES,
-            ).exists()
-            if already_exists:
-                continue
-
-            app = EnrollmentApplication.objects.create(
-                student=enr.student,
-                class_obj=from_class,
-                academic_year=to_academic_year,
-                application_number=_generate_application_number(),
-                application_type=EnrollmentApplication.ApplicationType.REENROLL,
-                status=EnrollmentApplication.Status.PRE_ENROLLMENT,
-                priority=10,
-                created_by=self.user,
-                updated_by=self.user,
+    @staticmethod
+    def _required_reason(reason: str, *, max_length: int | None = None) -> str:
+        clean = str(reason or "").strip()
+        if not clean:
+            raise ValidationError(errors={"reason": ["Informe o motivo."]})
+        if max_length is not None and len(clean) > max_length:
+            raise ValidationError(
+                errors={"reason": [f"O motivo deve ter no máximo {max_length} caracteres."]}
             )
-            self._record_audit("INSERT", app)
-            count += 1
-
-        self._log(
-            "Rematricula em lote concluida",
-            from_class_id=str(from_class.pk),
-            to_academic_year=str(to_academic_year),
-            created_count=str(count),
-        )
-        return count
-
-    def cancel_application(self, application_id, reason: str = "") -> EnrollmentApplication:
-        """Cancela uma solicitacao."""
-        from enrollments.models import EnrollmentApplication
-
-        application = self._get_application(application_id)
-
-        if application.status == EnrollmentApplication.Status.CANCELLED:
-            raise BusinessRuleViolationError("Solicitacao ja esta cancelada.")
-
-        application.cancellation_reason = (reason or "").strip()
-        return self._transition_status(
-            application,
-            EnrollmentApplication.Status.CANCELLED,
-            "Solicitacao cancelada",
-            save_fields=["cancellation_reason"],
-        )
-
-    def _get_application(self, application_id) -> EnrollmentApplication:
-        """Retorna a solicitacao pelo id ou lanca ObjectNotFoundError."""
-        from enrollments.models import EnrollmentApplication
-
-        try:
-            return EnrollmentApplication.objects.select_related("student", "class_obj").get(
-                pk=application_id
-            )
-        except EnrollmentApplication.DoesNotExist:
-            raise ObjectNotFoundError("EnrollmentApplication", str(application_id)) from None
-
-    def _transition_status(
-        self,
-        application: EnrollmentApplication,
-        new_status: str,
-        log_message: str,
-        save_fields: list[str] | None = None,
-    ) -> EnrollmentApplication:
-        """Helper DRY: transiciona status, salva, audita e loga em uma unica chamada."""
-        old_status = application.status
-        application.status = new_status
-        application.updated_by = self.user
-        fields = ["status", "updated_by", "updated_at"]
-        if save_fields:
-            fields = fields + save_fields
-        application.save(update_fields=fields)
-        self._record_audit("UPDATE", application, old_values={"status": old_status})
-        self._log(log_message, application_id=str(application.pk))
-        return application
+        return clean

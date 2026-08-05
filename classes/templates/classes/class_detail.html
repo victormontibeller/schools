@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load ui_helpers %}
 {% block title %}{{ class_obj.name }} — School Manager{% endblock %}
 
 {% block content %}
@@ -22,19 +23,13 @@
     <div class="card mb-0 sm-detail-card sm-detail-table-card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="card-title mb-0">Alunos Matriculados</h6>
-            <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#enroll-form">Matricular Aluno</button>
+            {% can_access_action "enrollments" "create" as can_open_enrollment %}
+            {% if can_open_enrollment %}
+            <a class="btn btn-outline-primary btn-sm"
+               href="{% url 'enrollment_application_create' %}?class={{ class_obj.pk }}">Abrir solicitação</a>
+            {% endif %}
         </div>
         <div class="card-body p-0">
-            <div class="collapse mb-3" id="enroll-form">
-                <div class="p-3">
-                    <input type="search" class="form-control" name="q" placeholder="Buscar por nome ou matrícula"
-                           hx-get="{% url 'class_student_search' class_obj.pk %}"
-                           hx-trigger="keyup changed delay:300ms, search" hx-target="#class-student-results"
-                           aria-label="Buscar aluno para matricular">
-                    <div id="class-student-results" class="mt-2"></div>
-                </div>
-            </div>
-
             <div class="table-responsive">
             <table class="table table-hover mb-0">
                 <thead><tr><th>Aluno</th><th>Matrícula</th><th>Data</th></tr></thead>

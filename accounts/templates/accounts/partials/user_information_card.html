@@ -16,14 +16,8 @@
     </div>
     <div class="card-body sm-profile-card-body">
         {% if saved %}<div class="alert alert-success py-2">Informações atualizadas com sucesso.</div>{% endif %}
-        <div class="sm-profile-hero d-flex flex-column flex-sm-row align-items-center text-center text-sm-start gap-3 pb-4 mb-4 border-bottom">
-            {% if user_obj.avatar %}<img src="{% url 'user_avatar' user_obj.pk %}" class="sm-profile-avatar" alt="Foto do usuário">
-            {% else %}<div class="avatar-text avatar-xl bg-soft-primary text-primary">{{ user_obj.get_short_name|first|upper }}</div>{% endif %}
-            <div class="min-w-0">
-                <h5 class="mb-1">{{ user_obj.get_full_name }}</h5>
-                <p class="text-muted mb-0 text-break">{{ user_obj.email }}</p>
-            </div>
-        </div>
+        {% if user_obj.avatar %}{% url 'user_avatar' user_obj.pk as profile_image_url %}{% endif %}
+        {% include "partials/person_profile_hero.html" with profile_has_image=user_obj.avatar profile_image_url=profile_image_url profile_avatar_theme="bg-soft-primary text-primary" profile_initial=user_obj.get_short_name profile_name=user_obj.get_full_name profile_email=user_obj.email %}
         <dl class="row mb-0 sm-profile-definition">
             <dt class="col-sm-4 text-muted">Nome</dt><dd class="col-sm-8">{{ user_obj.get_full_name|default:"—" }}</dd>
             <dt class="col-sm-4 text-muted">E-mail</dt><dd class="col-sm-8">{{ user_obj.email|default:"—" }}</dd>

@@ -12,6 +12,17 @@ class TestSubjectForm:
     def test_valid(self):
         form = SubjectForm(data={"name": "Matematica", "code": "MAT", "workload": 200})
         assert form.is_valid()
+        assert "is_active" not in form.fields
+
+    def test_edit_exposes_reversible_status(self):
+        form = SubjectForm(
+            data={"name": "Matematica", "code": "MAT", "workload": 200},
+            include_status=True,
+        )
+
+        assert form.is_valid()
+        assert form.cleaned_data["is_active"] is False
+        assert form.fields["is_active"].label == "Ativa"
 
     def test_blank_name(self):
         form = SubjectForm(data={"name": "", "code": "MAT"})
@@ -73,7 +84,6 @@ class TestTeacherEditForm:
         for field_name in [
             "first_name",
             "last_name",
-            "email",
             "hire_date",
             "birth_date",
             "gender",
@@ -88,7 +98,6 @@ class TestTeacherEditForm:
             data={
                 "first_name": "Maria",
                 "last_name": "Souza",
-                "email": "maria@example.com",
                 "registration_number": "MAT-010",
                 "hire_date": dt.date(2025, 1, 15),
                 "birth_date": dt.date(1990, 5, 20),
@@ -101,3 +110,15 @@ class TestTeacherEditForm:
         )
 
         assert form.is_valid()
+        assert "email" not in form.fields
+        assert form.fields["email_display"].disabled is True
+        assert form.fields["rg_number"].widget.attrs["data_grid"] == "col-12 col-md-6"
+        assert form.fields["phone_mobile"].widget.attrs["data_grid"] == "col-12 col-md-6"
+        assert (
+            form.fields["accepts_email_notifications"].widget.attrs["data_grid"]
+            == "col-12 col-md-6"
+        )
+        assert (
+            form.fields["accepts_whatsapp_notifications"].widget.attrs["data_grid"]
+            == "col-12 col-md-6"
+        )

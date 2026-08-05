@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from core.navigation_constants import (
+    ATTENDANCE_NAVIGATION_PREFIXES,
+    ENROLLMENT_WORKFLOW_NAVIGATION_ITEMS,
+)
+
 STAFF_NAVIGATION = (
     {
         "label": "Acadêmico",
@@ -25,9 +30,9 @@ STAFF_NAVIGATION = (
             {
                 "label": "Grade Horária",
                 "icon": "feather-clock",
-                "url_name": "time_slots_list",
+                "url_name": "schedule_classes_list",
                 "module": "schedule",
-                "prefixes": ("time_slot_", "time_slots_", "schedule_", "teacher_schedule"),
+                "prefixes": ("schedule_",),
             },
             {
                 "label": "Atividades",
@@ -41,14 +46,7 @@ STAFF_NAVIGATION = (
                 "icon": "feather-check-circle",
                 "url_name": "attendance_records_list",
                 "module": "attendance",
-                "prefixes": (
-                    "attendance_",
-                    "class_attendance_",
-                    "student_attendance",
-                    "students_at_risk",
-                    "justification_",
-                    "justifications_",
-                ),
+                "prefixes": ATTENDANCE_NAVIGATION_PREFIXES,
             },
             {
                 "label": "Agenda",
@@ -61,7 +59,6 @@ STAFF_NAVIGATION = (
                     "diary_aspect_create",
                     "diary_aspect_detail",
                     "diary_aspect_edit",
-                    "diary_aspect_toggle",
                     "diary_option_create",
                     "diary_option_edit",
                     "diary_option_toggle",
@@ -79,7 +76,6 @@ STAFF_NAVIGATION = (
                 "url_name": "teachers_list",
                 "module": "teachers",
                 "prefixes": ("teacher_",),
-                "excluded_routes": ("teacher_schedule",),
             },
             {
                 "label": "Alunos",
@@ -99,17 +95,26 @@ STAFF_NAVIGATION = (
             {
                 "label": "Matrículas",
                 "icon": "feather-clipboard",
-                "url_name": "secretary_dashboard",
+                "url_name": "enrollment_application_list",
                 "module": "enrollments",
-                "routes": ("secretary_dashboard",),
-                "prefixes": ("application_", "document_", "bulk_reenroll", "notify_"),
+                "routes": ("enrollment_application_list",),
+                "prefixes": ("enrollment_",),
             },
+            *ENROLLMENT_WORKFLOW_NAVIGATION_ITEMS,
             {
                 "label": "Salas",
                 "icon": "feather-home",
                 "url_name": "rooms_list",
                 "module": "rooms",
                 "prefixes": ("room_", "rooms_"),
+            },
+            {
+                "label": "Períodos",
+                "icon": "feather-clock",
+                "url_name": "time_slots_list",
+                "module": "schedule_configuration",
+                "required_action": "view",
+                "prefixes": ("time_slot_", "time_slots_"),
             },
             {
                 "label": "Itens da Agenda",
@@ -277,9 +282,9 @@ TEACHER_NAVIGATION = (
             {
                 "label": "Grade Horária",
                 "icon": "feather-clock",
-                "url_name": "time_slots_list",
+                "url_name": "schedule_classes_list",
                 "module": "schedule",
-                "prefixes": ("time_slot_", "time_slots_", "schedule_", "teacher_schedule"),
+                "prefixes": ("schedule_",),
             },
             {
                 "label": "Atividades",
@@ -293,14 +298,7 @@ TEACHER_NAVIGATION = (
                 "icon": "feather-check-circle",
                 "url_name": "attendance_records_list",
                 "module": "attendance",
-                "prefixes": (
-                    "attendance_",
-                    "class_attendance_",
-                    "student_attendance",
-                    "students_at_risk",
-                    "justification_",
-                    "justifications_",
-                ),
+                "prefixes": ATTENDANCE_NAVIGATION_PREFIXES,
             },
             {
                 "label": "Agenda",

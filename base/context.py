@@ -35,6 +35,29 @@ def generate_correlation_id() -> str:
     return str(uuid.uuid4())
 
 
+def active_tenant_schema() -> str:
+    """Retorna o schema escolar ativo, recusando contexto ausente ou público."""
+    from base.exceptions import BusinessRuleViolationError
+
+    schema_name = str(current_tenant.get() or "").strip()
+    if not schema_name or schema_name == "public":
+        raise BusinessRuleViolationError("O schema da escola é obrigatório.")
+    return schema_name
+
+
+def require_tenant_schema(expected: str) -> str:
+    """Confirma que o schema explícito corresponde ao contexto escolar ativo."""
+    from base.exceptions import BusinessRuleViolationError
+
+    expected_schema = str(expected or "").strip()
+    if not expected_schema or expected_schema == "public":
+        raise BusinessRuleViolationError("O schema da escola é obrigatório.")
+    active_schema = active_tenant_schema()
+    if expected_schema != active_schema:
+        raise BusinessRuleViolationError("O schema informado não corresponde à escola ativa.")
+    return active_schema
+
+
 @contextlib.contextmanager
 def tenant_schema_context(schema_name: str) -> Iterator[None]:
     """Ativa um schema real ou funciona como no-op no perfil SQLite de testes."""

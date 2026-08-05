@@ -1,0 +1,96 @@
+{% load l10n ui_helpers %}
+{% can_access_action "activities" "edit" as can_edit_activity %}
+<div class="card sm-detail-card sm-detail-table-card sm-viewport-card" id="activity-score-card" data-sm-layout="workspace">
+    {% if can_edit_activity %}
+    <form id="activity-score-form"
+          method="post"
+          action="{% url 'activity_record_score' activity.pk %}"
+          hx-post="{% url 'activity_record_score' activity.pk %}"
+          hx-target="#activity-score-card"
+          hx-swap="outerHTML"
+          class="sm-viewport-body">
+    {% else %}
+    <div class="sm-viewport-body">
+    {% endif %}
+        {% csrf_token %}
+        <div class="card-header d-flex justify-content-between align-items-center gap-2">
+            <div>
+                <h6 class="card-title mb-0">Lançamento de notas</h6>
+                <small class="text-muted">{{ recorded_count|default:0 }}/{{ total_count|default:0 }} preenchidas</small>
+            </div>
+        </div>
+        {% if saved is not None %}<div class="alert alert-success m-3 mb-0 py-2" role="status">{{ saved }} nota{{ saved|pluralize }} salva{{ saved|pluralize }} com sucesso.</div>{% endif %}
+        {% if component_error %}<div class="alert alert-danger m-3 mb-0 py-2" role="alert">{{ component_error }}</div>{% endif %}
+        <div class="card-body p-0 sm-viewport-body">
+            <div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Grade de lançamento de notas">
+                <table class="table table-hover align-middle mb-0 sm-compact-table sm-sticky-table sm-sticky-table--first-column sm-activity-score-table">
+                <colgroup>
+                    <col class="sm-activity-score-student-column">
+                    <col class="sm-activity-score-enrollment-column">
+                    <col class="sm-activity-score-value-column">
+                    <col class="sm-activity-score-feedback-column">
+                </colgroup>
+                <thead><tr><th scope="col" class="sm-activity-score-student-column">Aluno</th><th scope="col" class="sm-activity-score-enrollment-column">Matrícula</th><th scope="col" class="sm-activity-score-value-column">Nota</th><th scope="col" class="sm-activity-score-feedback-column">Observação</th></tr></thead>
+                <tbody>
+                    {% for row in score_rows %}
+                    <tr{% if row.form.errors %} class="table-danger"{% endif %}>
+                        <th scope="row" class="sm-activity-score-student-column"><a href="{% url 'student_profile' row.submission.student_id %}" class="fw-semibold">{{ row.submission.student.get_full_name }}</a></th>
+                        <td class="sm-activity-score-enrollment-column">{{ row.submission.student.enrollment_number }}</td>
+                        <td class="sm-activity-score-value-column">
+                            {% if can_edit_activity %}{{ row.form.submission_id }}{{ row.form.version }}
+                            <input class="form-control form-control-sm{% if row.form.score.errors %} is-invalid{% endif %}" type="number" min="0" max="{{ activity.max_score|unlocalize }}" step="0.01" name="{{ row.form.score.html_name }}" value="{{ row.form.score.value|default_if_none:''|unlocalize }}" aria-label="Nota de {{ row.submission.student.get_full_name }}"{% if activity.score_status == 'LAUNCHED' %} readonly aria-readonly="true"{% endif %}>
+                            {% for error in row.form.score.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                            {% for error in row.form.version.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                            {% for error in row.form.submission_id.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                            {% elif row.submission.score is not None %}{{ row.submission.score }}{% else %}—{% endif %}
+                        </td>
+                        <td class="sm-activity-score-feedback-column">
+                            {% if can_edit_activity and activity.score_status == 'DRAFT' %}
+                            <div class="sm-activity-score-feedback{% if row.form.feedback.errors %} is-invalid{% endif %}" data-activity-score-feedback>
+                                <div class="dropdown"
+                                     data-activity-score-feedback-enhanced
+                                     data-sm-floating-dropdown
+                                     hidden>
+                                    <button type="button"
+                                            class="btn btn-outline-secondary sm-activity-score-feedback-selector{% if row.form.feedback.errors %} is-invalid{% endif %}"
+                                            data-bs-toggle="dropdown"
+                                            data-bs-auto-close="outside"
+                                            data-bs-boundary="viewport"
+                                            aria-expanded="false"
+                                            aria-controls="activity-score-feedback-menu-{{ row.submission.pk }}">
+                                        <span class="visually-hidden">Observação de {{ row.submission.student.get_full_name }}: </span>
+                                        <span class="sm-activity-score-feedback-summary" data-activity-score-feedback-summary>{% if row.form.feedback.value %}Com observação{% else %}Sem observação{% endif %}</span>
+                                        <i class="feather-chevron-down ms-auto" aria-hidden="true"></i>
+                                    </button>
+                                    <div class="dropdown-menu dropdown-menu-end sm-activity-score-feedback-menu p-3"
+                                         id="activity-score-feedback-menu-{{ row.submission.pk }}"
+                                         data-sm-floating-menu>
+                                        <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                                            <label class="form-label fw-semibold mb-0" for="{{ row.form.feedback.id_for_label }}-expanded">Observação de {{ row.submission.student.get_full_name }}</label>
+                                            <button type="button" class="btn btn-sm btn-outline-primary text-nowrap" disabled aria-disabled="true" title="Recurso de melhoria de texto em preparação"><i class="feather-zap me-1" aria-hidden="true"></i> Melhorar com IA <span class="badge bg-soft-secondary text-secondary ms-1">Em breve</span></button>
+                                        </div>
+                                        <textarea id="{{ row.form.feedback.id_for_label }}-expanded" class="form-control form-control-sm{% if row.form.feedback.errors %} is-invalid{% endif %}" name="{{ row.form.feedback.html_name }}" rows="6" data-activity-score-feedback-input disabled aria-label="Observação de {{ row.submission.student.get_full_name }}">{{ row.form.feedback.value|default_if_none:'' }}</textarea>
+                                    </div>
+                                </div>
+                                <div data-activity-score-feedback-fallback>
+                                    <label class="visually-hidden" for="{{ row.form.feedback.id_for_label }}">Observação de {{ row.submission.student.get_full_name }}</label>
+                                    {{ row.form.feedback }}
+                                </div>
+                                {% for error in row.form.feedback.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                                {% for error in row.form.non_field_errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                            </div>
+                            {% elif row.submission.feedback %}{{ row.submission.feedback }}{% else %}—{% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center text-muted py-4">Nenhum aluno matriculado.</td></tr>
+                    {% endfor %}
+                </tbody>
+                </table>
+            </div>
+        </div>
+    {% if can_edit_activity %}</form>{% else %}</div>{% endif %}
+    {% if can_edit_activity and activity.score_status == 'DRAFT' and score_rows %}
+    <div class="card-footer d-flex justify-content-end"><button type="submit" form="activity-score-form" class="btn btn-sm btn-primary">Salvar rascunho</button></div>
+    {% endif %}
+</div>

@@ -49,6 +49,13 @@ class _TeacherRepo(BaseRepository):
 
         return Teacher
 
+    def get_for_update(self, teacher_id):
+        """Retorna o professor ativo sob lock pessimista para mutações M2M."""
+        try:
+            return self.model_class.objects.select_for_update().get(pk=teacher_id)
+        except self.model_class.DoesNotExist:
+            raise ObjectNotFoundError("Teacher", str(teacher_id)) from None
+
 
 class SubjectService(BaseService):
     """Serviço de regras de negócio para disciplinas."""
@@ -75,15 +82,15 @@ class SubjectService(BaseService):
         return subject
 
     def update_subject(self, subject_id, data: dict) -> Subject:
-        """Atualiza dados da disciplina."""
+        """Atualiza dados e o status reversível da disciplina."""
         from teachers.models import Subject
 
         try:
-            subject = Subject.objects.get(pk=subject_id)
+            subject = Subject.all_objects.get(pk=subject_id, deleted_at__isnull=True)
         except Subject.DoesNotExist:
             raise ObjectNotFoundError("Subject", str(subject_id)) from None
 
-        old = {"name": subject.name, "code": subject.code}
+        old = self._snapshot(subject, ["name", "code", "workload", "is_active"])
 
         if "code" in data:
             new_code = data["code"].strip().upper()
@@ -97,18 +104,20 @@ class SubjectService(BaseService):
         if "workload" in data:
             subject.workload = data["workload"]
 
+        if "is_active" in data:
+            subject.is_active = data["is_active"]
+
         subject.updated_by = self.user
         subject.save()
 
-        self._record_audit("UPDATE", subject, old_values=old)
+        self._record_audit(
+            "UPDATE",
+            subject,
+            old_values=old,
+            new_values=self._snapshot(subject, ["name", "code", "workload", "is_active"]),
+        )
         self._log("Disciplina atualizada", subject_id=str(subject.pk))
         return subject
-
-    def deactivate_subject(self, subject_id) -> Subject:
-        """Aplica exclusão lógica na disciplina."""
-        from teachers.models import Subject
-
-        return self._deactivate(Subject, subject_id, "Subject")
 
 
 class TeacherService(BaseService):
@@ -244,7 +253,7 @@ class TeacherService(BaseService):
 
     def assign_subject(self, teacher_id, subject_id):
         """Atribui uma disciplina ao professor e registra auditoria."""
-        teacher = _TeacherRepo().get_by_id(teacher_id)
+        teacher = _TeacherRepo().get_for_update(teacher_id)
         subject = _SubjectRepo().get_by_id(subject_id)
         if teacher.subjects.filter(pk=subject_id).exists():
             raise BusinessRuleViolationError("Disciplina já atribuída ao professor.")
@@ -261,7 +270,7 @@ class TeacherService(BaseService):
 
     def remove_subject(self, teacher_id, subject_id):
         """Remove a disciplina atribuída ao professor e registra auditoria."""
-        teacher = _TeacherRepo().get_by_id(teacher_id)
+        teacher = _TeacherRepo().get_for_update(teacher_id)
         _SubjectRepo().get_by_id(subject_id)
         old = {"subject_ids": [str(pk) for pk in teacher.subjects.values_list("pk", flat=True)]}
         teacher.subjects.remove(subject_id)
@@ -276,7 +285,7 @@ class TeacherService(BaseService):
 
     def set_subjects(self, teacher_id, subjects) -> Teacher:
         """Sincroniza as disciplinas ministradas pelo professor."""
-        teacher = _TeacherRepo().get_by_id(teacher_id)
+        teacher = _TeacherRepo().get_for_update(teacher_id)
         old = {"subject_ids": [str(pk) for pk in teacher.subjects.values_list("pk", flat=True)]}
         subject_ids = [subject.pk for subject in subjects]
         teacher.subjects.set(subject_ids)

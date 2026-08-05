@@ -19,16 +19,16 @@ logger = logging.getLogger(__name__)
 class RegistrationSequenceService(BaseService):
     """Gera matrículas anuais legíveis com bloqueio pessimista por tenant."""
 
-    PREFIXES = {"teacher": "PRO", "student": "ALU"}
+    PREFIXES = {"teacher": "PRO", "student": "ALU", "enrollment_application": "MAT"}
 
     @system_command
-    def next_number(self, scope: str) -> str:
+    def next_number(self, scope: str, *, year: int | None = None) -> str:
         """Incrementa e retorna a próxima matrícula do escopo no ano corrente."""
         from core.models import RegistrationSequence
 
         if scope not in self.PREFIXES:
             raise ValidationError(errors={"scope": ["Tipo de matrícula inválido."]})
-        year = timezone.localdate().year
+        year = int(year or timezone.localdate().year)
         sequence, created = RegistrationSequence.objects.select_for_update().get_or_create(
             scope=scope,
             year=year,

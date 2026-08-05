@@ -1,0 +1,96 @@
+{% load ui_helpers %}
+{% can_access_action "enrollments" "edit" as can_edit_enrollment %}
+{% can_access_action "__admin__" "view" as can_administer_documents %}
+<div class="card" id="application-documents-card">
+    <div class="card-header d-flex justify-content-between align-items-center gap-2">
+        <h6 class="card-title mb-0">Checklist documental</h6>
+        {% if can_edit_enrollment and has_pending_required_documents %}
+        <form method="post"
+              action="{% url 'enrollment_reminder_send' application.pk %}"
+              hx-post="{% url 'enrollment_reminder_send' application.pk %}"
+              hx-target="#application-documents-card"
+              hx-swap="outerHTML">
+            {% csrf_token %}
+            <input type="hidden" name="expected_version" value="{{ application.version }}">
+            <button class="btn btn-outline-primary btn-sm" type="submit">Enviar lembrete</button>
+        </form>
+        {% endif %}
+    </div>
+    {% include "enrollments/partials/flash_messages.html" %}
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Documento</th>
+                        <th>Obrigatório</th>
+                        <th>Situação</th>
+                        <th>Entrega</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for document in documents %}
+                    <tr>
+                        <td>{{ document.requirement_label }}</td>
+                        <td>{% if document.is_required %}Sim{% else %}Não{% endif %}</td>
+                        <td>{{ document.get_status_display }}</td>
+                        <td>{{ document.get_delivery_method_display|default:"—" }}</td>
+                        <td>
+                            <div class="d-flex flex-wrap gap-1">
+                                {% if can_edit_enrollment and document.status != 'VERIFIED' and document.status != 'WAIVED' %}
+                                <a class="btn btn-outline-primary btn-sm" href="{% url 'enrollment_document_delivery' document.pk %}">Entregar</a>
+                                {% endif %}
+                                {% if document.file %}
+                                <a class="btn btn-outline-secondary btn-sm" href="{% url 'enrollment_document_download' document.pk %}">Baixar</a>
+                                {% endif %}
+                                {% if can_edit_enrollment and document.status == 'SUBMITTED' %}
+                                <form method="post"
+                                      action="{% url 'enrollment_document_action' document.pk %}"
+                                      hx-post="{% url 'enrollment_document_action' document.pk %}"
+                                      hx-target="#application-documents-card"
+                                      hx-swap="outerHTML">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="expected_version" value="{{ document.version }}">
+                                    <button class="btn btn-outline-success btn-sm" name="action" value="verify">Verificar</button>
+                                </form>
+                                <form class="d-flex gap-1"
+                                      method="post"
+                                      action="{% url 'enrollment_document_action' document.pk %}"
+                                      hx-post="{% url 'enrollment_document_action' document.pk %}"
+                                      hx-target="#application-documents-card"
+                                      hx-swap="outerHTML">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="expected_version" value="{{ document.version }}">
+                                    <input class="form-control form-control-sm" name="reason" required aria-label="Motivo da recusa">
+                                    <button class="btn btn-outline-danger btn-sm" name="action" value="reject">Recusar</button>
+                                </form>
+                                {% endif %}
+                                {% if document.status != 'VERIFIED' and document.status != 'WAIVED' %}
+                                    {% if can_administer_documents %}
+                                    <form class="d-flex gap-1"
+                                          method="post"
+                                          action="{% url 'enrollment_document_action' document.pk %}"
+                                          hx-post="{% url 'enrollment_document_action' document.pk %}"
+                                          hx-target="#application-documents-card"
+                                          hx-swap="outerHTML">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="expected_version" value="{{ document.version }}">
+                                        <input class="form-control form-control-sm" name="reason" required aria-label="Motivo da dispensa">
+                                        <button class="btn btn-outline-warning btn-sm" name="action" value="waive">Dispensar</button>
+                                    </form>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">Nenhum requisito configurado para este tipo.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

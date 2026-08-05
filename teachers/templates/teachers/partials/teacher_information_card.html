@@ -17,25 +17,8 @@
         {% if saved %}
         <div class="alert alert-success py-2" role="alert">Informações atualizadas com sucesso.</div>
         {% endif %}
-        <div class="sm-profile-hero d-flex flex-column flex-sm-row align-items-center text-center text-sm-start gap-3 pb-4 mb-4 border-bottom">
-            {% if teacher.user.avatar %}
-            <img src="{% url 'teacher_avatar' teacher.pk %}"
-                 alt="{{ teacher.full_name }}"
-                 class="sm-profile-avatar flex-shrink-0">
-            {% else %}
-            <div class="avatar-text avatar-xl bg-soft-success text-success flex-shrink-0"
-                 style="width:72px;height:72px;font-size:1.75rem">
-                {{ teacher.full_name|first|upper }}
-            </div>
-            {% endif %}
-            <div class="min-w-0">
-                <h5 class="mb-1">{{ teacher.full_name }}</h5>
-                <p class="text-muted mb-2 text-break">{{ teacher.email }}</p>
-                <span class="badge bg-soft-secondary text-secondary">
-                    Mat. {{ teacher.registration_number }}
-                </span>
-            </div>
-        </div>
+        {% if teacher.user.avatar %}{% url 'teacher_avatar' teacher.pk as profile_image_url %}{% endif %}
+        {% include "partials/person_profile_hero.html" with profile_has_image=teacher.user.avatar profile_image_url=profile_image_url profile_avatar_theme="bg-soft-success text-success" profile_initial=teacher.full_name profile_name=teacher.full_name profile_email=teacher.email profile_identifier_label="Mat." profile_identifier=teacher.registration_number %}
 
         <dl class="row gy-3 mb-0 sm-profile-definition">
             <dt class="col-sm-5 text-muted fw-medium">Data de nascimento</dt>

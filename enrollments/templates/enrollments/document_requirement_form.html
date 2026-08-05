@@ -1,0 +1,27 @@
+{% extends "entity_form_base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{% url 'document_requirement_list' %}">Requisitos documentais</a></li>{% endblock %}
+{% block form_fields %}
+{{ form.expected_version }}
+<div class="row g-2">
+    <div class="col-12">
+        <p class="text-muted mb-2">A alteração valerá somente para solicitações abertas depois da configuração.</p>
+    </div>
+    {% include "partials/form_field.html" with field=form.application_type %}
+    {% include "partials/form_field.html" with field=form.code %}
+    {% include "partials/form_field.html" with field=form.label %}
+    {% include "partials/form_field.html" with field=form.display_order %}
+    <div class="col-12 col-md-6">
+        <div class="row g-2">
+            {% include "partials/form_field.html" with field=form.is_required full_width=True %}
+        </div>
+    </div>
+    <div class="col-12 col-md-6">
+        <div class="row g-2">
+            {% include "partials/form_field.html" with field=form.allows_physical full_width=True %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block cancel_url %}{% url 'document_requirement_list' %}{% endblock %}

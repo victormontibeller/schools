@@ -38,4 +38,5 @@ omit = ["*/migrations/*", "*/tests/*", "*/conftest.py", "manage.py"]
 
 [tool.coverage.report]
 skip_empty = true
+precision = 2
 fail_under = 85

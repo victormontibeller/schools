@@ -15,9 +15,11 @@ from base.exceptions import (
 from core.access_catalog import (
     ACTION_FIELDS,
     CONFIGURABLE_ROLES,
+    COORDINATOR,
     CREATE,
     DEACTIVATE,
     DEFAULT_ACCESS,
+    DOCUMENT_REQUIREMENTS,
     EDIT,
     FINANCE,
     FINANCE_BILLINGS,
@@ -31,6 +33,7 @@ from core.access_catalog import (
     GUARDIAN,
     MODULES,
     MODULES_BY_KEY,
+    REENROLLMENT,
     ROLE_LABELS,
     SECRETARY,
     TEACHER,
@@ -132,9 +135,21 @@ def test_access_settings_renders_only_configurable_groups(client, user):
     assert "data-access-module-row" in content
     assert "data-access-department-row" in content
     assert 'data-access-search="Secretaria Salas"' in content
+    assert 'data-access-search="Secretaria Configuração de períodos"' in content
+    assert 'data-access-search="Secretaria Rematrícula em lote"' in content
+    assert 'data-access-search="Secretaria Requisitos documentais"' in content
+    assert 'name="access__reenrollment__SECRETARY"' in content
+    assert 'name="access__reenrollment__COORDINATOR"' in content
+    assert 'name="access__document_requirements__SECRETARY"' in content
+    assert 'name="access__document_requirements__COORDINATOR"' in content
+    assert 'name="access__reenrollment__TEACHER"' not in content
+    assert 'name="access__document_requirements__FINANCE"' not in content
+    assert 'data-access-search="Acadêmico Configuração de períodos"' not in content
     assert 'data-access-search="Secretaria Itens da Agenda"' in content
     assert 'data-access-search="Coordenação Feriados"' in content
     assert 'data-access-search="Coordenação Anos Letivos"' in content
+    assert content.count('<th colspan="6" scope="colgroup">Acadêmico</th>') == 1
+    assert content.count('<th colspan="6" scope="colgroup">Secretaria</th>') == 1
     for finance_label in (
         "Visão Financeira",
         "Modelos",
@@ -278,6 +293,49 @@ def test_diary_configuration_exposes_view_create_and_edit_actions():
     assert tuple(value for value, _label in secretary_field.choices) == (VIEW, CREATE, EDIT)
     assert tuple(value for value, _label in coordinator_field.choices) == (VIEW, CREATE, EDIT)
     assert "access__diary_configuration__TEACHER" not in form.fields
+
+
+def test_enrollment_capabilities_have_exact_roles_actions_and_defaults():
+    from core.access.forms import AccessConfigurationForm
+
+    reenrollment = MODULES_BY_KEY[REENROLLMENT]
+    requirements = MODULES_BY_KEY[DOCUMENT_REQUIREMENTS]
+
+    assert reenrollment.label == "Rematrícula em lote"
+    assert reenrollment.department == "Secretaria"
+    assert reenrollment.eligible_roles == frozenset({SECRETARY, COORDINATOR})
+    assert reenrollment.supported_actions == frozenset({VIEW, CREATE})
+    assert default_actions(REENROLLMENT, SECRETARY) == {VIEW, CREATE}
+    assert default_actions(REENROLLMENT, COORDINATOR) == frozenset()
+
+    assert requirements.label == "Requisitos documentais"
+    assert requirements.department == "Secretaria"
+    assert requirements.eligible_roles == frozenset({SECRETARY, COORDINATOR})
+    assert requirements.supported_actions == frozenset({VIEW, CREATE, EDIT, DEACTIVATE})
+    assert DEFAULT_ACCESS[DOCUMENT_REQUIREMENTS] == {}
+    assert default_actions(DOCUMENT_REQUIREMENTS, SECRETARY) == frozenset()
+    assert default_actions(DOCUMENT_REQUIREMENTS, COORDINATOR) == frozenset()
+
+    form = AccessConfigurationForm()
+    for role_name in (SECRETARY, COORDINATOR):
+        reenrollment_field = form.fields[
+            AccessConfigurationForm.field_name(REENROLLMENT, role_name)
+        ]
+        requirement_field = form.fields[
+            AccessConfigurationForm.field_name(DOCUMENT_REQUIREMENTS, role_name)
+        ]
+        assert tuple(value for value, _label in reenrollment_field.choices) == (VIEW, CREATE)
+        assert tuple(value for value, _label in requirement_field.choices) == (
+            VIEW,
+            CREATE,
+            EDIT,
+            DEACTIVATE,
+        )
+    for role_name in (TEACHER, FINANCE, GUARDIAN):
+        assert AccessConfigurationForm.field_name(REENROLLMENT, role_name) not in form.fields
+        assert (
+            AccessConfigurationForm.field_name(DOCUMENT_REQUIREMENTS, role_name) not in form.fields
+        )
 
 
 @pytest.mark.parametrize("module_key", ["holidays", "academic_years"])
@@ -530,6 +588,33 @@ def test_finance_capabilities_have_exact_roles_actions_and_defaults():
     assert MODULES_BY_KEY[FINANCE_BILLINGS].role_action_limits[GUARDIAN] == frozenset({VIEW})
 
 
+def test_schedule_configuration_has_exact_roles_actions_and_defaults():
+    module = MODULES_BY_KEY["schedule_configuration"]
+
+    assert module.label == "Configuração de períodos"
+    assert module.department == "Secretaria"
+    assert module.eligible_roles == frozenset({SECRETARY, "COORDINATOR"})
+    assert module.supported_actions == frozenset({VIEW, CREATE, EDIT})
+    assert default_actions(module.key, "COORDINATOR") == {VIEW, CREATE, EDIT}
+    assert default_actions(module.key, SECRETARY) == frozenset()
+    assert default_actions(module.key, TEACHER) == frozenset()
+
+    demo_coordinator = SimpleNamespace(
+        is_authenticated=True,
+        is_superuser=False,
+        access_mode="DEMO",
+        role=SimpleNamespace(name="COORDINATOR"),
+    )
+    from core.permissions import can_execute_service
+
+    assert can_execute_service(
+        demo_coordinator,
+        "agenda",
+        "create_time_slot",
+        "ScheduleService",
+    )
+
+
 def test_access_declarations_resolve_strictly_for_views_and_services():
     from core.permissions import (
         access_policy,
@@ -584,6 +669,12 @@ def test_access_declarations_resolve_strictly_for_views_and_services():
     )
     assert can_execute_service(secretary, "addresses", "update_teacher_address") is True
     assert can_execute_service(secretary, "addresses", "update_business_unit_address") is False
+    assert not can_execute_service(
+        secretary,
+        "agenda",
+        "create_time_slot",
+        "ScheduleService",
+    )
     assert can_execute_service(secretary, "unknown", "update_record") is False
     assert "students" in modules_for_user(secretary)
 
@@ -609,7 +700,13 @@ def test_access_declarations_resolve_strictly_for_views_and_services():
         is_superuser=False,
         role=SimpleNamespace(name="ADMIN"),
     )
-    assert modules_for_user(admin) == {"*"}
+    from base import context
+
+    tenant_token = context.current_tenant.set("test_school")
+    try:
+        assert modules_for_user(admin) == {"*"}
+    finally:
+        context.current_tenant.reset(tenant_token)
 
 
 @pytest.mark.django_db

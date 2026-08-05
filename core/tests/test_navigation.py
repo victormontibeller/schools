@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 from django.urls import reverse
 
+from base import context
 from core.models import Role
 from core.navigation import build_school_navigation
 
@@ -35,6 +36,16 @@ FINANCE_ITEMS = [
     "Competência e Caixa",
     "Inadimplência",
 ]
+
+
+@pytest.fixture(autouse=True)
+def school_tenant_context():
+    """A navegação escolar só é avaliada dentro de um tenant."""
+    token = context.current_tenant.set("test_school")
+    try:
+        yield
+    finally:
+        context.current_tenant.reset(token)
 
 
 @pytest.mark.parametrize(
@@ -143,7 +154,10 @@ def test_guardian_finance_links_follow_independent_capabilities(user):
                     "Alunos",
                     "Responsáveis",
                     "Matrículas",
+                    "Rematrícula em lote",
+                    "Requisitos documentais",
                     "Salas",
+                    "Períodos",
                     "Itens da Agenda",
                 ],
                 "Coordenação": ["Calendário", "Feriados", "Anos Letivos", "Comunicados"],
@@ -160,6 +174,7 @@ def test_guardian_finance_links_follow_independent_capabilities(user):
                     "Alunos",
                     "Responsáveis",
                     "Matrículas",
+                    "Rematrícula em lote",
                     "Salas",
                     "Itens da Agenda",
                 ],
@@ -180,6 +195,7 @@ def test_guardian_finance_links_follow_independent_capabilities(user):
                     "Professores",
                     "Alunos",
                     "Responsáveis",
+                    "Períodos",
                     "Itens da Agenda",
                 ],
                 "Coordenação": ["Calendário", "Feriados", "Anos Letivos", "Comunicados"],
@@ -239,8 +255,13 @@ def test_build_school_navigation_uses_exact_taxonomy(role_name, expected):
         ("room_edit", "Secretaria", "Salas"),
         ("diary_configuration", "Secretaria", "Itens da Agenda"),
         ("diary_aspect_detail", "Secretaria", "Itens da Agenda"),
-        ("diary_aspect_toggle", "Secretaria", "Itens da Agenda"),
         ("diary_option_edit", "Secretaria", "Itens da Agenda"),
+        ("time_slots_list", "Secretaria", "Períodos"),
+        ("enrollment_application_detail", "Secretaria", "Matrículas"),
+        ("reenrollment_batch", "Secretaria", "Rematrícula em lote"),
+        ("document_requirement_list", "Secretaria", "Requisitos documentais"),
+        ("document_requirement_create", "Secretaria", "Requisitos documentais"),
+        ("document_requirement_edit", "Secretaria", "Requisitos documentais"),
         ("school_settings_edit", "Administração", "Escola"),
     ],
 )
@@ -259,9 +280,17 @@ def test_build_school_navigation_expands_route_family(view_name, group_label, it
 @pytest.mark.parametrize(
     ("view_name", "item_label"),
     [
-        ("teacher_schedule", "Grade Horária"),
+        ("schedule_weekly", "Grade Horária"),
+        ("time_slots_list", "Períodos"),
         ("student_attendance", "Frequência"),
         ("class_attendance_summary", "Frequência"),
+        ("enrollment_application_create", "Matrículas"),
+        ("enrollment_document_delivery", "Matrículas"),
+        ("reenrollment_batch", "Rematrícula em lote"),
+        ("reenrollment_batch_confirm", "Rematrícula em lote"),
+        ("document_requirement_list", "Requisitos documentais"),
+        ("document_requirement_create", "Requisitos documentais"),
+        ("document_requirement_edit", "Requisitos documentais"),
     ],
 )
 def test_build_school_navigation_avoids_overlapping_route_families(view_name, item_label):
@@ -272,6 +301,150 @@ def test_build_school_navigation_avoids_overlapping_route_families(view_name, it
 
     assert active_items == [item_label]
     assert sum(group["expanded"] for group in navigation["groups"]) == 1
+
+
+def test_enrollment_navigation_uses_canonical_order_and_policies():
+    navigation = build_school_navigation(_user("ADMIN"), "enrollment_application_list")
+    secretary = next(group for group in navigation["groups"] if group["label"] == "Secretaria")
+    destinations = [
+        (
+            item["label"],
+            item["url_name"],
+            item["module"],
+            item.get("required_action", "view"),
+        )
+        for item in secretary["items"][3:6]
+    ]
+
+    assert destinations == [
+        ("Matrículas", "enrollment_application_list", "enrollments", "view"),
+        ("Rematrícula em lote", "reenrollment_batch", "reenrollment", "view"),
+        (
+            "Requisitos documentais",
+            "document_requirement_list",
+            "document_requirements",
+            "view",
+        ),
+    ]
+
+
+@pytest.mark.django_db
+def test_enrollment_navigation_follows_independent_view_capabilities(user):
+    from core.models import RoleModuleAccess
+
+    secretary = Role.objects.get(name=Role.Name.SECRETARY)
+    user.role = secretary
+    user.is_superuser = False
+    user.save(update_fields=["role", "is_superuser"])
+    RoleModuleAccess.objects.update_or_create(
+        role=secretary,
+        module_key="enrollments",
+        defaults={
+            "can_view": True,
+            "can_create": False,
+            "can_edit": False,
+            "can_deactivate": False,
+        },
+    )
+    reenrollment_access, _ = RoleModuleAccess.objects.update_or_create(
+        role=secretary,
+        module_key="reenrollment",
+        defaults={
+            "can_view": False,
+            "can_create": False,
+            "can_edit": False,
+            "can_deactivate": False,
+        },
+    )
+    requirements_access, _ = RoleModuleAccess.objects.update_or_create(
+        role=secretary,
+        module_key="document_requirements",
+        defaults={
+            "can_view": False,
+            "can_create": False,
+            "can_edit": False,
+            "can_deactivate": False,
+        },
+    )
+
+    labels = _labels(build_school_navigation(user, "enrollment_application_list"))["Secretaria"]
+    assert "Matrículas" in labels
+    assert "Rematrícula em lote" not in labels
+    assert "Requisitos documentais" not in labels
+
+    reenrollment_access.can_view = True
+    reenrollment_access.save(update_fields=["can_view"])
+    if hasattr(user, "_role_access_cache"):
+        del user._role_access_cache
+    navigation = build_school_navigation(user, "reenrollment_batch")
+
+    assert "Rematrícula em lote" in _labels(navigation)["Secretaria"]
+    assert [
+        item["label"] for group in navigation["groups"] for item in group["items"] if item["active"]
+    ] == ["Rematrícula em lote"]
+
+    requirements_access.can_view = True
+    requirements_access.save(update_fields=["can_view"])
+    del user._role_access_cache
+    labels = _labels(build_school_navigation(user, "document_requirement_list"))["Secretaria"]
+    assert labels[3:6] == [
+        "Matrículas",
+        "Rematrícula em lote",
+        "Requisitos documentais",
+    ]
+
+
+@pytest.mark.parametrize("role_name", ["ADMIN", "TEACHER"])
+def test_schedule_navigation_uses_canonical_class_selection(role_name):
+    navigation = build_school_navigation(_user(role_name), "schedule_weekly")
+    schedule_items = [
+        item
+        for group in navigation["groups"]
+        for item in group["items"]
+        if item["label"] == "Grade Horária"
+    ]
+
+    assert len(schedule_items) == 1
+    assert schedule_items[0]["url_name"] == "schedule_classes_list"
+    assert schedule_items[0]["active"] is True
+
+
+def test_periods_navigation_is_in_secretary_and_owns_its_route_family():
+    admin_navigation = build_school_navigation(_user("ADMIN"), "time_slots_list")
+    teacher_navigation = build_school_navigation(_user("TEACHER"), "time_slots_list")
+    admin_items = _labels(admin_navigation)["Secretaria"]
+    active_labels = [
+        item["label"]
+        for group in admin_navigation["groups"]
+        for item in group["items"]
+        if item["active"]
+    ]
+
+    assert admin_items[6:8] == ["Salas", "Períodos"]
+    assert active_labels == ["Períodos"]
+    assert admin_navigation["active_group_id"] == next(
+        group["id"] for group in admin_navigation["groups"] if group["label"] == "Secretaria"
+    )
+    assert "Períodos" not in _labels(teacher_navigation)["Rotina Docente"]
+
+
+@pytest.mark.django_db
+def test_periods_navigation_requires_schedule_configuration_view_capability(user):
+    from core.models import RoleModuleAccess
+
+    coordinator = Role.objects.get(name=Role.Name.COORDINATOR)
+    user.role = coordinator
+    user.is_superuser = False
+    user.save(update_fields=["role", "is_superuser"])
+    RoleModuleAccess.objects.filter(role=coordinator, module_key="schedule_configuration").update(
+        can_view=False,
+        can_create=False,
+        can_edit=False,
+    )
+
+    labels = _labels(build_school_navigation(user, "schedule_classes_list"))["Secretaria"]
+
+    assert "Períodos" not in labels
 
 
 def test_build_school_navigation_adds_executive_only_for_staff():
@@ -347,6 +520,8 @@ def test_school_navigation_uses_canonical_overview_link(client, user):
     assert f'href="{reverse("dashboard")}"' in content
     assert 'href="/dashboard/"' not in content
     assert 'id="app-main"' in content
+    assert 'id="app-modal-root"' in content
+    assert 'id="app-history-root" hx-history-elt' in content
     assert "hx-history-elt" in content
     assert '<ul class="nxl-navbar" id="school-navigation">' in content
     assert 'hx-target="#app-main"' in content
@@ -357,7 +532,10 @@ def test_school_navigation_uses_canonical_overview_link(client, user):
     assert 'hx-indicator="#app-navigation-progress"' in content
     assert 'sidebarContent.addEventListener("focusin"' in content
     assert 'scrollIntoView({block: "nearest", inline: "nearest"})' in content
+    assert "initializeListPrimaryNavigation(document);" in content
+    assert ".sm-sticky-table--first-column tbody tr > td:first-child a[href]" in content
     assert "applySchoolNavigationState();" in content
+    assert "syncAppModalPortal(responseDocument)" in content
 
 
 @pytest.mark.django_db
@@ -383,6 +561,26 @@ def test_school_navigation_boosted_response_keeps_full_fallback_document(client,
     assert 'data-nav-url-name="activities_list"' in content
     assert content.count("active nxl-trigger") == 1
     assert 'aria-current="page"' in content
+
+
+@pytest.mark.django_db
+def test_school_navigation_history_restore_response_keeps_full_document(client, user):
+    role, _ = Role.objects.get_or_create(name=Role.Name.COORDINATOR)
+    user.role = role
+    user.is_superuser = False
+    user.save(update_fields=["role", "is_superuser"])
+    client.force_login(user)
+
+    response = client.get(
+        reverse("activities_list"),
+        HTTP_HX_REQUEST="true",
+        HTTP_HX_HISTORY_RESTORE_REQUEST="true",
+    )
+
+    assert response.status_code == 200
+    assert b"<!DOCTYPE html>" in response.content
+    assert b'id="app-history-root"' in response.content
+    assert b'id="app-main"' in response.content
 
 
 @pytest.mark.django_db

@@ -4,8 +4,8 @@ import pytest
 
 from students.tasks import import_students_csv
 
-# Schema usado nos testes SQLite (schema_context é no-op fora de PostgreSQL).
-_TEST_SCHEMA = "public"
+# O banco SQLite não troca schemas, mas o contexto ainda deve representar uma escola.
+_TEST_SCHEMA = "test_school"
 
 
 @pytest.mark.django_db
@@ -136,3 +136,33 @@ class TestImportStudentsCsv:
         result = import_students_csv.apply(args=[_TEST_SCHEMA, csv_content, str(user.pk)]).get()
         assert result["created"] == 0
         assert result["errors"] == []
+
+    def test_inactive_executor_cannot_create_students(self, user):
+        user.is_active = False
+        user.save(update_fields=["is_active"])
+        csv_content = self._csv(
+            [
+                [
+                    "Ana",
+                    "Silva",
+                    "2010-01-01",
+                    "IMP-003",
+                    "F",
+                    "O+",
+                    "Brasileira",
+                    "390.533.447-05",
+                    "1234567",
+                    "SSP",
+                    "SP",
+                    "11999990001",
+                    "ana@example.com",
+                ]
+            ]
+        )
+
+        result = import_students_csv.apply(args=[_TEST_SCHEMA, csv_content, str(user.pk)]).get()
+
+        assert result == {
+            "created": 0,
+            "errors": [{"row": 2, "message": "Não foi possível importar a linha."}],
+        }

@@ -3,7 +3,7 @@
 {% can_access_action "finance_billings" "view" as can_view_billings %}
 <div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Fila de conciliações financeiras">
 <table class="table table-hover mb-0 sm-sticky-table sm-sticky-table--first-column">
-    <thead class="table-light"><tr><th>Pagamento</th><th aria-sort="{{ sorting.paid_date.aria_sort }}"><a href="?{{ sorting.paid_date.query }}" class="sm-sort-link{% if sorting.paid_date.active %} is-active{% endif %}" hx-get="?{{ sorting.paid_date.query }}" hx-target="#payments-table">Data</a></th><th>Alocações</th><th>Situação</th><th class="text-end" aria-sort="{{ sorting.amount.aria_sort }}"><a href="?{{ sorting.amount.query }}" class="sm-sort-link{% if sorting.amount.active %} is-active{% endif %}" hx-get="?{{ sorting.amount.query }}" hx-target="#payments-table">Valor</a></th><th>Ações</th></tr></thead>
+    <thead class="table-light"><tr><th>Pagamento</th><th aria-sort="{{ sorting.paid_date.aria_sort }}"><a href="?{{ sorting.paid_date.query }}" class="sm-sort-link{% if sorting.paid_date.active %} is-active{% endif %}" hx-get="?{{ sorting.paid_date.query }}" hx-target="#payments-table" hx-swap="outerHTML" hx-push-url="true">Data</a></th><th>Alocações</th><th>Situação</th><th class="text-end" aria-sort="{{ sorting.amount.aria_sort }}"><a href="?{{ sorting.amount.query }}" class="sm-sort-link{% if sorting.amount.active %} is-active{% endif %}" hx-get="?{{ sorting.amount.query }}" hx-target="#payments-table" hx-swap="outerHTML" hx-push-url="true">Valor</a></th><th>Ações</th></tr></thead>
     <tbody>
     {% for item in result.items %}<tr>
         <td><a class="fw-semibold" href="{% url 'payment_detail' item.pk %}">{% if item.receipt_number %}{{ item.receipt_number }}{% else %}{{ item.pk|stringformat:"s"|slice:":8" }}{% endif %}</a></td>
@@ -15,3 +15,4 @@
     </tbody>
 </table>
 </div>
+{% include "partials/list_pagination.html" %}

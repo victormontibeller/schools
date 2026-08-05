@@ -68,6 +68,10 @@ somente para scripts/estilos legados do tema e deverá ser removida conforme for
 - Calendário e eventos usam a capacidade `academic_calendar`; a administração de feriados e
   anos letivos usa, respectivamente, `holidays` e `academic_years`. Estas duas capacidades são
   delegáveis somente a Secretaria, Coordenação e Financeiro e não ampliam a leitura do calendário.
+- A operação da grade usa `schedule`. O catálogo de períodos usa a capacidade independente
+  `schedule_configuration`, elegível somente para Secretaria e Coordenação, com ações de leitura,
+  criação e edição. Coordenação recebe essas ações por padrão; Secretaria somente por configuração
+  explícita. Professor nunca herda o catálogo ao receber escrita na grade.
 - Professor acessa somente turmas, alunos e registros atribuídos. Responsável acessa somente
   alunos vinculados e os dados derivados desses vínculos; a matriz não remove esses filtros.
 - A submissão de justificativa por Responsável limita o formulário e repete no service o vínculo
@@ -116,6 +120,26 @@ somente para scripts/estilos legados do tema e deverá ser removida conforme for
   permanece a fonte oficial de visualização.
 - O SMTP e `EMAIL_BACKEND` permanecem restritos à recuperação de senha nativa do Django; os
   demais e-mails transacionais passam por `EmailChannel` e Resend.
+
+## Matrículas e documentos privados
+
+- Comandos do workflow de matrícula exigem ator autenticado; rotinas internas precisam declarar
+  explicitamente `@system_command` e sempre recebem o schema do tenant.
+- `reenrollment` e `document_requirements` são capacidades independentes, elegíveis somente para
+  Secretaria e Coordenação. Preparar o lote exige Visualizar e confirmá-lo exige Cadastrar;
+  listar, criar, editar e desativar requisitos exigem suas ações correspondentes. Requisitos
+  documentais não são concedidos por padrão.
+- Documentos de matrícula usam storage privado, validação de upload e download autenticado com
+  política `VIEW`; a dispensa de requisito permanece fora da capacidade de configuração, é
+  exclusiva do Administrador e exige motivo auditado.
+- Lembretes são publicados somente após commit e passam por `MessageTransport`/`MessageLog`. O
+  destinatário é revalidado imediatamente antes da entrega quanto a atividade, guarda e
+  consentimento; retries e a reconciliação periódica tenant-scoped de claims abandonados
+  reutilizam o mesmo `MessageLog`. A reconciliação republica somente logs pendentes e sincroniza
+  logs terminais sem repetir o canal. O conteúdo externo é genérico e não inclui nome, matrícula,
+  protocolo ou lista de documentos.
+- Logs do workflow usam somente identificadores opacos, estados e contadores; nome, e-mail, CPF,
+  telefone, endereço e conteúdo documental são proibidos.
 
 ### Uploads
 

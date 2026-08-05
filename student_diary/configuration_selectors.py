@@ -31,13 +31,16 @@ class DiaryConfigurationSelectorMixin:
         """Indica se um item está disponível para novas respostas no turno."""
         from classes.contracts import Class
 
+        if not category.is_enabled:
+            return False
+        if shift == Class.Shift.FULL:
+            return category.applies_morning and category.applies_afternoon
         field_by_shift = {
             Class.Shift.MORNING: "applies_morning",
             Class.Shift.AFTERNOON: "applies_afternoon",
-            Class.Shift.FULL: "applies_full",
         }
         field = field_by_shift.get(shift)
-        return bool(field and category.is_enabled and getattr(category, field))
+        return bool(field and getattr(category, field))
 
     def list_sheet_categories(
         self,
@@ -50,13 +53,15 @@ class DiaryConfigurationSelectorMixin:
         from classes.contracts import Class
         from student_diary.models import DiaryCategory, DiaryOption
 
-        field_by_shift = {
-            Class.Shift.MORNING: "applies_morning",
-            Class.Shift.AFTERNOON: "applies_afternoon",
-            Class.Shift.FULL: "applies_full",
-        }
-        field = field_by_shift.get(shift)
-        available = Q(pk__in=()) if field is None else Q(is_enabled=True, **{field: True})
+        if shift == Class.Shift.FULL:
+            available = Q(is_enabled=True, applies_morning=True, applies_afternoon=True)
+        else:
+            field_by_shift = {
+                Class.Shift.MORNING: "applies_morning",
+                Class.Shift.AFTERNOON: "applies_afternoon",
+            }
+            field = field_by_shift.get(shift)
+            available = Q(pk__in=()) if field is None else Q(is_enabled=True, **{field: True})
         return (
             DiaryCategory.objects.filter(available | Q(pk__in=persisted_category_ids))
             .prefetch_related(

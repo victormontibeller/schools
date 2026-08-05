@@ -1,0 +1,48 @@
+{% load ui_helpers %}
+{% can_access_action "document_requirements" "edit" as can_edit_requirements %}
+{% can_access_action "document_requirements" "deactivate" as can_deactivate_requirements %}
+<div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Requisitos documentais">
+    <table class="table table-hover mb-0 sm-sticky-table sm-sticky-table--first-column">
+        <thead>
+            <tr>
+                <th>Documento</th>
+                <th>Tipo</th>
+                <th>Código</th>
+                <th>Obrigatório</th>
+                <th>Conferência física</th>
+                <th>Ordem</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for requirement in result.items %}
+            <tr>
+                <td>{% if can_edit_requirements %}<a class="fw-semibold" href="{% url 'document_requirement_edit' requirement.pk %}">{{ requirement.label }}</a>{% else %}<span class="fw-semibold">{{ requirement.label }}</span>{% endif %}</td>
+                <td>{{ requirement.get_application_type_display }}</td>
+                <td><code>{{ requirement.code }}</code></td>
+                <td>{% if requirement.is_required %}Sim{% else %}Não{% endif %}</td>
+                <td>{% if requirement.allows_physical %}Sim{% else %}Não{% endif %}</td>
+                <td>{{ requirement.display_order }}</td>
+                <td>
+                    {% if can_deactivate_requirements %}<form method="post" action="{% url 'document_requirement_deactivate' requirement.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="expected_version" value="{{ requirement.version }}">
+                        <button class="btn btn-outline-danger btn-sm" type="submit">Desativar</button>
+                    </form>{% else %}<span class="text-muted">—</span>{% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="text-center text-muted py-4">Nenhum requisito documental configurado.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% if result.total_pages > 1 %}
+<nav class="d-flex justify-content-center py-3" aria-label="Paginação de requisitos documentais">
+    <ul class="pagination pagination-sm mb-0">
+        {% if result.has_previous %}<li class="page-item"><a class="page-link" href="?{{ list_query }}{% if list_query %}&{% endif %}page={{ result.page|add:'-1' }}" hx-get="?{{ list_query }}{% if list_query %}&{% endif %}page={{ result.page|add:'-1' }}" hx-target="#document-requirements-table" hx-push-url="true">Anterior</a></li>{% endif %}
+        <li class="page-item active"><span class="page-link">{{ result.page }} / {{ result.total_pages }}</span></li>
+        {% if result.has_next %}<li class="page-item"><a class="page-link" href="?{{ list_query }}{% if list_query %}&{% endif %}page={{ result.page|add:'1' }}" hx-get="?{{ list_query }}{% if list_query %}&{% endif %}page={{ result.page|add:'1' }}" hx-target="#document-requirements-table" hx-push-url="true">Próxima</a></li>{% endif %}
+    </ul>
+</nav>
+{% endif %}

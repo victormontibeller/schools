@@ -1,18 +1,14 @@
 """Views HTMX para turmas e matriculas."""
 
-import logging
-
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
-from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+from base.exceptions import BusinessRuleViolationError, ValidationError
 from base.forms import apply_validation_errors
 from base.listing import build_querystring, build_sorting, resolve_listing_state
 from classes.forms import ClassForm
 from classes.selectors import ClassSelector
 from classes.services import ClassService
-
-logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -145,40 +141,4 @@ def class_edit(request, pk):
             "edit_url": request.path,
             "cancel_url": f"{request.path_info.removesuffix('editar/')}?component=information",
         },
-    )
-
-
-@login_required
-def class_enroll(request, class_id):
-    """Matrícula um aluno na turma via HTMX/post."""
-    if request.method != "POST":
-        return redirect("class_detail", pk=class_id)
-
-    student_id = request.POST.get("student_id", "").strip()
-    if not student_id:
-        return redirect("class_detail", pk=class_id)
-
-    try:
-        ClassService(user=request.user).enroll_student(class_id, student_id)
-    except (ValidationError, ObjectNotFoundError, BusinessRuleViolationError) as exc:
-        logger.warning(
-            "Erro ao matricular aluno",
-            extra={"class_id": str(class_id), "exception_type": type(exc).__name__},
-        )
-        from django.contrib import messages
-
-        messages.error(request, str(exc))
-
-    return redirect("class_detail", pk=class_id)
-
-
-@login_required
-def class_student_search(request, class_id):
-    """Retorna resultados HTMX para matrícula na turma."""
-    cls = ClassSelector().get_by_id(class_id)
-    students = ClassSelector().search_enrollable_students(class_id, request.GET.get("q", ""))
-    return render(
-        request,
-        "classes/partials/student_search_results.html",
-        {"class_obj": cls, "students": students},
     )

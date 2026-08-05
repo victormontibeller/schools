@@ -8,7 +8,5 @@
 {% block form_container_open %}<div class="row g-3"><div class="col-12 col-xl-5">{% endblock %}
 {% block form_container_close %}</div></div>{% endblock %}
 {% block form_fields %}
-<div class="row g-2">
-    {% for field in form %}{% include "partials/form_field.html" with field=field %}{% endfor %}
-</div>
+{% include "student_diary/partials/category_form_fields.html" with form=form %}
 {% endblock %}

@@ -4,7 +4,7 @@ import datetime as dt
 
 import pytest
 
-from activities.forms import ActivityForm
+from activities.forms import ActivityForm, ActivityScoreForm, ActivityScoresReopenForm
 from agenda.models import Schedule, TimeSlot
 from classes.models import Class
 from core.models import CustomUser, Role
@@ -57,10 +57,10 @@ def test_activity_form_limits_teacher_options_to_schedule(user):
         updated_by=user,
     )
     time_slot = TimeSlot.objects.create(
-        day_of_week=TimeSlot.Day.MON,
         start_time=dt.time(8),
         end_time=dt.time(9),
         slot_number=1,
+        shift=TimeSlot.Shift.MORNING,
         created_by=user,
         updated_by=user,
     )
@@ -69,6 +69,7 @@ def test_activity_form_limits_teacher_options_to_schedule(user):
         teacher=teacher,
         subject=scheduled_subject,
         time_slot=time_slot,
+        day_of_week=Schedule.Day.MON,
         valid_from=dt.date(2025, 1, 1),
         created_by=user,
         updated_by=user,
@@ -83,3 +84,21 @@ def test_activity_form_limits_teacher_options_to_schedule(user):
     assert unscheduled_class not in form.fields["class_obj"].queryset
     assert list(form.fields["subject"].queryset) == [scheduled_subject]
     assert unscheduled_subject not in form.fields["subject"].queryset
+
+
+def test_activity_scores_reopen_form_requires_reason():
+    form = ActivityScoresReopenForm(data={"version": 0, "reason": ""})
+
+    assert form.is_valid() is False
+    assert "reason" in form.errors
+    assert "sm-activity-score-reopen-reason" in form.fields["reason"].widget.attrs["class"]
+
+
+def test_activity_score_form_uses_expanded_feedback_textarea():
+    form = ActivityScoreForm()
+
+    assert form.fields["feedback"].label == "Observação"
+    assert form.fields["feedback"].widget.__class__.__name__ == "Textarea"
+    assert form.fields["feedback"].widget.attrs["rows"] == 6
+    assert "data-activity-score-feedback-input" in form.fields["feedback"].widget.attrs
+    assert "disabled" not in form.fields["feedback"].widget.attrs

@@ -1,6 +1,5 @@
 {% load ui_helpers %}
 {% can_access_action "subjects" "edit" as can_edit_subject %}
-{% can_access_action "subjects" "deactivate" as can_deactivate_subject %}
 <div class="card mb-0 sm-detail-card" id="subject-information-card">
     <div class="card-header d-flex align-items-center justify-content-between gap-2">
         <h6 class="card-title mb-0">Informações da Disciplina</h6>
@@ -10,10 +9,6 @@
                     hx-target="#subject-information-card" hx-swap="outerHTML">
                 <i class="feather-edit-2 me-1"></i> Editar
             </button>{% endif %}
-            {% if can_deactivate_subject %}<form method="post" action="{% url 'subject_deactivate' subject.pk %}">
-                {% csrf_token %}
-                <button class="btn btn-sm btn-outline-danger" hx-confirm="Desativar {{ subject.name }}?">Desativar</button>
-            </form>{% endif %}
         </div>
     </div>
     <div class="card-body">
@@ -22,6 +17,7 @@
             <dt class="col-sm-4">Nome</dt><dd class="col-sm-8">{{ subject.name }}</dd>
             <dt class="col-sm-4">Código</dt><dd class="col-sm-8">{{ subject.code }}</dd>
             <dt class="col-sm-4">Carga horária</dt><dd class="col-sm-8">{{ subject.workload }}h/ano</dd>
+            <dt class="col-sm-4">Status</dt><dd class="col-sm-8">{% if subject.is_active %}<span class="badge bg-soft-success text-success">Ativa</span>{% else %}<span class="badge bg-soft-secondary text-secondary">Inativa</span>{% endif %}</dd>
         </dl>
     </div>
 </div>

@@ -1,0 +1,32 @@
+{% load ui_helpers %}
+<div class="card sm-detail-card sm-viewport-card" id="schedule-matrix-workspace" data-sm-layout="workspace"{% if workspace_oob %} hx-swap-oob="outerHTML"{% endif %}>
+    <div class="card-header sm-schedule-matrix-header d-flex align-items-center gap-2 flex-wrap">
+        <div class="sm-schedule-matrix-title">
+            <h6 class="card-title mb-0">Matriz semanal</h6>
+        </div>
+        <div class="sm-schedule-matrix-actions">
+            <nav class="d-flex flex-wrap align-items-center gap-1 sm-schedule-week-navigation" aria-label="Navegação semanal da grade">
+                <a href="{% url 'schedule_weekly' class_obj.pk %}?as_of={{ previous_week|date:'Y-m-d' }}" class="btn btn-outline-secondary btn-sm" aria-label="Semana anterior" title="Semana anterior" hx-get="{% url 'schedule_weekly' class_obj.pk %}?as_of={{ previous_week|date:'Y-m-d' }}" hx-target="#schedule-matrix-workspace" hx-swap="outerHTML" hx-push-url="{% url 'schedule_weekly' class_obj.pk %}?as_of={{ previous_week|date:'Y-m-d' }}"><i class="feather-chevron-left" aria-hidden="true"></i></a>
+                <a href="{% url 'schedule_weekly' class_obj.pk %}?as_of={{ today|date:'Y-m-d' }}" class="btn btn-outline-secondary btn-sm{% if as_of == today %} active{% endif %}"{% if as_of == today %} aria-current="date"{% endif %} hx-get="{% url 'schedule_weekly' class_obj.pk %}?as_of={{ today|date:'Y-m-d' }}" hx-target="#schedule-matrix-workspace" hx-swap="outerHTML" hx-push-url="{% url 'schedule_weekly' class_obj.pk %}?as_of={{ today|date:'Y-m-d' }}">Hoje</a>
+                <a href="{% url 'schedule_weekly' class_obj.pk %}?as_of={{ next_week|date:'Y-m-d' }}" class="btn btn-outline-secondary btn-sm" aria-label="Próxima semana" title="Próxima semana" hx-get="{% url 'schedule_weekly' class_obj.pk %}?as_of={{ next_week|date:'Y-m-d' }}" hx-target="#schedule-matrix-workspace" hx-swap="outerHTML" hx-push-url="{% url 'schedule_weekly' class_obj.pk %}?as_of={{ next_week|date:'Y-m-d' }}"><i class="feather-chevron-right" aria-hidden="true"></i></a>
+            </nav>
+            {% can_access_action "schedule" "create" as can_create_schedule %}
+            {% if can_create_schedule %}
+            <a id="schedule-copy-day-trigger" href="{% url 'schedule_day_copy_form' class_obj.pk %}?as_of={{ as_of|date:'Y-m-d' }}" class="btn btn-outline-primary btn-sm" data-sm-schedule-copy-modal hx-get="{% url 'schedule_day_copy_form' class_obj.pk %}?as_of={{ as_of|date:'Y-m-d' }}" hx-target="#schedule-copy-modal-body" hx-swap="outerHTML"{% if workspace_oob %} autofocus{% endif %}><i class="feather-copy me-1" aria-hidden="true"></i>Copiar dia</a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card-body p-0 sm-viewport-body">
+        <div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Matriz semanal da turma">
+            <table class="table table-hover mb-0 sm-compact-table sm-sticky-table sm-sticky-table--first-column sm-schedule-matrix">
+                <colgroup><col class="sm-schedule-period-column">{% for day in week_days %}<col>{% endfor %}</colgroup>
+                <thead><tr><th scope="col">Período</th>{% for day in week_days %}<th scope="col">{{ day.label }} ({{ day.date|date:"d/m" }})</th>{% endfor %}</tr></thead>
+                <tbody>{% for row in matrix_rows %}
+                    <tr><th scope="row">{{ row.time_slot.slot_number }}<br><small class="text-muted">{{ row.time_slot.start_time|time:"H:i" }}–{{ row.time_slot.end_time|time:"H:i" }}</small></th>
+                    {% for cell in row.cells %}<td>{% include "agenda/partials/schedule_matrix_cell.html" with schedule=cell.schedule day_of_week=cell.day_of_week time_slot_id=row.time_slot.pk %}</td>{% endfor %}
+                    </tr>
+                {% empty %}<tr><td colspan="6" class="text-center text-muted py-4">Não existem períodos cadastrados para o turno {{ class_obj.get_shift_display }} desta turma.</td></tr>{% endfor %}</tbody>
+            </table>
+        </div>
+    </div>
+</div>

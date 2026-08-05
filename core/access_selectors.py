@@ -1,6 +1,7 @@
 """Consultas read-only de propriedade usadas pelas políticas de acesso."""
 
 from django.db.models import Q
+from django.utils import timezone
 
 
 class ObjectAccessSelector:
@@ -30,15 +31,21 @@ class ObjectAccessSelector:
         ).exists()
 
     @staticmethod
-    def teacher_can_access_class(user_id, class_id) -> bool:
+    def teacher_can_access_class(user_id, class_id, on_date=None) -> bool:
         """Confirma responsabilidade ou horário do professor na turma."""
         from classes.contracts import Class
 
-        return (
-            Class.objects.filter(pk=class_id)
-            .filter(Q(class_teacher__user_id=user_id) | Q(schedules__teacher__user_id=user_id))
-            .exists()
-        )
+        reference_date = on_date or timezone.localdate()
+        schedule_scope = Q(
+            schedules__teacher__user_id=user_id,
+            schedules__is_active=True,
+            schedules__deleted_at__isnull=True,
+            schedules__valid_from__lte=reference_date,
+        ) & (Q(schedules__valid_until__isnull=True) | Q(schedules__valid_until__gte=reference_date))
+        return Class.objects.filter(
+            Q(class_teacher__user_id=user_id) | schedule_scope,
+            pk=class_id,
+        ).exists()
 
     @staticmethod
     def teacher_can_access_teacher(user_id, teacher_id) -> bool:
@@ -57,6 +64,8 @@ class ObjectAccessSelector:
                 teacher_id=teacher_id,
                 class_obj_id=class_id,
                 subject_id=subject_id,
+                is_active=True,
+                deleted_at__isnull=True,
                 valid_from__lte=on_date,
             )
             .filter(Q(valid_until__isnull=True) | Q(valid_until__gte=on_date))
@@ -72,10 +81,14 @@ class ObjectAccessSelector:
 
     @staticmethod
     def teacher_can_access_subject(user_id, subject_id) -> bool:
-        """Confirma que a disciplina está atribuída ao professor."""
+        """Confirma que a disciplina não excluída está atribuída ao professor."""
         from teachers.contracts import Subject
 
-        return Subject.objects.filter(pk=subject_id, teachers__user_id=user_id).exists()
+        return Subject.all_objects.filter(
+            pk=subject_id,
+            deleted_at__isnull=True,
+            teachers__user_id=user_id,
+        ).exists()
 
     @staticmethod
     def teacher_can_access_attendance(user_id, record_id) -> bool:
@@ -91,9 +104,18 @@ class ObjectAccessSelector:
 
         from classes.contracts import Enrollment
 
+        today = timezone.localdate()
+        schedule_scope = Q(
+            class_obj__schedules__teacher__user_id=user_id,
+            class_obj__schedules__is_active=True,
+            class_obj__schedules__deleted_at__isnull=True,
+            class_obj__schedules__valid_from__lte=today,
+        ) & (
+            Q(class_obj__schedules__valid_until__isnull=True)
+            | Q(class_obj__schedules__valid_until__gte=today)
+        )
         return Enrollment.objects.filter(
-            Q(class_obj__class_teacher__user_id=user_id)
-            | Q(class_obj__schedules__teacher__user_id=user_id),
+            Q(class_obj__class_teacher__user_id=user_id) | schedule_scope,
             student_id=student_id,
             status=Enrollment.Status.ACTIVE,
         ).exists()

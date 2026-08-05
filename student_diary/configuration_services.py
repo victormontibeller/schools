@@ -33,8 +33,8 @@ class RoutineConfigurationServiceMixin:
         return category
 
     def update_routine_aspect(self, category_id, data: dict):
-        """Atualiza os campos configuráveis de um item."""
-        from student_diary.models import DiaryCategory
+        """Atualiza os campos e a disponibilidade de um item."""
+        from student_diary.models import DiaryCategory, DiaryOption
 
         category = self._get_category(category_id)
         self._assert_expected_version(category, data.get("version"))
@@ -45,6 +45,15 @@ class RoutineConfigurationServiceMixin:
         if section not in DiaryCategory.Section.values:
             raise ValidationError(errors={"section": ["Selecione uma seção válida."]})
         shifts = self._category_shift_values(data, category=category)
+        is_enabled = bool(data.get("is_enabled", category.is_enabled))
+        has_available_option = DiaryOption.objects.filter(
+            category=category,
+            is_enabled=True,
+        ).exists()
+        if is_enabled and not has_available_option:
+            raise BusinessRuleViolationError(
+                "Cadastre ao menos uma opção disponível antes de ativar o item."
+            )
         old = self._snapshot(
             category,
             [
@@ -52,15 +61,16 @@ class RoutineConfigurationServiceMixin:
                 "section",
                 "display_order",
                 "is_required",
+                "is_enabled",
                 "applies_morning",
                 "applies_afternoon",
-                "applies_full",
             ],
         )
         category.name = name
         category.section = section
         category.display_order = int(data.get("display_order", category.display_order))
         category.is_required = bool(data.get("is_required", False))
+        category.is_enabled = is_enabled
         for field, value in shifts.items():
             setattr(category, field, value)
         category.updated_by = self.user
@@ -70,43 +80,15 @@ class RoutineConfigurationServiceMixin:
                 "section",
                 "display_order",
                 "is_required",
+                "is_enabled",
                 "applies_morning",
                 "applies_afternoon",
-                "applies_full",
                 "updated_by",
                 "updated_at",
             ]
         )
         self._record_audit("UPDATE", category, old_values=old)
         self._log("item_agenda_atualizado", category_id=str(category.pk))
-        return category
-
-    def set_routine_aspect_enabled(
-        self, category_id, enabled: bool, expected_version: int | None = None
-    ):
-        """Ativa ou desativa um item configurável."""
-        from student_diary.models import DiaryOption
-
-        category = self._get_category(category_id)
-        self._assert_expected_version(category, expected_version)
-        if enabled and not any(
-            (category.applies_morning, category.applies_afternoon, category.applies_full)
-        ):
-            raise BusinessRuleViolationError("Selecione ao menos um turno antes de ativar o item.")
-        if enabled and not DiaryOption.objects.filter(category=category, is_enabled=True).exists():
-            raise BusinessRuleViolationError(
-                "Cadastre ao menos uma opção disponível antes de ativar o item."
-            )
-        old = self._snapshot(category, ["is_enabled"])
-        category.is_enabled = bool(enabled)
-        category.updated_by = self.user
-        category.save(update_fields=["is_enabled", "updated_by", "updated_at"])
-        self._record_audit("UPDATE", category, old_values=old)
-        self._log(
-            "item_agenda_alterado",
-            category_id=str(category.pk),
-            enabled=category.is_enabled,
-        )
         return category
 
     def create_routine_option(self, category_id, data: dict):
@@ -140,7 +122,6 @@ class RoutineConfigurationServiceMixin:
         defaults = {
             "applies_morning": getattr(category, "applies_morning", True),
             "applies_afternoon": getattr(category, "applies_afternoon", True),
-            "applies_full": getattr(category, "applies_full", True),
         }
         values = {field: bool(data.get(field, default)) for field, default in defaults.items()}
         if not any(values.values()):

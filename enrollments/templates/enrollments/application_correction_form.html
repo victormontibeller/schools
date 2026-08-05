@@ -1,0 +1,5 @@
+{% extends "entity_form_base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{% url 'enrollment_application_detail' application.pk %}">{{ application.application_number }}</a></li>{% endblock %}
+{% block cancel_url %}{% url 'enrollment_application_detail' application.pk %}{% endblock %}
+{% block form_fields %}<div class="row g-3">{% for field in form %}<div class="col-12{% if field.name != 'notes' %} col-md-6{% endif %}">{% include "partials/form_field.html" with field=field %}</div>{% endfor %}</div>{% endblock %}

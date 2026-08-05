@@ -11,6 +11,7 @@ from base.services import BaseService, system_command
 class MessageDeliveryService(BaseService):
     """Mantém o ciclo de vida auditável de uma tentativa de entrega."""
 
+    @system_command
     def create_pending(
         self,
         *,
@@ -53,32 +54,40 @@ class MessageDeliveryService(BaseService):
         except MessageLog.DoesNotExist:
             raise ObjectNotFoundError("MessageLog", str(message_log_id)) from None
 
+    @system_command
     def record_channel_result(self, message_log_id, result):
         """Atualiza o log sem regredir um webhook já processado."""
         from notifications.contracts import MessageLog
 
         try:
-            message_log = MessageLog.objects.get(pk=message_log_id)
+            message_log = MessageLog.objects.select_for_update().get(pk=message_log_id)
         except MessageLog.DoesNotExist:
             raise ObjectNotFoundError("MessageLog", str(message_log_id)) from None
         old = self._snapshot(
             message_log,
             ["status", "provider_message_id", "error_message", "sent_at"],
         )
+        update_fields = set()
         if result.provider_message_id and not message_log.provider_message_id:
             message_log.provider_message_id = result.provider_message_id
-        if result.success:
-            if message_log.status == MessageLog.Status.PENDING:
+            update_fields.add("provider_message_id")
+        if message_log.status == MessageLog.Status.PENDING:
+            if result.success:
                 message_log.status = MessageLog.Status.SENT
-            message_log.sent_at = message_log.sent_at or timezone.now()
-            message_log.error_message = ""
-        else:
-            message_log.error_message = result.error_message
-            if not result.retryable:
-                message_log.status = MessageLog.Status.FAILED
-        message_log.updated_by = self.user
-        message_log.save()
-        self._record_audit("UPDATE", message_log, old_values=old)
+                message_log.sent_at = message_log.sent_at or timezone.now()
+                message_log.error_message = ""
+                update_fields.update({"status", "sent_at", "error_message"})
+            else:
+                message_log.error_message = result.error_message
+                update_fields.add("error_message")
+                if not result.retryable:
+                    message_log.status = MessageLog.Status.FAILED
+                    update_fields.add("status")
+        if update_fields:
+            message_log.updated_by = self.user
+            update_fields.add("updated_by")
+            message_log.save(update_fields=update_fields)
+            self._record_audit("UPDATE", message_log, old_values=old)
         self._log(
             "message_delivery_result",
             message_log_id=str(message_log.pk),

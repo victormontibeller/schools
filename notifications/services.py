@@ -17,7 +17,7 @@ from base.exceptions import (
     ValidationError,
 )
 from base.repositories import BaseRepository
-from base.services import BaseService
+from base.services import BaseService, system_command
 
 if TYPE_CHECKING:
     from notifications.contracts import Announcement, MessageTemplate, Notification
@@ -61,6 +61,7 @@ class NotificationService(BaseService):
             raise PermissionDeniedError("Ator autenticado obrigatório para esta operação.")
         return self.user.pk
 
+    @system_command
     def create_notification(self, data: dict) -> Notification:
         """Cria uma notificacao para um usuario e registra auditoria.
 
@@ -144,6 +145,7 @@ class NotificationService(BaseService):
         self._log("notifications_marked_as_read", count=count)
         return count
 
+    @system_command
     def create_notifications_bulk(self, recipient_ids: list, data: dict) -> int:
         """Cria notificacoes em lote mantendo autoria, auditoria e log estruturado."""
         from notifications.contracts import Notification

@@ -14,7 +14,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 django.setup()
 
-from core.ui_contracts import check_ui_contracts  # noqa: E402
+from core.ui_contract_checker import check_ui_contracts  # noqa: E402
 
 
 def main() -> int:

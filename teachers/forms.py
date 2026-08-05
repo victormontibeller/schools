@@ -10,18 +10,26 @@ class SubjectForm(forms.ModelForm):
 
     class Meta:
         model = Subject
-        fields = ["name", "code", "workload"]
+        fields = ["name", "code", "workload", "is_active"]
         widgets = {
             "name": forms.TextInput(attrs={"class": "form-control"}),
             "code": forms.TextInput(attrs={"class": "form-control"}),
             "workload": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
+            "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
-        labels = {"name": "Nome", "code": "Código", "workload": "Carga Horária (h/ano)"}
+        labels = {
+            "name": "Nome",
+            "code": "Código",
+            "workload": "Carga Horária (h/ano)",
+            "is_active": "Ativa",
+        }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, include_status: bool = False, **kwargs):
         super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            field.required = True
+        if not include_status:
+            self.fields.pop("is_active")
+        for field_name in ("name", "code", "workload"):
+            self.fields[field_name].required = True
 
 
 class TeacherForm(forms.Form):
@@ -149,8 +157,11 @@ class TeacherEditForm(forms.Form):
         label="Sobrenome",
         widget=forms.TextInput(attrs={"class": "form-control", "data_grid": "col-12 col-md-6"}),
     )
-    email = forms.EmailField(
-        label="E-mail", widget=forms.EmailInput(attrs={"class": "form-control"})
+    email_display = forms.EmailField(
+        required=False,
+        disabled=True,
+        label="E-mail",
+        widget=forms.EmailInput(attrs={"class": "form-control", "data_grid": "col-12 col-lg-6"}),
     )
     avatar = forms.ImageField(
         required=False,
@@ -200,7 +211,7 @@ class TeacherEditForm(forms.Form):
         max_length=20,
         required=False,
         label="RG — Numero",
-        widget=forms.TextInput(attrs={"class": "form-control", "data_grid": "col-12 col-md-4"}),
+        widget=forms.TextInput(attrs={"class": "form-control", "data_grid": "col-12 col-md-6"}),
     )
     phone_mobile = forms.CharField(
         max_length=20,
@@ -217,12 +228,16 @@ class TeacherEditForm(forms.Form):
     accepts_email_notifications = forms.BooleanField(
         required=False,
         label="Aceita notificações por e-mail",
-        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        widget=forms.CheckboxInput(
+            attrs={"class": "form-check-input", "data_grid": "col-12 col-md-6"}
+        ),
     )
     accepts_whatsapp_notifications = forms.BooleanField(
         required=False,
         label="Aceita notificações por WhatsApp",
-        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        widget=forms.CheckboxInput(
+            attrs={"class": "form-check-input", "data_grid": "col-12 col-md-6"}
+        ),
     )
 
     def __init__(self, *args, **kwargs):

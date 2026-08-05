@@ -5,17 +5,31 @@ from django.contrib import admin
 from agenda.models import Schedule, TimeSlot
 
 
-@admin.register(TimeSlot)
-class TimeSlotAdmin(admin.ModelAdmin):
-    """Admin para horários — listagem por dia e slot_number."""
+class _ReadOnlyDomainAdmin(admin.ModelAdmin):
+    """Mantém consulta no Admin sem contornar os services auditáveis."""
 
-    list_display = ["day_of_week", "slot_number", "start_time", "end_time"]
-    list_filter = ["day_of_week"]
-    ordering = ["day_of_week", "slot_number"]
+    actions = None
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(TimeSlot)
+class TimeSlotAdmin(_ReadOnlyDomainAdmin):
+    """Admin para períodos por turno — listagem cronológica."""
+
+    list_display = ["slot_number", "shift", "start_time", "end_time"]
+    ordering = ["start_time", "end_time", "slot_number"]
 
 
 @admin.register(Schedule)
-class ScheduleAdmin(admin.ModelAdmin):
+class ScheduleAdmin(_ReadOnlyDomainAdmin):
     """Admin para itens da grade — filtros por turma/professor/disciplina."""
 
     list_display = [
@@ -24,6 +38,7 @@ class ScheduleAdmin(admin.ModelAdmin):
         "subject",
         "room",
         "time_slot",
+        "day_of_week",
         "valid_from",
         "valid_until",
     ]

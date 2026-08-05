@@ -1,6 +1,7 @@
 """Testes de integracao das views de disciplinas."""
 
 import pytest
+from django.utils import timezone
 
 from base.tests.images import png_upload
 from core.models import CustomUser
@@ -26,6 +27,23 @@ class TestSubjectViews:
         resp = force_login_client.get("/subjects/")
         assert resp.status_code == 200
         assert b"Disciplinas" in resp.content
+
+    def test_subjects_list_includes_inactive_subjects_with_status(self, force_login_client):
+        Subject.all_objects.create(name="Inativa", code="INAT", workload=40, is_active=False)
+        Subject.all_objects.create(
+            name="Removida",
+            code="REM",
+            workload=40,
+            is_active=False,
+            deleted_at=timezone.now(),
+        )
+
+        response = force_login_client.get("/subjects/")
+
+        assert response.status_code == 200
+        assert b"Inativa" in response.content
+        assert b"Inativa</span>" in response.content
+        assert b"Removida" not in response.content
 
     def test_subject_create_get_renders_form(self, force_login_client):
         resp = force_login_client.get("/subjects/novo/")
@@ -55,16 +73,52 @@ class TestSubjectViews:
 
     def test_subject_edit_post_updates_and_redirects(self, force_login_client):
         sub = self._make_subject(code="FIS-UPD")
-        data = {"name": "Fisica Avancada", "code": "FIS-UPD", "workload": 80}
+        data = {
+            "name": "Fisica Avancada",
+            "code": "FIS-UPD",
+            "workload": 80,
+            "is_active": "on",
+        }
         resp = force_login_client.post(f"/subjects/{sub.pk}/editar/", data)
         assert resp.status_code == 302
         sub.refresh_from_db()
         assert sub.name == "Fisica Avancada"
+        assert sub.is_active is True
 
-    def test_subject_deactivate_post_redirects(self, force_login_client):
-        sub = self._make_subject(code="FIS-DEA")
-        resp = force_login_client.post(f"/subjects/{sub.pk}/desativar/")
-        assert resp.status_code == 302
+    def test_subject_edit_switches_active_status_without_separate_action(self, force_login_client):
+        subject = self._make_subject(code="FIS-STA")
+
+        form_response = force_login_client.get(
+            f"/subjects/{subject.pk}/editar/",
+            HTTP_HX_REQUEST="true",
+        )
+        deactivate_response = force_login_client.post(
+            f"/subjects/{subject.pk}/editar/",
+            {"name": "Teste", "code": "FIS-STA", "workload": 40},
+            HTTP_HX_REQUEST="true",
+        )
+
+        subject.refresh_from_db()
+        assert b'name="is_active"' in form_response.content
+        assert b"Desativar" not in form_response.content
+        assert deactivate_response.status_code == 200
+        assert subject.is_active is False
+        assert b"Inativa" in deactivate_response.content
+
+        reactivate_response = force_login_client.post(
+            f"/subjects/{subject.pk}/editar/",
+            {
+                "name": "Teste",
+                "code": "FIS-STA",
+                "workload": 40,
+                "is_active": "on",
+            },
+            HTTP_HX_REQUEST="true",
+        )
+
+        subject.refresh_from_db()
+        assert reactivate_response.status_code == 200
+        assert subject.is_active is True
 
 
 @pytest.mark.django_db
@@ -102,6 +156,10 @@ class TestTeacherInlineEditing:
         assert response.status_code == 200
         assert b'hx-target="#teacher-information-card"' in response.content
         assert b'hx-target="#teacher-subjects-card"' in response.content
+        assert b"sm-profile-hero" in response.content
+        assert b"avatar-text" in response.content
+        assert teacher.full_name.encode() in response.content
+        assert teacher.email.encode() in response.content
 
     def test_edit_get_returns_only_component_for_htmx(self, force_login_client, user):
         teacher = self._make_teacher(user)
@@ -114,6 +172,12 @@ class TestTeacherInlineEditing:
         assert response.status_code == 200
         assert b"Informa" in response.content
         assert b"sm-profile-avatar-edit" in response.content
+        assert b"sm-profile-avatar-input" in response.content
+        assert teacher.full_name.encode() in response.content
+        assert teacher.email.encode() in response.content
+        assert b'name="email"' not in response.content
+        assert b'name="email_display"' in response.content
+        assert b"disabled" in response.content
         assert b"<html" not in response.content
 
     def test_edit_post_updates_and_returns_card_for_htmx(self, force_login_client, user):
@@ -125,7 +189,7 @@ class TestTeacherInlineEditing:
             {
                 "first_name": "Ana",
                 "last_name": "Pereira",
-                "email": "inline-teacher@example.com",
+                "email_display": "email-nao-deve-ser-alterado@example.com",
                 "registration_number": "INLINE-002",
                 "hire_date": "2025-01-15",
                 "birth_date": "1990-05-20",
@@ -147,6 +211,7 @@ class TestTeacherInlineEditing:
         teacher.user.refresh_from_db()
         assert teacher.registration_number.startswith("PRO-")
         assert teacher.user.first_name == "Ana"
+        assert teacher.user.email == "inline-teacher@example.com"
         assert b"atualizadas com sucesso" in response.content
 
     def test_subjects_post_replaces_links_and_returns_card(self, force_login_client, user):

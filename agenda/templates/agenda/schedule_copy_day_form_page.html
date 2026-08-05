@@ -1,0 +1,20 @@
+{% extends "page_shell_base.html" %}
+
+{% block title %}{{ title }} — {{ class_obj.name }}{% endblock %}
+{% block page_heading %}{{ title }}{% endblock %}
+{% block page_breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+<li class="breadcrumb-item"><a href="{% url 'classes_list' %}">Turmas</a></li>
+<li class="breadcrumb-item"><a href="{% url 'class_detail' class_obj.pk %}">{{ class_obj.name }}</a></li>
+<li class="breadcrumb-item"><a href="{{ cancel_url }}">Grade</a></li>
+<li class="breadcrumb-item active">{{ title }}</li>
+{% endblock %}
+{% block page_content %}
+<div class="card sm-detail-card">
+    <div class="card-header">
+        <h6 class="card-title mb-1">{{ title }}</h6>
+        <p class="small text-muted mb-0">Turma: {{ class_obj.name }} · Semana de {{ as_of|date:"d/m/Y" }}</p>
+    </div>
+    <div class="card-body">{% include "agenda/partials/schedule_copy_day_form.html" %}</div>
+</div>
+{% endblock %}

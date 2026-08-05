@@ -135,6 +135,7 @@ def guardian_edit(request, pk):
         request.FILES or None,
         initial=initial,
         require_version=True,
+        email_editable=False,
     )
     if request.method == "POST" and form.is_valid():
         try:

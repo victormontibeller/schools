@@ -32,16 +32,25 @@ c.post(
     **HOST,
 )
 
-from activities.models import Activity
+from activities.models import Activity, ActivitySubmission
+from agenda.models import TimeSlot
 from classes.models import Class
+from enrollments.models import EnrollmentApplication
+from enrollments.services import EnrollmentApplicationService
 from students.models import Student
 from teachers.models import Subject, Teacher
 
 cls = Class.objects.get(name="6º A", academic_year=2026)
 teacher = Teacher.objects.get()
 subject = Subject.objects.get(code="MAT")
-stu2 = Student.objects.get(enrollment_number="2026002")
-act = Activity.objects.first()
+stu2, _ = Student.objects.get_or_create(
+    enrollment_number="SMOKE-MATRICULA",
+    defaults={
+        "first_name": "Aluno",
+        "last_name": "Smoke",
+        "birth_date": dt.date(2014, 1, 1),
+    },
+)
 
 # 1. Criar nova turma (ModelForm com dropdown de professor)
 show(
@@ -67,18 +76,44 @@ show(
     "POST time_slot_create",
     c.post(
         reverse("time_slot_create"),
-        {"day_of_week": "TUE", "slot_number": 2, "start_time": "09:10", "end_time": "10:00"},
+        {
+            "slot_number": 2,
+            "shift": TimeSlot.Shift.MORNING,
+            "start_time": "09:10",
+            "end_time": "10:00",
+        },
         **HOST,
     ),
 )
 
-# 3. Matricular 2º aluno na turma
+# 3. Abrir solicitação (todo vínculo nasce pelo workflow da Secretaria)
 show(
-    "POST class_enroll",
+    "POST enrollment_application_create",
     c.post(
-        reverse("class_enroll", kwargs={"class_id": cls.pk}), {"student_id": str(stu2.pk)}, **HOST
+        reverse("enrollment_application_create"),
+        {
+            "student_id": str(stu2.pk),
+            "target_class_id": str(cls.pk),
+            "application_type": "NEW",
+            "priority": 0,
+            "notes": "",
+        },
+        **HOST,
     ),
 )
+application = EnrollmentApplication.objects.get(
+    student=stu2,
+    target_class=cls,
+    status=EnrollmentApplication.Status.PRE_ENROLLMENT,
+)
+enrollment_service = EnrollmentApplicationService(user=application.created_by)
+application = enrollment_service.submit_application(
+    application.pk, expected_version=application.version
+)
+application = enrollment_service.approve_application(
+    application.pk, expected_version=application.version
+)
+enrollment_service.finalize_application(application.pk, expected_version=application.version)
 
 # 4. Criar atividade
 show(
@@ -102,11 +137,19 @@ show(
 print("Atividades agora:", Activity.objects.count())
 
 # 5. Lançar nota
+act = Activity.objects.order_by("-created_at").first()
+submission = ActivitySubmission.objects.get(activity=act, student=stu2)
+score_prefix = f"submission-{submission.pk}"
 show(
     "POST activity_record_score",
     c.post(
         reverse("activity_record_score", kwargs={"pk": act.pk}),
-        {"student": str(stu2.pk), "score": "8.50", "feedback": "Bom."},
+        {
+            f"{score_prefix}-score": "8.50",
+            f"{score_prefix}-feedback": "Bom.",
+            f"{score_prefix}-submission_id": str(submission.pk),
+            f"{score_prefix}-version": str(submission.version),
+        },
         **HOST,
     ),
 )

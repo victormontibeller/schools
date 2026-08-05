@@ -1,105 +1,163 @@
-"""Views HTMX para secretaria — matriculas, rematriculas e transferencias."""
-
-import logging
+"""Orquestração HTTP do workflow interno de matrículas."""
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
 from django.shortcuts import redirect, render
 
 from base.exceptions import (
     BusinessRuleViolationError,
     ObjectNotFoundError,
-    PermissionDeniedError,
     ValidationError,
 )
 from base.forms import apply_validation_errors
-from base.listing import build_querystring, resolve_listing_state
-from base.media import private_file_response
-from enrollments.contracts import EnrollmentApplication
+from base.listing import build_listing_tabs, build_querystring
+from base.parsers import parse_optional_int, parse_optional_uuid
+from core.access_catalog import CREATE, EDIT, VIEW
+from core.permissions import access_policy
+from enrollments.contracts import EnrollmentApplication, StudentDocument
 from enrollments.forms import (
-    BulkReenrollForm,
+    EnrollmentApplicationCorrectionForm,
     EnrollmentApplicationForm,
-    StudentDocumentForm,
+)
+from enrollments.presentation import (
+    application_detail_context,
+    application_form_choices,
+    class_choices,
 )
 from enrollments.selectors import EnrollmentApplicationSelector
-from enrollments.services import EnrollmentApplicationService, StudentDocumentService
+from enrollments.services import (
+    EnrollmentApplicationService,
+    EnrollmentReminderService,
+)
 
-logger = logging.getLogger(__name__)
-
-APPLICATION_TABS = [
-    {
-        "id": "pre-matricula",
-        "label": "Pre-Matricula",
-        "status": EnrollmentApplication.Status.PRE_ENROLLMENT,
-    },
-    {"id": "analise", "label": "Em Analise", "status": EnrollmentApplication.Status.UNDER_REVIEW},
-    {"id": "aprovados", "label": "Aprovados", "status": EnrollmentApplication.Status.APPROVED},
-    {
-        "id": "matriculados",
-        "label": "Matriculados",
-        "status": EnrollmentApplication.Status.ENROLLED,
-    },
-    {"id": "recusados", "label": "Recusados", "status": EnrollmentApplication.Status.REJECTED},
-]
+APPLICATION_TABS = (
+    ("pre-matriculas", "Pré-matrículas", [EnrollmentApplication.Status.PRE_ENROLLMENT]),
+    ("correcoes", "Correções", [EnrollmentApplication.Status.CORRECTION_REQUIRED]),
+    ("analise", "Em análise", [EnrollmentApplication.Status.UNDER_REVIEW]),
+    ("espera", "Lista de espera", [EnrollmentApplication.Status.WAITLISTED]),
+    ("aprovadas", "Aprovadas", [EnrollmentApplication.Status.APPROVED]),
+    ("matriculadas", "Matriculadas", [EnrollmentApplication.Status.ENROLLED]),
+    ("transferidas", "Transferidas", [EnrollmentApplication.Status.TRANSFERRED]),
+    (
+        "encerradas",
+        "Encerradas",
+        [EnrollmentApplication.Status.REJECTED, EnrollmentApplication.Status.CANCELLED],
+    ),
+)
 
 
 @login_required
-def secretary_dashboard(request):
-    """Tela unica de secretaria com tabs por etapa do processo."""
-    tab = request.GET.get("tab", "pre-matricula")
-    state = resolve_listing_state(
-        request,
-        scope="secretary",
-        allowed_sorts={"name", "-name", "created_at", "-created_at"},
-        default_sort="-created_at",
-    )
-    search = state["q"]
-
-    tab_map = {t["id"]: t["status"] for t in APPLICATION_TABS}
-    status = tab_map.get(tab, EnrollmentApplication.Status.PRE_ENROLLMENT)
-
+@access_policy("enrollments", VIEW)
+def enrollment_application_list(request):
+    """Exibe listagem canônica com abas, contadores e filtros persistíveis."""
     selector = EnrollmentApplicationSelector()
-    if status in (
-        EnrollmentApplication.Status.PRE_ENROLLMENT,
-        EnrollmentApplication.Status.UNDER_REVIEW,
-    ):
-        result = selector.list_pending_review(search=search, page=state["page"])
-    else:
-        result = selector.list_by_status(status=status, search=search, page=state["page"])
-
-    ctx = {
+    requested_tab = request.GET.get("tab", APPLICATION_TABS[0][0])
+    tab_definition = next(
+        (item for item in APPLICATION_TABS if item[0] == requested_tab), APPLICATION_TABS[0]
+    )
+    tab = tab_definition[0]
+    search = request.GET.get("q", "").strip()
+    year = parse_optional_int(request.GET.get("academic_year"))
+    normalized_class_id = parse_optional_uuid(request.GET.get("class_id"))
+    class_id = str(normalized_class_id) if normalized_class_id else ""
+    result = selector.list_applications(
+        statuses=tab_definition[2],
+        search=search,
+        academic_year=year,
+        class_id=normalized_class_id,
+        application_type=request.GET.get("application_type", ""),
+        document_status=request.GET.get("document_status", ""),
+        page=parse_optional_int(request.GET.get("page")) or 1,
+    )
+    counts = selector.status_counts()
+    filter_values = {
+        key: value
+        for key, value in {
+            "q": search,
+            "academic_year": year or "",
+            "class_id": class_id,
+            "application_type": request.GET.get("application_type", ""),
+            "document_status": request.GET.get("document_status", ""),
+        }.items()
+        if value not in (None, "")
+    }
+    tab_counts = {
+        item[0]: sum(counts.get(status, 0) for status in item[2]) for item in APPLICATION_TABS
+    }
+    list_query_values = {**filter_values, "tab": tab}
+    is_htmx = bool(request.headers.get("HX-Request"))
+    context = {
         "result": result,
-        "q": search,
         "tab": tab,
-        "tabs": APPLICATION_TABS,
-        "list_query": build_querystring({"q": search, "tab": tab}),
+        "list_tabs": build_listing_tabs(
+            choices=((item[0], item[1]) for item in APPLICATION_TABS),
+            active=tab,
+            parameter="tab",
+            preserved_params=filter_values,
+            counts=tab_counts,
+        ),
+        "list_tabs_label": "Etapas da matrícula",
+        "q": search,
+        "academic_year": year or "",
+        "class_id": class_id,
+        "application_type": request.GET.get("application_type", ""),
+        "document_status": request.GET.get("document_status", ""),
+        "application_types": EnrollmentApplication.ApplicationType.choices,
+        "document_statuses": StudentDocument.Status.choices,
+        "classes": class_choices(raw=True),
+        "clear_query": build_querystring(
+            {key: value for key, value in list_query_values.items() if key != "q"}
+        ),
+        "list_query": build_querystring(list_query_values),
+        "list_hidden_fields": [
+            {"name": key, "value": value} for key, value in list_query_values.items() if key != "q"
+        ],
+        "list_filters_template": "enrollments/partials/application_list_filters.html",
+        "list_table_template": "enrollments/partials/applications_table.html",
+        "pagination_target": "#applications-table",
+        "pagination_swap": "outerHTML",
+        "pagination_push_url": True,
+        "is_htmx": is_htmx,
         "breadcrumb_items": [
             {"label": "Home", "url": "dashboard"},
-            {"label": "Secretaria", "url": None},
+            {"label": "Matrículas", "url": None},
         ],
     }
-    if request.headers.get("HX-Request"):
-        return render(request, "enrollments/partials/applications_table.html", ctx)
-    return render(request, "enrollments/secretary_dashboard.html", ctx)
+    if is_htmx:
+        return render(request, "partials/tabbed_list_card.html", context)
+    return render(request, "enrollments/application_list.html", context)
 
 
 @login_required
-def application_create(request):
-    """Processa o formulario de criacao de solicitacao de matricula."""
-    form = EnrollmentApplicationForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
+@access_policy("enrollments", CREATE)
+def enrollment_application_create(request):
+    """Cria solicitação para aluno já cadastrado."""
+    selected_student_id = request.GET.get("student") or request.POST.get("student_id")
+    student_search = request.POST.get("student_search", "").strip()
+    kwargs = application_form_choices(selected_student_id, student_search=student_search)
+    is_search = request.method == "POST" and request.POST.get("form_action") == "search"
+    initial = {
+        "target_class_id": request.POST.get("target_class_id") or request.GET.get("class", ""),
+        "student_id": selected_student_id or "",
+        "application_type": request.POST.get("application_type", ""),
+        "source_enrollment_id": request.POST.get("source_enrollment_id", ""),
+        "origin_school": request.POST.get("origin_school", ""),
+        "destination_school": request.POST.get("destination_school", ""),
+        "priority": request.POST.get("priority", 0),
+        "notes": request.POST.get("notes", ""),
+    }
+    form = EnrollmentApplicationForm(
+        None if is_search else request.POST or None,
+        initial=initial,
+        **kwargs,
+    )
+    if request.method == "POST" and not is_search and form.is_valid():
         try:
-            data = form.cleaned_data.copy()
-            student = data.pop("student", None)
-            class_obj = data.pop("class_obj", None)
-            previous_class = data.pop("previous_class", None)
-            data["student_id"] = student.pk if student else None
-            data["class_obj_id"] = class_obj.pk if class_obj else None
-            data["previous_class_id"] = previous_class.pk if previous_class else None
-            EnrollmentApplicationService(user=request.user).create_application(data)
-            messages.success(request, "Solicitacao de matricula criada com sucesso.")
-            return redirect("secretary_dashboard")
+            application = EnrollmentApplicationService(user=request.user).create_application(
+                form.cleaned_data
+            )
+            messages.success(request, "Solicitação criada com sucesso.")
+            return redirect("enrollment_application_detail", pk=application.pk)
         except ValidationError as exc:
             apply_validation_errors(form, exc)
         except (ObjectNotFoundError, BusinessRuleViolationError) as exc:
@@ -107,247 +165,131 @@ def application_create(request):
     return render(
         request,
         "enrollments/application_form.html",
-        {"form": form, "title": "Nova Solicitacao de Matricula"},
+        {
+            "form": form,
+            "title": "Nova solicitação de matrícula",
+            "student_search": student_search,
+        },
     )
 
 
 @login_required
-def application_detail(request, pk):
-    """Exibe detalhes da solicitacao de matricula e seus documentos."""
-    application = EnrollmentApplicationSelector().get_application_by_id(pk)
-    documents = EnrollmentApplicationSelector().get_documents(application.pk)
+@access_policy("enrollments", CREATE)
+def enrollment_student_search(request):
+    """Retorna opções HTMX para a busca de aluno, mantendo fallback server-side."""
+    from students.selectors import StudentSelector
+
+    result = StudentSelector().list_students(search=request.GET.get("q", "").strip(), page_size=50)
+    return render(request, "enrollments/partials/student_options.html", {"students": result.items})
+
+
+@login_required
+@access_policy("enrollments", VIEW)
+def enrollment_application_detail(request, pk):
+    """Exibe processo, vagas, checklist e histórico em grade 5/7."""
+    detail = EnrollmentApplicationSelector().get_application_detail(pk)
     return render(
         request,
         "enrollments/application_detail.html",
-        {
-            "application": application,
-            "documents": documents,
-            "breadcrumb_items": [
-                {"label": "Home", "url": "dashboard"},
-                {"label": "Secretaria", "url": "secretary_dashboard"},
-                {"label": application.application_number, "url": None},
-            ],
-        },
+        application_detail_context(detail),
     )
 
 
 @login_required
-def application_review(request, pk):
-    """Acoes de revisao: aprovar, recusar ou solicitar correcao."""
+@access_policy("enrollments", EDIT)
+def enrollment_application_correct(request, pk):
+    """Edita os campos compatíveis com o tipo usando fallback GET/POST completo."""
     application = EnrollmentApplicationSelector().get_application_by_id(pk)
-
-    if request.method == "POST":
-        action = request.POST.get("action", "")
-        reason = request.POST.get("reason", "")
-        try:
-            svc = EnrollmentApplicationService(user=request.user)
-            if action == "approve":
-                svc.approve_application(pk)
-                messages.success(request, "Solicitacao aprovada.")
-            elif action == "reject":
-                svc.reject_application(pk, reason)
-                messages.success(request, "Solicitacao recusada.")
-            elif action == "request_correction":
-                svc.request_correction(pk, reason)
-                messages.success(request, "Solicitacao de correcao enviada.")
-            else:
-                messages.error(request, "Acao invalida.")
-                return render(
-                    request,
-                    "enrollments/application_review.html",
-                    {"application": application},
-                )
-            return redirect("secretary_dashboard")
-        except BusinessRuleViolationError as exc:
-            messages.error(request, exc.message)
-
-    return render(
-        request,
-        "enrollments/application_review.html",
-        {"application": application},
-    )
-
-
-@login_required
-def application_complete_enrollment(request, pk):
-    """Efetiva a matricula aprovada, criando o registro em classes.Enrollment."""
-    if request.method != "POST":
-        return redirect("application_detail", pk=pk)
-    try:
-        EnrollmentApplicationService(user=request.user).complete_enrollment(pk)
-        messages.success(request, "Matricula efetivada com sucesso.")
-    except BusinessRuleViolationError as exc:
-        messages.error(request, exc.message)
-    return redirect("application_detail", pk=pk)
-
-
-@login_required
-def application_cancel(request, pk):
-    """Cancela uma solicitacao."""
-    if request.method != "POST":
-        return redirect("application_detail", pk=pk)
-    reason = request.POST.get("reason", "")
-    try:
-        EnrollmentApplicationService(user=request.user).cancel_application(pk, reason)
-        messages.success(request, "Solicitacao cancelada.")
-    except BusinessRuleViolationError as exc:
-        messages.error(request, exc.message)
-    return redirect("secretary_dashboard")
-
-
-@login_required
-def bulk_reenroll_view(request):
-    """Tela de rematricula em lote por turma."""
-    if request.method == "POST":
-        form = BulkReenrollForm(request.POST)
-        if form.is_valid():
-            from_class_id = form.cleaned_data["from_class"]
-            to_academic_year = form.cleaned_data["to_academic_year"]
-            try:
-                count = EnrollmentApplicationService(user=request.user).bulk_reenroll(
-                    from_class_id=from_class_id, to_academic_year=to_academic_year
-                )
-                messages.success(
-                    request,
-                    f"Rematricula em lote concluida. {count} solicitacoes criadas.",
-                )
-                return redirect("secretary_dashboard")
-            except (ObjectNotFoundError, BusinessRuleViolationError) as exc:
-                messages.error(request, exc.message)
-    else:
-        form = BulkReenrollForm()
-    return render(
-        request,
-        "enrollments/application_form.html",
-        {
-            "form": form,
-            "title": "Rematricula em Lote",
-            "breadcrumb_items": [
-                {"label": "Home", "url": "dashboard"},
-                {"label": "Secretaria", "url": "secretary_dashboard"},
-                {"label": "Rematricula em Lote", "url": None},
-            ],
+    choices = application_form_choices(application.student_id)
+    form = EnrollmentApplicationCorrectionForm(
+        request.POST or None,
+        initial={
+            "expected_version": application.version,
+            "target_class_id": application.target_class_id or "",
+            "source_enrollment_id": application.source_enrollment_id or "",
+            "origin_school": application.origin_school,
+            "destination_school": application.destination_school,
+            "priority": application.priority,
+            "notes": application.notes,
         },
+        class_choices=choices["class_choices"],
+        enrollment_choices=choices["enrollment_choices"],
     )
-
-
-@login_required
-def document_add(request, application_id=None):
-    """Adiciona documento ao checklist do aluno."""
-    initial = {}
-    if application_id:
-        application = EnrollmentApplicationSelector().get_application_by_id(application_id)
-        initial["application"] = application
-        initial["student"] = application.student
-
-    form = StudentDocumentForm(request.POST or None, request.FILES or None, initial=initial)
     if request.method == "POST" and form.is_valid():
         try:
-            data = form.cleaned_data.copy()
-            student = data.pop("student", None)
-            application_obj = data.pop("application", None)
-            data["student_id"] = student.pk if student else None
-            data["application_id"] = application_obj.pk if application_obj else None
-            StudentDocumentService(user=request.user).add_document(data)
-            messages.success(request, "Documento adicionado.")
-            if application_id:
-                return redirect("application_detail", pk=application_id)
-            return redirect("secretary_dashboard")
+            application = EnrollmentApplicationService(user=request.user).correct_application(
+                pk,
+                form.cleaned_data,
+                expected_version=form.cleaned_data["expected_version"],
+            )
+            messages.success(request, "Solicitação corrigida.")
+            return redirect("enrollment_application_detail", pk=application.pk)
         except ValidationError as exc:
             apply_validation_errors(form, exc)
-        except (ObjectNotFoundError, BusinessRuleViolationError) as exc:
+        except (BusinessRuleViolationError, ObjectNotFoundError) as exc:
             messages.error(request, exc.message)
     return render(
         request,
-        "enrollments/document_form.html",
-        {
-            "form": form,
-            "title": "Adicionar Documento",
-            "application_id": application_id,
-        },
+        "enrollments/application_correction_form.html",
+        {"form": form, "application": application, "title": "Corrigir solicitação"},
     )
 
 
 @login_required
-def document_verify(request, pk):
-    """Marca documento como verificado."""
+@access_policy("enrollments", EDIT)
+def enrollment_application_action(request, pk):
+    """Orquestra as ações contextuais da ficha e atualiza somente o card do processo."""
     if request.method != "POST":
-        return _redirect_back(request)
-    try:
-        StudentDocumentService(user=request.user).verify_document(pk)
-        messages.success(request, "Documento verificado.")
-    except (ObjectNotFoundError, BusinessRuleViolationError) as exc:
-        messages.error(request, exc.message)
-    return _redirect_back(request)
-
-
-@login_required
-def document_reject(request, pk):
-    """Recusa um documento."""
-    if request.method != "POST":
-        return _redirect_back(request)
+        return redirect("enrollment_application_detail", pk=pk)
+    service = EnrollmentApplicationService(user=request.user)
+    action = request.POST.get("action", "")
+    version = parse_optional_int(request.POST.get("expected_version"))
     reason = request.POST.get("reason", "")
     try:
-        StudentDocumentService(user=request.user).reject_document(pk, reason)
-        messages.success(request, "Documento recusado.")
-    except (ObjectNotFoundError, BusinessRuleViolationError) as exc:
+        if action == "submit":
+            service.submit_application(pk, expected_version=version)
+        elif action == "approve":
+            service.approve_application(pk, expected_version=version)
+        elif action == "correction":
+            service.request_correction(pk, reason, expected_version=version)
+        elif action == "reject":
+            service.reject_application(pk, reason, expected_version=version)
+        elif action == "finalize":
+            service.finalize_application(pk, expected_version=version, reason=reason)
+        elif action == "cancel":
+            service.cancel_application(pk, reason, expected_version=version)
+        else:
+            raise ValidationError(errors={"action": ["Ação inválida."]})
+        messages.success(request, "Solicitação atualizada.")
+    except (ValidationError, BusinessRuleViolationError, ObjectNotFoundError) as exc:
         messages.error(request, exc.message)
-    return _redirect_back(request)
-
-
-@login_required
-def document_download(request, pk):
-    """Entrega documento privado após validar RBAC e vínculo com o aluno."""
-    document = EnrollmentApplicationSelector().get_document_by_id(pk)
-    from core.access_catalog import VIEW
-    from core.access_selectors import ObjectAccessSelector
-    from core.permissions import can_access, role_name
-
-    role = role_name(request.user)
-    allowed = can_access(request.user, "enrollments", VIEW)
-    if role == "GUARDIAN":
-        allowed = ObjectAccessSelector.guardian_can_access_student(
-            request.user.pk, document.student_id
-        )
-    elif role == "TEACHER":
-        allowed = ObjectAccessSelector.teacher_can_access_student(
-            request.user.pk, document.student_id
-        )
-    if not allowed:
-        raise PermissionDeniedError("Sem permissão para acessar este documento.")
-    if not document.file:
-        raise ObjectNotFoundError("StudentDocumentFile", str(pk))
-    return private_file_response(document.file, as_attachment=True)
-
-
-@login_required
-def notify_pending_documents(request, student_id):
-    """Dispara notificacao de pendencias documentais para o aluno/responsavel."""
-    if request.method != "POST":
-        return _redirect_back(request)
-    try:
-        from django.db import connection
-
-        from enrollments.tasks import send_pending_documents_notification
-
-        send_pending_documents_notification.delay(
-            tenant_schema=getattr(connection, "schema_name", "public"),
-            student_id=str(student_id),
-        )
-        messages.success(request, "Notificacao de pendencias enviada.")
-    except (ConnectionError, OSError) as exc:
-        logger.warning(
-            "Falha ao enfileirar notificacao de pendencias",
-            extra={"exception_type": type(exc).__name__},
-        )
-        messages.error(request, "Erro ao enviar notificacao. Tente novamente.")
-    return _redirect_back(request)
-
-
-def _redirect_back(request):
-    """Redireciona de volta para a pagina anterior ou para o dashboard da secretaria."""
-    referer = request.headers.get("Referer", "")
-    target = referer or "/app/secretaria/"
     if request.headers.get("HX-Request"):
-        return HttpResponse(status=204, headers={"HX-Redirect": target})
-    return redirect(target)
+        detail = EnrollmentApplicationSelector().get_application_detail(pk)
+        return render(
+            request,
+            "enrollments/partials/application_process_card.html",
+            application_detail_context(detail, htmx_messages=True),
+        )
+    return redirect("enrollment_application_detail", pk=pk)
+
+
+@login_required
+@access_policy("enrollments", EDIT)
+def enrollment_reminder_send(request, pk):
+    """Solicita lembretes, publicados no broker somente depois do commit."""
+    if request.method == "POST":
+        try:
+            EnrollmentReminderService(user=request.user).send_reminders(
+                pk, expected_version=parse_optional_int(request.POST.get("expected_version"))
+            )
+            messages.success(request, "Lembretes enfileirados.")
+        except (ValidationError, BusinessRuleViolationError, ObjectNotFoundError) as exc:
+            messages.error(request, exc.message)
+    if request.headers.get("HX-Request"):
+        detail = EnrollmentApplicationSelector().get_application_detail(pk)
+        return render(
+            request,
+            "enrollments/partials/application_documents_card.html",
+            application_detail_context(detail, htmx_messages=True),
+        )
+    return redirect("enrollment_application_detail", pk=pk)

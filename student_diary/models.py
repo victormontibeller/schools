@@ -25,7 +25,6 @@ class DiaryCategory(BaseModel):
     is_enabled = models.BooleanField(default=True, verbose_name="Ativo na Agenda")
     applies_morning = models.BooleanField(default=True, verbose_name="Manhã")
     applies_afternoon = models.BooleanField(default=True, verbose_name="Tarde")
-    applies_full = models.BooleanField(default=True, verbose_name="Integral")
 
     class Meta:
         ordering = ["section", "display_order", "name"]

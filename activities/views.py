@@ -1,7 +1,5 @@
 """Views HTMX para atividades."""
 
-import logging
-
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
@@ -12,36 +10,17 @@ from activities.forms import (
     ActivityGroupForm,
     ActivityGroupResultForm,
 )
+from activities.presentation import (
+    activity_detail_context,
+    group_rows,
+    information_context,
+    render_groups_card,
+)
 from activities.selectors import ActivitySelector
 from activities.services import ActivityService
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 from base.forms import apply_validation_errors
 from base.listing import build_querystring, build_sorting, resolve_listing_state
-
-logger = logging.getLogger(__name__)
-
-
-def _group_rows(activity, result_form=None, result_group_id=None):
-    """Monta os formulários de resultado exibidos no card de grupos."""
-    rows = []
-    for group in ActivitySelector().list_groups(activity.pk):
-        form = (
-            result_form
-            if group.pk == result_group_id
-            else ActivityGroupResultForm(
-                prefix=f"group-{group.pk}",
-                initial={"score": group.score, "feedback": group.feedback},
-            )
-        )
-        rows.append({"group": group, "result_form": form})
-    return rows
-
-
-def _render_groups_card(request, activity, **context):
-    """Renderiza o menor fragmento estável da gestão de grupos."""
-    context.setdefault("group_rows", _group_rows(activity))
-    context["activity"] = activity
-    return render(request, "activities/partials/activity_groups_card.html", context)
 
 
 @login_required
@@ -152,20 +131,11 @@ def activity_detail(request, pk):
         return render(
             request,
             "activities/partials/activity_information_card.html",
-            {"activity": activity},
+            information_context(activity),
         )
     if request.headers.get("HX-Request") and request.GET.get("component") == "groups":
-        return _render_groups_card(request, activity)
-    submissions = ActivitySelector().list_submissions(activity.pk)
-    return render(
-        request,
-        "activities/activity_detail.html",
-        {
-            "activity": activity,
-            "submissions": submissions,
-            "group_rows": _group_rows(activity),
-        },
-    )
+        return render_groups_card(request, activity)
+    return render(request, "activities/activity_detail.html", activity_detail_context(activity))
 
 
 @login_required
@@ -196,7 +166,7 @@ def activity_edit(request, pk):
                 return render(
                     request,
                     "activities/partials/activity_information_card.html",
-                    {"activity": activity, "saved": True},
+                    information_context(activity, saved=True),
                 )
             return redirect("activity_detail", pk=pk)
         except ValidationError as exc:
@@ -216,38 +186,6 @@ def activity_edit(request, pk):
             "cancel_url": f"{request.path_info.removesuffix('editar/')}?component=information",
         },
     )
-
-
-@login_required
-def activity_record_score(request, pk):
-    """Lança notas e feedbacks da grade pré-carregada."""
-    if request.method != "POST":
-        return redirect("activity_detail", pk=pk)
-
-    submissions = ActivitySelector().list_submissions(pk)
-    rows = [
-        {
-            "student_id": submission.student_id,
-            "score": request.POST.get(f"score_{submission.student_id}", ""),
-            "feedback": request.POST.get(f"feedback_{submission.student_id}", ""),
-        }
-        for submission in submissions
-    ]
-    try:
-        result = ActivityService(user=request.user).batch_record_scores(pk, rows)
-        if result["errors"]:
-            messages.error(
-                request,
-                "Algumas notas não foram salvas. Verifique os valores informados.",
-            )
-        elif result["created"]:
-            messages.success(request, "Notas salvas com sucesso.")
-        else:
-            messages.info(request, "Nenhuma nota foi alterada.")
-    except (ValidationError, ObjectNotFoundError, BusinessRuleViolationError) as exc:
-        logger.warning("Erro ao lancar notas", extra={"activity_id": str(pk)})
-        messages.error(request, str(exc))
-    return redirect("activity_detail", pk=pk)
 
 
 @login_required
@@ -288,7 +226,7 @@ def activity_group_save(request, pk, group_id=None):
                 group_id=group_id,
             )
             if request.headers.get("HX-Request"):
-                return _render_groups_card(request, activity, saved=True)
+                return render_groups_card(request, activity, saved=True)
             messages.success(request, "Grupo salvo com sucesso.")
             return redirect("activity_detail", pk=pk)
         except (ValidationError, BusinessRuleViolationError) as exc:
@@ -325,16 +263,16 @@ def activity_group_apply_result(request, pk, group_id):
                 form.cleaned_data["feedback"],
             )
             if request.headers.get("HX-Request"):
-                return _render_groups_card(request, activity, saved=True)
+                return render_groups_card(request, activity, saved=True)
             messages.success(request, "Resultado do grupo aplicado aos integrantes.")
             return redirect("activity_detail", pk=pk)
         except (ValidationError, ObjectNotFoundError, BusinessRuleViolationError) as exc:
             form.add_error(None, str(exc))
     if request.headers.get("HX-Request"):
-        return _render_groups_card(
+        return render_groups_card(
             request,
             activity,
-            group_rows=_group_rows(activity, form, group_id),
+            group_rows=group_rows(activity, form, group_id),
         )
     messages.error(request, "Revise o resultado coletivo.")
     return redirect("activity_detail", pk=pk)
@@ -348,10 +286,10 @@ def activity_group_deactivate(request, pk, group_id):
         try:
             ActivityService(user=request.user).deactivate_group(pk, group_id)
             if request.headers.get("HX-Request"):
-                return _render_groups_card(request, activity, saved=True)
+                return render_groups_card(request, activity, saved=True)
             messages.success(request, "Grupo desativado com sucesso.")
         except (ValidationError, ObjectNotFoundError, BusinessRuleViolationError) as exc:
             if request.headers.get("HX-Request"):
-                return _render_groups_card(request, activity, component_error=str(exc))
+                return render_groups_card(request, activity, component_error=str(exc))
             messages.error(request, str(exc))
     return redirect("activity_detail", pk=pk)

@@ -1,7 +1,6 @@
 {% extends "page_shell_base.html" %}
-
 {% block title %}Chamada — {{ record }}{% endblock %}
-{% block page_heading %}Chamada · {{ record.class_obj }}{% endblock %}
+{% block page_heading %}Chamada{% endblock %}
 {% block page_breadcrumbs %}
 <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
 <li class="breadcrumb-item"><a href="{% url 'attendance_records_list' %}">Frequência</a></li>
@@ -10,25 +9,94 @@
 {% block page_content_class %}sm-page-content--viewport{% endblock %}
 
 {% block page_content %}
-    <div class="row g-3 sm-workspace-row sm-workspace-row--mobile-scroll" tabindex="0" aria-label="Preenchimento da chamada">
-        <div class="col-12 col-xl-5">
-            <div class="card mb-0 sm-detail-card">
-                <div class="card-header"><h6 class="card-title mb-0">Informações da Chamada</h6></div>
-                <div class="card-body">
-                    <dl class="row mb-0 sm-detail-definition">
-                        <dt class="col-sm-4">Turma</dt><dd class="col-sm-8">{{ record.class_obj }}</dd>
-                        <dt class="col-sm-4">Disciplina</dt><dd class="col-sm-8">{{ record.subject }}</dd>
-                        <dt class="col-sm-4">Professor</dt><dd class="col-sm-8">{{ record.teacher }}</dd>
-                        <dt class="col-sm-4">Data</dt><dd class="col-sm-8">{{ record.date|date:"d/m/Y" }}</dd>
-                        <dt class="col-sm-4">Aula</dt><dd class="col-sm-8">{{ record.lesson_number }}</dd>
-                        <dt class="col-sm-4">Conteúdo ministrado</dt><dd class="col-sm-8">{{ record.lesson_content|default:"—" }}</dd>
-                        <dt class="col-sm-4">Observações</dt><dd class="col-sm-8">{{ record.notes|default:"—" }}</dd>
-                    </dl>
-                </div>
-            </div>
+    <div class="row g-3 sm-workspace-row sm-workspace-row--mobile-scroll"
+         id="attendance-workspace"
+         tabindex="0"
+         aria-label="Preenchimento da chamada">
+        <div class="col-12 col-xl-5 sm-attendance-information-column">
+            {% include "attendance/partials/attendance_information_card.html" %}
         </div>
         <div class="col-12 col-xl-7 sm-workspace-column">
             {% include "attendance/partials/attendance_fill_card.html" %}
         </div>
     </div>
+
+    <script>
+    (function () {
+        if (window.schoolAttendanceFillInitialized) {
+            window.schoolAttendanceFillInitialize(document);
+            return;
+        }
+        window.schoolAttendanceFillInitialized = true;
+
+        function attendanceCards(root) {
+            var cards = [];
+            if (root.matches && root.matches("#attendance-fill-card")) {
+                cards.push(root);
+            }
+            return cards.concat(
+                Array.prototype.slice.call(root.querySelectorAll("#attendance-fill-card"))
+            );
+        }
+
+        function initializeAttendanceFill(root) {
+            attendanceCards(root || document).forEach(function (card) {
+                if (card.dataset.attendanceEnhanced === "true") {
+                    return;
+                }
+                card.querySelectorAll("[data-attendance-fallback]").forEach(function (fallback) {
+                    fallback.hidden = true;
+                    fallback.querySelectorAll("input, select, textarea").forEach(function (field) {
+                        field.disabled = true;
+                    });
+                });
+                card.querySelectorAll("[data-attendance-enhanced]").forEach(function (enhanced) {
+                    enhanced.querySelectorAll("input, select, textarea").forEach(function (field) {
+                        field.disabled = false;
+                    });
+                    enhanced.hidden = false;
+                });
+                card.dataset.attendanceEnhanced = "true";
+            });
+        }
+
+        window.schoolAttendanceFillInitialize = initializeAttendanceFill;
+
+        document.addEventListener("change", function (event) {
+            var input = event.target.closest(".sm-attendance-status-input");
+            if (!input) {
+                return;
+            }
+            var dropdown = window.SmFloatingDropdowns && window.SmFloatingDropdowns.owner(input);
+            var summary = dropdown && dropdown.querySelector("[data-attendance-status-summary]");
+            var label = input.labels && input.labels[0];
+            if (summary && label) {
+                summary.textContent = label.textContent.trim();
+            }
+            var toggle = dropdown && dropdown.querySelector("[data-bs-toggle='dropdown']");
+            var instance = toggle && window.bootstrap && window.bootstrap.Dropdown.getInstance(toggle);
+            if (instance) {
+                instance.hide();
+            }
+        });
+
+        document.addEventListener("input", function (event) {
+            var input = event.target.closest(".sm-attendance-note-input");
+            if (!input) {
+                return;
+            }
+            var dropdown = window.SmFloatingDropdowns && window.SmFloatingDropdowns.owner(input);
+            var summary = dropdown && dropdown.querySelector("[data-attendance-note-summary]");
+            if (summary) {
+                summary.textContent = input.value.trim() ? "Com observação" : "Sem observação";
+            }
+        });
+
+        document.addEventListener("htmx:afterSwap", function (event) {
+            initializeAttendanceFill(event.target || (event.detail && event.detail.elt));
+        });
+
+        initializeAttendanceFill(document);
+    }());
+    </script>
 {% endblock %}

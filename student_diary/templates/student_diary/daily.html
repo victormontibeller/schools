@@ -1,5 +1,4 @@
 {% extends "page_shell_base.html" %}
-
 {% block title %}Agenda — School Manager{% endblock %}
 {% block page_heading %}Agenda{% endblock %}
 {% block page_breadcrumbs %}
@@ -49,52 +48,9 @@
     }
     window.schoolDiaryInlineInitialized = true;
 
-    function restoreFloatingMenu(dropdown) {
-        var placeholder = dropdown && dropdown._diaryMenuPlaceholder;
-        var menu = dropdown && dropdown._diaryFloatingMenu;
-        if (placeholder && placeholder.parentNode && menu) {
-            placeholder.parentNode.replaceChild(menu, placeholder);
-        }
-        if (dropdown) {
-            dropdown._diaryMenuPlaceholder = null;
-            dropdown._diaryFloatingMenu = null;
-        }
-    }
-
-    function initializeFloatingDropdowns(root) {
-        if (!window.bootstrap || !window.bootstrap.Dropdown) {
-            return;
-        }
-        (root || document).querySelectorAll(".sm-diary-dropdown [data-bs-toggle='dropdown']").forEach(function (toggle) {
-            if (toggle.dataset.diaryDropdownInitialized) {
-                return;
-            }
-            toggle.dataset.diaryDropdownInitialized = "true";
-            var existing = window.bootstrap.Dropdown.getInstance(toggle);
-            if (existing) {
-                existing.dispose();
-            }
-            new window.bootstrap.Dropdown(toggle, {
-                boundary: "viewport",
-                popperConfig: function (defaultConfig) {
-                    var modifiers = (defaultConfig.modifiers || []).filter(function (modifier) {
-                        return modifier.name !== "flip" && modifier.name !== "preventOverflow";
-                    });
-                    modifiers.push(
-                        {name: "flip", options: {fallbackPlacements: ["top", "bottom", "right", "left"]}},
-                        {name: "preventOverflow", options: {boundary: "viewport", padding: 8}}
-                    );
-                    return Object.assign({}, defaultConfig, {
-                        strategy: "fixed",
-                        modifiers: modifiers
-                    });
-                }
-            });
-        });
-    }
-
     function markRowChanged(control) {
-        var row = control.closest("[data-diary-row]");
+        var owner = window.SmFloatingDropdowns && window.SmFloatingDropdowns.owner(control);
+        var row = (owner || control).closest("[data-diary-row]");
         var status = row && row.querySelector("[data-diary-status]");
         if (!status) {
             return;
@@ -108,9 +64,9 @@
         if (!input) {
             return;
         }
-        var dropdown = input.closest("[data-diary-choice]");
+        var dropdown = window.SmFloatingDropdowns && window.SmFloatingDropdowns.owner(input);
         var summary = dropdown && dropdown.querySelector("[data-diary-selection]");
-        var label = dropdown && dropdown.querySelector("label[for='" + input.id + "']");
+        var label = input.labels && input.labels[0];
         if (summary && label) {
             summary.textContent = label.textContent.trim();
             summary.title = label.textContent.trim();
@@ -123,7 +79,7 @@
         if (!input) {
             return;
         }
-        var dropdown = input.closest("[data-diary-notes]");
+        var dropdown = window.SmFloatingDropdowns && window.SmFloatingDropdowns.owner(input);
         var summary = dropdown && dropdown.querySelector("[data-diary-notes-summary]");
         if (summary) {
             summary.textContent = input.value.trim() ? "Com observação" : "Sem observação";
@@ -131,43 +87,6 @@
         markRowChanged(input);
     });
 
-    document.addEventListener("show.bs.dropdown", function (event) {
-        var dropdown = event.target.closest(".sm-diary-dropdown");
-        var menu = dropdown && dropdown.querySelector(".sm-diary-dropdown-menu");
-        if (!dropdown || !menu || dropdown._diaryMenuPlaceholder) {
-            return;
-        }
-        var placeholder = document.createComment("diary-dropdown-menu");
-        menu.parentNode.insertBefore(placeholder, menu);
-        dropdown._diaryMenuPlaceholder = placeholder;
-        dropdown._diaryFloatingMenu = menu;
-        document.body.appendChild(menu);
-    });
-
-    document.addEventListener("hidden.bs.dropdown", function (event) {
-        restoreFloatingMenu(event.target.closest(".sm-diary-dropdown"));
-    });
-
-    document.addEventListener("htmx:beforeSwap", function () {
-        document.querySelectorAll(".sm-diary-dropdown .sm-diary-selector[aria-expanded='true']").forEach(function (toggle) {
-            var instance = window.bootstrap && window.bootstrap.Dropdown.getInstance(toggle);
-            if (instance) {
-                instance.hide();
-            }
-        });
-    });
-
-    document.addEventListener("htmx:afterSwap", function (event) {
-        initializeFloatingDropdowns(event.detail.target);
-    });
-
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", function () {
-            initializeFloatingDropdowns(document);
-        }, {once: true});
-    } else {
-        initializeFloatingDropdowns(document);
-    }
 }());
 </script>
 {% endblock %}

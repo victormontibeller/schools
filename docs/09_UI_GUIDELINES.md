@@ -35,7 +35,8 @@
 - No contexto escolar, **Visão geral** permanece como acesso direto e os demais destinos são agrupados por departamento: Acadêmico, Secretaria, Coordenação e Administração.
 - Para funcionários, a taxonomia canônica é:
   - **Acadêmico:** Turmas, Disciplinas, Grade Horária, Atividades, Frequência e Agenda;
-  - **Secretaria:** Professores, Alunos, Responsáveis, Matrículas, Salas e Itens da Agenda;
+  - **Secretaria:** Professores, Alunos, Responsáveis, Matrículas, Rematrícula em lote, Requisitos
+    documentais, Salas, Períodos e Itens da Agenda;
   - **Coordenação:** Calendário, Feriados, Anos Letivos e Comunicados;
   - **Financeiro:** Visão Financeira, Modelos, Contratos, Cobranças, Baixas e Conciliações,
     Lembretes, Competência e Caixa e Inadimplência;
@@ -69,10 +70,36 @@
   opções; o contexto completo da célula permanece disponível apenas para tecnologias assistivas.
 - Controles de criar, editar e desativar só são renderizados quando a mesma capacidade exigida
   pela rota estiver ativa. Ocultar o controle não substitui a validação no middleware e service.
+- **Grade Horária** é uma matriz operacional de segunda a sexta, com períodos comuns na primeira
+  coluna fixa e a segunda-feira como data de referência explícita da semana. Os cabeçalhos exibem
+  o dia completo e sua data (`Segunda (03/08)`). Adicionar, Editar e Encerrar carregam o formulário
+  compacto em um modal Bootstrap fora da região rolável, identificado por turma, dia e período.
+  O sucesso substitui somente a célula via OOB e fecha o modal; erros permanecem nele. Sem JavaScript,
+  os mesmos `href`/`action` abrem a página canônica do formulário e retornam à matriz. O cabeçalho
+  navega somente por Semana anterior, Hoje e Próxima semana; a URL sempre usa a segunda-feira.
+  A cópia de dia abre um modal compacto fora da região rolável, preserva uma página canônica sem
+  JavaScript, atualiza a matriz por OOB no sucesso e mantém erros no próprio modal. Editar e
+  Encerrar usam controles pequenos no canto superior direito da célula, com nome acessível e foco
+  visível. O título fica à esquerda e a navegação com Copiar dia fica agrupada à direita em desktop,
+  quebrando em uma linha própria no mobile. Em desktop, a tabela usa layout fixo, primeira coluna
+  curta e cinco dias de mesma largura sem rolagem horizontal; em mobile, a região interna pode rolar.
+  Textos longos das células truncam visualmente, mas permanecem disponíveis para tecnologias assistivas.
+- **Períodos** é o destino da Secretaria imediatamente após Salas. A listagem e o atalho
+  exigem `schedule_configuration/view`; criação e edição exigem, respectivamente,
+  `schedule_configuration/create` e `schedule_configuration/edit`. Professor não é elegível para
+  essa capacidade. Na listagem, a primeira coluna só é link quando a edição estiver ativa; para
+  acesso somente leitura, o identificador permanece texto. Cada período exige
+  um turno Matutino, Vespertino ou Noturno, exibido no formulário e na listagem. A matriz filtra
+  automaticamente os períodos compatíveis com a turma; Integral combina Matutino e Vespertino.
+  Quando não houver períodos compatíveis, o estado vazio identifica o turno da turma.
 - Controles de expansão usam botão, foco visível, `aria-expanded` e `aria-controls`. A preferência de abertura não é persistida.
 - Quando o conteúdo excede a altura disponível, a rolagem permanece interna e acessível por mouse, trackpad, toque e teclado, mas o trilho visual do scrollbar não é exibido.
 - Links do menu escolar usam navegação progressiva: mantêm menu e cabeçalho no DOM, substituem somente `#app-main` e atualizam o estado ativo do menu por metadados do novo conteúdo. URL, título e histórico são preservados; o `href` real é obrigatório como fallback.
-- Links internos do conteúdo, formulários, ações destrutivas e o menu da plataforma não participam da navegação parcial global.
+- O link principal da primeira coluna nas listagens escolares usa a mesma navegação parcial para
+  preservar o shell global. Transições explícitas entre uma ficha e seu formulário de edição em
+  página inteira, incluindo o retorno por **Cancelar**, também preservam o shell. Os demais links
+  internos do conteúdo, formulários, ações destrutivas, downloads e o menu da plataforma não
+  participam da navegação parcial global.
 
 ## Listagens
 
@@ -88,6 +115,15 @@
   centralizada. Mouse, trackpad, toque e teclado devem operar a mesma região.
 - A primeira coluna identifica o registro e é o link para ficha/detalhe; sem ficha, aponta para a tela operacional principal.
 - Colunas ordenáveis usam `resolve_listing_state`, `build_sorting` e links HTMX. Busca, ordenação, filtros e página devem ser preservados na query string.
+- Toda tela autenticada com abas usa obrigatoriamente o partial canônico
+  `templates/partials/list_tabs.html`; não compõe diretamente `nav-tabs`, `nav-pills`, `tab-pane`,
+  `role="tab"` ou `data-bs-toggle="tab|pill"`. O componente usa a classe `sm-tabs`, estados
+  neutros nos temas claro e escuro e uma linha rolável horizontalmente quando necessário, com
+  nome acessível e `aria-current="page"` na aba ativa. Após uma troca HTMX, o foco retorna à aba
+  ativa e ela permanece visível na rolagem horizontal. A troca preserva busca, ordenação e filtros
+  públicos, remove `page` para reiniciar na primeira página e mantém `href` real. Busca, abas,
+  filtros, tabela, paginação e contador são sincronizados pelo mesmo fragmento HTMX com URL e
+  histórico; contadores por aba só aparecem nos fluxos que já os possuem.
 - Não criar coluna **Ações** apenas para repetir Ver ou Editar. Ações administrativas ficam na ficha; ações operacionais (aprovar, preencher chamada, lançar nota) ficam no contexto do fluxo.
 - O documento não rola nem cria overflow horizontal em listagens e grades primárias. Cabeçalho,
   filtros, contexto e rodapé permanecem fora da rolagem; somente `.sm-scroll-region` ocupa o
@@ -125,9 +161,23 @@
 - **Unidades** é a nomenclatura da entidade `BusinessUnit`; não usar “Empresas” na interface atual. Escola é a configuração do tenant e permanece distinta de Unidades.
 - Unidade e Escola exibem e editam o logotipo no topo do card de informações.
 - Matrículas de professor e aluno são informativas e somente leitura; o sistema as gera ao salvar.
+- Na edição do aluno, o e-mail é somente leitura e as observações internas permanecem no card de
+  informações; o backend repete ambos os contratos e não confia no atributo HTML `readonly`.
 - Responsáveis editam seus vínculos com alunos no card lateral da mesma tela de edição.
 - Grades de notas e frequência pré-carregam os alunos e deixam editáveis apenas os dados do
   lançamento.
+- O **Lançamento de notas** mantém a grade 5/7 e usa colunas compactas para matrícula, nota e
+  observação; somente Aluno absorve o espaço restante. Observações usam o mesmo dropdown da
+  Agenda, com textarea de seis linhas e **Melhorar com IA — Em breve** desabilitado. O campo
+  interno continua `feedback`; a interface usa Observação. O textarea nativo permanece como
+  fallback sem JavaScript, e o controle aprimorado é reinicializado após navegação e swaps HTMX.
+- O preenchimento da **Chamada** usa a grade 5/7: um card de **Informações da chamada** reúne
+  turma, disciplina, professor, data, aula, conteúdo ministrado e observações gerais, enquanto o
+  card operacional mantém cabeçalho, grade rolável e rodapé fixos. Em telas abaixo de `xl`, os
+  cards empilham dentro da rolagem do workspace. Observações por aluno usam dropdown com textarea
+  de seis linhas e até 250 caracteres, largura máxima de 520px e o controle desabilitado
+  **Melhorar com IA — Em breve**. O textarea nativo permanece como fallback sem JavaScript; apenas
+  o fallback ou o controle aprimorado pode estar habilitado e ser enviado em cada modo.
 - A Agenda pré-carrega todas as crianças ativas em uma listagem canônica dentro de um único card.
   Turma e data usam controles pequenos no cabeçalho da lista e são aplicadas explicitamente pelo
   botão **Carregar**. O cabeçalho da página, os filtros, a identificação da turma e o rodapé ficam
@@ -164,8 +214,10 @@
   substitui somente o card de informações e opções são criadas ou editadas no próprio card.
 - A Agenda oferece somente itens disponíveis para novas escolhas. Uma resposta já salva continua
   visível quando seu item, turno ou opção se torna indisponível, mas não pode ser escolhida por outro
-  registro. A capacidade `diary_configuration`, com ações Visualizar, Cadastrar e Editar, é
-  independente de `student_diary`, usada para preencher, revisar e publicar a Agenda.
+  registro. Para uma turma Integral, a grade inclui somente itens marcados simultaneamente para
+  Manhã e Tarde; não há flag Integral independente. A capacidade `diary_configuration`, com
+  ações Visualizar, Cadastrar e Editar, é independente de `student_diary`, usada para preencher,
+  revisar e publicar a Agenda.
 
 ## Financeiro
 
@@ -175,6 +227,9 @@
   somente o card de informações; contrato ativo é alterado somente pelo fluxo de aditivo.
 - Listagens preservam busca, filtros, ordenação e paginação na query string. Tabelas mantêm
   cabeçalho e primeira coluna fixos e restringem a rolagem a `.sm-scroll-region`.
+- Cobranças usa `tab` nas abas Aberto, Parcial, Vencido, Pago e Cancelado. Conciliações usa
+  `status` nas abas Pendente, Conciliado e Estornado, sem seletor de situação redundante. Ambas
+  usam o fragmento canônico e paginação compartilhada, preservando busca e ordenação.
 - A primeira coluna contém o link principal. Não repetir Ver/Editar em Ações. Cobranças combinam
   badges de quitação — não paga, parcial ou paga — e temporalidade — a vencer, vence hoje ou
   vencida.
@@ -192,6 +247,36 @@
 - O fluxo mantém fallback sem JavaScript, mensagens Django centralizadas, foco visível, teclado,
   tema escuro e geometrias verificadas em 1280x720, 1280x480 e 390x844.
 
+## Matrículas
+
+- **Matrículas** exige `enrollments/view` e mantém exclusivamente a família `enrollment_*`.
+  **Rematrícula em lote** aparece imediatamente depois, usa `reenrollment/view` para preparação
+  e `reenrollment/create` para confirmação, e mantém exclusivamente a família `reenrollment_*`.
+  **Requisitos documentais** vem em seguida, usa a capacidade independente
+  `document_requirements` com Visualizar, Cadastrar, Editar e Desativar, e mantém exclusivamente
+  a família `document_requirement_*`; suas telas de criação e edição não reativam Matrículas no
+  menu. As duas capacidades são elegíveis somente para Secretaria e Coordenação. Secretaria
+  recebe Visualizar e Cadastrar em rematrícula por padrão; Coordenação não recebe default e
+  Requisitos documentais não concede acesso padrão a nenhum papel configurável.
+- Matrículas é uma listagem canônica com abas Pré-matrículas, Correções, Em análise, Lista de
+  espera, Aprovadas, Matriculadas, Transferidas e Encerradas. Protocolo é a primeira coluna e o
+  link principal; `tab`, busca e filtros permanecem na query string e as abas conservam seus
+  contadores existentes. A configuração de documentos é acessada exclusivamente pelo item
+  **Requisitos documentais** do menu lateral e não é repetida como atalho na listagem.
+- A ficha usa grade 5/7: processo e aluno/turma à esquerda; checklist documental e histórico à
+  direita. Matrícula de origem, escolas envolvidas e observações permanecem visíveis na revisão.
+  Ações HTMX substituem somente o card afetado, mostram seu feedback no próprio fragmento e
+  mantêm `action`, CSRF e fallback HTTP real.
+- A ficha da turma oferece Abrir solicitação com a turma predefinida. A relação de matriculados é
+  somente leitura; não existe formulário de vínculo direto em `classes`.
+- Entrega documental digital usa `multipart/form-data` e `hx-encoding` quando aplicável; entrega
+  física só aparece quando o snapshot permite. Downloads são autenticados, anexos e sem cache.
+- Usuários autorizados configuram requisitos documentais futuros em listagem própria; criar,
+  editar ou desativar uma configuração nunca altera o checklist já materializado em solicitações
+  existentes. A dispensa de um item materializado continua exclusiva do Administrador.
+- A busca de aluno aceita nome ou matrícula, preserva a seleção fora da primeira página e oferece
+  botão de busca server-side como fallback sem JavaScript.
+
 ## HTMX, acessibilidade e feedback
 
 - Busca: `hx-trigger="keyup changed delay:300ms, search"`.
@@ -206,8 +291,9 @@
 - `base.html` referencia o asset com `{% static %}` sem versão manual. Desenvolvimento tolera a
   URL simples e produção usa o nome com hash de conteúdo gerado pelo manifesto não estrito.
 - `python scripts/check_ui_contracts.py` bloqueia listagens e grades fora dos shells, composição
-  manual de `page-header`/`main-content`, regiões sem acessibilidade ou coluna fixa, rotas de
-  catálogo inválidas e exceções não registradas.
+  manual de `page-header`/`main-content`, abas fora do partial canônico, regiões sem acessibilidade
+  ou coluna fixa, rotas de catálogo inválidas e exceções não registradas. O material de referência
+  Duralux não representa uma implementação do produto e fica fora dessa verificação de abas.
 - O marcador `ui` executa no Chromium, em job próprio, asserções geométricas nos viewports
   1280x720, 1280x480 e 390x844. Screenshots e traces são diagnósticos de falha, não baselines
   pixel a pixel.

@@ -1,11 +1,10 @@
 """ActivityService: regras para atividades e lançamento de notas."""
 
-import logging
 from decimal import Decimal
 
-from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 
+from base.context import require_tenant_schema
 from base.exceptions import (
     BusinessRuleViolationError,
     ObjectNotFoundError,
@@ -13,9 +12,7 @@ from base.exceptions import (
     ValidationError,
 )
 from base.repositories import BaseRepository
-from base.services import BaseService
-
-logger = logging.getLogger(__name__)
+from base.services import BaseService, system_command
 
 
 class _ActivityRepo(BaseRepository):
@@ -24,14 +21,6 @@ class _ActivityRepo(BaseRepository):
         from activities.models import Activity
 
         return Activity
-
-
-class _SubmissionRepo(BaseRepository):
-    @property
-    def model_class(self):
-        from activities.models import ActivitySubmission
-
-        return ActivitySubmission
 
 
 class ActivityCoreService(BaseService):
@@ -112,8 +101,12 @@ class ActivityCoreService(BaseService):
     def update_activity(self, activity_id, data: dict):
         """Atualiza campos permitidos de uma atividade existente."""
         repo = _ActivityRepo()
-        activity = repo.get_by_id(activity_id)
+        activity = self._get_locked_activity(activity_id)
         self._assert_activity_actor(activity)
+        if activity.score_status == activity.ScoreStatus.LAUNCHED:
+            raise BusinessRuleViolationError(
+                "As notas estão lançadas oficialmente. Reabra-as para editar a atividade."
+            )
         old = {"title": activity.title, "due_date": str(activity.due_date)}
         allowed = {
             "title",
@@ -155,7 +148,31 @@ class ActivityCoreService(BaseService):
         self._log("Atividade atualizada", activity_id=str(activity.pk))
         return activity
 
-    def _sync_activity_submissions(self, activity) -> None:
+    @system_command
+    def sync_class_submissions(self, class_id, tenant_schema: str) -> dict[str, int]:
+        """Sincroniza entregas das atividades em rascunho após mudanças de matrícula."""
+        require_tenant_schema(tenant_schema)
+        from activities.models import Activity
+
+        activities = list(
+            Activity.objects.select_for_update()
+            .filter(class_obj_id=class_id, score_status=Activity.ScoreStatus.DRAFT)
+            .order_by("pk")
+        )
+        totals = {"inserted": 0, "restored": 0, "deactivated": 0}
+        for activity in activities:
+            changes = self._sync_activity_submissions(activity)
+            for key, value in changes.items():
+                totals[key] += value
+        self._log(
+            "activity_class_submissions_synced",
+            class_id=str(class_id),
+            activity_count=len(activities),
+            **totals,
+        )
+        return totals
+
+    def _sync_activity_submissions(self, activity) -> dict[str, int]:
         """Sincroniza entregas pré-carregadas quando a turma da atividade muda."""
         from activities.models import ActivitySubmission
         from classes.contracts import Enrollment
@@ -166,8 +183,11 @@ class ActivityCoreService(BaseService):
             ).values_list("student_id", flat=True)
         )
         existing = {}
-        for item in ActivitySubmission.all_objects.filter(activity=activity).order_by(
-            "-is_active", "-updated_at"
+        changes = {"inserted": 0, "restored": 0, "deactivated": 0}
+        for item in (
+            ActivitySubmission.all_objects.select_for_update()
+            .filter(activity=activity)
+            .order_by("-is_active", "-updated_at")
         ):
             existing.setdefault(item.student_id, item)
         for student_id in active_student_ids:
@@ -180,13 +200,17 @@ class ActivityCoreService(BaseService):
                     updated_by=self.user,
                 )
                 self._record_audit("INSERT", submission)
+                changes["inserted"] += 1
             elif submission.is_deleted or not submission.is_active:
                 submission.restore(user=self.user)
                 self._record_audit("RESTORE", submission)
+                changes["restored"] += 1
         for student_id, submission in existing.items():
             if student_id not in active_student_ids and submission.is_active:
                 submission.soft_delete(user=self.user)
                 self._record_audit("DELETE", submission)
+                changes["deactivated"] += 1
+        return changes
 
     @staticmethod
     def _activity_has_results(activity) -> bool:
@@ -244,92 +268,3 @@ class ActivityCoreService(BaseService):
 
         if role_name(self.user) == "TEACHER" and activity.teacher.user_id != self.user.pk:
             raise PermissionDeniedError("Atividade fora do escopo do professor.")
-
-    def record_score(self, activity_id, student_id, score, feedback: str = ""):
-        """Lança/atualiza a nota de um aluno numa atividade."""
-        from activities.models import ActivitySubmission
-        from classes.contracts import Enrollment
-        from students.contracts import Student
-
-        activity = _ActivityRepo().get_by_id(activity_id)
-        self._assert_activity_actor(activity)
-        try:
-            student = Student.objects.get(pk=student_id)
-        except Student.DoesNotExist:
-            raise ObjectNotFoundError("Student", str(student_id)) from None
-        enrolled = Enrollment.objects.filter(
-            class_obj=activity.class_obj,
-            student=student,
-            status=Enrollment.Status.ACTIVE,
-        ).exists()
-        if (
-            not enrolled
-            or not ActivitySubmission.objects.filter(activity=activity, student=student).exists()
-        ):
-            raise ValidationError(
-                errors={"student": ["Aluno não pertence à turma desta atividade."]}
-            )
-
-        try:
-            score_decimal = Decimal(str(score))
-        except (ValueError, TypeError, ArithmeticError) as exc:
-            raise ValidationError(errors={"score": ["Nota invalida."]}) from exc
-
-        if score_decimal < 0 or score_decimal > activity.max_score:
-            raise ValidationError(
-                errors={"score": [f"Nota deve estar entre 0 e {activity.max_score}."]}
-            )
-
-        submission, created = ActivitySubmission.objects.update_or_create(
-            activity=activity,
-            student=student,
-            defaults={
-                "score": score_decimal,
-                "feedback": (feedback or "").strip(),
-                "updated_by": self.user,
-            },
-        )
-        # Marca a primeira nota, inclusive para entregas pré-carregadas.
-        if submission.submitted_at is None:
-            from django.utils import timezone
-
-            submission.submitted_at = timezone.now()
-            submission.save(update_fields=["submitted_at"])
-
-        self._record_audit("UPDATE" if not created else "INSERT", submission)
-        self._log(
-            "Nota lançada",
-            activity_id=str(activity.pk),
-            student_id=str(student.pk),
-            submission_id=str(submission.pk),
-        )
-        return submission
-
-    @transaction.atomic
-    def batch_record_scores(self, activity_id, scores_data, recorded_by=None):
-        """Lança notas em lote para vários alunos numa chamada atômica."""
-        submissions: list = []
-        errors: list[dict] = []
-        for entry in scores_data:
-            if entry.get("score") in (None, "") and not entry.get("feedback", "").strip():
-                continue
-            if entry.get("score") in (None, ""):
-                raise ValidationError(errors={"score": ["Informe a nota quando houver feedback."]})
-            try:
-                sub = self.record_score(
-                    activity_id,
-                    entry["student_id"],
-                    entry["score"],
-                    entry.get("feedback", ""),
-                )
-                submissions.append(sub)
-            except (ValidationError, ObjectNotFoundError, DjangoValidationError) as exc:
-                errors.append({"student_id": str(entry.get("student_id")), "message": str(exc)})
-
-        self._log(
-            "Notas em lote",
-            activity_id=str(activity_id),
-            ok_count=len(submissions),
-            error_count=len(errors),
-        )
-        return {"created": len(submissions), "errors": errors}

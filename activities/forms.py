@@ -90,6 +90,52 @@ class ActivityEditForm(ActivityForm):
     version = forms.IntegerField(min_value=0, widget=forms.HiddenInput())
 
 
+class ActivityScoreForm(forms.Form):
+    """Campos editáveis de uma linha da grade de lançamento de notas."""
+
+    score = forms.DecimalField(
+        label="Nota",
+        required=False,
+        max_digits=5,
+        decimal_places=2,
+        widget=forms.NumberInput(
+            attrs={"class": "form-control form-control-sm", "min": "0", "step": "0.01"}
+        ),
+    )
+    feedback = forms.CharField(
+        label="Observação",
+        required=False,
+        widget=forms.Textarea(
+            attrs={
+                "class": "form-control form-control-sm",
+                "rows": 6,
+                "data-activity-score-feedback-input": "",
+            }
+        ),
+    )
+    submission_id = forms.UUIDField(widget=forms.HiddenInput())
+    version = forms.IntegerField(min_value=0, widget=forms.HiddenInput())
+
+
+class ActivityScoresLaunchForm(forms.Form):
+    """Confirma a versão da atividade antes do lançamento oficial."""
+
+    version = forms.IntegerField(min_value=0, widget=forms.HiddenInput())
+
+
+class ActivityScoresReopenForm(forms.Form):
+    """Solicita a reabertura das notas oficiais."""
+
+    version = forms.IntegerField(min_value=0, widget=forms.HiddenInput())
+    reason = forms.CharField(
+        label="Motivo da reabertura",
+        max_length=500,
+        widget=forms.Textarea(
+            attrs={"class": "form-control sm-activity-score-reopen-reason", "rows": 3}
+        ),
+    )
+
+
 class ActivityGroupForm(forms.Form):
     """Formulário de composição de um grupo da atividade."""
 

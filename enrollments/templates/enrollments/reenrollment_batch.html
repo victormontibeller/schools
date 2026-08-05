@@ -1,0 +1,11 @@
+{% extends "page_shell_base.html" %}
+{% block title %}Rematrícula em lote{% endblock %}
+{% block page_heading %}Rematrícula em lote{% endblock %}
+{% block page_breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+<li class="breadcrumb-item active">Rematrícula em lote</li>
+{% endblock %}
+{% block page_content_class %}sm-page-content--viewport{% endblock %}
+{% block page_content %}
+{% include "enrollments/partials/reenrollment_workspace.html" %}
+{% endblock %}

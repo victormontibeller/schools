@@ -19,7 +19,11 @@ class StudentSelector(BaseSelector):
         """Lista alunos com busca por nome e paginação."""
         qs = self.model_class.objects.all()
         if search:
-            qs = qs.filter(Q(first_name__icontains=search) | Q(last_name__icontains=search))
+            qs = qs.filter(
+                Q(first_name__icontains=search)
+                | Q(last_name__icontains=search)
+                | Q(enrollment_number__icontains=search)
+            )
         qs = qs.order_by(order_by, "last_name")
         return self._paginate(qs, page=page, page_size=page_size)
 

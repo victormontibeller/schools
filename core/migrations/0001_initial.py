@@ -119,7 +119,7 @@ class Migration(migrations.Migration):
                 ('is_active', models.BooleanField(db_index=True, default=True)),
                 ('deleted_at', models.DateTimeField(blank=True, db_index=True, null=True)),
                 ('version', models.PositiveIntegerField(default=0)),
-                ('scope', models.CharField(max_length=20, verbose_name='Tipo')),
+                ('scope', models.CharField(max_length=64, verbose_name='Tipo')),
                 ('year', models.PositiveSmallIntegerField(verbose_name='Ano')),
                 ('current_value', models.PositiveIntegerField(default=0, verbose_name='Valor Atual')),
                 ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='%(app_label)s_%(class)s_created', to=settings.AUTH_USER_MODEL)),

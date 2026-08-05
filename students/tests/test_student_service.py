@@ -62,22 +62,27 @@ class TestUpdateStudent:
         assert updated.first_name == "Ana"
         assert updated.version == 1
 
-    def test_update_records_old_values_for_audit(self, user):
+    def test_update_rejects_tampered_email_and_audits_observations_as_redacted(self, user):
         from audit.models import AuditLog
 
         s = StudentService(user=user).create_student(
-            {**_BASE_DATA, "enrollment_number": "AUD-STU", "email": "student-audit@test.com"}
-        )
-
-        StudentService(user=user).update_student(
-            s.pk,
             {
                 **_BASE_DATA,
                 "enrollment_number": "AUD-STU",
-                "first_name": "Ana",
-                "cpf": "529.982.247-25",
-                "email": "student-updated@test.com",
-            },
+                "email": "student-audit@test.com",
+                "observations": "Observação original.",
+            }
+        )
+
+        with pytest.raises(ValidationError):
+            StudentService(user=user).update_student(
+                s.pk,
+                {"email": "student-updated@test.com"},
+            )
+
+        updated = StudentService(user=user).update_student(
+            s.pk,
+            {"first_name": "Ana", "observations": "Observação atualizada."},
         )
 
         log = AuditLog.objects.filter(
@@ -86,8 +91,10 @@ class TestUpdateStudent:
             object_id=str(s.pk),
         ).latest("created_at")
         assert log.old_values["first_name"] == "[REDACTED]"
-        assert log.old_values["cpf"] == "[REDACTED]"
-        assert log.old_values["email"] == "[REDACTED]"
+        assert log.old_values["observations"] == "[REDACTED]"
+        assert "email" not in log.old_values
+        assert updated.email == "student-audit@test.com"
+        assert updated.observations == "Observação atualizada."
 
     def test_enrollment_is_immutable_on_update(self, user):
         first = StudentService(user=user).create_student(

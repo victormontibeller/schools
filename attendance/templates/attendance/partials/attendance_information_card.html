@@ -1,0 +1,27 @@
+<section class="card sm-detail-card sm-attendance-information-card"
+         id="attendance-information-card"
+         aria-labelledby="attendance-information-title">
+    <div class="card-header">
+        <h6 class="card-title mb-0" id="attendance-information-title">Informações da chamada</h6>
+    </div>
+    <div class="card-body sm-scroll-region sm-attendance-information-scroll"
+         tabindex="0"
+         aria-label="Dados da chamada">
+        <dl class="row mb-0 sm-detail-definition sm-attendance-information-list">
+            <dt class="col-sm-4">Turma</dt>
+            <dd class="col-sm-8">{{ record.class_obj|default:"—" }}</dd>
+            <dt class="col-sm-4">Disciplina</dt>
+            <dd class="col-sm-8">{{ record.subject|default:"—" }}</dd>
+            <dt class="col-sm-4">Professor</dt>
+            <dd class="col-sm-8">{{ record.teacher.full_name|default:"—" }}</dd>
+            <dt class="col-sm-4">Data</dt>
+            <dd class="col-sm-8">{{ record.date|date:"d/m/Y"|default:"—" }}</dd>
+            <dt class="col-sm-4">Aula</dt>
+            <dd class="col-sm-8">{{ record.lesson_number|default:"—" }}</dd>
+            <dt class="col-sm-4">Conteúdo ministrado</dt>
+            <dd class="col-sm-8 sm-attendance-information-long-text">{{ record.lesson_content|default:"—" }}</dd>
+            <dt class="col-sm-4">Observações gerais</dt>
+            <dd class="col-sm-8 sm-attendance-information-long-text">{{ record.notes|default:"—" }}</dd>
+        </dl>
+    </div>
+</section>

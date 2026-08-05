@@ -5,6 +5,7 @@
                 {% for key, label in sorting.items %}
                 <th aria-sort="{{ label.aria_sort }}"><a href="?{{ label.query }}" class="sm-sort-link{% if label.active %} is-active{% endif %}" hx-get="?{{ label.query }}" hx-target="#subjects-table" hx-swap="innerHTML">{% if key == "name" %}Nome{% elif key == "code" %}Código{% else %}Carga Horária{% endif %}{% if label.direction == "asc" %} <span class="sm-sort-indicator">↑</span>{% elif label.direction == "desc" %} <span class="sm-sort-indicator">↓</span>{% endif %}</a></th>
                 {% endfor %}
+                <th>Status</th>
             </tr>
         </thead>
         <tbody>
@@ -12,7 +13,7 @@
             {% include "teachers/partials/subject_row.html" %}
             {% empty %}
             <tr>
-                <td colspan="3" class="text-center text-muted py-4">Nenhuma disciplina encontrada.</td>
+                <td colspan="4" class="text-center text-muted py-4">Nenhuma disciplina encontrada.</td>
             </tr>
             {% endfor %}
         </tbody>

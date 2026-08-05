@@ -1,54 +1,144 @@
-<div class="card sm-detail-card sm-viewport-card" id="attendance-fill-card" data-sm-layout="workspace">
-    <form id="attendance-fill-form" method="post"
+<div class="card sm-detail-card sm-detail-table-card sm-viewport-card" id="attendance-fill-card" data-sm-layout="workspace">
+    <form id="attendance-fill-form" method="post" action="{% url 'attendance_record_fill' record.pk %}"
           hx-post="{% url 'attendance_record_fill' record.pk %}"
           hx-target="#attendance-fill-card" hx-swap="outerHTML" class="sm-viewport-body">
         {% csrf_token %}
-        <div class="card-header d-flex justify-content-between align-items-center gap-2">
-            <div>
-                <h6 class="card-title mb-0">{{ record.subject }} · {{ record.teacher }}</h6>
-                <small class="text-muted">{{ record.date|date:"d/m/Y" }} · Aula {{ record.lesson_number }}</small>
-            </div>
-            {% if entries %}
-            <div class="d-flex gap-2">
-                <a href="{% url 'attendance_records_list' %}" class="btn btn-sm btn-outline-secondary">Cancelar</a>
-                <button type="submit" class="btn btn-sm btn-primary">
-                    <i class="feather-check me-1"></i> Salvar
-                </button>
-            </div>
-            {% endif %}
+        <div class="card-header d-flex align-items-center justify-content-between gap-2">
+            <h6 class="card-title mb-0">Lançamento de frequência</h6>
+            <span class="text-muted small text-nowrap">{{ entries|length }} aluno{{ entries|length|pluralize }}</span>
         </div>
-        <div class="card-body sm-profile-card-body sm-viewport-body">
-            {% if saved %}<div class="alert alert-success py-2">Chamada salva com sucesso.</div>{% endif %}
-            <p class="text-muted small mb-3">Marque a presença de cada aluno. Use <b>Justificado</b> com motivo para faltas amparadas por atestado.</p>
+
+        {% if submission_error %}<div class="alert alert-danger m-3 mb-0 py-2" role="alert">{{ submission_error }}</div>{% endif %}
+        {% if saved %}<div class="alert alert-success m-3 mb-0 py-2" role="status">Chamada salva com sucesso.</div>{% endif %}
+
+        <div class="card-body p-0 sm-viewport-body">
             <div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Presença dos alunos">
-                <table class="table table-hover align-middle mb-0 sm-sticky-table sm-sticky-table--first-column">
-                    <thead><tr><th>Aluno</th><th>Presença</th><th>Observação/recado</th></tr></thead>
-                    <tbody>
-                        {% for entry in entries %}
-                        <tr>
-                            <td>{{ entry.student.get_full_name }} <small class="text-muted">({{ entry.student.enrollment_number }})</small></td>
-                            <td>
-                                <div class="btn-group btn-group-sm" role="group" aria-label="status_{{ entry.student_id }}">
-                                    <input type="radio" class="btn-check" name="status_{{ entry.student_id }}" id="present_{{ entry.student_id }}" value="PRESENT" autocomplete="off" {% if entry.status == 'PRESENT' %}checked{% endif %}>
-                                    <label class="btn btn-outline-success" for="present_{{ entry.student_id }}">Presente</label>
-                                    <input type="radio" class="btn-check" name="status_{{ entry.student_id }}" id="absent_{{ entry.student_id }}" value="ABSENT" autocomplete="off" {% if entry.status == 'ABSENT' %}checked{% endif %}>
-                                    <label class="btn btn-outline-danger" for="absent_{{ entry.student_id }}">Ausente</label>
-                                    <input type="radio" class="btn-check" name="status_{{ entry.student_id }}" id="just_{{ entry.student_id }}" value="JUSTIFIED" autocomplete="off" {% if entry.status == 'JUSTIFIED' %}checked{% endif %}>
-                                    <label class="btn btn-outline-warning text-dark" for="just_{{ entry.student_id }}">Justificado</label>
+                <table class="table table-hover align-middle mb-0 sm-compact-table sm-sticky-table sm-sticky-table--first-column sm-attendance-table">
+                <thead>
+                    <tr>
+                        <th scope="col" class="sm-attendance-student-column">Aluno</th>
+                        <th scope="col" class="sm-attendance-status-column">Presença</th>
+                        <th scope="col" class="sm-attendance-note-column">Observação/recado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in entries %}
+                    <tr>
+                        <th scope="row" class="sm-attendance-student-column">
+                            <a href="{% url 'student_attendance_class' entry.student.pk record.class_obj.pk %}" class="fw-semibold">{{ entry.student.get_full_name }}</a>
+                            <div class="text-muted small">{{ entry.student.enrollment_number }}</div>
+                        </th>
+                        <td class="sm-attendance-status-column">
+                            <div class="dropdown sm-attendance-dropdown"
+                                 data-sm-floating-dropdown
+                                 data-attendance-status
+                                 data-attendance-enhanced
+                                 hidden>
+                                <button type="button"
+                                        class="btn btn-outline-secondary sm-attendance-selector"
+                                        data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"
+                                        data-bs-boundary="viewport"
+                                        aria-expanded="false"
+                                        aria-controls="attendance-status-menu-{{ entry.student_id }}">
+                                    <span class="visually-hidden">Presença de {{ entry.student.get_full_name }}: </span>
+                                    <span data-attendance-status-summary>{% if entry.status == 'ABSENT' %}Ausente{% elif entry.status == 'JUSTIFIED' %}Justificado{% else %}Presente{% endif %}</span>
+                                    <i class="feather-chevron-down ms-auto" aria-hidden="true"></i>
+                                </button>
+                                <div class="dropdown-menu sm-attendance-dropdown-menu p-3"
+                                     id="attendance-status-menu-{{ entry.student_id }}"
+                                     data-sm-floating-menu>
+                                    <fieldset>
+                                        <legend class="dropdown-header px-0 pt-0">Presença de {{ entry.student.get_full_name }}</legend>
+                                        <div class="form-check mb-2">
+                                            <input type="radio" class="form-check-input sm-attendance-status-input" name="status_{{ entry.student_id }}" id="present_{{ entry.student_id }}" value="PRESENT" autocomplete="off" disabled {% if entry.status == 'PRESENT' %}checked{% endif %}>
+                                            <label class="form-check-label" for="present_{{ entry.student_id }}">Presente</label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input type="radio" class="form-check-input sm-attendance-status-input" name="status_{{ entry.student_id }}" id="absent_{{ entry.student_id }}" value="ABSENT" autocomplete="off" disabled {% if entry.status == 'ABSENT' %}checked{% endif %}>
+                                            <label class="form-check-label" for="absent_{{ entry.student_id }}">Ausente</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input type="radio" class="form-check-input sm-attendance-status-input" name="status_{{ entry.student_id }}" id="just_{{ entry.student_id }}" value="JUSTIFIED" autocomplete="off" disabled {% if entry.status == 'JUSTIFIED' %}checked{% endif %}>
+                                            <label class="form-check-label" for="just_{{ entry.student_id }}">Justificado</label>
+                                        </div>
+                                    </fieldset>
                                 </div>
-                            </td>
-                            <td>
-                                <input type="text" class="form-control form-control-sm"
-                                       name="note_{{ entry.student_id }}" maxlength="250"
-                                       value="{{ entry.note }}" aria-label="Observação para {{ entry.student.get_full_name }}">
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="3" class="text-center text-muted py-4">Nenhum aluno matriculado nesta turma.</td></tr>
-                        {% endfor %}
-                    </tbody>
+                            </div>
+                            <div class="sm-attendance-fallback" data-attendance-fallback>
+                                <label class="visually-hidden" for="status-fallback-{{ entry.student_id }}">Presença de {{ entry.student.get_full_name }}</label>
+                                <select class="form-select form-select-sm sm-attendance-fallback-control"
+                                        name="status_{{ entry.student_id }}"
+                                        id="status-fallback-{{ entry.student_id }}">
+                                    <option value="PRESENT"{% if entry.status == 'PRESENT' %} selected{% endif %}>Presente</option>
+                                    <option value="ABSENT"{% if entry.status == 'ABSENT' %} selected{% endif %}>Ausente</option>
+                                    <option value="JUSTIFIED"{% if entry.status == 'JUSTIFIED' %} selected{% endif %}>Justificado</option>
+                                </select>
+                            </div>
+                        </td>
+                        <td class="sm-attendance-note-column">
+                            <div class="dropdown sm-attendance-dropdown"
+                                 data-sm-floating-dropdown
+                                 data-attendance-note
+                                 data-attendance-enhanced
+                                 hidden>
+                                <button type="button"
+                                        class="btn btn-outline-secondary sm-attendance-selector"
+                                        data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"
+                                        data-bs-boundary="viewport"
+                                        aria-expanded="false"
+                                        aria-controls="attendance-note-menu-{{ entry.student_id }}">
+                                    <span class="visually-hidden">Observação de {{ entry.student.get_full_name }}: </span>
+                                    <span data-attendance-note-summary>{% if entry.note %}Com observação{% else %}Sem observação{% endif %}</span>
+                                    <i class="feather-chevron-down ms-auto" aria-hidden="true"></i>
+                                </button>
+                                <div class="dropdown-menu dropdown-menu-end sm-attendance-dropdown-menu sm-attendance-note-menu p-3"
+                                     id="attendance-note-menu-{{ entry.student_id }}"
+                                     data-sm-floating-menu>
+                                    <div class="d-flex align-items-center justify-content-between gap-2 mb-2 sm-attendance-note-toolbar">
+                                        <label class="form-label fw-semibold mb-0" for="note_{{ entry.student_id }}">Observação de {{ entry.student.get_full_name }}</label>
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-primary text-nowrap"
+                                                disabled
+                                                aria-disabled="true"
+                                                title="Recurso de melhoria de texto em preparação">
+                                            <i class="feather-zap me-1" aria-hidden="true"></i> Melhorar com IA
+                                            <span class="badge bg-soft-secondary text-secondary ms-1">Em breve</span>
+                                        </button>
+                                    </div>
+                                    <textarea class="form-control form-control-sm sm-attendance-note-input"
+                                              name="note_{{ entry.student_id }}"
+                                              id="note_{{ entry.student_id }}"
+                                              rows="6"
+                                              maxlength="250"
+                                              disabled>{{ entry.note }}</textarea>
+                                </div>
+                            </div>
+                            <div class="sm-attendance-fallback" data-attendance-fallback>
+                                <label class="visually-hidden" for="note-fallback-{{ entry.student_id }}">Observação de {{ entry.student.get_full_name }}</label>
+                                <textarea class="form-control form-control-sm sm-attendance-fallback-control"
+                                          name="note_{{ entry.student_id }}"
+                                          id="note-fallback-{{ entry.student_id }}"
+                                          rows="6"
+                                          maxlength="250">{{ entry.note }}</textarea>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="text-center text-muted py-4">Nenhum aluno matriculado nesta turma.</td></tr>
+                    {% endfor %}
+                </tbody>
                 </table>
             </div>
         </div>
     </form>
+    <div class="card-footer d-flex justify-content-end gap-2">
+        <a href="{% url 'attendance_records_list' %}" class="btn btn-sm btn-outline-secondary">Cancelar</a>
+        {% if entries %}
+        <button type="submit" form="attendance-fill-form" class="btn btn-sm btn-primary">
+            <i class="feather-check me-1" aria-hidden="true"></i> Salvar
+        </button>
+        {% endif %}
+    </div>
 </div>

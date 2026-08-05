@@ -80,7 +80,7 @@ class WhatsAppChannel(BaseChannel):
 | Camada | Responsabilidade | Exemplo |
 |--------|-----------------|---------|
 | `models.py` | Schema, campos, índices, `__str__` | `Class(BaseModel)`, `Enrollment(BaseModel)` |
-| `services.py` | Regras de negócio, validação, auditoria | `ClassService.enroll_student()`, `validate_required()` |
+| `services.py` | Regras de negócio, validação, auditoria | `EnrollmentApplicationService.approve_application()`, `validate_required()` |
 | `selectors.py` | Consultas read-only, paginação, agregação | `ClassSelector.list_ordered()`, `get_month_grid()` |
 | `views.py` | Orquestração HTTP (receber request → chamar service/selector → renderizar) | `class_create(request)` |
 | `forms.py` | Validação de formulário (apenas field-level: required, tipo, choices) | `ClassForm(forms.ModelForm)` |

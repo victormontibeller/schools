@@ -83,6 +83,7 @@ def _enroll(user, class_obj, student):
     return Enrollment.objects.create(
         class_obj=class_obj,
         student=student,
+        academic_year=class_obj.academic_year,
         enrollment_date=dt.date(2026, 1, 20),
         status=Enrollment.Status.ACTIVE,
         created_by=user,
@@ -99,9 +100,26 @@ def _seeded_answers(shift=Class.Shift.MORNING):
     return {str(category.pk): str(category.options.all()[0].pk) for category in categories}
 
 
-def _payload(*, notes="Dia tranquilo."):
+def _set_aspect_enabled(service, aspect, enabled):
+    """Atualiza a disponibilidade pelo comando canônico de edição."""
+    return service.update_routine_aspect(
+        aspect.pk,
+        {
+            "name": aspect.name,
+            "section": aspect.section,
+            "display_order": aspect.display_order,
+            "is_required": aspect.is_required,
+            "is_enabled": enabled,
+            "applies_morning": aspect.applies_morning,
+            "applies_afternoon": aspect.applies_afternoon,
+            "version": aspect.version,
+        },
+    )
+
+
+def _payload(*, notes="Dia tranquilo.", shift=Class.Shift.MORNING):
     return {
-        "answers": _seeded_answers(),
+        "answers": _seeded_answers(shift),
         "notes": notes,
     }
 
@@ -112,7 +130,7 @@ def _payload(*, notes="Dia tranquilo."):
     [
         (Class.Shift.MORNING, {"Café da manhã", "Almoço"}),
         (Class.Shift.AFTERNOON, {"Almoço", "Café da tarde"}),
-        (Class.Shift.FULL, {"Café da manhã", "Almoço", "Café da tarde"}),
+        (Class.Shift.FULL, {"Almoço"}),
     ],
 )
 def test_list_sheet_categories_returns_items_for_shift(shift, expected):
@@ -123,6 +141,26 @@ def test_list_sheet_categories_returns_items_for_shift(shift, expected):
     }
 
     assert names == expected
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("applies_morning", "applies_afternoon", "is_available_for_full"),
+    [(True, True, True), (True, False, False), (False, True, False), (False, False, False)],
+)
+def test_full_shift_requires_both_morning_and_afternoon_flags(
+    applies_morning, applies_afternoon, is_available_for_full
+):
+    category = DiaryCategory(
+        is_enabled=True,
+        applies_morning=applies_morning,
+        applies_afternoon=applies_afternoon,
+    )
+
+    assert (
+        StudentDiarySelector.category_applies_to_shift(category, Class.Shift.FULL)
+        is is_available_for_full
+    )
 
 
 @pytest.mark.django_db
@@ -268,13 +306,13 @@ def test_admin_without_teacher_profile_saves_inside_tenant(user):
 
 
 @pytest.mark.django_db
-def test_toggle_seeded_aspect_is_audited(user):
+def test_update_seeded_aspect_availability_is_audited(user):
     from audit.models import AuditLog
 
     aspect = DiaryCategory.objects.get(name="Humor")
     service = StudentDiaryService(user=user)
 
-    service.set_routine_aspect_enabled(aspect.pk, False)
+    _set_aspect_enabled(service, aspect, False)
     aspect.refresh_from_db()
 
     assert not aspect.is_enabled
@@ -284,12 +322,12 @@ def test_toggle_seeded_aspect_is_audited(user):
 
 
 @pytest.mark.django_db
-def test_teacher_cannot_toggle_aspect(user):
+def test_teacher_cannot_update_aspect_availability(user):
     teacher = _teacher(user)
     aspect = DiaryCategory.objects.get(name="Humor")
 
     with pytest.raises(PermissionDeniedError):
-        StudentDiaryService(user=teacher.user).set_routine_aspect_enabled(aspect.pk, False)
+        _set_aspect_enabled(StudentDiaryService(user=teacher.user), aspect, False)
 
 
 @pytest.mark.django_db

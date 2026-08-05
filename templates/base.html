@@ -194,31 +194,37 @@
     <div id="app-navigation-progress" class="sm-navigation-progress htmx-indicator" aria-hidden="true"></div>
 
     <!--! [Start] Main Content -->
-    <main class="nxl-container"
-          id="app-main"
-          hx-history-elt
-          data-nav-group-id="{{ school_navigation.active_group_id }}"
-          data-nav-url-name="{{ school_navigation.active_url_name }}">
-        <div class="nxl-content">
-            {% if messages %}
-                <div class="px-4 pt-3">
-                    {% for message in messages %}
-                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-            {% block content %}{% endblock %}
-        </div>
-    </main>
-    <!--! [End] Main Content -->
+    <div id="app-history-root" hx-history-elt>
+        <main class="nxl-container"
+              id="app-main"
+              data-nav-group-id="{{ school_navigation.active_group_id }}"
+              data-nav-url-name="{{ school_navigation.active_url_name }}">
+            <div class="nxl-content">
+                {% if messages %}
+                    <div class="px-4 pt-3">
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+        <!--! [End] Main Content -->
+
+        <div id="app-modal-root">{% block app_modal %}{% endblock %}</div>
+    </div>
 
     <script src="{% static 'js/vendors.min.js' %}"></script>
     <script src="{% static 'js/common-init.min.js' %}"></script>
     <script src="{% static 'js/htmx.min.js' %}"></script>
     <script src="{% static 'js/pwa.js' %}"></script>
+    <script src="{% static 'js/sm-floating-dropdowns.js' %}"></script>
+    <script src="{% static 'js/sm-activity-score-feedback.js' %}"></script>
+    <script src="{% static 'js/sm-schedule-modals.js' %}"></script>
     <script>
     document.addEventListener("DOMContentLoaded", function () {
         var themeToggle = document.getElementById("theme-toggle");
@@ -282,6 +288,76 @@
             syncSchoolNavigationAria();
         }
 
+        function initializeListPrimaryNavigation(rootNode) {
+            var root = rootNode && rootNode.querySelectorAll ? rootNode : document;
+            var selector = "[data-sm-layout='list'] "
+                + ".sm-sticky-table--first-column tbody tr > td:first-child a[href]";
+
+            root.querySelectorAll(selector).forEach(function (link) {
+                if (link.dataset.smListNavigationReady === "true") {
+                    return;
+                }
+                link.dataset.smListNavigationReady = "true";
+                link.setAttribute("hx-boost", "true");
+                link.setAttribute("hx-target", "#app-main");
+                link.setAttribute("hx-select", "#app-main");
+                link.setAttribute("hx-swap", "outerHTML transition:true show:top");
+                link.setAttribute("hx-push-url", "true");
+                link.setAttribute("hx-indicator", "#app-navigation-progress");
+                window.htmx.process(link);
+            });
+        }
+
+        var listTabState = {pending: null};
+
+        function findListTabNavigation(key) {
+            return Array.from(document.querySelectorAll("[data-sm-list-tabs]")).find(
+                function (navigation) {
+                    return navigation.dataset.smListTabs === key;
+                }
+            );
+        }
+
+        function restoreListTabFocus(event) {
+            var pending = listTabState.pending;
+            var detail = event && event.detail;
+            if (!pending || !detail || detail.requestConfig !== pending.requestConfig) {
+                return;
+            }
+            listTabState.pending = null;
+
+            window.requestAnimationFrame(function () {
+                var navigation = findListTabNavigation(pending.navigationKey);
+                if (!navigation) {
+                    return;
+                }
+                var tabs = Array.from(navigation.querySelectorAll("[data-sm-tab-id]"));
+                var activeTab = tabs.find(function (tab) {
+                    return tab.dataset.smTabId === pending.tabId
+                        && tab.classList.contains("active");
+                }) || navigation.querySelector("[data-sm-tab-id].active");
+                if (!activeTab) {
+                    return;
+                }
+                activeTab.focus({preventScroll: true});
+                activeTab.scrollIntoView({block: "nearest", inline: "nearest"});
+            });
+        }
+
+        function clearPendingListTabRequest(event) {
+            var pending = listTabState.pending;
+            var detail = event && event.detail;
+            if (!pending) {
+                return;
+            }
+            if (
+                (detail && detail.requestConfig === pending.requestConfig)
+                || (event && event.type === "htmx:abort" && event.target === pending.trigger)
+            ) {
+                listTabState.pending = null;
+            }
+        }
+
         function applySchoolNavigationState() {
             var navigation = document.getElementById("school-navigation");
             var main = document.getElementById("app-main");
@@ -319,6 +395,13 @@
             syncSchoolNavigationAria();
         }
 
+        function syncAppModalPortal(responseDocument) {
+            return Boolean(
+                window.SmScheduleModals
+                && window.SmScheduleModals.syncPortal(responseDocument)
+            );
+        }
+
         var sidebarContent = document.querySelector(".sm-fixed-sidebar .navbar-content");
         if (sidebarContent) {
             sidebarContent.addEventListener("focusin", function (event) {
@@ -328,8 +411,11 @@
             });
         }
         initializeSchoolNavigation();
+        initializeListPrimaryNavigation(document);
 
         document.body.addEventListener("htmx:afterSettle", function (event) {
+            initializeListPrimaryNavigation(event.target);
+            restoreListTabFocus(event);
             if (!event.detail.requestConfig || !event.detail.requestConfig.boosted) {
                 return;
             }
@@ -339,8 +425,31 @@
             }
         });
 
+        window.addEventListener("popstate", function () {
+            if (window.SmScheduleModals) {
+                window.SmScheduleModals.teardown();
+            }
+        }, true);
+
+        document.body.addEventListener("htmx:beforeHistorySave", function () {
+            if (window.SmScheduleModals) {
+                window.SmScheduleModals.teardown();
+            }
+        });
+
         document.body.addEventListener("htmx:historyRestore", function () {
+            if (window.SmScheduleModals) {
+                window.SmScheduleModals.teardown();
+            }
             applySchoolNavigationState();
+            var modalRoot = document.getElementById("app-modal-root");
+            if (
+                modalRoot
+                && !modalRoot.children.length
+                && document.querySelector("[data-sm-schedule-cell-modal]")
+            ) {
+                window.location.reload();
+            }
         });
 
         document.body.addEventListener("htmx:beforeSwap", function (event) {
@@ -352,14 +461,42 @@
                 event.detail.serverResponse,
                 "text/html"
             );
-            if (!responseDocument.querySelector("#app-main")) {
+            if (
+                !responseDocument.querySelector("#app-main")
+                || !syncAppModalPortal(responseDocument)
+            ) {
                 event.detail.shouldSwap = false;
                 window.location.assign(event.detail.xhr.responseURL || config.path);
             }
         });
 
+        document.body.addEventListener("htmx:beforeRequest", function (event) {
+            var source = event.detail.elt;
+            if (!source) {
+                return;
+            }
+            if (source.matches("[data-sm-tab-id]")) {
+                var listTabs = source.closest("[data-sm-list-tabs]");
+                if (listTabs) {
+                    listTabState.pending = {
+                        navigationKey: listTabs.dataset.smListTabs,
+                        requestConfig: event.detail.requestConfig,
+                        tabId: source.dataset.smTabId,
+                        trigger: source,
+                    };
+                }
+            }
+        });
+        document.body.addEventListener("htmx:abort", clearPendingListTabRequest);
+        document.body.addEventListener("htmx:afterRequest", function (event) {
+            if (event.detail && event.detail.failed) {
+                clearPendingListTabRequest(event);
+            }
+        });
+
         ["htmx:responseError", "htmx:sendError", "htmx:timeout"].forEach(function (eventName) {
             document.body.addEventListener(eventName, function (event) {
+                clearPendingListTabRequest(event);
                 var config = event.detail.requestConfig;
                 if (config && config.boosted) {
                     window.location.assign(event.detail.xhr.responseURL || config.path);

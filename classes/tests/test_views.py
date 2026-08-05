@@ -3,9 +3,8 @@
 import pytest
 from django.urls import reverse
 
-from classes.models import Class, Enrollment
+from classes.models import Class
 from core.models import CustomUser
-from students.models import Student
 from teachers.models import Teacher
 
 
@@ -75,7 +74,7 @@ def test_class_create_accepts_valid_grade_without_javascript(client, user):
 
 
 @pytest.mark.django_db
-def test_class_list_detail_search_and_enroll_flow(client, user):
+def test_class_list_detail_links_to_enrollment_application(client, user):
     client.force_login(user)
     cls = Class.objects.create(
         name="Busca 2A",
@@ -87,15 +86,6 @@ def test_class_list_detail_search_and_enroll_flow(client, user):
         created_by=user,
         updated_by=user,
     )
-    student = Student.objects.create(
-        first_name="Aluno",
-        last_name="Disponível",
-        birth_date="2016-01-01",
-        enrollment_number="CLASS-VIEW-001",
-        created_by=user,
-        updated_by=user,
-    )
-
     list_response = client.get(reverse("classes_list"), {"q": "Busca"})
     partial_response = client.get(reverse("classes_list"), HTTP_HX_REQUEST="true")
     detail_response = client.get(reverse("class_detail", args=[cls.pk]))
@@ -104,20 +94,11 @@ def test_class_list_detail_search_and_enroll_flow(client, user):
         {"component": "information"},
         HTTP_HX_REQUEST="true",
     )
-    search_response = client.get(
-        reverse("class_student_search", args=[cls.pk]), {"q": "Disponível"}
-    )
-    enroll_response = client.post(
-        reverse("class_enroll", args=[cls.pk]), {"student_id": student.pk}
-    )
-
     assert list_response.status_code == 200
     assert partial_response.status_code == 200
     assert detail_response.status_code == 200
     assert information_response.status_code == 200
-    assert search_response.status_code == 200
-    assert enroll_response.status_code == 302
-    assert Enrollment.objects.filter(class_obj=cls, student=student).exists()
+    assert reverse("enrollment_application_create").encode() in detail_response.content
 
 
 @pytest.mark.django_db

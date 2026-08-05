@@ -2,9 +2,10 @@
 
 from activities.services.activity import ActivityCoreService
 from activities.services.groups import ActivityGroupMixin
+from activities.services.scores import ActivityScoreMixin
 
 
-class ActivityService(ActivityGroupMixin, ActivityCoreService):
+class ActivityService(ActivityScoreMixin, ActivityGroupMixin, ActivityCoreService):
     """Coordena atividades individuais e em grupo."""
 
 

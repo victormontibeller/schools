@@ -91,6 +91,7 @@ def test_justification_student_queryset_limits_teacher_to_assigned_students(user
         Enrollment.objects.create(
             student=student,
             class_obj=class_obj,
+            academic_year=class_obj.academic_year,
             enrollment_date=dt.date.today(),
             status=Enrollment.Status.ACTIVE,
             created_by=user,

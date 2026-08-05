@@ -1,0 +1,3 @@
+{% include "activities/partials/activity_score_card.html" %}
+{% include "activities/partials/activity_information_card.html" with information_oob=True %}
+{% if activity.modality == 'GROUP' %}{% include "activities/partials/activity_groups_card.html" with groups_oob=True %}{% endif %}

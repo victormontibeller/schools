@@ -1,9 +1,9 @@
 {% load ui_helpers %}
 {% can_access_action "activities" "edit" as can_edit_activity %}
-<div class="card mb-0 sm-detail-card" id="activity-information-card">
+<div class="card mb-0 sm-detail-card" id="activity-information-card"{% if information_oob %} hx-swap-oob="outerHTML"{% endif %}>
     <div class="card-header d-flex align-items-center justify-content-between gap-2">
         <h6 class="card-title mb-0">Informações da Atividade</h6>
-        {% if can_edit_activity %}<button type="button" class="btn btn-sm btn-outline-primary"
+        {% if can_edit_activity and activity.score_status == 'DRAFT' %}<button type="button" class="btn btn-sm btn-outline-primary"
                 hx-get="{% url 'activity_edit' activity.pk %}"
                 hx-target="#activity-information-card" hx-swap="outerHTML">
             <i class="feather-edit-2 me-1"></i> Editar
@@ -11,6 +11,8 @@
     </div>
     <div class="card-body">
         {% if saved %}<div class="alert alert-success py-2">Informações atualizadas com sucesso.</div>{% endif %}
+        {% if status_message %}<div class="alert alert-success py-2" role="status">{{ status_message }}</div>{% endif %}
+        {% if status_error %}<div class="alert alert-danger py-2" role="alert">{{ status_error }}</div>{% endif %}
         <dl class="row mb-0 sm-detail-definition">
             <dt class="col-sm-3">Turma</dt><dd class="col-sm-9">{{ activity.class_obj|default:"—" }}</dd>
             <dt class="col-sm-3">Disciplina</dt><dd class="col-sm-9">{{ activity.subject|default:"—" }}</dd>
@@ -20,7 +22,29 @@
             <dt class="col-sm-3">Entrega</dt><dd class="col-sm-9">{{ activity.due_date|date:"d/m/Y"|default:"—" }}</dd>
             <dt class="col-sm-3">Nota Máxima</dt><dd class="col-sm-9">{{ activity.max_score|default:"—" }}</dd>
             <dt class="col-sm-3">Peso</dt><dd class="col-sm-9">{{ activity.weight|default:"—" }}</dd>
+            <dt class="col-sm-3">Status das notas</dt><dd class="col-sm-9">{% if activity.score_status == 'LAUNCHED' %}<span class="badge bg-soft-success text-success">Lançadas</span>{% else %}<span class="badge bg-soft-warning text-warning">Rascunho</span>{% endif %}</dd>
+            {% if activity.scores_launched_at %}<dt class="col-sm-3">Lançadas em</dt><dd class="col-sm-9">{{ activity.scores_launched_at|date:"d/m/Y H:i" }}</dd>{% endif %}
             <dt class="col-sm-3">Descrição</dt><dd class="col-sm-9">{{ activity.description|default:"—" }}</dd>
         </dl>
     </div>
+    {% if can_edit_activity %}
+    <div class="card-footer">
+        {% if activity.score_status == 'DRAFT' %}
+        <form id="activity-scores-launch-form" method="post" action="{% url 'activity_launch_scores' activity.pk %}" hx-post="{% url 'activity_launch_scores' activity.pk %}" hx-target="#activity-score-card" hx-swap="outerHTML">
+            {% csrf_token %}{{ launch_form.version }}
+            {% for error in launch_form.non_field_errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            <button type="submit" class="btn btn-sm btn-success">Lançar notas</button>
+        </form>
+        {% else %}
+        <form id="activity-scores-reopen-form" method="post" action="{% url 'activity_reopen_scores' activity.pk %}" hx-post="{% url 'activity_reopen_scores' activity.pk %}" hx-target="#activity-score-card" hx-swap="outerHTML">
+            {% csrf_token %}{{ reopen_form.version }}
+            {% for error in reopen_form.non_field_errors %}<div class="alert alert-danger py-2">{{ error }}</div>{% endfor %}
+            <div class="row g-2 align-items-end">
+                <div class="col-12 col-md">{% include "partials/form_field.html" with field=reopen_form.reason %}</div>
+                <div class="col-12 col-md-auto"><button type="submit" class="btn btn-sm btn-outline-primary">Reabrir notas</button></div>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>

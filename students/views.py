@@ -269,6 +269,7 @@ def student_guardian_contact_edit(request, pk, link_pk):
     form = GuardianContactEditForm(
         request.POST or None,
         request.FILES or None,
+        email_editable=False,
         initial={
             "first_name": guardian.first_name,
             "last_name": guardian.last_name,

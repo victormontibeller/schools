@@ -5,7 +5,7 @@ from django.db import connection, transaction
 from django.utils import timezone
 
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
-from base.services import BaseService
+from base.services import BaseService, system_command
 
 GUARDIAN_INVITE_SALT = "schools.guardian-invite.v1"
 GUARDIAN_INVITE_TTL_SECONDS = 7 * 24 * 60 * 60
@@ -67,6 +67,7 @@ class GuardianInvitationService(BaseService):
         self._log("guardian_invitation_sent", guardian_id=str(guardian.pk))
         return user
 
+    @system_command
     def activate_invitation(self, token: str, password: str):
         """Define a senha e consome o convite válido uma única vez."""
         from accounts.services import AccountService

@@ -2,15 +2,7 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
-from pathlib import Path
-
-from django.urls import NoReverseMatch, reverse
-
-from core.ui_catalog import LIST_PAGE_CATALOG
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +51,14 @@ LIST_TEMPLATE_CONTRACTS: dict[str, tuple[str, str]] = {
         "academic_calendar/templates/academic_calendar/events_list.html",
         "academic_calendar/templates/academic_calendar/partials/events_table.html",
     ),
+    "enrollment_application_list": (
+        "enrollments/templates/enrollments/application_list.html",
+        "enrollments/templates/enrollments/partials/applications_table.html",
+    ),
+    "document_requirement_list": (
+        "enrollments/templates/enrollments/document_requirement_list.html",
+        "enrollments/templates/enrollments/partials/document_requirements_table.html",
+    ),
     "guardians_list": (
         "guardians/templates/guardians/guardians_list.html",
         "guardians/templates/guardians/partials/guardians_table.html",
@@ -98,6 +98,10 @@ LIST_TEMPLATE_CONTRACTS: dict[str, tuple[str, str]] = {
     "rooms_list": (
         "rooms/templates/rooms/rooms_list.html",
         "rooms/templates/rooms/partials/rooms_table.html",
+    ),
+    "schedule_classes_list": (
+        "agenda/templates/agenda/schedule_classes_list.html",
+        "agenda/templates/agenda/partials/schedule_classes_table.html",
     ),
     "students_list": (
         "students/templates/students/students_list.html",
@@ -169,13 +173,8 @@ OPERATIONAL_GRID_CONTRACTS = (
     ),
     GridContract(
         "agenda/templates/agenda/schedule_weekly.html",
-        "agenda/templates/agenda/schedule_weekly.html",
-        "agenda/templates/agenda/schedule_weekly.html",
-    ),
-    GridContract(
-        "agenda/templates/agenda/teacher_schedule.html",
-        "agenda/templates/agenda/teacher_schedule.html",
-        "agenda/templates/agenda/teacher_schedule.html",
+        "agenda/templates/agenda/partials/schedule_matrix_workspace.html",
+        "agenda/templates/agenda/partials/schedule_matrix_workspace.html",
     ),
     GridContract(
         "attendance/templates/attendance/summary.html",
@@ -197,12 +196,21 @@ OPERATIONAL_GRID_CONTRACTS = (
         "attendance/templates/attendance/partials/attendance_fill_card.html",
         "attendance/templates/attendance/partials/attendance_fill_card.html",
     ),
+    GridContract(
+        "activities/templates/activities/activity_detail.html",
+        "activities/templates/activities/partials/activity_score_card.html",
+        "activities/templates/activities/partials/activity_score_card.html",
+    ),
+    GridContract(
+        "enrollments/templates/enrollments/reenrollment_batch.html",
+        "enrollments/templates/enrollments/partials/reenrollment_workspace.html",
+        "enrollments/templates/enrollments/partials/reenrollment_workspace.html",
+    ),
 )
 
 MANUAL_SHELL_ALLOWLIST = {
     "accounts/change_password.html",
     "accounts/templates/accounts/user_detail.html",
-    "activities/templates/activities/activity_detail.html",
     "addresses/templates/addresses/address_form.html",
     "classes/templates/classes/class_detail.html",
     "core/templates/core/business_unit_detail.html",
@@ -210,9 +218,6 @@ MANUAL_SHELL_ALLOWLIST = {
     "design_system/design-system.html",
     "design_system/refs/duralux/index.html",
     "enrollments/templates/enrollments/application_detail.html",
-    "enrollments/templates/enrollments/application_review.html",
-    "enrollments/templates/enrollments/document_form.html",
-    "enrollments/templates/enrollments/secretary_dashboard.html",
     "guardians/templates/guardians/guardian_detail.html",
     "guardians/templates/guardians/guardian_form.html",
     "notifications/templates/notifications/announcement_detail.html",
@@ -230,13 +235,12 @@ MANUAL_SHELL_ALLOWLIST = {
 }
 
 SECONDARY_TABLE_ALLOWLIST = {
-    "activities/templates/activities/activity_detail.html",
     "classes/templates/classes/class_detail.html",
     "dashboard/templates/dashboard/executive.html",
     "dashboard/templates/dashboard/partials/operational_widgets.html",
     "design_system/design-system.html",
     "design_system/refs/duralux/index.html",
-    "enrollments/templates/enrollments/application_detail.html",
+    "enrollments/templates/enrollments/partials/application_documents_card.html",
     "enrollments/templates/enrollments/partials/applications_table.html",
     "student_diary/templates/student_diary/partials/category_options_card.html",
     "tenancy/templates/tenancy/platform_dashboard.html",
@@ -250,103 +254,5 @@ OBSOLETE_LAYOUT_CLASSES = {
     "sm-list-card",
 }
 
-
-def _read(relative_path: str) -> str:
-    return (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
-
-
-def _html_files() -> set[str]:
-    ignored_parts = {".venv", "staticfiles", "node_modules"}
-    return {
-        path.relative_to(PROJECT_ROOT).as_posix()
-        for path in PROJECT_ROOT.rglob("*.html")
-        if not ignored_parts.intersection(path.parts)
-    }
-
-
-def check_ui_contracts() -> list[str]:
-    """Retorna violações determinísticas do contrato visual canônico."""
-    errors: list[str] = []
-
-    if set(LIST_TEMPLATE_CONTRACTS) != set(LIST_PAGE_CATALOG):
-        errors.append("O catálogo e os templates de listagem possuem rotas diferentes.")
-
-    for route_name, (page_template, table_template) in LIST_TEMPLATE_CONTRACTS.items():
-        try:
-            reverse(route_name)
-        except NoReverseMatch:
-            errors.append(f"Rota de listagem inválida: {route_name}")
-        page_source = _read(page_template)
-        table_source = _read(table_template)
-        if '{% extends "list_page_base.html" %}' not in page_source:
-            errors.append(f"Listagem fora do shell canônico: {page_template}")
-        errors.extend(_check_scroll_contract(table_template, table_source))
-
-    for definition in LIST_PAGE_CATALOG.values():
-        for route_name in (definition.search_url, definition.create_url):
-            if not route_name:
-                continue
-            try:
-                reverse(route_name)
-            except NoReverseMatch:
-                errors.append(f"Rota inválida no catálogo de UI: {route_name}")
-
-    for contract in OPERATIONAL_GRID_CONTRACTS:
-        page_source = _read(contract.page_template)
-        if '{% extends "page_shell_base.html" %}' not in page_source:
-            errors.append(f"Grade fora do shell canônico: {contract.page_template}")
-        errors.extend(
-            _check_scroll_contract(contract.scroll_template, _read(contract.scroll_template))
-        )
-        table_source = _read(contract.table_template)
-        for token in ("sm-sticky-table", "sm-sticky-table--first-column"):
-            if token not in table_source:
-                errors.append(f"{contract.table_template}: classe obrigatória ausente: {token}")
-
-    html_files = _html_files()
-    protected_pages = {page for page, _table in LIST_TEMPLATE_CONTRACTS.values()} | {
-        contract.page_template for contract in OPERATIONAL_GRID_CONTRACTS
-    }
-    shell_sources = {"templates/page_shell_base.html", "templates/list_page_base.html"}
-    for relative_path in html_files - MANUAL_SHELL_ALLOWLIST - protected_pages - shell_sources:
-        source = _read(relative_path)
-        if _has_class(source, "page-header") or _has_class(source, "main-content"):
-            errors.append(f"Shell manual não registrado: {relative_path}")
-
-    for relative_path in html_files:
-        source = _read(relative_path)
-        for class_name in OBSOLETE_LAYOUT_CLASSES:
-            if _has_class(source, class_name):
-                errors.append(f"Classe de layout obsoleta em {relative_path}: {class_name}")
-
-    primary_tables = {table for _page, table in LIST_TEMPLATE_CONTRACTS.values()} | {
-        contract.table_template for contract in OPERATIONAL_GRID_CONTRACTS
-    }
-    table_files = {path for path in html_files if "<table" in _read(path)}
-    unregistered_tables = table_files - primary_tables - SECONDARY_TABLE_ALLOWLIST
-    for relative_path in sorted(unregistered_tables):
-        errors.append(f"Tabela sem contrato ou exceção registrada: {relative_path}")
-
-    if (PROJECT_ROOT / "static" / "css" / "school-manager.css").exists():
-        errors.append("CSS customizado duplicado em static/css/school-manager.css")
-    if "school-manager.css' %}?v=" in _read("templates/base.html"):
-        errors.append("Versionamento manual do CSS ainda está ativo em base.html")
-
-    return sorted(set(errors))
-
-
-def _check_scroll_contract(relative_path: str, source: str) -> list[str]:
-    errors = []
-    for token in ("table-responsive", "sm-scroll-region", 'tabindex="0"'):
-        if token not in source:
-            errors.append(f"{relative_path}: contrato de rolagem ausente: {token}")
-    if "aria-label=" not in source and "aria-labelledby=" not in source:
-        errors.append(f"{relative_path}: região rolável sem nome acessível")
-    return errors
-
-
-def _has_class(source: str, class_name: str) -> bool:
-    """Encontra um token de classe exato sem confundir prefixos semelhantes."""
-    return any(
-        class_name in value.split() for value in re.findall(r'class=["\']([^"\']*)["\']', source)
-    )
+CANONICAL_TABS_TEMPLATE = "templates/partials/list_tabs.html"
+DURALUX_REFERENCE_PREFIX = "design_system/refs/duralux/"

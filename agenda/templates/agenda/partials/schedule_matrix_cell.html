@@ -1,0 +1,18 @@
+{% load ui_helpers %}
+<div id="schedule-cell-{{ day_of_week }}-{{ time_slot_id }}" class="d-grid gap-1 p-2 pe-3 sm-schedule-cell"{% if cell_oob %} hx-swap-oob="outerHTML"{% endif %}>
+    {% if schedule %}
+        <div class="d-flex align-items-start justify-content-between gap-2 sm-schedule-cell-heading">
+            <strong class="sm-schedule-cell-subject">{{ schedule.subject.name }}</strong>
+            {% can_access_action "schedule" "edit" as can_edit_schedule %}
+            {% if can_edit_schedule %}<div class="btn-group btn-group-sm sm-schedule-cell-actions flex-shrink-0" role="group" aria-label="Ações da célula">
+                <a id="schedule-cell-{{ day_of_week }}-{{ time_slot_id }}-edit" href="{% url 'schedule_cell_edit' class_id schedule.pk %}?as_of={{ as_of|date:'Y-m-d' }}" class="btn btn-outline-primary" aria-label="Editar aula" title="Editar aula" data-sm-schedule-cell-modal hx-get="{% url 'schedule_cell_edit' class_id schedule.pk %}?as_of={{ as_of|date:'Y-m-d' }}" hx-target="#schedule-cell-modal-body" hx-swap="outerHTML"{% if cell_oob %} autofocus{% endif %}><i class="feather-edit-2" aria-hidden="true"></i></a>
+                <a id="schedule-cell-{{ day_of_week }}-{{ time_slot_id }}-end" href="{% url 'schedule_cell_end' class_id schedule.pk %}?as_of={{ as_of|date:'Y-m-d' }}" class="btn btn-outline-danger" aria-label="Encerrar aula" title="Encerrar aula" data-sm-schedule-cell-modal hx-get="{% url 'schedule_cell_end' class_id schedule.pk %}?as_of={{ as_of|date:'Y-m-d' }}" hx-target="#schedule-cell-modal-body" hx-swap="outerHTML"><i class="feather-x" aria-hidden="true"></i></a>
+            </div>{% endif %}
+        </div>
+        <small class="sm-schedule-cell-detail">{{ schedule.teacher.full_name }}</small>
+        <small class="text-muted sm-schedule-cell-detail">{{ schedule.room|default:"Sem sala" }}</small>
+    {% else %}
+        {% can_access_action "schedule" "create" as can_create_schedule %}
+        {% if can_create_schedule %}<a id="schedule-cell-{{ day_of_week }}-{{ time_slot_id }}-create" href="{% url 'schedule_cell_create' class_id day_of_week time_slot_id %}?as_of={{ as_of|date:'Y-m-d' }}" class="btn btn-outline-primary btn-sm" data-sm-schedule-cell-modal hx-get="{% url 'schedule_cell_create' class_id day_of_week time_slot_id %}?as_of={{ as_of|date:'Y-m-d' }}" hx-target="#schedule-cell-modal-body" hx-swap="outerHTML"{% if cell_oob %} autofocus{% endif %}>Adicionar</a>{% else %}<span class="text-muted">—</span>{% endif %}
+    {% endif %}
+</div>

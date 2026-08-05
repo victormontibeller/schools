@@ -112,5 +112,12 @@ class StudentEditForm(StudentForm):
         ]
         widgets = {
             **StudentForm.Meta.widgets,
+            "email": forms.EmailInput(attrs={"class": "form-control", "readonly": True}),
             "photo": forms.ClearableFileInput(attrs={"class": "sm-profile-avatar-input"}),
+            "accepts_email_notifications": forms.CheckboxInput(
+                attrs={"class": "form-check-input", "data_grid": "col-12 col-md-6"}
+            ),
+            "accepts_whatsapp_notifications": forms.CheckboxInput(
+                attrs={"class": "form-check-input", "data_grid": "col-12 col-md-6"}
+            ),
         }

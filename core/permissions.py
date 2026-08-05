@@ -10,6 +10,7 @@ from core.access_catalog import (
     ADMIN,
     CREATE,
     DEACTIVATE,
+    DOCUMENT_REQUIREMENTS,
     EDIT,
     FINANCE_BILLINGS,
     FINANCE_CONTRACTS,
@@ -18,6 +19,7 @@ from core.access_catalog import (
     FINANCE_TEMPLATES,
     MODULES,
     MODULES_BY_KEY,
+    REENROLLMENT,
     VIEW,
     action_for_operation,
     allowed_actions,
@@ -28,12 +30,15 @@ from core.access_catalog import (
 DEMO_COMMAND_MODULES = frozenset(
     {
         "schedule",
+        "schedule_configuration",
         "activities",
         "attendance",
         "student_diary",
         "diary_configuration",
         "classes",
         "enrollments",
+        REENROLLMENT,
+        DOCUMENT_REQUIREMENTS,
     }
 )
 PUBLIC_VIEW_NAMES = frozenset(
@@ -124,12 +129,22 @@ _SERVICE_METHOD_MODULES = {
     ("CalendarService", "update_academic_year"): "academic_years",
     ("StudentDiaryService", "create_routine_aspect"): "diary_configuration",
     ("StudentDiaryService", "update_routine_aspect"): "diary_configuration",
-    ("StudentDiaryService", "set_routine_aspect_enabled"): "diary_configuration",
     ("StudentDiaryService", "create_routine_option"): "diary_configuration",
     ("StudentDiaryService", "update_routine_option"): "diary_configuration",
     ("StudentDiaryService", "set_routine_option_enabled"): "diary_configuration",
 }
 _SERVICE_METHOD_POLICIES = {
+    ("ReenrollmentService", "confirm_batch"): (REENROLLMENT, CREATE),
+    ("StudentDocumentService", "create_requirement"): (DOCUMENT_REQUIREMENTS, CREATE),
+    ("StudentDocumentService", "update_requirement"): (DOCUMENT_REQUIREMENTS, EDIT),
+    ("StudentDocumentService", "deactivate_requirement"): (
+        DOCUMENT_REQUIREMENTS,
+        DEACTIVATE,
+    ),
+    ("ScheduleService", "create_time_slot"): ("schedule_configuration", CREATE),
+    ("ScheduleService", "update_time_slot"): ("schedule_configuration", EDIT),
+    ("ScheduleService", "create_schedule_successor"): ("schedule", EDIT),
+    ("ScheduleService", "copy_schedule_day"): ("schedule", CREATE),
     ("FinanceService", "create_financial_template"): (FINANCE_TEMPLATES, CREATE),
     ("FinanceService", "update_financial_template"): (FINANCE_TEMPLATES, EDIT),
     ("FinanceService", "deactivate_financial_template"): (FINANCE_TEMPLATES, EDIT),
@@ -152,10 +167,6 @@ _SERVICE_METHOD_POLICIES = {
     ("PaymentService", "confirm_payment"): (FINANCE_PAYMENTS, EDIT),
     ("PaymentService", "reverse_payment"): (FINANCE_PAYMENTS, EDIT),
 }
-_SYSTEM_SERVICE_METHODS = frozenset(
-    {"create_notification", "create_notifications_bulk", "log_delivery"}
-)
-
 _ViewCallable = TypeVar("_ViewCallable", bound=Callable)
 
 
@@ -171,17 +182,24 @@ def has_unrestricted_tenant_access(user) -> bool:
 
     return (
         getattr(user, "is_authenticated", False)
-        and role_name(user) == ADMIN
+        and getattr(user, "is_active", True)
+        and (getattr(user, "is_superuser", False) or role_name(user) == ADMIN)
         and context.current_tenant.get() not in {"", "public"}
     )
 
 
 def can_access(user, module_key: str, action: str = VIEW) -> bool:
     """Verifica a capacidade persistida, negando chaves desconhecidas."""
-    if not getattr(user, "is_authenticated", False) or action not in ACTIONS:
+    if (
+        not getattr(user, "is_authenticated", False)
+        or not getattr(user, "is_active", True)
+        or action not in ACTIONS
+    ):
         return False
-    if getattr(user, "is_superuser", False) or role_name(user) == ADMIN:
-        return True
+    if getattr(user, "is_superuser", False):
+        return has_unrestricted_tenant_access(user) or module_key == "__admin__"
+    if role_name(user) == ADMIN:
+        return has_unrestricted_tenant_access(user)
     if module_key == "__admin__" or module_key not in MODULES_BY_KEY:
         return False
 
@@ -268,9 +286,11 @@ def can_execute_service(
     service_name: str = "",
 ) -> bool:
     """Aplica a mesma matriz aos comandos de services."""
-    if user is None or app_label == "audit" or method_name in _SYSTEM_SERVICE_METHODS:
+    if user is None or not getattr(user, "is_active", True):
+        return False
+    if app_label == "audit":
         return True
-    if getattr(user, "is_superuser", False) or role_name(user) == ADMIN:
+    if has_unrestricted_tenant_access(user):
         return True
     if method_name in SELF_SERVICE_METHODS:
         return True
@@ -299,7 +319,7 @@ def can_execute_service(
 
 def modules_for_user(user) -> frozenset[str]:
     """Retorna módulos visíveis na navegação."""
-    if getattr(user, "is_superuser", False) or role_name(user) == ADMIN:
+    if has_unrestricted_tenant_access(user):
         return frozenset({"*"})
     return frozenset(module.key for module in MODULES if can_access(user, module.key, VIEW))
 

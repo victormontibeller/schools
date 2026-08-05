@@ -181,17 +181,22 @@ class GuardianEditForm(forms.Form):
     accepts_email_notifications = forms.BooleanField(
         required=False,
         label="Aceita notificações por e-mail",
-        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        widget=forms.CheckboxInput(
+            attrs={"class": "form-check-input", "data_grid": "col-12 col-md-6"}
+        ),
     )
     accepts_whatsapp_notifications = forms.BooleanField(
         required=False,
         label="Aceita notificações por WhatsApp",
-        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        widget=forms.CheckboxInput(
+            attrs={"class": "form-check-input", "data_grid": "col-12 col-md-6"}
+        ),
     )
 
-    def __init__(self, *args, require_version=False, **kwargs):
+    def __init__(self, *args, require_version=False, email_editable=True, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["version"].required = require_version
+        self.fields["email"].disabled = not email_editable
         from guardians.models import Guardian
 
         self.fields["gender"].choices = Guardian.Gender.choices
@@ -224,3 +229,8 @@ class GuardianContactEditForm(GuardianEditForm):
         for field_name, field in self.fields.items():
             if field_name != "avatar":
                 field.widget.attrs["data_grid"] = "col-12 col-sm-4"
+        for field_name in (
+            "accepts_email_notifications",
+            "accepts_whatsapp_notifications",
+        ):
+            self.fields[field_name].widget.attrs["data_grid"] = "col-12 col-md-6"

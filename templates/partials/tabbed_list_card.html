@@ -1,0 +1,51 @@
+<div class="card sm-viewport-card"
+     id="{{ list_page.search_target|cut:'#' }}"
+     data-sm-layout="list">
+    <div class="card-header d-flex justify-content-between align-items-center gap-2 flex-wrap">
+        <h6 class="card-title mb-0">Lista de {{ list_page.title }}</h6>
+        <form id="{{ list_page.search_target|cut:'#' }}-filters"
+              class="d-flex align-items-center gap-2 flex-wrap"
+              method="get"
+              action="{% url list_page.search_url %}">
+            {% for field in list_hidden_fields %}<input type="hidden" name="{{ field.name }}" value="{{ field.value }}">{% endfor %}
+            <div class="input-group input-group-sm sm-list-search">
+                <span class="input-group-text" aria-hidden="true"><i class="feather-search"></i></span>
+                <input type="search"
+                       name="q"
+                       value="{{ q|default:'' }}"
+                       class="form-control"
+                       placeholder="Buscar..."
+                       aria-label="Buscar {{ list_page.title|lower }}"
+                       hx-get="{% url list_page.search_url %}"
+                       hx-target="{{ list_page.search_target }}"
+                       hx-include="#{{ list_page.search_target|cut:'#' }}-filters"
+                       hx-trigger="keyup changed delay:300ms, search"
+                       hx-swap="outerHTML"
+                       hx-push-url="true">
+                {% if q %}
+                <a href="?{{ clear_query }}"
+                   class="input-group-text sm-search-clear"
+                   aria-label="Limpar busca"
+                   title="Limpar busca"
+                   hx-get="?{{ clear_query }}"
+                   hx-target="{{ list_page.search_target }}"
+                   hx-swap="outerHTML"
+                   hx-push-url="true"><i class="feather-x" aria-hidden="true"></i></a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+    {% if list_actions_template %}{% include list_actions_template %}{% endif %}
+    <div class="border-bottom px-3 pt-2">
+        {% include "partials/list_tabs.html" %}
+        {% if list_filters_template %}{% include list_filters_template %}{% endif %}
+    </div>
+    <div class="card-body p-0 sm-viewport-body">
+        {% include list_table_template %}
+    </div>
+</div>
+{% if is_htmx %}
+<span id="{{ list_page.search_target|cut:'#' }}-count"
+      class="badge bg-soft-secondary text-secondary"
+      hx-swap-oob="outerHTML">{{ result.total }} {{ list_page.count_label }}</span>
+{% endif %}

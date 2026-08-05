@@ -10,12 +10,14 @@ from base.exceptions import (
     PermissionDeniedError,
     ValidationError,
 )
+from classes.contracts import Class
 from student_diary.models import DiaryCategory, DiaryOption
 from student_diary.services import StudentDiaryService
 from student_diary.tests.test_services import (
     _class,
     _enroll,
     _payload,
+    _set_aspect_enabled,
     _student,
     _teacher,
 )
@@ -32,7 +34,6 @@ def test_create_aspect_starts_required_and_inactive_with_audit(user):
     assert aspect.is_enabled is False
     assert aspect.applies_morning is True
     assert aspect.applies_afternoon is True
-    assert aspect.applies_full is True
     assert AuditLog.objects.filter(
         object_id=str(aspect.pk), operation=AuditLog.Operation.INSERT
     ).exists()
@@ -57,15 +58,13 @@ def test_create_meal_item_persists_section_and_selected_shifts(user):
             "section": DiaryCategory.Section.MEAL,
             "display_order": 4,
             "applies_morning": False,
-            "applies_afternoon": False,
-            "applies_full": True,
+            "applies_afternoon": True,
         }
     )
 
     assert item.section == DiaryCategory.Section.MEAL
     assert item.applies_morning is False
-    assert item.applies_afternoon is False
-    assert item.applies_full is True
+    assert item.applies_afternoon is True
 
 
 @pytest.mark.django_db
@@ -78,7 +77,6 @@ def test_create_item_rejects_catalog_without_any_shift(user):
                 "display_order": 4,
                 "applies_morning": False,
                 "applies_afternoon": False,
-                "applies_full": False,
             }
         )
 
@@ -126,17 +124,17 @@ def test_update_item_changes_section_and_shifts_with_audit(user):
             "section": DiaryCategory.Section.MEAL,
             "display_order": 9,
             "is_required": item.is_required,
+            "is_enabled": False,
             "applies_morning": False,
             "applies_afternoon": True,
-            "applies_full": True,
             "version": item.version,
         },
     )
 
     assert updated.section == DiaryCategory.Section.MEAL
+    assert updated.is_enabled is False
     assert updated.applies_morning is False
     assert updated.applies_afternoon is True
-    assert updated.applies_full is True
     assert AuditLog.objects.filter(
         object_id=str(item.pk), operation=AuditLog.Operation.UPDATE
     ).exists()
@@ -148,10 +146,10 @@ def test_enable_aspect_requires_an_available_option(user):
     aspect = service.create_routine_aspect({"name": "Hidratação", "display_order": 5})
 
     with pytest.raises(BusinessRuleViolationError):
-        service.set_routine_aspect_enabled(aspect.pk, True, aspect.version)
+        _set_aspect_enabled(service, aspect, True)
 
     option = service.create_routine_option(aspect.pk, {"label": "Bebeu bem", "display_order": 1})
-    aspect = service.set_routine_aspect_enabled(aspect.pk, True, aspect.version)
+    aspect = _set_aspect_enabled(service, aspect, True)
 
     assert aspect.is_enabled is True
     assert option.is_enabled is True
@@ -162,7 +160,7 @@ def test_disable_last_option_of_active_aspect_is_rejected(user):
     service = StudentDiaryService(user=user)
     aspect = service.create_routine_aspect({"name": "Hidratação", "display_order": 5})
     option = service.create_routine_option(aspect.pk, {"label": "Bebeu bem", "display_order": 1})
-    aspect = service.set_routine_aspect_enabled(aspect.pk, True, aspect.version)
+    aspect = _set_aspect_enabled(service, aspect, True)
 
     with pytest.raises(BusinessRuleViolationError):
         service.set_routine_option_enabled(aspect.pk, option.pk, False, option.version)
@@ -212,7 +210,7 @@ def test_save_daily_diaries_accepts_blank_optional_aspect(user):
         {"name": "Hidratação", "display_order": 5, "is_required": False}
     )
     service.create_routine_option(aspect.pk, {"label": "Bebeu bem", "display_order": 1})
-    service.set_routine_aspect_enabled(aspect.pk, True, aspect.version)
+    _set_aspect_enabled(service, aspect, True)
     class_obj = _class(user)
     student = _student(user)
     _enroll(user, class_obj, student)
@@ -232,7 +230,7 @@ def test_save_daily_diaries_rejects_blank_required_custom_aspect(user):
     service = StudentDiaryService(user=user)
     aspect = service.create_routine_aspect({"name": "Hidratação", "display_order": 5})
     service.create_routine_option(aspect.pk, {"label": "Bebeu bem", "display_order": 1})
-    service.set_routine_aspect_enabled(aspect.pk, True, aspect.version)
+    _set_aspect_enabled(service, aspect, True)
     class_obj = _class(user)
     student = _student(user)
     _enroll(user, class_obj, student)
@@ -253,7 +251,7 @@ def test_disabled_selection_is_preserved_but_rejected_for_new_student(user):
     aspect = service.create_routine_aspect({"name": "Hidratação", "display_order": 5})
     selected = service.create_routine_option(aspect.pk, {"label": "Bebeu bem", "display_order": 1})
     service.create_routine_option(aspect.pk, {"label": "Bebeu pouco", "display_order": 2})
-    service.set_routine_aspect_enabled(aspect.pk, True, aspect.version)
+    _set_aspect_enabled(service, aspect, True)
     class_obj = _class(user)
     first = _student(user)
     _enroll(user, class_obj, first)
@@ -291,15 +289,15 @@ def test_disabled_selection_is_preserved_but_rejected_for_new_student(user):
 
 
 @pytest.mark.django_db
-def test_shift_removed_item_preserves_saved_answer_and_rejects_new_student(user):
+def test_full_shift_removed_item_preserves_saved_answer_and_rejects_new_student(user):
     service = StudentDiaryService(user=user)
     item = service.create_routine_aspect({"name": "Hidratação", "display_order": 5})
     selected = service.create_routine_option(item.pk, {"label": "Bebeu bem", "display_order": 1})
-    item = service.set_routine_aspect_enabled(item.pk, True, item.version)
-    class_obj = _class(user)
+    item = _set_aspect_enabled(service, item, True)
+    class_obj = _class(user, shift=Class.Shift.FULL)
     first = _student(user)
     _enroll(user, class_obj, first)
-    first_payload = _payload()
+    first_payload = _payload(shift=Class.Shift.FULL)
     first_payload["answers"][str(item.pk)] = str(selected.pk)
     service.save_daily_diaries(
         class_obj.pk,
@@ -315,7 +313,6 @@ def test_shift_removed_item_preserves_saved_answer_and_rejects_new_student(user)
             "is_required": item.is_required,
             "applies_morning": False,
             "applies_afternoon": True,
-            "applies_full": True,
             "version": item.version,
         },
     )
@@ -326,7 +323,7 @@ def test_shift_removed_item_preserves_saved_answer_and_rejects_new_student(user)
     )
     second = _student(user, "DIARY-SHIFT-NEW")
     _enroll(user, class_obj, second)
-    second_payload = _payload()
+    second_payload = _payload(shift=Class.Shift.FULL)
     second_payload["answers"][str(item.pk)] = str(selected.pk)
 
     with pytest.raises(ValidationError):

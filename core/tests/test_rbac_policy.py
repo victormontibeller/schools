@@ -76,6 +76,8 @@ def test_admin_role_can_access_all_modules(client):
     client.force_login(user)
     assert client.get(reverse("teachers_list")).status_code == 200
     assert client.get(reverse("finance_dashboard")).status_code == 200
+    assert client.get(reverse("reenrollment_batch")).status_code == 200
+    assert client.get(reverse("document_requirement_list")).status_code == 200
 
 
 @pytest.mark.django_db
@@ -119,7 +121,12 @@ def test_can_configure_student_diary_follows_central_role_policy(role_name, expe
         role=SimpleNamespace(name=role_name),
     )
 
-    assert can_configure_student_diary(user) is expected
+    token = context.current_tenant.set("school_test") if role_name == "ADMIN" else None
+    try:
+        assert can_configure_student_diary(user) is expected
+    finally:
+        if token is not None:
+            context.current_tenant.reset(token)
 
 
 def test_secretary_diary_configuration_does_not_grant_agenda_editing():
@@ -162,9 +169,54 @@ def test_admin_has_unrestricted_access_only_inside_school_tenant():
     assert not has_unrestricted_tenant_access(admin)
 
 
+def test_inactive_and_public_privileged_users_cannot_access_school_modules():
+    inactive_admin = SimpleNamespace(
+        is_authenticated=True,
+        is_active=False,
+        is_superuser=False,
+        role=SimpleNamespace(name="ADMIN"),
+    )
+    public_superuser = SimpleNamespace(
+        is_authenticated=True,
+        is_active=True,
+        is_superuser=True,
+        role=None,
+    )
+
+    assert can_access(inactive_admin, "enrollments", VIEW) is False
+    assert (
+        can_execute_service(
+            inactive_admin,
+            "enrollments",
+            "create_application",
+            "EnrollmentApplicationService",
+        )
+        is False
+    )
+    assert can_access(public_superuser, "enrollments", VIEW) is False
+    assert (
+        can_execute_service(
+            public_superuser,
+            "enrollments",
+            "create_application",
+            "EnrollmentApplicationService",
+        )
+        is False
+    )
+
+
 def test_anonymous_and_demo_policies_deny_privileged_operations():
     anonymous = SimpleNamespace(is_authenticated=False, is_superuser=False)
     assert can_access(anonymous, "students", VIEW) is False
+    assert (
+        can_execute_service(
+            None,
+            "notifications",
+            "create_notification",
+            "NotificationService",
+        )
+        is False
+    )
     assert can_configure_student_diary(anonymous) is False
     assert can_edit_student_diary(anonymous) is False
 

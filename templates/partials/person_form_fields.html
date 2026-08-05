@@ -1,7 +1,18 @@
-<div class="row g-2">
-    {% for field in form %}
-        {% if field.name != exclude_field %}
-            {% include "partials/form_field.html" with field=field %}
-        {% endif %}
-    {% endfor %}
-</div>
+{% with inline_checkbox_fields=form.inline_checkbox_fields|default:"" %}
+    <div class="row g-2">
+        {% for field in form %}
+            {% if field.name != exclude_field and field.name not in inline_checkbox_fields %}
+                {% include "partials/form_field.html" with field=field %}
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% if inline_checkbox_fields %}
+    <div class="row row-cols-2 row-cols-md-5 g-2 align-items-start mt-1">
+        {% for field in form %}
+            {% if field.name in inline_checkbox_fields %}
+                {% include "partials/form_field.html" with field=field inline_checkbox=True %}
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+{% endwith %}

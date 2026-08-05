@@ -17,7 +17,8 @@
 {% block page_header_actions %}
 <div class="page-header-right ms-auto">
     <div class="d-flex align-items-center gap-2">
-        <span class="badge bg-soft-secondary text-secondary">
+        <span id="{{ list_page.search_target|cut:'#' }}-count"
+              class="badge bg-soft-secondary text-secondary">
             {{ result.total }} {{ list_page.count_label }}
         </span>
         {% can_access_url list_page.create_url as show_create %}
@@ -43,6 +44,7 @@
             <input type="hidden" name="sort" value="{{ sort|default:'' }}">
             {% if tab %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
             {% if status and not status_choices %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+            {% block list_filter_hidden_fields %}{% endblock %}
             <div class="input-group input-group-sm sm-list-search">
                 <span class="input-group-text" aria-hidden="true"><i class="feather-search"></i></span>
                 <input type="search"
@@ -56,11 +58,11 @@
                        hx-include="#{{ list_page.search_target|cut:'#' }}-filters"
                        hx-trigger="keyup changed delay:300ms, search">
                 {% if q %}
-                <a href="?{% if sort %}sort={{ sort }}{% endif %}{% if tab %}{% if sort %}&{% endif %}tab={{ tab }}{% endif %}{% if status %}{% if sort or tab %}&{% endif %}status={{ status }}{% endif %}"
+                <a href="?{% if preserve_filters_on_clear %}{{ clear_query }}{% if clear_query and tab %}&{% endif %}{% if tab %}tab={{ tab }}{% endif %}{% else %}{% if sort %}sort={{ sort }}{% endif %}{% if tab %}{% if sort %}&{% endif %}tab={{ tab }}{% endif %}{% if status %}{% if sort or tab %}&{% endif %}status={{ status }}{% endif %}{% endif %}"
                    class="input-group-text sm-search-clear"
                    aria-label="Limpar busca"
                    title="Limpar busca"
-                   hx-get="?{% if sort %}sort={{ sort }}{% endif %}{% if tab %}{% if sort %}&{% endif %}tab={{ tab }}{% endif %}{% if status %}{% if sort or tab %}&{% endif %}status={{ status }}{% endif %}"
+                   hx-get="?{% if preserve_filters_on_clear %}{{ clear_query }}{% if clear_query and tab %}&{% endif %}{% if tab %}tab={{ tab }}{% endif %}{% else %}{% if sort %}sort={{ sort }}{% endif %}{% if tab %}{% if sort %}&{% endif %}tab={{ tab }}{% endif %}{% if status %}{% if sort or tab %}&{% endif %}status={{ status }}{% endif %}{% endif %}"
                    hx-target="{{ list_page.search_target }}"
                    hx-swap="innerHTML"><i class="feather-x" aria-hidden="true"></i></a>
                 {% endif %}

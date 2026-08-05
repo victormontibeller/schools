@@ -2,77 +2,88 @@
 
 from django.urls import path
 
-from financeiro import document_views, operational_views, report_views, views
+from financeiro import (
+    billing_views,
+    contract_views,
+    document_views,
+    payment_views,
+    reminder_views,
+    report_views,
+    template_views,
+    views,
+)
 
 urlpatterns = [
     path("financeiro/", views.finance_dashboard, name="finance_dashboard"),
     path(
         "financeiro/modelos/",
-        operational_views.financial_template_list,
+        template_views.financial_template_list,
         name="financial_template_list",
     ),
     path(
         "financeiro/modelos/novo/",
-        operational_views.financial_template_create,
+        template_views.financial_template_create,
         name="financial_template_create",
     ),
     path(
         "financeiro/modelos/<uuid:pk>/",
-        operational_views.financial_template_detail,
+        template_views.financial_template_detail,
         name="financial_template_detail",
     ),
     path(
         "financeiro/modelos/<uuid:pk>/editar/",
-        operational_views.financial_template_edit,
+        template_views.financial_template_edit,
         name="financial_template_edit",
     ),
-    path("financeiro/contratos/", views.contract_list, name="contract_list"),
-    path("financeiro/contratos/novo/", views.contract_create, name="contract_create"),
-    path("financeiro/contratos/<uuid:pk>/", views.contract_detail, name="contract_detail"),
+    path("financeiro/contratos/", contract_views.contract_list, name="contract_list"),
+    path("financeiro/contratos/novo/", contract_views.contract_create, name="contract_create"),
+    path("financeiro/contratos/<uuid:pk>/", contract_views.contract_detail, name="contract_detail"),
     path(
         "financeiro/contratos/<uuid:pk>/editar/",
-        operational_views.contract_edit,
+        contract_views.contract_edit,
         name="contract_edit",
     ),
     path(
         "financeiro/contratos/<uuid:pk>/ativar/",
-        views.contract_activate,
+        contract_views.contract_activate,
         name="contract_activate",
     ),
     path(
         "financeiro/contratos/<uuid:pk>/suspender/",
-        views.contract_suspend,
+        contract_views.contract_suspend,
         name="contract_suspend",
     ),
     path(
         "financeiro/contratos/<uuid:pk>/aditivos/novo/",
-        operational_views.contract_amendment_create,
+        contract_views.contract_amendment_create,
         name="contract_amendment_create",
     ),
     path(
         "financeiro/contratos/<uuid:pk>/gerar/",
-        views.contract_materialize_billings,
+        contract_views.contract_materialize_billings,
         name="contract_materialize_billings",
     ),
-    path("financeiro/cobrancas/", views.billing_list, name="billing_list"),
-    path(
-        "financeiro/cobrancas/nova/", operational_views.ad_hoc_billing_create, name="billing_create"
-    ),
-    path("financeiro/cobrancas/<uuid:pk>/", views.billing_detail, name="billing_detail"),
+    path("financeiro/cobrancas/", billing_views.billing_list, name="billing_list"),
+    path("financeiro/cobrancas/nova/", billing_views.billing_create, name="billing_create"),
+    path("financeiro/cobrancas/<uuid:pk>/", billing_views.billing_detail, name="billing_detail"),
     path(
         "financeiro/cobrancas/<uuid:pk>/baixa/",
-        views.billing_register_payment,
+        billing_views.billing_register_payment,
         name="billing_register_payment",
     ),
-    path("financeiro/cobrancas/<uuid:pk>/cancelar/", views.billing_cancel, name="billing_cancel"),
+    path(
+        "financeiro/cobrancas/<uuid:pk>/cancelar/",
+        billing_views.billing_cancel,
+        name="billing_cancel",
+    ),
     path(
         "financeiro/cobrancas/<uuid:pk>/renegociar/",
-        views.billing_renegotiate,
+        billing_views.billing_renegotiate,
         name="billing_renegotiate",
     ),
     path(
         "financeiro/cobrancas/<uuid:pk>/multa/",
-        views.billing_assess_late_charges,
+        billing_views.billing_assess_late_charges,
         name="billing_assess_late_charges",
     ),
     path(
@@ -80,21 +91,21 @@ urlpatterns = [
         document_views.billing_send_reminder,
         name="billing_send_reminder",
     ),
-    path("financeiro/baixas/nova/", operational_views.payment_create, name="payment_create"),
-    path("financeiro/conciliacoes/", operational_views.payment_queue, name="payment_queue"),
+    path("financeiro/baixas/nova/", payment_views.payment_create, name="payment_create"),
+    path("financeiro/conciliacoes/", payment_views.payment_queue, name="payment_queue"),
     path(
         "financeiro/conciliacoes/<uuid:pk>/",
-        operational_views.payment_detail,
+        payment_views.payment_detail,
         name="payment_detail",
     ),
     path(
         "financeiro/conciliacoes/<uuid:pk>/confirmar/",
-        operational_views.payment_confirm,
+        payment_views.payment_confirm,
         name="payment_confirm",
     ),
     path(
         "financeiro/conciliacoes/<uuid:pk>/estornar/",
-        operational_views.payment_reverse,
+        payment_views.payment_reverse,
         name="payment_reverse",
     ),
     path(
@@ -114,13 +125,13 @@ urlpatterns = [
     ),
     path(
         "financeiro/lembretes/configuracao/",
-        operational_views.reminder_settings,
+        reminder_views.reminder_settings,
         name="reminder_settings",
     ),
-    path("financeiro/lembretes/", operational_views.reminder_history, name="reminder_history"),
+    path("financeiro/lembretes/", reminder_views.reminder_history, name="reminder_history"),
     path(
         "financeiro/materializar-lote/",
-        views.bulk_materialize_billings,
+        billing_views.bulk_materialize_billings,
         name="bulk_materialize_billings",
     ),
     path("financeiro/relatorio/", report_views.revenue_report, name="finance_revenue_report"),

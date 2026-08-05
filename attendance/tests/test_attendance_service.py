@@ -54,16 +54,21 @@ def _make_schedule(
     valid_until=None,
 ):
     slot, _ = TimeSlot.objects.get_or_create(
-        day_of_week=TimeSlot.Day.MON,
         start_time=dt.time(8),
         end_time=dt.time(9),
-        defaults={"slot_number": 1, "created_by": user, "updated_by": user},
+        defaults={
+            "slot_number": 1,
+            "shift": TimeSlot.Shift.MORNING,
+            "created_by": user,
+            "updated_by": user,
+        },
     )
     return Schedule.objects.create(
         class_obj=class_obj,
         subject=subject,
         teacher=teacher,
         time_slot=slot,
+        day_of_week=Schedule.Day.MON,
         valid_from=valid_from,
         valid_until=valid_until,
         created_by=user,
@@ -149,6 +154,7 @@ def _enroll(user, cls, student, *, status=Enrollment.Status.ACTIVE):
     return Enrollment.objects.create(
         student=student,
         class_obj=cls,
+        academic_year=cls.academic_year,
         enrollment_date=dt.date.today(),
         status=status,
         created_by=user,

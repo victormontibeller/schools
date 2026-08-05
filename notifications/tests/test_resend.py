@@ -142,6 +142,45 @@ def test_webhook_does_not_regress_terminal_status(client, user):
 
 
 @pytest.mark.django_db
+def test_channel_result_does_not_regress_terminal_webhook(user):
+    service = MessageDeliveryService(user=None)
+    message_log = service.create_pending(
+        recipient=user,
+        channel=MessageLog.Channel.EMAIL,
+        recipient_address=user.email,
+    )
+    delivered_at = timezone.now()
+    service.process_resend_event(
+        external_event_id="evt-channel-result-after-delivery",
+        event_type="email.delivered",
+        provider_message_id="provider-terminal-id",
+        message_log_id=str(message_log.pk),
+        occurred_at=delivered_at,
+    )
+    message_log.refresh_from_db()
+    terminal_version = message_log.version
+
+    service.record_channel_result(
+        message_log.pk,
+        ChannelResult(
+            success=False,
+            channel=MessageLog.Channel.EMAIL,
+            recipient_address="",
+            provider_message_id="provider-terminal-id",
+            error_message="late_transport_failure",
+            retryable=False,
+        ),
+    )
+
+    message_log.refresh_from_db()
+    assert message_log.status == MessageLog.Status.DELIVERED
+    assert message_log.delivered_at == delivered_at
+    assert message_log.last_event == "email.delivered"
+    assert message_log.error_message == ""
+    assert message_log.version == terminal_version
+
+
+@pytest.mark.django_db
 def test_system_webhook_command_rolls_back_when_audit_fails(user):
     message_log = MessageDeliveryService(user=user).create_pending(
         recipient=user,

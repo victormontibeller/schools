@@ -7,11 +7,12 @@ from base import context
 
 @pytest.fixture()
 def user(db):
+    from django.conf import settings
+
     from core.models import CustomUser, Role
 
     role, _ = Role.objects.get_or_create(name=Role.Name.ADMIN)
-
-    return CustomUser.objects.create_user(
+    actor = CustomUser.objects.create_user(
         email="admin@test.com",
         password="Senha123",
         first_name="Admin",
@@ -19,6 +20,12 @@ def user(db):
         role=role,
         is_superuser=True,
     )
+    token = context.current_tenant.set("test_school") if settings.TESTING else None
+    try:
+        yield actor
+    finally:
+        if token is not None:
+            context.current_tenant.reset(token)
 
 
 def with_tenant(tenant):

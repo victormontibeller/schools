@@ -1,0 +1,34 @@
+<form method="get"
+      action="{% url 'enrollment_application_list' %}"
+      class="row g-2 py-3"
+      aria-label="Filtros de matrículas"
+      hx-get="{% url 'enrollment_application_list' %}"
+      hx-target="#applications-table"
+      hx-swap="outerHTML"
+      hx-push-url="true">
+    <input type="hidden" name="tab" value="{{ tab }}">
+    <input type="hidden" name="q" value="{{ q }}">
+    <div class="col-6 col-lg-2">
+        <input class="form-control form-control-sm" type="number" name="academic_year"
+               value="{{ academic_year }}" placeholder="Ano letivo" aria-label="Ano letivo">
+    </div>
+    <div class="col-6 col-lg-3">
+        <select class="form-select form-select-sm" name="class_id" aria-label="Turma">
+            <option value="">Todas as turmas</option>
+            {% for class_obj in classes %}<option value="{{ class_obj.pk }}"{% if class_id == class_obj.pk|stringformat:'s' %} selected{% endif %}>{{ class_obj }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-6 col-lg-2">
+        <select class="form-select form-select-sm" name="application_type" aria-label="Tipo">
+            <option value="">Todos os tipos</option>
+            {% for value, label in application_types %}<option value="{{ value }}"{% if application_type == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-6 col-lg-3">
+        <select class="form-select form-select-sm" name="document_status" aria-label="Situação documental">
+            <option value="">Todos os documentos</option>
+            {% for value, label in document_statuses %}<option value="{{ value }}"{% if document_status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-12 col-lg-2 d-grid"><button class="btn btn-outline-primary btn-sm" type="submit">Aplicar filtros</button></div>
+</form>

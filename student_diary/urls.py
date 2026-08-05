@@ -62,11 +62,6 @@ urlpatterns = [
         name="diary_aspect_edit",
     ),
     path(
-        "agenda-infantil/configuracao/aspectos/<uuid:category_id>/ativacao/",
-        configuration_views.diary_aspect_toggle,
-        name="diary_aspect_toggle",
-    ),
-    path(
         "agenda-infantil/configuracao/aspectos/<uuid:category_id>/opcoes/nova/",
         configuration_views.diary_option_create,
         name="diary_option_create",

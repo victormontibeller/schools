@@ -150,8 +150,27 @@ def teacher_edit(request, pk):
     if request.GET.get("component") == "subjects":
         return _teacher_subjects_response(request, teacher)
 
+    initial = {
+        "first_name": teacher.user.first_name,
+        "last_name": teacher.user.last_name,
+        "email_display": teacher.user.email,
+        "registration_number": teacher.registration_number,
+        "hire_date": teacher.hire_date,
+        "birth_date": teacher.birth_date,
+        "gender": teacher.gender,
+        "nationality": teacher.nationality,
+        "cpf": teacher.cpf or "",
+        "rg_number": teacher.rg_number,
+        "rg_issuer": teacher.rg_issuer,
+        "rg_state": teacher.rg_state,
+        "phone_mobile": teacher.phone_mobile,
+        "accepts_email_notifications": teacher.accepts_email_notifications,
+        "accepts_whatsapp_notifications": teacher.accepts_whatsapp_notifications,
+        "version": teacher.version,
+    }
+
     if request.method == "POST":
-        form = TeacherEditForm(request.POST, request.FILES)
+        form = TeacherEditForm(request.POST, request.FILES, initial=initial)
         if form.is_valid():
             try:
                 data = submitted_form_data(form.cleaned_data, request)
@@ -169,26 +188,7 @@ def teacher_edit(request, pk):
             except BusinessRuleViolationError as exc:
                 form.add_error(None, exc.message)
     else:
-        form = TeacherEditForm(
-            initial={
-                "first_name": teacher.user.first_name,
-                "last_name": teacher.user.last_name,
-                "email": teacher.user.email,
-                "registration_number": teacher.registration_number,
-                "hire_date": teacher.hire_date,
-                "birth_date": teacher.birth_date,
-                "gender": teacher.gender,
-                "nationality": teacher.nationality,
-                "cpf": teacher.cpf or "",
-                "rg_number": teacher.rg_number,
-                "rg_issuer": teacher.rg_issuer,
-                "rg_state": teacher.rg_state,
-                "phone_mobile": teacher.phone_mobile,
-                "accepts_email_notifications": teacher.accepts_email_notifications,
-                "accepts_whatsapp_notifications": teacher.accepts_whatsapp_notifications,
-                "version": teacher.version,
-            }
-        )
+        form = TeacherEditForm(initial=initial)
 
     if not request.headers.get("HX-Request"):
         return redirect("teacher_detail", pk=pk)
@@ -308,7 +308,7 @@ def subject_edit(request, pk):
             "teachers/partials/subject_information_card.html",
             {"subject": subject},
         )
-    form = SubjectForm(request.POST or None, instance=subject)
+    form = SubjectForm(request.POST or None, instance=subject, include_status=True)
     if request.method == "POST" and form.is_valid():
         try:
             subject = SubjectService(user=request.user).update_subject(pk, form.cleaned_data)
@@ -341,15 +341,3 @@ def subject_edit(request, pk):
         "teachers/subject_form.html",
         {"form": form, "title": "Editar Disciplina", "instance": subject},
     )
-
-
-@login_required
-def subject_deactivate(request, pk):
-    """Desativa uma disciplina via HTMX."""
-    if request.method == "POST":
-        try:
-            SubjectService(user=request.user).deactivate_subject(pk)
-            messages.success(request, "Disciplina desativada.")
-        except BusinessRuleViolationError as exc:
-            messages.error(request, exc.message)
-    return redirect("subjects_list")

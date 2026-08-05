@@ -1,16 +1,2 @@
 {% extends "list_page_base.html" %}
-{% block list_before_body %}
-<div class="px-3 pt-3">
-    <ul class="nav nav-tabs">
-        {% for item in tabs %}
-        <li class="nav-item">
-            <a class="nav-link {% if tab == item.id %}active{% endif %}"
-               href="?tab={{ item.id }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}">{{ item.label }}</a>
-        </li>
-        {% endfor %}
-    </ul>
-</div>
-{% endblock %}
-{% block list_body %}
-{% include "financeiro/partials/billings_table.html" %}
-{% endblock %}
+{% block page_content %}{% include "partials/tabbed_list_card.html" %}{% endblock %}

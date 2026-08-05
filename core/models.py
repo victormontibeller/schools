@@ -76,7 +76,7 @@ class BusinessUnit(BaseModel):
 class RegistrationSequence(BaseModel):
     """Contador anual, isolado pelo schema do tenant, para matrículas legíveis."""
 
-    scope = models.CharField(max_length=20, verbose_name="Tipo")
+    scope = models.CharField(max_length=64, verbose_name="Tipo")
     year = models.PositiveSmallIntegerField(verbose_name="Ano")
     current_value = models.PositiveIntegerField(default=0, verbose_name="Valor Atual")
 

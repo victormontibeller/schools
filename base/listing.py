@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TypedDict
+from collections.abc import Iterable, Mapping
+from typing import NotRequired, TypedDict
 from urllib.parse import urlencode
 
 LISTING_SESSION_KEY = "listing_state"
@@ -14,6 +15,16 @@ class ListingState(TypedDict):
     q: str
     sort: str
     page: int
+
+
+class ListingTab(TypedDict):
+    """Aba pronta para renderização e navegação progressiva."""
+
+    id: str
+    label: str
+    active: bool
+    query: str
+    count: NotRequired[int]
 
 
 def build_querystring(params: dict[str, object], *, include_blank: bool = False) -> str:
@@ -66,6 +77,7 @@ def build_sorting(
     current_sort: str,
     search: str,
     sortable_fields: list[str],
+    preserved_params: Mapping[str, object] | None = None,
 ) -> dict[str, dict[str, str | bool]]:
     """Monta metadados de links e estado visual para colunas ordenaveis."""
     active_field = current_sort.removeprefix("-")
@@ -83,11 +95,40 @@ def build_sorting(
             aria_sort = "descending" if is_desc else "ascending"
             next_sort = field if is_desc else f"-{field}"
 
+        query_params = dict(preserved_params or {})
+        query_params.pop("page", None)
+        query_params.update({"q": search, "sort": next_sort})
         sorting[field] = {
             "active": is_active,
             "direction": direction,
             "aria_sort": aria_sort,
-            "query": build_querystring({"q": search, "sort": next_sort}),
+            "query": build_querystring(query_params),
         }
 
     return sorting
+
+
+def build_listing_tabs(
+    *,
+    choices: Iterable[tuple[str, str]],
+    active: str,
+    parameter: str,
+    preserved_params: Mapping[str, object] | None = None,
+    counts: Mapping[str, int] | None = None,
+) -> list[ListingTab]:
+    """Monta abas que preservam o estado público e sempre reiniciam a página."""
+    base_params = dict(preserved_params or {})
+    base_params.pop("page", None)
+    base_params.pop(parameter, None)
+    tabs: list[ListingTab] = []
+    for value, label in choices:
+        tab: ListingTab = {
+            "id": value,
+            "label": label,
+            "active": value == active,
+            "query": build_querystring({**base_params, parameter: value}),
+        }
+        if counts is not None:
+            tab["count"] = counts.get(value, 0)
+        tabs.append(tab)
+    return tabs

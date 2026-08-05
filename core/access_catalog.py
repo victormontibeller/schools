@@ -17,6 +17,9 @@ FINANCE_TEMPLATES = finance_access_catalog.FINANCE_TEMPLATES
 build_finance_modules = finance_access_catalog.build_finance_modules
 finance_default_access = finance_access_catalog.finance_default_access
 
+REENROLLMENT = "reenrollment"
+DOCUMENT_REQUIREMENTS = "document_requirements"
+
 ADMIN = "ADMIN"
 SECRETARY = "SECRETARY"
 COORDINATOR = "COORDINATOR"
@@ -135,7 +138,27 @@ MODULES = (
     ),
     ModuleDefinition("guardians", "Responsáveis", "Secretaria", STAFF_ROLES),
     ModuleDefinition("enrollments", "Matrículas", "Secretaria", STAFF_ROLES),
+    ModuleDefinition(
+        REENROLLMENT,
+        "Rematrícula em lote",
+        "Secretaria",
+        frozenset({SECRETARY, COORDINATOR}),
+        supported_actions=frozenset({VIEW, CREATE}),
+    ),
+    ModuleDefinition(
+        DOCUMENT_REQUIREMENTS,
+        "Requisitos documentais",
+        "Secretaria",
+        frozenset({SECRETARY, COORDINATOR}),
+    ),
     ModuleDefinition("rooms", "Salas", "Secretaria", STAFF_ROLES),
+    ModuleDefinition(
+        "schedule_configuration",
+        "Configuração de períodos",
+        "Secretaria",
+        frozenset({SECRETARY, COORDINATOR}),
+        supported_actions=frozenset({VIEW, CREATE, EDIT}),
+    ),
     ModuleDefinition(
         "diary_configuration",
         "Itens da Agenda",
@@ -200,6 +223,9 @@ DEFAULT_ACCESS: dict[str, dict[str, frozenset[str]]] = {
         COORDINATOR: frozenset({VIEW, CREATE, EDIT}),
         TEACHER: frozenset({VIEW}),
     },
+    "schedule_configuration": {
+        COORDINATOR: frozenset({VIEW, CREATE, EDIT}),
+    },
     "activities": {
         COORDINATOR: frozenset({VIEW, CREATE, EDIT}),
         TEACHER: frozenset({VIEW, CREATE, EDIT}),
@@ -231,6 +257,8 @@ DEFAULT_ACCESS: dict[str, dict[str, frozenset[str]]] = {
         COORDINATOR: frozenset({VIEW}),
     },
     "enrollments": {SECRETARY: frozenset({VIEW, CREATE, EDIT})},
+    REENROLLMENT: {SECRETARY: frozenset({VIEW, CREATE})},
+    DOCUMENT_REQUIREMENTS: {},
     "rooms": {SECRETARY: frozenset({VIEW, CREATE, EDIT})},
     "diary_configuration": {
         SECRETARY: frozenset({VIEW, CREATE, EDIT}),

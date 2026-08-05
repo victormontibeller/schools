@@ -305,6 +305,12 @@ CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_BEAT_SCHEDULE = {
+    "reconcile-stale-enrollment-reminders": {
+        "task": "enrollments.dispatch_stale_document_reminder_recovery",
+        "schedule": 300.0,
+    }
+}
 DEMO_SCHEMA_NAME = config("DEMO_SCHEMA_NAME", default="demo")
 DEV_PLATFORM_ADMIN_PASSWORD = config("DEV_PLATFORM_ADMIN_PASSWORD", default="")
 DEV_DEMO_ADMIN_PASSWORD = config("DEV_DEMO_ADMIN_PASSWORD", default="")

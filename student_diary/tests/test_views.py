@@ -3,6 +3,7 @@
 import datetime as dt
 
 import pytest
+from django.contrib.staticfiles import finders
 from django.urls import reverse
 
 from classes.models import Class
@@ -13,6 +14,7 @@ from student_diary.tests.test_services import (
     _class,
     _enroll,
     _seeded_answers,
+    _set_aspect_enabled,
     _student,
     _teacher,
 )
@@ -67,6 +69,13 @@ def test_diary_daily_renders_canonical_roster_for_admin(client, user):
     assert f'name="student-{student.pk}-notes"'.encode() in response.content
     assert response.content.count(b"Salvar Agenda") == 1
     assert response.content.count(reverse("diary_configuration").encode()) == 1
+    assert b"js/sm-floating-dropdowns.js" in response.content
+    assert b"data-sm-floating-dropdown" in response.content
+    helper_path = finders.find("js/sm-floating-dropdowns.js")
+    assert helper_path is not None
+    with open(helper_path, encoding="utf-8") as helper_file:
+        helper_source = helper_file.read()
+    assert "initialize(event.target || (event.detail && event.detail.elt));" in helper_source
 
 
 @pytest.mark.django_db
@@ -85,15 +94,15 @@ def test_diary_daily_without_filters_renders_compact_empty_state(client, user):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    ("shift", "expected_meal", "unexpected_meal"),
+    ("shift", "expected_meal", "unexpected_meals"),
     [
-        (Class.Shift.MORNING, "Caf\u00e9 da manh\u00e3", "Caf\u00e9 da tarde"),
-        (Class.Shift.AFTERNOON, "Caf\u00e9 da tarde", "Caf\u00e9 da manh\u00e3"),
-        (Class.Shift.FULL, "Caf\u00e9 da manh\u00e3", None),
+        (Class.Shift.MORNING, "Caf\u00e9 da manh\u00e3", ("Caf\u00e9 da tarde",)),
+        (Class.Shift.AFTERNOON, "Caf\u00e9 da tarde", ("Caf\u00e9 da manh\u00e3",)),
+        (Class.Shift.FULL, "Almo\u00e7o", ("Caf\u00e9 da manh\u00e3", "Caf\u00e9 da tarde")),
     ],
 )
 def test_diary_daily_renders_meal_columns_for_class_shift(
-    client, user, shift, expected_meal, unexpected_meal
+    client, user, shift, expected_meal, unexpected_meals
 ):
     class_obj = _class(user, shift=shift)
     student = _student(user)
@@ -108,7 +117,7 @@ def test_diary_daily_renders_meal_columns_for_class_shift(
     content = response.content.decode()
     assert expected_meal in content
     assert "Almo\u00e7o" in content
-    if unexpected_meal:
+    for unexpected_meal in unexpected_meals:
         assert unexpected_meal not in content
 
 
@@ -252,7 +261,6 @@ def test_diary_aspect_create_starts_inactive_and_redirects_to_detail(client, use
             "is_required": "on",
             "applies_morning": "on",
             "applies_afternoon": "on",
-            "applies_full": "on",
         },
     )
 
@@ -263,6 +271,29 @@ def test_diary_aspect_create_starts_inactive_and_redirects_to_detail(client, use
     assert response.url == reverse("diary_aspect_detail", args=[aspect.pk])
     assert aspect.is_enabled is False
     assert aspect.is_required is True
+
+
+@pytest.mark.django_db
+def test_diary_aspect_forms_group_flags_and_option_list_uses_canonical_table(client, user):
+    client.force_login(user)
+    aspect = DiaryCategory.objects.get(name="Humor")
+
+    create_response = client.get(reverse("diary_aspect_create"))
+    edit_response = client.get(
+        reverse("diary_aspect_edit", args=[aspect.pk]),
+        HTTP_HX_REQUEST="true",
+    )
+    detail_response = client.get(reverse("diary_aspect_detail", args=[aspect.pk]))
+
+    assert create_response.status_code == 200
+    assert b"row row-cols-2 g-2 align-items-start mt-1" in create_response.content
+    assert edit_response.status_code == 200
+    assert b"row row-cols-2 g-2 align-items-start mt-1" in edit_response.content
+    assert b"Ativo na Agenda" in edit_response.content
+    assert detail_response.status_code == 200
+    assert b"table-responsive sm-scroll-region" in detail_response.content
+    assert b"sm-sticky-table sm-sticky-table--first-column" in detail_response.content
+    assert b'class="btn btn-sm text-body p-0 fw-semibold text-start"' in detail_response.content
 
 
 @pytest.mark.django_db
@@ -280,9 +311,9 @@ def test_diary_aspect_and_option_edit_replace_only_their_cards(client, user):
             "section": DiaryCategory.Section.ROUTINE,
             "display_order": 1,
             "is_required": "on",
+            "is_enabled": "on",
             "applies_morning": "on",
             "applies_afternoon": "on",
-            "applies_full": "on",
             "version": aspect.version,
         },
         HTTP_HX_REQUEST="true",
@@ -319,7 +350,7 @@ def test_diary_option_create_and_last_option_rule_stay_inside_card(client, user)
         HTTP_HX_REQUEST="true",
     )
     option = aspect.options.get()
-    aspect = service.set_routine_aspect_enabled(aspect.pk, True, aspect.version)
+    aspect = _set_aspect_enabled(service, aspect, True)
     blocked_response = client.post(
         reverse("diary_option_toggle", args=[aspect.pk, option.pk]),
         {"version": option.version},
@@ -337,7 +368,7 @@ def test_diary_option_create_and_last_option_rule_stay_inside_card(client, user)
 
 
 @pytest.mark.django_db
-def test_diary_aspect_without_option_cannot_be_enabled_from_card(client, user):
+def test_diary_aspect_without_option_cannot_be_enabled_from_edit_card(client, user):
     from student_diary.services import StudentDiaryService
 
     aspect = StudentDiaryService(user=user).create_routine_aspect(
@@ -346,8 +377,17 @@ def test_diary_aspect_without_option_cannot_be_enabled_from_card(client, user):
     client.force_login(user)
 
     response = client.post(
-        reverse("diary_aspect_toggle", args=[aspect.pk]),
-        {"is_enabled": "on", "version": aspect.version},
+        reverse("diary_aspect_edit", args=[aspect.pk]),
+        {
+            "name": aspect.name,
+            "section": aspect.section,
+            "display_order": aspect.display_order,
+            "is_required": "on",
+            "is_enabled": "on",
+            "applies_morning": "on",
+            "applies_afternoon": "on",
+            "version": aspect.version,
+        },
         HTTP_HX_REQUEST="true",
     )
 
@@ -375,14 +415,22 @@ def test_diary_configuration_htmx_returns_only_table(client, user):
 
 
 @pytest.mark.django_db
-def test_diary_aspect_detail_and_toggle_replace_information_card(client, user):
+def test_diary_aspect_detail_and_edit_replace_information_card(client, user):
     client.force_login(user)
     aspect = DiaryCategory.objects.get(name="Humor")
 
     detail = client.get(reverse("diary_aspect_detail", args=[aspect.pk]))
-    toggle = client.post(
-        reverse("diary_aspect_toggle", args=[aspect.pk]),
-        {"version": aspect.version},
+    edit = client.post(
+        reverse("diary_aspect_edit", args=[aspect.pk]),
+        {
+            "name": aspect.name,
+            "section": aspect.section,
+            "display_order": aspect.display_order,
+            "is_required": "on",
+            "applies_morning": "on",
+            "applies_afternoon": "on",
+            "version": aspect.version,
+        },
         HTTP_HX_REQUEST="true",
     )
     aspect.refresh_from_db()
@@ -390,9 +438,9 @@ def test_diary_aspect_detail_and_toggle_replace_information_card(client, user):
     assert detail.status_code == 200
     assert b"col-12 col-xl-5" in detail.content
     assert b"Alegre" in detail.content
-    assert toggle.status_code == 200
-    assert b"diary-category-information-card" in toggle.content
-    assert b"<html" not in toggle.content
+    assert edit.status_code == 200
+    assert b"diary-category-information-card" in edit.content
+    assert b"<html" not in edit.content
     assert not aspect.is_enabled
 
 
@@ -413,16 +461,24 @@ def test_secretary_can_configure_aspects_without_accessing_agenda(client):
     client.force_login(secretary)
 
     configuration = client.get(reverse("diary_configuration"))
-    toggle = client.post(
-        reverse("diary_aspect_toggle", args=[aspect.pk]),
-        {"version": aspect.version},
+    edit = client.post(
+        reverse("diary_aspect_edit", args=[aspect.pk]),
+        {
+            "name": aspect.name,
+            "section": aspect.section,
+            "display_order": aspect.display_order,
+            "is_required": "on",
+            "applies_morning": "on",
+            "applies_afternoon": "on",
+            "version": aspect.version,
+        },
         HTTP_HX_REQUEST="true",
     )
     daily = client.get(reverse("diary_daily"))
     aspect.refresh_from_db()
 
     assert configuration.status_code == 200
-    assert toggle.status_code == 200
+    assert edit.status_code == 200
     assert aspect.is_enabled is False
     assert daily.status_code == 403
 
@@ -448,12 +504,9 @@ def test_view_only_diary_configuration_hides_edit_control(client):
     client.force_login(secretary)
 
     detail = client.get(reverse("diary_aspect_detail", args=[aspect.pk]))
-    toggle = client.get(reverse("diary_aspect_toggle", args=[aspect.pk]))
-
     assert detail.status_code == 200
-    assert b"Alterar disponibilidade" not in detail.content
+    assert reverse("diary_aspect_edit", args=[aspect.pk]).encode() not in detail.content
     assert b"Adicionar op" not in detail.content
-    assert toggle.status_code == 403
 
     configuration = client.get(reverse("diary_configuration"))
     assert b"NOVO" not in configuration.content

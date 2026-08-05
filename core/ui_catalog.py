@@ -62,6 +62,20 @@ LIST_PAGE_CATALOG: dict[str, ListPageDefinition] = {
         "itens",
     ),
     "events_list": ListPageDefinition("Eventos", "events_list", "#events-table", "event_create"),
+    "enrollment_application_list": ListPageDefinition(
+        "Matrículas",
+        "enrollment_application_list",
+        "#applications-table",
+        "enrollment_application_create",
+        "solicitações",
+    ),
+    "document_requirement_list": ListPageDefinition(
+        "Requisitos documentais",
+        "document_requirement_list",
+        "#document-requirements-table",
+        "document_requirement_create",
+        "requisitos",
+    ),
     "guardians_list": ListPageDefinition(
         "Responsáveis", "guardians_list", "#guardians-table", "guardian_create"
     ),
@@ -104,6 +118,9 @@ LIST_PAGE_CATALOG: dict[str, ListPageDefinition] = {
         document_title="Operadores — Administração da Plataforma",
     ),
     "rooms_list": ListPageDefinition("Salas", "rooms_list", "#rooms-table", "room_create"),
+    "schedule_classes_list": ListPageDefinition(
+        "Grade Horária", "schedule_classes_list", "#schedule-classes-table", count_label="turmas"
+    ),
     "students_list": ListPageDefinition(
         "Alunos e Responsáveis", "students_list", "#students-table", "student_create"
     ),
@@ -114,7 +131,7 @@ LIST_PAGE_CATALOG: dict[str, ListPageDefinition] = {
         "Professores", "teachers_list", "#teachers-table", "teacher_create"
     ),
     "time_slots_list": ListPageDefinition(
-        "Horários", "time_slots_list", "#time-slots-table", "time_slot_create"
+        "Períodos", "time_slots_list", "#time-slots-table", "time_slot_create"
     ),
     "users_list": ListPageDefinition("Usuários", "users_list", "#users-table"),
 }

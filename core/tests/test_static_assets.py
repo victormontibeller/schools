@@ -21,6 +21,8 @@ PRODUCTION_ASSETS = (
     "js/common-init.min.js",
     "js/landing.js",
     "js/htmx.min.js",
+    "js/sm-floating-dropdowns.js",
+    "js/sm-activity-score-feedback.js",
 )
 
 

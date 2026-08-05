@@ -1,6 +1,7 @@
 """Modelos do módulo de turmas e matrículas."""
 
 from django.db import models
+from django.db.models import Q
 
 from base.models import BaseModel
 
@@ -140,6 +141,7 @@ class Enrollment(BaseModel):
         related_name="enrollments",
         verbose_name="Turma",
     )
+    academic_year = models.PositiveIntegerField(verbose_name="Ano letivo")
     enrollment_date = models.DateField(verbose_name="Data de Matrícula")
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.ACTIVE, verbose_name="Situação"
@@ -152,7 +154,22 @@ class Enrollment(BaseModel):
         verbose_name = "Matrícula"
         verbose_name_plural = "Matrículas"
         ordering = ["-enrollment_date"]
-        unique_together = [("student", "class_obj")]
+        indexes = [
+            models.Index(fields=["student", "academic_year", "status"]),
+            models.Index(fields=["class_obj", "status"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student", "academic_year"],
+                condition=Q(status="ACTIVE", is_active=True),
+                name="uniq_active_enrollment_student_year",
+            ),
+            models.UniqueConstraint(
+                fields=["student", "class_obj"],
+                condition=Q(status="ACTIVE", is_active=True),
+                name="uniq_active_enrollment_student_class",
+            ),
+        ]
 
     def __str__(self) -> str:
         """Retorna a identificação curta da matrícula."""

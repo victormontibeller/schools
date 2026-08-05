@@ -1,0 +1,42 @@
+<div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Lista de turmas para grade horária">
+    <table class="table table-hover mb-0 sm-sticky-table sm-sticky-table--first-column">
+        <thead>
+            <tr>
+                <th scope="col" aria-sort="{{ sorting.name.aria_sort }}"><a href="?{{ sorting.name.query }}" class="sm-sort-link{% if sorting.name.active %} is-active{% endif %}" hx-get="?{{ sorting.name.query }}" hx-target="#schedule-classes-table" hx-swap="innerHTML">Turma</a></th>
+                <th scope="col" aria-sort="{{ sorting.grade.aria_sort }}"><a href="?{{ sorting.grade.query }}" class="sm-sort-link{% if sorting.grade.active %} is-active{% endif %}" hx-get="?{{ sorting.grade.query }}" hx-target="#schedule-classes-table" hx-swap="innerHTML">Série</a></th>
+                <th scope="col" aria-sort="{{ sorting.shift.aria_sort }}"><a href="?{{ sorting.shift.query }}" class="sm-sort-link{% if sorting.shift.active %} is-active{% endif %}" hx-get="?{{ sorting.shift.query }}" hx-target="#schedule-classes-table" hx-swap="innerHTML">Turno</a></th>
+                <th scope="col" aria-sort="{{ sorting.academic_year.aria_sort }}"><a href="?{{ sorting.academic_year.query }}" class="sm-sort-link{% if sorting.academic_year.active %} is-active{% endif %}" hx-get="?{{ sorting.academic_year.query }}" hx-target="#schedule-classes-table" hx-swap="innerHTML">Ano</a></th>
+                <th scope="col">Professor responsável</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for class_obj in result.items %}
+            <tr>
+                <td><a href="{% url 'schedule_weekly' class_obj.pk %}" class="fw-semibold">{{ class_obj.name }}</a></td>
+                <td>{{ class_obj.get_grade_display }}</td>
+                <td>{{ class_obj.get_shift_display }}</td>
+                <td>{{ class_obj.academic_year }}</td>
+                <td>{{ class_obj.class_teacher|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-4">Nenhuma turma encontrada.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if result.total_pages > 1 %}
+<div class="d-flex justify-content-center py-3">
+    <nav aria-label="Paginação de turmas">
+        <ul class="pagination pagination-sm mb-0">
+            {% if result.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page={{ result.page|add:'-1' }}{% if list_query %}&amp;{{ list_query }}{% endif %}" hx-get="?page={{ result.page|add:'-1' }}{% if list_query %}&amp;{{ list_query }}{% endif %}" hx-target="#schedule-classes-table" hx-swap="innerHTML" aria-label="Página anterior">«</a></li>
+            {% endif %}
+            <li class="page-item active"><span class="page-link">{{ result.page }} / {{ result.total_pages }}</span></li>
+            {% if result.has_next %}
+            <li class="page-item"><a class="page-link" href="?page={{ result.page|add:'1' }}{% if list_query %}&amp;{{ list_query }}{% endif %}" hx-get="?page={{ result.page|add:'1' }}{% if list_query %}&amp;{{ list_query }}{% endif %}" hx-target="#schedule-classes-table" hx-swap="innerHTML" aria-label="Próxima página">»</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endif %}

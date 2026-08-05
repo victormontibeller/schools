@@ -15,22 +15,8 @@
         {% if saved %}
         <div class="alert alert-success py-2" role="alert">Informações atualizadas com sucesso.</div>
         {% endif %}
-        <div class="sm-profile-hero d-flex flex-column flex-sm-row align-items-center text-center text-sm-start gap-3 pb-4 mb-4 border-bottom">
-            {% if student.photo %}
-            <img src="{% url 'student_photo' student.pk %}" class="sm-profile-avatar flex-shrink-0"
-                 alt="Foto de {{ student.get_full_name }}">
-            {% else %}
-            <div class="avatar-text avatar-xl bg-soft-warning text-warning flex-shrink-0"
-                 style="width:72px;height:72px;font-size:1.75rem">
-                {{ student.first_name|first|upper }}
-            </div>
-            {% endif %}
-            <div class="min-w-0">
-                <h5 class="mb-1">{{ student.get_full_name }}</h5>
-                <p class="text-muted mb-2 text-break">{{ student.email|default:"—" }}</p>
-                <span class="badge bg-soft-secondary text-secondary">Mat. {{ student.enrollment_number }}</span>
-            </div>
-        </div>
+        {% if student.photo %}{% url 'student_photo' student.pk as profile_image_url %}{% endif %}
+        {% include "partials/person_profile_hero.html" with profile_has_image=student.photo profile_image_url=profile_image_url profile_avatar_theme="bg-soft-warning text-warning" profile_initial=student.first_name profile_name=student.get_full_name profile_email=student.email profile_identifier_label="Mat." profile_identifier=student.enrollment_number %}
         <dl class="row gy-3 mb-0 sm-profile-definition">
             <dt class="col-sm-5 text-muted fw-medium">Data de nascimento</dt>
             <dd class="col-sm-7 mb-0">{% if student.birth_date %}{{ student.birth_date|date:"d/m/Y" }}{% else %}—{% endif %}</dd>

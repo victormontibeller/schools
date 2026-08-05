@@ -13,7 +13,14 @@
                 </button>
             </form>
             {% endif %}
-            <a class="btn btn-sm btn-outline-primary" href="{% url 'guardian_edit' guardian.pk %}">
+            <a class="btn btn-sm btn-outline-primary"
+               href="{% url 'guardian_edit' guardian.pk %}"
+               hx-boost="true"
+               hx-target="#app-main"
+               hx-select="#app-main"
+               hx-swap="outerHTML transition:true show:top"
+               hx-push-url="true"
+               hx-indicator="#app-navigation-progress">
                 <i class="feather-edit-2 me-1"></i> Editar
             </a>
         </div>{% endif %}
@@ -22,21 +29,8 @@
         {% if saved %}
         <div class="alert alert-success py-2" role="alert">Informações atualizadas com sucesso.</div>
         {% endif %}
-        <div class="sm-profile-hero d-flex flex-column flex-sm-row align-items-center text-center text-sm-start gap-3 pb-4 mb-4 border-bottom">
-            {% if guardian.avatar %}
-            <img src="{% url 'guardian_avatar' guardian.pk %}" alt="Foto do responsável"
-                 class="sm-profile-avatar flex-shrink-0">
-            {% else %}
-            <div class="avatar-text avatar-xl bg-soft-purple text-purple flex-shrink-0"
-                 style="width:72px;height:72px;font-size:1.75rem">
-                {{ guardian.full_name|first|upper }}
-            </div>
-            {% endif %}
-            <div class="min-w-0">
-                <h5 class="mb-1">{{ guardian.full_name }}</h5>
-                <p class="text-muted mb-2 text-break">{{ guardian.email|default:"—" }}</p>
-            </div>
-        </div>
+        {% if guardian.avatar %}{% url 'guardian_avatar' guardian.pk as profile_image_url %}{% endif %}
+        {% include "partials/person_profile_hero.html" with profile_has_image=guardian.avatar profile_image_url=profile_image_url profile_avatar_theme="bg-soft-purple text-purple" profile_initial=guardian.full_name profile_name=guardian.full_name profile_email=guardian.email %}
         <dl class="row gy-3 mb-0 sm-profile-definition">
             <dt class="col-sm-5 text-muted fw-medium">Data de nascimento</dt>
             <dd class="col-sm-7 mb-0">{% if guardian.birth_date %}{{ guardian.birth_date|date:"d/m/Y" }}{% else %}—{% endif %}</dd>

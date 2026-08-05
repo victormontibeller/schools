@@ -4,10 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Collection, Mapping
 
-from django.db import transaction
-
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
-from base.services import BaseService
+from base.services import BaseService, service_command, system_command
 from core.access_catalog import (
     ACTION_FIELDS,
     ACTIONS,
@@ -24,7 +22,7 @@ from core.access_catalog import (
 class AccessConfigurationService(BaseService):
     """Cria defaults e atualiza capacidades de grupos com concorrência segura."""
 
-    @transaction.atomic
+    @system_command
     def create_missing_access_defaults(self) -> int:
         """Cria papéis e acessos ausentes sem sobrescrever escolhas existentes."""
         from core.models import Role, RoleModuleAccess
@@ -58,7 +56,7 @@ class AccessConfigurationService(BaseService):
             self._log("access_defaults_created", created_count=created_count)
         return created_count
 
-    @transaction.atomic
+    @service_command
     def update_access_matrix(
         self,
         access_matrix: Mapping[str, Mapping[str, Collection[str]]],

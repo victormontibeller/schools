@@ -25,7 +25,9 @@ Sistema SaaS para escolas.
 ## Rotina docente
 
 - Chamadas registram presença individual e conteúdo ministrado por aula.
-- Atividades podem ser individuais ou em grupo, mantendo nota e feedback finais por aluno.
+- Atividades podem ser individuais ou em grupo, mantendo nota e feedback finais por aluno. A grade
+  começa em rascunho; o lançamento oficial a torna somente leitura e só pode ser revertido por
+  reabertura com motivo obrigatório.
 - A série da turma é selecionada em catálogo fixo e validada conforme a etapa de ensino.
 - Turmas da Educação Infantil possuem Agenda diária unidirecional com itens configuráveis nas
   seções Como foi o dia e Alimentação, aplicação por turno e consulta pelos responsáveis ativos
@@ -105,3 +107,29 @@ Sistema SaaS para escolas.
 
 Ficam fora deste ciclo despesas, fornecedores, contas a pagar, integrações bancárias reais,
 OFX/CSV bancário, PIX/boleto, webhooks financeiros e documentos fiscais.
+
+## Secretaria — Matrículas
+
+- Toda matrícula acadêmica nasce de uma solicitação interna para aluno já cadastrado. O workflow
+  cobre matrícula nova, rematrícula, transferência interna, recebida e de saída.
+- Aprovar reserva vaga; se a capacidade estiver comprometida, a solicitação entra em lista de
+  espera, ordenada por prioridade e data, sem promoção automática.
+- Cada solicitação mantém protocolo anual `MAT-AAAA-NNNNNN`, versão concorrente e histórico
+  append-only de transições. Recusa, correção, transferência e cancelamento exigem motivo.
+- Requisitos documentais são configurados por tipo e copiados para um checklist imutável na
+  abertura. Documentos obrigatórios bloqueiam apenas a efetivação; Administrador pode dispensar
+  um item com justificativa.
+- Rematrícula confirma atomicamente um mapeamento aluno–turma do ano seguinte. A interface sugere
+  a próxima série no mesmo turno e permite repetência ou exceção justificada.
+- Rematrícula em lote e Requisitos documentais são capacidades independentes, delegáveis somente
+  a Secretaria e Coordenação. Secretaria recebe rematrícula por padrão; a configuração documental
+  não possui concessão padrão. A dispensa de item continua exclusiva do Administrador.
+- Lembretes são e-mails genéricos ao responsável principal com guarda e consentimento e ao aluno
+  elegível e consentido. Família/público, WhatsApp e promoção automática da espera não integram
+  esta versão.
+
+## Secretaria — Alunos
+
+- O e-mail exibido na edição do aluno é somente leitura e tentativas adulteradas de alteração são
+  recusadas também pelo service. Observações internas permanecem editáveis, limitadas e protegidas
+  pela allowlist de escrita e pela redação canônica da auditoria.

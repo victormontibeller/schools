@@ -7,19 +7,35 @@
     <div class="col-12 col-xl-5">
       <form method="post" enctype="multipart/form-data" class="card mb-0 sm-profile-card">
         {% csrf_token %}
-        <div class="card-header"><h6 class="card-title mb-0">Informações do Responsável</h6></div>
+        <div class="card-header d-flex align-items-center justify-content-between gap-2">
+          <h6 class="card-title mb-0">Informações do Responsável</h6>
+          <div class="d-flex align-items-center gap-2">
+            <a href="{% url 'guardians_list' %}"
+               class="btn btn-sm btn-outline-secondary"
+               hx-boost="true"
+               hx-target="#app-main"
+               hx-select="#app-main"
+               hx-swap="outerHTML transition:true show:top"
+               hx-push-url="true"
+               hx-indicator="#app-navigation-progress">Cancelar</a>
+            <button class="btn btn-sm btn-primary" type="submit"><i class="feather-check me-1"></i> Salvar</button>
+          </div>
+        </div>
         <div class="card-body sm-profile-card-body">
+          {% if guardian and guardian.avatar %}{% url 'guardian_avatar' guardian.pk as profile_image_url %}{% endif %}
+          {% if guardian %}
+          {% include "partials/person_profile_hero.html" with profile_avatar_field=form.avatar profile_has_image=guardian.avatar profile_image_url=profile_image_url profile_avatar_theme="bg-soft-purple text-purple" profile_initial=guardian.full_name profile_name=guardian.full_name profile_email=guardian.email %}
+          {% else %}
           <div class="sm-profile-hero text-center pb-3 mb-3 border-bottom">
             <label for="{{ form.avatar.id_for_label }}" class="sm-profile-avatar-edit">
-              {% if guardian and guardian.avatar %}<img src="{% url 'guardian_avatar' guardian.pk %}" alt="Foto do responsável" class="sm-profile-avatar">
-              {% else %}<span class="avatar-text avatar-xl bg-soft-purple text-purple mx-auto">{% if guardian %}{{ guardian.full_name|first|upper }}{% else %}+{% endif %}</span>{% endif %}
+              <span class="avatar-text avatar-xl bg-soft-purple text-purple mx-auto">+</span>
             </label>
             {{ form.avatar }}
             {% for error in form.avatar.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
           </div>
+          {% endif %}
           {% include "partials/person_form_fields.html" with form=form exclude_field="avatar" %}
         </div>
-        <div class="card-footer d-flex justify-content-end gap-2"><a href="{% url 'guardians_list' %}" class="btn btn-outline-secondary">Cancelar</a><button class="btn btn-primary" type="submit">Salvar</button></div>
       </form>
     </div>
     {% if guardian %}

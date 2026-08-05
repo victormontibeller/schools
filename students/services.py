@@ -93,22 +93,37 @@ class StudentService(BaseService):
         }
         self.validate_required(validation_data, STUDENT_REQUIRED_FIELDS)
 
+        if (
+            "email" in data
+            and str(data.get("email") or "").strip().casefold()
+            != str(student.email or "").strip().casefold()
+        ):
+            raise ValidationError(
+                errors={"email": ["O e-mail do aluno não pode ser alterado por este formulário."]}
+            )
+
         allowed = {
             "first_name",
             "last_name",
             "birth_date",
             "gender",
             "blood_type",
-            "observations",
             "rg_number",
             "phone_mobile",
-            "email",
+            "observations",
             "photo",
             "accepts_email_notifications",
             "accepts_whatsapp_notifications",
         }
         old = self._snapshot(student, [*allowed, "enrollment_number", "cpf"])
         updates = {k: v for k, v in data.items() if k in allowed}
+        if "observations" in updates:
+            observations = str(updates["observations"] or "").strip()
+            if len(observations) > 250:
+                raise ValidationError(
+                    errors={"observations": ["As observações devem ter no máximo 250 caracteres."]}
+                )
+            updates["observations"] = observations
 
         if "cpf" in data:
             from students.models import Student

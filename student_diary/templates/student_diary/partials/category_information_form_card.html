@@ -1,0 +1,26 @@
+<div class="card mb-0 sm-detail-card" id="{{ component_id }}">
+    <form method="post"
+          action="{{ edit_url }}"
+          hx-post="{{ edit_url }}"
+          hx-target="#{{ component_id }}"
+          hx-swap="outerHTML">
+        {% csrf_token %}
+        <div class="card-header d-flex align-items-center justify-content-between gap-2">
+            <h6 class="card-title mb-0">{{ component_title }}</h6>
+            <div class="d-flex align-items-center gap-2">
+                <a href="{{ cancel_url }}"
+                   class="btn btn-sm btn-outline-secondary"
+                   hx-get="{{ cancel_url }}"
+                   hx-target="#{{ component_id }}"
+                   hx-swap="outerHTML">Cancelar</a>
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="feather-check me-1"></i> Salvar
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+            {% include "student_diary/partials/category_form_fields.html" with form=form %}
+        </div>
+    </form>
+</div>

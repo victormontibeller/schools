@@ -327,6 +327,7 @@ class TestGetAudienceUsers:
         Enrollment.objects.create(
             student=student,
             class_obj=cls,
+            academic_year=cls.academic_year,
             enrollment_date="2025-01-01",
             status=Enrollment.Status.ACTIVE,
             created_by=user,

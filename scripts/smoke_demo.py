@@ -61,10 +61,6 @@ from classes.models import Class
 cls = Class.objects.first()
 show(f"GET class_detail {cls.pk}", c.get(reverse("class_detail", kwargs={"pk": cls.pk}), **HOST))
 show("GET schedule_weekly", c.get(reverse("schedule_weekly", kwargs={"class_id": cls.pk}), **HOST))
-show(
-    "GET schedule_create (GET)",
-    c.get(reverse("schedule_create", kwargs={"class_id": cls.pk}), **HOST),
-)
 act = Activity.objects.first()
 show(
     f"GET activity_detail {act.pk}",

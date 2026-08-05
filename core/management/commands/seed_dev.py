@@ -2,9 +2,11 @@
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import make_password
 from django.core.management.base import BaseCommand, CommandError
 from django_tenants.utils import schema_context, tenant_context
 
+from base import context
 from tenancy.contracts import Domain, School
 
 
@@ -12,6 +14,28 @@ class Command(BaseCommand):
     """Cria operadores, tenant DEMO, domínio e administrador local."""
 
     help = "Provisiona public e DEMO para desenvolvimento local"
+
+    @staticmethod
+    def _ensure_admin(user_model, *, email: str, password: str, defaults: dict):
+        """Garante uma conta administrativa sem salvar novamente um usuário novo."""
+        user, created = user_model.objects.get_or_create(
+            email=email,
+            defaults={**defaults, "password": make_password(password)},
+        )
+        if created:
+            return user
+
+        changed = False
+        for field, value in defaults.items():
+            if getattr(user, field) != value:
+                setattr(user, field, value)
+                changed = True
+        if not user.check_password(password):
+            user.set_password(password)
+            changed = True
+        if changed:
+            user.save()
+        return user
 
     def handle(self, *args, **options):
         """Executa o provisionamento sem duplicar registros."""
@@ -31,20 +55,18 @@ class Command(BaseCommand):
                 defaults={"tenant": public_school, "is_primary": True},
             )
             user_model = get_user_model()
-            platform_user, _ = user_model.objects.get_or_create(
+            self._ensure_admin(
+                user_model,
                 email="platform-admin@schools.local",
+                password=platform_password,
                 defaults={
                     "first_name": "Platform",
                     "last_name": "Admin",
                     "is_staff": True,
                     "is_superuser": True,
+                    "is_active": True,
                 },
             )
-            platform_user.is_staff = True
-            platform_user.is_superuser = True
-            platform_user.is_active = True
-            platform_user.set_password(platform_password)
-            platform_user.save()
 
             demo, _ = School.objects.get_or_create(
                 schema_name=getattr(settings, "DEMO_SCHEMA_NAME", "demo"),
@@ -66,35 +88,37 @@ class Command(BaseCommand):
             )
 
         with tenant_context(demo):
-            from core.access.services import AccessConfigurationService
-            from core.models import CustomUser, Role
+            tenant_token = context.current_tenant.set(demo.schema_name)
+            try:
+                from core.access.services import AccessConfigurationService
+                from core.models import CustomUser, Role
 
-            AccessConfigurationService().create_missing_access_defaults()
+                AccessConfigurationService().create_missing_access_defaults()
 
-            role, _ = Role.objects.get_or_create(name=Role.Name.ADMIN)
-            admin, _ = CustomUser.objects.get_or_create(
-                email="admin@demo.com",
-                defaults={
-                    "first_name": "Admin",
-                    "last_name": "Demo",
-                    "role": role,
-                    "is_staff": True,
-                    "is_superuser": True,
-                },
-            )
-            admin.role = role
-            admin.is_staff = True
-            admin.is_superuser = True
-            admin.is_active = True
-            admin.set_password(demo_password)
-            admin.save()
+                role, _ = Role.objects.get_or_create(name=Role.Name.ADMIN)
+                admin = self._ensure_admin(
+                    CustomUser,
+                    email="admin@demo.com",
+                    password=demo_password,
+                    defaults={
+                        "first_name": "Admin",
+                        "last_name": "Demo",
+                        "role": role,
+                        "is_staff": True,
+                        "is_superuser": True,
+                        "is_active": True,
+                    },
+                )
 
-            from core.demo_seed import DemoSeedService
+                from core.demo_seed import DemoSeedService
 
-            demo_seed = DemoSeedService(user=admin)
-            demo_seed.populate_core(demo)
-            demo_seed.populate_calendar()
-            demo_seed.populate_attendance()
+                demo_seed = DemoSeedService(user=admin)
+                demo_seed.populate_core(demo)
+                demo_seed.populate_calendar()
+                demo_seed.populate_attendance()
+                demo_seed.populate_finance()
+            finally:
+                context.current_tenant.reset(tenant_token)
 
         self.stdout.write(self.style.SUCCESS("Public e DEMO provisionados com sucesso."))
         self.stdout.write("Public: platform-admin@schools.local")

@@ -2,23 +2,20 @@
 
 from decimal import Decimal
 
-from django.db import transaction
-
-from activities.services.activity import _ActivityRepo
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 
 
 class ActivityGroupMixin:
     """Comportamentos de composição e lançamento coletivo."""
 
-    @transaction.atomic
     def save_group(self, activity_id, data: dict, group_id=None):
         """Cria ou edita um grupo e substitui sua composição de integrantes."""
         from activities.models import ActivityGroup, ActivityGroupMember
         from classes.contracts import Enrollment
 
-        activity = _ActivityRepo().get_by_id(activity_id)
+        activity = self._get_locked_activity(activity_id)
         self._assert_activity_actor(activity)
+        self._assert_scores_editable(activity)
         if activity.modality != activity.Modality.GROUP:
             raise BusinessRuleViolationError("A atividade não está configurada como grupo.")
         self.validate_required(data, ["name", "student_ids"])
@@ -86,13 +83,13 @@ class ActivityGroupMixin:
         )
         return group
 
-    @transaction.atomic
     def apply_group_result(self, activity_id, group_id, score, feedback: str = ""):
         """Salva o resultado coletivo e o reaplica explicitamente aos integrantes."""
         from activities.models import ActivityGroup
 
-        activity = _ActivityRepo().get_by_id(activity_id)
+        activity = self._get_locked_activity(activity_id)
         self._assert_activity_actor(activity)
+        self._assert_scores_editable(activity)
         try:
             group = ActivityGroup.objects.get(pk=group_id, activity=activity)
         except ActivityGroup.DoesNotExist:
@@ -101,9 +98,21 @@ class ActivityGroupMixin:
             score_decimal = Decimal(str(score))
         except (ValueError, TypeError, ArithmeticError) as exc:
             raise ValidationError(errors={"score": ["Nota inválida."]}) from exc
-        if score_decimal < 0 or score_decimal > activity.max_score:
+        if not score_decimal.is_finite() or score_decimal < 0 or score_decimal > activity.max_score:
             raise ValidationError(
                 errors={"score": [f"Nota deve estar entre 0 e {activity.max_score}."]}
+            )
+        member_student_ids = list(
+            group.memberships.order_by("student_id").values_list("student_id", flat=True)
+        )
+        score_rows = list(
+            activity.submissions.filter(student_id__in=member_student_ids)
+            .order_by("student_id")
+            .values("student_id", "version")
+        )
+        if {row["student_id"] for row in score_rows} != set(member_student_ids):
+            raise BusinessRuleViolationError(
+                "Todos os integrantes do grupo precisam ter uma linha de lançamento."
             )
         old = self._snapshot(group, ["score", "feedback"])
         group.score = score_decimal
@@ -111,8 +120,18 @@ class ActivityGroupMixin:
         group.updated_by = self.user
         group.save(update_fields=["score", "feedback", "updated_by", "updated_at"])
         self._record_audit("UPDATE", group, old_values=old)
-        for student_id in group.memberships.values_list("student_id", flat=True):
-            self.record_score(activity.pk, student_id, score_decimal, group.feedback)
+        self.batch_record_scores(
+            activity.pk,
+            [
+                {
+                    "student_id": row["student_id"],
+                    "score": score_decimal,
+                    "feedback": group.feedback,
+                    "version": row["version"],
+                }
+                for row in score_rows
+            ],
+        )
         self._log(
             "resultado_grupo_aplicado",
             activity_id=str(activity.pk),
@@ -125,8 +144,9 @@ class ActivityGroupMixin:
         """Desativa um grupo e suas associações sem apagar notas individuais."""
         from activities.models import ActivityGroup
 
-        activity = _ActivityRepo().get_by_id(activity_id)
+        activity = self._get_locked_activity(activity_id)
         self._assert_activity_actor(activity)
+        self._assert_scores_editable(activity)
         try:
             group = ActivityGroup.objects.get(pk=group_id, activity=activity)
         except ActivityGroup.DoesNotExist:

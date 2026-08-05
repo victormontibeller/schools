@@ -24,32 +24,8 @@
             {% if form.non_field_errors %}
             <div class="alert alert-danger">{{ form.non_field_errors }}</div>
             {% endif %}
-            <div class="sm-profile-hero d-flex flex-column flex-sm-row align-items-center text-center text-sm-start gap-3 pb-4 mb-4 border-bottom">
-                <div class="sm-profile-avatar-picker flex-shrink-0">
-                    <label for="{{ form.avatar.id_for_label }}" class="sm-profile-avatar-edit mb-0">
-                        {% if teacher.user.avatar %}
-                        <img src="{% url 'teacher_avatar' teacher.pk %}"
-                             alt="{{ teacher.full_name }}"
-                             class="sm-profile-avatar">
-                        {% else %}
-                        <div class="avatar-text avatar-xl bg-soft-success text-success flex-shrink-0"
-                             style="width:72px;height:72px;font-size:1.75rem">
-                            {{ teacher.full_name|first|upper }}
-                        </div>
-                        {% endif %}
-                    </label>
-                    {{ form.avatar }}
-                    {% if form.avatar.errors %}
-                    <div class="invalid-feedback d-block text-center mt-2">
-                        {% for error in form.avatar.errors %}{{ error }}{% endfor %}
-                    </div>
-                    {% endif %}
-                </div>
-                <div class="min-w-0">
-                    <h5 class="mb-1">{{ teacher.full_name }}</h5>
-                    <p class="text-muted mb-0 text-break">{{ teacher.email }}</p>
-                </div>
-            </div>
+            {% if teacher.user.avatar %}{% url 'teacher_avatar' teacher.pk as profile_image_url %}{% endif %}
+            {% include "partials/person_profile_hero.html" with profile_avatar_field=form.avatar profile_has_image=teacher.user.avatar profile_image_url=profile_image_url profile_avatar_theme="bg-soft-success text-success" profile_initial=teacher.full_name profile_name=teacher.full_name profile_email=teacher.email %}
             {% include "partials/person_form_fields.html" with form=form exclude_field="avatar" %}
         </div>
     </form>

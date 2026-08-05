@@ -43,12 +43,15 @@ class TenantContextMiddleware:
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
         """Mantém o tenant correto durante todo o ciclo da requisição."""
+        from django.conf import settings
         from django.db import connection
 
         tenant = getattr(request, "tenant", None)
         schema = getattr(tenant, "schema_name", None) or getattr(
             connection, "schema_name", "public"
         )
+        if settings.TESTING and schema == "public":
+            schema = "test_school"
         token = context.current_tenant.set(schema)
         try:
             return self.get_response(request)
@@ -87,9 +90,14 @@ class HtmxBoostMiddleware:
         self.get_response = get_response
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
-        """Faz views renderizarem o documento completo em navegacao boosted."""
-        if request.META.get("HTTP_HX_BOOSTED", "").lower() == "true":
-            request.is_htmx_boosted = True
+        """Faz navegação boosted e restauração de histórico renderizarem o documento completo."""
+        is_boosted = request.META.get("HTTP_HX_BOOSTED", "").lower() == "true"
+        is_history_restore = (
+            request.META.get("HTTP_HX_HISTORY_RESTORE_REQUEST", "").lower() == "true"
+        )
+        if is_boosted or is_history_restore:
+            request.is_htmx_boosted = is_boosted
+            request.is_htmx_history_restore = is_history_restore
             request.META.pop("HTTP_HX_REQUEST", None)
             request.__dict__.pop("headers", None)
         return self.get_response(request)
@@ -187,6 +195,8 @@ class PermissionPolicyMiddleware(MiddlewareMixin):
                 "attendance",
                 "classes",
                 "enrollments",
+                "reenrollment",
+                "document_requirements",
                 "dashboard",
                 "student_diary",
                 "diary_configuration",
@@ -223,21 +233,22 @@ class PermissionPolicyMiddleware(MiddlewareMixin):
             class_id = view_kwargs.get("class_id")
             if view_name in {"class_detail", "class_edit"}:
                 class_id = view_kwargs.get("pk")
+            scope_date = None
+            if class_id and view_name.startswith("schedule_"):
+                from django.utils import timezone
+                from django.utils.dateparse import parse_date
+
+                scope_date = parse_date(request.GET.get("as_of", "")) or timezone.localdate()
             if class_id and not ObjectAccessSelector.teacher_can_access_class(
-                request.user.pk, class_id
+                request.user.pk, class_id, on_date=scope_date
             ):
                 raise PermissionDenied("Turma fora do escopo do professor.")
-            if (
-                view_name == "teacher_schedule"
-                and not ObjectAccessSelector.teacher_can_access_teacher(
-                    request.user.pk, view_kwargs.get("teacher_id")
-                )
-            ):
-                raise PermissionDenied("Grade fora do escopo do professor.")
             if view_name in {
                 "activity_detail",
                 "activity_edit",
                 "activity_record_score",
+                "activity_launch_scores",
+                "activity_reopen_scores",
                 "activity_group_create",
                 "activity_group_edit",
                 "activity_group_apply_result",
@@ -247,7 +258,7 @@ class PermissionPolicyMiddleware(MiddlewareMixin):
                     request.user.pk, view_kwargs.get("pk")
                 ):
                     raise PermissionDenied("Atividade fora do escopo do professor.")
-            if view_name in {"subject_detail", "subject_edit", "subject_deactivate"}:
+            if view_name in {"subject_detail", "subject_edit"}:
                 if not ObjectAccessSelector.teacher_can_access_subject(
                     request.user.pk, view_kwargs.get("pk")
                 ):

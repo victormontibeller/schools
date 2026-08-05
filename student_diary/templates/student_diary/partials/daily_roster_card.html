@@ -88,7 +88,9 @@
                         </td>
                         {% endfor %}
                         <td class="sm-diary-notes-column">
-                            <div class="dropdown sm-diary-dropdown{% if row.form.notes.errors %} is-invalid{% endif %}" data-diary-notes>
+                            <div class="dropdown sm-diary-dropdown{% if row.form.notes.errors %} is-invalid{% endif %}"
+                                 data-sm-floating-dropdown
+                                 data-diary-notes>
                                 <button type="button"
                                         class="btn btn-outline-secondary sm-diary-selector{% if row.form.notes.errors %} is-invalid{% endif %}"
                                         data-bs-toggle="dropdown"
@@ -99,7 +101,8 @@
                                     <span class="sm-diary-selection" data-diary-notes-summary>{% if row.form.notes.value %}Com observação{% else %}Sem observação{% endif %}</span>
                                     <i class="feather-chevron-down ms-auto" aria-hidden="true"></i>
                                 </button>
-                                <div class="dropdown-menu dropdown-menu-end sm-diary-dropdown-menu sm-diary-notes-menu p-3">
+                                <div class="dropdown-menu dropdown-menu-end sm-diary-dropdown-menu sm-diary-notes-menu p-3"
+                                     data-sm-floating-menu>
                                     <fieldset{% if not can_edit %} disabled{% endif %}>
                                         <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
                                             <label class="form-label fw-semibold mb-0" for="{{ row.form.notes.id_for_label }}">Observações de {{ row.student.get_full_name }}</label>

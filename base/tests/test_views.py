@@ -266,14 +266,14 @@ class TestGuardianViews:
         resp = force_login_client.get(f"/guardians/{g.pk}/editar/")
         assert resp.status_code == 200
 
-    def test_guardian_edit_post_redirects_to_students(self, force_login_client):
+    def test_guardian_edit_post_redirects_to_edit(self, force_login_client):
         from core.models import CustomUser
         from guardians.models import Guardian
 
         u = CustomUser.objects.create_user(
             email="ge2@test.com", password="Senha123", first_name="GE2", last_name="Test"
         )
-        g = Guardian.objects.create(user=u, phone="111")
+        g = Guardian.objects.create(user=u, email=u.email, phone="111")
         resp = force_login_client.post(
             f"/guardians/{g.pk}/editar/",
             {

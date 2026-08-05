@@ -99,6 +99,11 @@ Usuários escolares nunca atravessam schemas automaticamente.
 As sessões usam o backend de banco do Django e, portanto, a tabela `django_session`
 do schema resolvido pelo domínio; Redis é usado para cache, não para sessões.
 
+O seed DEMO também cria um cenário financeiro completo, com modelos de plano, contratos e
+cobranças, uma baixa conciliada, uma pendente, um estorno, aditivo futuro, lançamento avulso e
+régua de lembretes explicitamente desabilitada. As competências acompanham a data de execução;
+reexecutar o comando preserva os movimentos financeiros já registrados.
+
 ## Produção
 
 `docker-stack.yml` é a referência de Docker Swarm. Os secrets declarados no arquivo

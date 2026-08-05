@@ -2,6 +2,7 @@
 
 from django.db.models import Q
 
+from base.exceptions import ObjectNotFoundError
 from base.selectors import BaseSelector, PageResult
 
 
@@ -76,14 +77,20 @@ class SubjectSelector(BaseSelector):
         user_id=None,
         role_name: str = "",
     ) -> PageResult:
-        """Lista disciplinas com filtros e paginação."""
-        if role_name != "TEACHER":
-            return self.list(filters=filters, order_by=order_by, page=page, page_size=page_size)
-        queryset = self.model_class.objects.filter(
-            teachers__user_id=user_id,
-            **(filters or {}),
-        ).distinct()
+        """Lista disciplinas ativas e inativas, exceto as excluídas logicamente."""
+        queryset = self.model_class.all_objects.filter(deleted_at__isnull=True)
+        if filters:
+            queryset = queryset.filter(**filters)
+        if role_name == "TEACHER":
+            queryset = queryset.filter(teachers__user_id=user_id).distinct()
         return self._paginate(queryset.order_by(order_by), page=page, page_size=page_size)
+
+    def get_by_id(self, subject_id):
+        """Retorna disciplina ativa ou inativa que não tenha sido excluída logicamente."""
+        try:
+            return self.model_class.all_objects.get(pk=subject_id, deleted_at__isnull=True)
+        except self.model_class.DoesNotExist:
+            raise ObjectNotFoundError("Subject", str(subject_id)) from None
 
     @staticmethod
     def teacher_can_access_subject(user_id, subject_id) -> bool:

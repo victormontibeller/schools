@@ -18,6 +18,10 @@ class Activity(BaseModel):
         INDIVIDUAL = "INDIVIDUAL", "Individual"
         GROUP = "GROUP", "Em grupo"
 
+    class ScoreStatus(models.TextChoices):
+        DRAFT = "DRAFT", "Rascunho"
+        LAUNCHED = "LAUNCHED", "Lançadas"
+
     class_obj = models.ForeignKey(
         "classes.Class",
         on_delete=models.CASCADE,
@@ -53,6 +57,17 @@ class Activity(BaseModel):
     )
     weight = models.DecimalField(
         max_digits=4, decimal_places=2, default=1.00, verbose_name="Peso na Média"
+    )
+    score_status = models.CharField(
+        max_length=10,
+        choices=ScoreStatus.choices,
+        default=ScoreStatus.DRAFT,
+        verbose_name="Status das Notas",
+    )
+    scores_launched_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Notas Lançadas em",
     )
 
     class Meta:

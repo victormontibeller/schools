@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 from base.repositories import BaseRepository
-from base.services import BaseService
+from base.services import BaseService, system_command
 
 logger = logging.getLogger(__name__)
 DEMO_VERIFY_SALT = "schools.demo-signup.v1"
@@ -24,10 +24,12 @@ TEACHER_INVITE_TTL_SECONDS = 7 * 24 * 60 * 60
 
 class AccountService(BaseService):
 
+    @system_command
     def create_teacher_invitation_token(self, user_id) -> str:
         """Cria token assinado para a definição inicial de senha do professor."""
         return signing.dumps({"user_id": str(user_id)}, salt=TEACHER_INVITE_SALT, compress=True)
 
+    @system_command
     def activate_teacher_invitation(self, token: str, password: str):
         """Ativa uma conta de professor pendente após definir senha forte."""
         from core.contracts import CustomUser
@@ -136,6 +138,7 @@ class AccountService(BaseService):
                 "Operadores só podem ser administrados no schema public."
             )
 
+    @system_command
     def create_demo_user(self, data: dict, verification_url_builder):
         """Cria conta DEMO inativa e agenda a confirmação por e-mail."""
         from core.contracts import CustomUser, Role
@@ -184,6 +187,7 @@ class AccountService(BaseService):
         self._log("demo_user_created", user_id=str(user.pk))
         return user
 
+    @system_command
     def verify_demo_user(self, token: str):
         """Ativa conta DEMO após validar token assinado de uso único."""
         from core.contracts import CustomUser
@@ -221,6 +225,7 @@ class AccountService(BaseService):
         self._record_audit("UPDATE", user, old_values={"email_verified_at": None})
         return user
 
+    @system_command
     def expire_demo_users(self) -> int:
         """Anonimiza e desativa contas DEMO expiradas no schema corrente."""
         from core.contracts import CustomUser

@@ -79,6 +79,10 @@ def test_student_profile_exposes_inline_information_edit(force_login_client, stu
 
     assert response.status_code == 200
     assert b'hx-target="#student-information-card"' in response.content
+    assert b"sm-profile-hero" in response.content
+    assert b"avatar-text" in response.content
+    assert student.get_full_name().encode() in response.content
+    assert student.email.encode() in response.content
 
 
 @pytest.mark.django_db
@@ -91,6 +95,13 @@ def test_student_edit_get_returns_only_component_for_htmx(force_login_client, st
     assert response.status_code == 200
     assert b"Cancelar" in response.content
     assert b"Salvar" in response.content
+    assert b"Observa\xc3\xa7\xc3\xb5es" in response.content
+    assert b'name="email"' in response.content
+    assert b"readonly" in response.content
+    assert b"sm-profile-avatar-input" in response.content
+    assert student.get_full_name().encode() in response.content
+    assert student.email.encode() in response.content
+    assert response.content.count(b'class="col-12 col-md-6"') == 2
     assert b"<html" not in response.content
 
 
@@ -111,8 +122,8 @@ def test_student_edit_post_updates_and_returns_card_for_htmx(force_login_client,
             "rg_issuer": "SSP",
             "rg_state": "SP",
             "phone_mobile": "(11) 99999-0000",
-            "email": "ana@example.com",
-            "observations": "Asma; utilizar bombinha quando necessário.",
+            "email": student.email,
+            "observations": "Acompanhamento interno atualizado.",
             "version": student.version,
         },
         HTTP_HX_REQUEST="true",
@@ -121,6 +132,7 @@ def test_student_edit_post_updates_and_returns_card_for_htmx(force_login_client,
     assert response.status_code == 200
     student.refresh_from_db()
     assert student.last_name == "Atualizada"
+    assert student.observations == "Acompanhamento interno atualizado."
     assert b"atualizadas com sucesso" in response.content
 
 

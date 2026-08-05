@@ -1,40 +1,47 @@
-"""Views HTMX para grade horária."""
+"""Orquestração HTTP da listagem de turmas e da matriz semanal."""
 
-from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 
-from agenda.forms import ScheduleForm, TimeSlotForm
-from agenda.selectors import ScheduleSelector, TimeSlotSelector
-from agenda.services import ScheduleService
-from base.exceptions import BusinessRuleViolationError, ValidationError
-from base.forms import apply_validation_errors
+from agenda.presentation import (
+    as_of_from_request,
+    is_component_htmx_request,
+    matrix_context,
+    matrix_url,
+)
+from agenda.selectors import ScheduleSelector
 from base.listing import build_querystring, build_sorting, resolve_listing_state
-from classes.selectors import ClassSelector
-from teachers.selectors import TeacherSelector
+from core.permissions import access_policy, role_name
 
 
 @login_required
-def time_slots_list(request):
-    """Lista horários cadastrados usando busca, ordenação e paginação HTMX."""
+@access_policy("schedule", "view")
+def schedule_classes_list(request: HttpRequest) -> HttpResponse:
+    """Lista as turmas disponíveis para abertura da matriz semanal."""
     state = resolve_listing_state(
         request,
-        scope="time_slots_list",
+        scope="schedule_classes_list",
         allowed_sorts={
-            "day_of_week",
-            "-day_of_week",
-            "slot_number",
-            "-slot_number",
-            "start_time",
-            "-start_time",
-            "end_time",
-            "-end_time",
+            "name",
+            "-name",
+            "academic_year",
+            "-academic_year",
+            "grade",
+            "-grade",
+            "shift",
+            "-shift",
         },
-        default_sort="day_of_week",
+        default_sort="-academic_year",
     )
-    search = state["q"]
-    sort = state["sort"]
-    result = TimeSlotSelector().list_time_slots(search=search, order_by=sort, page=state["page"])
+    search, sort = state["q"], state["sort"]
+    result = ScheduleSelector().list_classes_for_matrix(
+        user_id=request.user.pk,
+        role_name=role_name(request.user),
+        search=search,
+        order_by=sort,
+        page=state["page"],
+    )
     context = {
         "result": result,
         "q": search,
@@ -42,101 +49,38 @@ def time_slots_list(request):
         "sorting": build_sorting(
             current_sort=sort,
             search=search,
-            sortable_fields=["day_of_week", "slot_number", "start_time", "end_time"],
+            sortable_fields=["name", "grade", "shift", "academic_year"],
         ),
         "list_query": build_querystring({"q": search, "sort": sort}),
         "breadcrumb_items": [
             {"label": "Home", "url": "dashboard"},
-            {"label": "Horários", "url": None},
+            {"label": "Grade Horária", "url": None},
         ],
     }
-    if request.headers.get("HX-Request"):
-        return render(request, "agenda/partials/time_slots_table.html", context)
-    return render(request, "agenda/time_slots_list.html", context)
-
-
-@login_required
-def time_slot_create(request):
-    """Cadastra uma faixa de horário no card compacto padrão."""
-    form = TimeSlotForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        try:
-            ScheduleService(user=request.user).create_time_slot(form.cleaned_data)
-            messages.success(request, "Horário cadastrado com sucesso.")
-            return redirect("time_slots_list")
-        except ValidationError as exc:
-            apply_validation_errors(form, exc)
-    return render(request, "agenda/time_slot_form.html", {"form": form, "title": "Novo Horário"})
-
-
-@login_required
-def time_slot_edit(request, pk):
-    """Edita um horário que ainda não foi usado em uma grade."""
-    slot = TimeSlotSelector().get_by_id(pk)
-    form = TimeSlotForm(request.POST or None, instance=slot)
-    if request.method == "POST" and form.is_valid():
-        try:
-            ScheduleService(user=request.user).update_time_slot(pk, form.cleaned_data)
-            messages.success(request, "Horário atualizado com sucesso.")
-            return redirect("time_slots_list")
-        except (ValidationError, BusinessRuleViolationError) as exc:
-            if isinstance(exc, ValidationError):
-                apply_validation_errors(form, exc)
-            else:
-                form.add_error(None, exc.message)
-    return render(request, "agenda/time_slot_form.html", {"form": form, "title": "Editar Horário"})
-
-
-@login_required
-def schedule_weekly(request, class_id):
-    """Exibe a grade horária semanal de uma turma em formato tabela."""
-    class_obj = ClassSelector().get_by_id(class_id)
-    schedules = ScheduleSelector().get_weekly_schedule(class_obj.pk)
-    by_day = ScheduleSelector.group_by_day_of_week(schedules)
-
-    return render(
-        request,
-        "agenda/schedule_weekly.html",
-        {"class_obj": class_obj, "by_day": by_day, "has_schedules": schedules.exists()},
+    template_name = (
+        "agenda/partials/schedule_classes_table.html"
+        if is_component_htmx_request(request)
+        else "agenda/schedule_classes_list.html"
     )
+    return render(request, template_name, context)
 
 
 @login_required
-def teacher_schedule(request, teacher_id):
-    """Exibe a grade horária de um professor."""
-    teacher = TeacherSelector().get_by_id(teacher_id)
-    schedules = ScheduleSelector().get_teacher_schedule(teacher_id)
-    by_day = ScheduleSelector.group_by_day_of_week(schedules)
-
-    return render(
-        request,
-        "agenda/teacher_schedule.html",
-        {"teacher": teacher, "by_day": by_day, "has_schedules": schedules.exists()},
+@access_policy("schedule", "view")
+def schedule_weekly(request: HttpRequest, class_id) -> HttpResponse:
+    """Exibe a matriz de segunda a sexta na semana canônica solicitada."""
+    as_of = as_of_from_request(request)
+    if request.GET.get("as_of") != as_of.isoformat():
+        canonical_url = matrix_url(class_id, as_of)
+        if is_component_htmx_request(request):
+            response = HttpResponse(status=204)
+            response["HX-Redirect"] = canonical_url
+            return response
+        return redirect(canonical_url)
+    context = matrix_context(request.user, class_id, as_of)
+    template_name = (
+        "agenda/partials/schedule_matrix_workspace.html"
+        if is_component_htmx_request(request)
+        else "agenda/schedule_weekly.html"
     )
-
-
-@login_required
-def schedule_create(request, class_id):
-    """Cria entrada na grade horária de uma turma."""
-    form = ScheduleForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        cd = form.cleaned_data
-        data = {
-            "class_obj_id": class_id,
-            "teacher_id": cd["teacher"].pk,
-            "subject_id": cd["subject"].pk,
-            "time_slot_id": cd["time_slot"].pk,
-            "room_id": cd["room"].pk if cd["room"] else None,
-            "valid_from": cd["valid_from"],
-            "valid_until": cd.get("valid_until"),
-        }
-        try:
-            ScheduleService(user=request.user).create_schedule(data)
-            return redirect("schedule_weekly", class_id=class_id)
-        except ValidationError as exc:
-            apply_validation_errors(form, exc)
-    return render(
-        request,
-        "agenda/schedule_form.html",
-        {"form": form, "class_id": class_id, "title": "Novo Item de Grade"},
-    )
+    return render(request, template_name, context)

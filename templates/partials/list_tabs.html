@@ -1,0 +1,14 @@
+<nav class="nav nav-tabs sm-tabs flex-nowrap overflow-auto"
+     data-sm-list-tabs="{{ list_page.search_target|cut:'#' }}"
+     aria-label="{{ list_tabs_label }}">
+    {% for item in list_tabs %}
+    <a class="nav-link text-nowrap{% if item.active %} active{% endif %}"
+       data-sm-tab-id="{{ item.id }}"
+       href="?{{ item.query }}"
+       hx-get="?{{ item.query }}"
+       hx-target="{{ list_page.search_target }}"
+       hx-swap="outerHTML"
+       hx-push-url="true"{% if item.active %}
+       aria-current="page"{% endif %}>{{ item.label }}{% if item.count is not None %} <span class="badge bg-soft-secondary text-secondary">{{ item.count }}</span>{% endif %}</a>
+    {% endfor %}
+</nav>

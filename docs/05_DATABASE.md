@@ -72,6 +72,15 @@ imutáveis e qualquer alteração de schema seguirá uma cadeia evolutiva revisa
   auditadas. O papel Administrador não possui linhas nessa tabela.
 
 - Matrículas de professores e alunos são geradas por sequência anual isolada no schema do tenant.
+- Solicitações de matrícula usam a mesma sequência tenant-scoped no escopo próprio e recebem
+  protocolo `MAT-AAAA-NNNNNN`. `EnrollmentApplication` admite uma única solicitação aberta por
+  aluno e ano; `Enrollment` admite um único vínculo ativo por aluno e ano.
+- A aprovação é a reserva persistida de vaga. `EnrollmentTransition` registra cada estado sem
+  atualização ou remoção; `StudentDocument` guarda o snapshot de `DocumentRequirement` existente
+  na abertura, inclusive obrigatoriedade e aceitação de conferência física.
+- Transferências e cancelamentos preservam os vínculos acadêmicos encerrados. A matrícula de
+  origem passa a `TRANSFERRED`; cancelamento pós-efetivação mantém os registros pedagógicos e
+  passa o vínculo final a `CANCELLED`.
 - Preferências de e-mail e WhatsApp são armazenadas separadamente e começam desmarcadas.
 - Turmas possuem etapa de ensino estruturada, incluindo `OTHER` como opção canônica.
 - Turmas usam um catálogo fixo e ordenado de séries compatíveis com a etapa de ensino.
@@ -79,10 +88,11 @@ imutáveis e qualquer alteração de schema seguirá uma cadeia evolutiva revisa
   aplicável. `DiaryCategory` e `DiaryOption` formam um catálogo unificado, configurável e isolado
   por tenant para as seções Como foi o dia e Alimentação. Itens iniciais e personalizados usam
   a mesma estrutura e não possuem identificadores funcionais fixos.
-- Itens configuram seção, ordem, obrigatoriedade, disponibilidade e aplicação aos turnos Manhã,
-  Tarde e Integral. Todo item ativo exige ao menos um turno e uma opção disponível; sua última
-  opção disponível não pode ser desativada. Itens novos começam indisponíveis, obrigatórios, na
-  seção Como foi o dia e aplicáveis aos três turnos.
+- Itens configuram seção, ordem, obrigatoriedade, disponibilidade e aplicação aos turnos Manhã e
+  Tarde. Em turmas de período Integral, um item só é aplicável quando ambos os turnos estão
+  marcados. Todo item ativo exige ao menos um turno e uma opção disponível; sua última opção
+  disponível não pode ser desativada. Itens novos começam indisponíveis, obrigatórios, na seção
+  Como foi o dia e aplicáveis à Manhã e à Tarde.
 - Respostas existentes podem continuar ligadas a itens posteriormente indisponíveis. Cada
   `DiaryPublishedEntry` copia seção, nome, rótulo e ordem para `answers_snapshot` no momento da
   publicação, de modo que alterações futuras no catálogo não reescrevem o histórico publicado.
@@ -93,8 +103,25 @@ imutáveis e qualquer alteração de schema seguirá uma cadeia evolutiva revisa
 - Entregas de atividades são únicas por atividade e aluno enquanto ativas. A turma da atividade
   pode mudar somente antes de qualquer nota, feedback ou resultado coletivo; entregas ainda
   vazias acompanham a nova turma por soft delete e restauração auditada.
+- Atividades mantêm o workflow de notas `DRAFT` e `LAUNCHED`, com a data do lançamento oficial.
+  O estado oficial bloqueia alterações individuais e coletivas até uma reabertura auditada com
+  motivo obrigatório.
 - Atividades e chamadas aceitam apenas combinações professor–turma–disciplina existentes e
   vigentes na grade horária, inclusive quando o professor é o responsável da turma.
+- A grade horária usa `TimeSlot` como período comum da escola, sem dia da semana, vinculado
+  obrigatoriamente a Manhã, Tarde ou Noite. Turmas Matutinas, Vespertinas e Noturnas usam somente
+  períodos do respectivo turno; turmas Integrais combinam Manhã e Tarde, nunca Noite. A numeração
+  do período não é única e a matriz é ordenada cronologicamente. Intervalos iguais ou
+  sobrepostos continuam proibidos globalmente, mesmo entre turnos. `Schedule`
+  associa turma, professor, disciplina e sala a um período compatível e a um dia letivo de
+  segunda a sexta. O turno de uma turma com qualquer versão de grade não pode ser alterado.
+  A segunda-feira é o identificador e a data efetiva canônica de toda semana: referências de
+  criação, cópia e edição são normalizadas para ela. Cada célula tem vigência inclusiva; editar
+  cria uma versão sucessora na segunda escolhida e encerra a anterior no domingo precedente;
+  encerrar uma célula a partir de uma semana também a encerra no domingo anterior. Turma,
+  professor e sala não podem ter vigências sobrepostas no mesmo dia e período, e o professor
+  precisa estar vinculado à disciplina. A cópia de dia valida todas as células e cria o lote
+  inteiro em uma única transação.
 - Toda atualização de `BaseModel` condiciona a escrita à versão lida e incrementa `version`
   atomicamente. Soft delete, restore e transições seguem a mesma regra; conflitos não
   sobrescrevem o registro atual. Invariantes agregadas usam `select_for_update` em transação.

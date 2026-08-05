@@ -178,13 +178,13 @@ def attendance_record_fill(request, record_id):
                 "Erro ao registrar chamada",
                 extra={"record_id": str(record_id), "exception_type": type(exc).__name__},
             )
-            messages.error(request, str(exc))
             if request.headers.get("HX-Request"):
                 return render(
                     request,
                     "attendance/partials/attendance_fill_card.html",
-                    {"record": record, "entries": entries},
+                    {"record": record, "entries": entries, "submission_error": str(exc)},
                 )
+            messages.error(request, str(exc))
             return render(
                 request,
                 "attendance/record_fill.html",

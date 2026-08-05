@@ -39,6 +39,8 @@ def test_user_detail_renders_person_information(force_login_client, listed_user)
     assert response.status_code == 200
     assert listed_user.get_full_name().encode() in response.content
     assert listed_user.email.encode() in response.content
+    assert b"sm-profile-hero" in response.content
+    assert b"avatar-text" in response.content
 
 
 @pytest.mark.django_db
@@ -76,6 +78,9 @@ def test_user_edit_returns_component_for_htmx(force_login_client, listed_user):
 
     assert response.status_code == 200
     assert b"Cancelar" in response.content
+    assert listed_user.get_full_name().encode() in response.content
+    assert listed_user.email.encode() in response.content
+    assert b"sm-profile-avatar-input" in response.content
     assert b"<html" not in response.content
 
 

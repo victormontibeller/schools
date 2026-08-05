@@ -120,7 +120,9 @@ class DiaryStudentEntryForm(forms.Form):
 
 
 class RoutineAspectForm(VersionedModelForm):
-    """Cria e edita os dados configuráveis de um item da Agenda."""
+    """Cria os dados configuráveis de um item da Agenda."""
+
+    inline_checkbox_fields = frozenset({"is_required", "applies_morning", "applies_afternoon"})
 
     class Meta:
         model = DiaryCategory
@@ -131,7 +133,6 @@ class RoutineAspectForm(VersionedModelForm):
             "is_required",
             "applies_morning",
             "applies_afternoon",
-            "applies_full",
         ]
         widgets = {
             "name": forms.TextInput(attrs={"class": "form-control"}),
@@ -140,7 +141,6 @@ class RoutineAspectForm(VersionedModelForm):
             "is_required": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "applies_morning": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "applies_afternoon": forms.CheckboxInput(attrs={"class": "form-check-input"}),
-            "applies_full": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
         labels = {
             "name": "Nome",
@@ -149,18 +149,33 @@ class RoutineAspectForm(VersionedModelForm):
             "is_required": "Resposta obrigatória",
             "applies_morning": "Manhã",
             "applies_afternoon": "Tarde",
-            "applies_full": "Integral",
         }
 
 
-class RoutineAspectToggleForm(VersionedModelForm):
-    """Altera reversivelmente a disponibilidade de um item."""
+class RoutineAspectEditForm(RoutineAspectForm):
+    """Edita os dados e a disponibilidade de um item da Agenda."""
+
+    inline_checkbox_fields = RoutineAspectForm.inline_checkbox_fields | {"is_enabled"}
 
     class Meta:
         model = DiaryCategory
-        fields = ["is_enabled"]
-        widgets = {"is_enabled": forms.CheckboxInput(attrs={"class": "form-check-input"})}
-        labels = {"is_enabled": "Ativo na Agenda"}
+        fields = [
+            "name",
+            "section",
+            "display_order",
+            "is_enabled",
+            "is_required",
+            "applies_morning",
+            "applies_afternoon",
+        ]
+        widgets = {
+            **RoutineAspectForm.Meta.widgets,
+            "is_enabled": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+        labels = {
+            **RoutineAspectForm.Meta.labels,
+            "is_enabled": "Ativo na Agenda",
+        }
 
 
 class RoutineOptionForm(VersionedModelForm):

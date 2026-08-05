@@ -28,6 +28,8 @@ class Migration(migrations.Migration):
                 ('due_date', models.DateField(verbose_name='Data de Entrega')),
                 ('max_score', models.DecimalField(decimal_places=2, default=10.0, max_digits=5, verbose_name='Nota Máxima')),
                 ('weight', models.DecimalField(decimal_places=2, default=1.0, max_digits=4, verbose_name='Peso na Média')),
+                ('score_status', models.CharField(choices=[('DRAFT', 'Rascunho'), ('LAUNCHED', 'Lançadas')], default='DRAFT', max_length=10, verbose_name='Status das Notas')),
+                ('scores_launched_at', models.DateTimeField(blank=True, null=True, verbose_name='Notas Lançadas em')),
             ],
             options={
                 'verbose_name': 'Atividade',

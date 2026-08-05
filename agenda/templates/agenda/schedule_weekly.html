@@ -1,7 +1,7 @@
 {% extends "page_shell_base.html" %}
-{% load ui_helpers %}
+
 {% block title %}Grade — {{ class_obj.name }}{% endblock %}
-{% block page_heading %}Grade Horária — {{ class_obj.name }}{% endblock %}
+{% block page_heading %}Grade horária — {{ class_obj.name }}{% endblock %}
 {% block page_breadcrumbs %}
 <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
 <li class="breadcrumb-item"><a href="{% url 'classes_list' %}">Turmas</a></li>
@@ -9,37 +9,11 @@
 <li class="breadcrumb-item active">Grade</li>
 {% endblock %}
 {% block page_content_class %}sm-page-content--viewport{% endblock %}
-
 {% block page_content %}
-{% can_access_action "schedule" "create" as can_create_schedule %}
-    <div class="row g-3 sm-workspace-row">
-    <div class="col-12 col-xl-7 sm-workspace-column">
-    <div class="card sm-detail-card sm-viewport-card" data-sm-layout="workspace">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h6 class="card-title mb-0">Grade semanal</h6>
-            {% if can_create_schedule %}<a href="{% url 'schedule_create' class_obj.pk %}" class="btn btn-primary btn-sm">
-                <i class="feather-plus me-1"></i> NOVO
-            </a>{% endif %}
-        </div>
-        <div class="card-body p-0 sm-viewport-body">
-            <div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Grade semanal da turma">
-                <table class="table table-hover mb-0 sm-sticky-table sm-sticky-table--first-column">
-                    <thead><tr><th>Dia</th><th>Horário</th><th>Disciplina</th><th>Professor</th><th>Sala</th></tr></thead>
-                    <tbody>
-                        {% if has_schedules %}
-                        {% for day, items in by_day.items %}
-                            {% for schedule in items %}
-                            <tr><td>{{ schedule.time_slot.get_day_of_week_display }}</td><td>{{ schedule.time_slot.start_time|time:"H:i" }} – {{ schedule.time_slot.end_time|time:"H:i" }}</td><td>{{ schedule.subject }}</td><td>{{ schedule.teacher }}</td><td>{{ schedule.room|default:"—" }}</td></tr>
-                            {% endfor %}
-                        {% endfor %}
-                        {% else %}
-                        <tr><td colspan="5" class="text-center text-muted py-4">Nenhum item cadastrado na grade.</td></tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    </div>
-    </div>
+{% include "agenda/partials/schedule_matrix_workspace.html" %}
+{% endblock %}
+
+{% block app_modal %}
+{% include "agenda/partials/schedule_cell_modal.html" %}
+{% include "agenda/partials/schedule_copy_day_modal.html" %}
 {% endblock %}

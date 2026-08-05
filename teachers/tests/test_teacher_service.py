@@ -221,3 +221,27 @@ class TestSubjectServiceUpdate:
         Subject.objects.create(name="B", code="BBB", created_by=user, updated_by=user)
         with pytest.raises(ValidationError):
             SubjectService(user=user).update_subject(s1.pk, {"code": "BBB"})
+
+    def test_update_subject_reverses_active_status_and_audits(self, user):
+        from audit.models import AuditLog
+        from teachers.models import Subject
+        from teachers.services import SubjectService
+
+        subject = Subject.objects.create(
+            name="Biologia", code="BIO", created_by=user, updated_by=user
+        )
+
+        updated = SubjectService(user=user).update_subject(subject.pk, {"is_active": False})
+
+        assert updated.is_active is False
+        audit_log = AuditLog.objects.filter(
+            operation=AuditLog.Operation.UPDATE,
+            model_name="Subject",
+            object_id=str(subject.pk),
+        ).latest("created_at")
+        assert audit_log.old_values["is_active"] is True
+        assert audit_log.new_values["is_active"] is False
+
+        reactivated = SubjectService(user=user).update_subject(subject.pk, {"is_active": True})
+
+        assert reactivated.is_active is True

@@ -11,10 +11,13 @@ class CoreDemoSeedMixin:
 
     def _ensure(self, model, lookup: dict[str, Any], values: dict[str, Any]):
         """Cria ou atualiza uma entidade DEMO, restaurando-a quando necessário."""
+        # School vive no schema público; um ator do tenant não pode ser persistido
+        # nas FKs de auditoria desse registro compartilhado.
+        actor = None if model._meta.label_lower == "tenancy.school" else self.user
         instance = model.all_objects.filter(**lookup).first()
         if instance is None:
             instance = model.objects.create(
-                **{**lookup, **values}, created_by=self.user, updated_by=self.user
+                **{**lookup, **values}, created_by=actor, updated_by=actor
             )
             self._record_audit("INSERT", instance)
             self._log("demo_seed_created", entity_type=model.__name__, entity_id=str(instance.pk))
@@ -32,7 +35,7 @@ class CoreDemoSeedMixin:
             instance.is_active = True
             changed = True
         if changed:
-            instance.updated_by = self.user
+            instance.updated_by = actor
             instance.save()
             self._record_audit("UPDATE", instance, old_values=old)
             self._log("demo_seed_updated", entity_type=model.__name__, entity_id=str(instance.pk))
@@ -59,12 +62,15 @@ class CoreDemoSeedMixin:
             StudentAddress,
             TeacherAddress,
         )
-        from classes.contracts import Class, Enrollment
+        from classes.contracts import Class
         from core.models import BusinessUnit, CustomUser, Role
+        from enrollments.demo_seed import ensure_demo_enrollment
         from guardians.contracts import Guardian, StudentGuardian
         from students.contracts import Student
         from teachers.contracts import Subject, Teacher
+        from tenancy.contracts import School
 
+        school = School.all_objects.get(pk=school.pk)
         teacher_role, _ = Role.objects.get_or_create(name=Role.Name.TEACHER)
         merged_settings = dict(school.settings or {})
         merged_settings.update({"timezone": "America/Sao_Paulo", "locale": "pt_BR"})
@@ -96,9 +102,7 @@ class CoreDemoSeedMixin:
             },
             "settings": merged_settings,
         }
-        for field, value in school_data.items():
-            setattr(school, field, value)
-        school.save()
+        school = self._ensure(School, {"pk": school.pk}, school_data)
         self._ensure_address(
             SchoolAddress,
             "school",
@@ -354,15 +358,7 @@ class CoreDemoSeedMixin:
             )
             classes.append(cls)
             for student in class_students:
-                self._ensure(
-                    Enrollment,
-                    {"student": student, "class_obj": cls},
-                    {
-                        "enrollment_date": dt.date(2026, 2, 2),
-                        "status": Enrollment.Status.ACTIVE,
-                        "cancel_reason": "",
-                    },
-                )
+                ensure_demo_enrollment(self.user, student, cls)
 
         early_childhood_class = self._ensure(
             Class,
@@ -376,15 +372,7 @@ class CoreDemoSeedMixin:
             },
         )
         for student in students[10:]:
-            self._ensure(
-                Enrollment,
-                {"student": student, "class_obj": early_childhood_class},
-                {
-                    "enrollment_date": dt.date(2026, 2, 2),
-                    "status": Enrollment.Status.ACTIVE,
-                    "cancel_reason": "",
-                },
-            )
+            ensure_demo_enrollment(self.user, student, early_childhood_class)
 
         self.populate_rooms()
         self.populate_activities(

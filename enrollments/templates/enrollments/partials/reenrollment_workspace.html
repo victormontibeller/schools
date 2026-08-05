@@ -1,0 +1,54 @@
+{% load ui_helpers %}
+{% can_access_action "reenrollment" "create" as can_confirm_reenrollment %}
+{% can_access_action "students" "view" as can_view_students %}
+<div class="card sm-viewport-card" id="reenrollment-workspace" data-sm-layout="workspace">
+    <div class="card-header d-flex align-items-center gap-3 flex-wrap">
+        <h6 class="card-title mb-0">{% if preparation %}Mapeamento para {{ preparation.0.academic_year|add:'1' }}{% else %}Preparar lote{% endif %}</h6>
+        <form method="get" class="row g-2 align-items-end flex-grow-1">
+            <div class="col-12 col-md-8">{% include "partials/form_field.html" with field=form.source_class_id %}</div>
+            <div class="col-12 col-md-4"><button class="btn btn-primary w-100" type="submit">Preparar</button></div>
+        </form>
+    </div>
+    {% if preparation %}
+    <form method="post" action="{% url 'reenrollment_batch_confirm' %}" class="sm-workspace-row d-flex flex-column">
+        {% csrf_token %}
+        <input type="hidden" name="source_class_id" value="{{ preparation.0.pk }}">
+        <div class="card-body p-0 sm-viewport-body">
+            <div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Mapeamento da rematrícula">
+                <table class="table table-hover mb-0 sm-sticky-table sm-sticky-table--first-column">
+                    <thead><tr><th scope="col">Aluno</th><th scope="col">Turma de destino</th><th scope="col">Exceção pedagógica</th></tr></thead>
+                    <tbody>
+                        {% for enrollment in preparation.1 %}
+                        <tr>
+                            <td>
+                                <input type="hidden" name="source_enrollment_ids" value="{{ enrollment.pk }}">
+                                <input type="hidden" name="version_{{ enrollment.pk }}" value="{{ enrollment.version }}">
+                                {% if can_view_students %}<a href="{% url 'student_profile' enrollment.student_id %}">{{ enrollment.student.get_full_name }}</a>{% else %}{{ enrollment.student.get_full_name }}{% endif %}
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm" name="target_{{ enrollment.pk }}" required{% if not can_confirm_reenrollment %} disabled{% endif %}>
+                                    <option value="">Selecione</option>
+                                    {% for target in preparation.2 %}
+                                    <option value="{{ target.pk }}"{% if target.is_preselected %} selected{% endif %}>{{ target }} · projetado {{ target.projected_enrollment_count }}/{{ target.max_students }}{% if target.is_pedagogical_suggestion %} · sugerida{% elif target.is_repetition %} · repetência (justifique){% else %} · exceção (justifique){% endif %}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td><input class="form-control form-control-sm" name="reason_{{ enrollment.pk }}" maxlength="1000" placeholder="Obrigatório para repetência, turno ou série excepcional"{% if not can_confirm_reenrollment %} disabled{% endif %}></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="text-center text-muted py-4">Nenhuma matrícula ativa na origem.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% if can_confirm_reenrollment %}
+        <div class="card-footer d-flex justify-content-end flex-shrink-0"><button class="btn btn-success" type="submit">Confirmar lote</button></div>
+        {% endif %}
+    </form>
+    {% else %}
+    <div class="card-body d-flex align-items-center justify-content-center text-center text-muted">
+        Selecione a turma de origem para preparar o mapeamento da rematrícula.
+    </div>
+    {% endif %}
+</div>

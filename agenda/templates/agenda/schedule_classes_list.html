@@ -1,0 +1,18 @@
+{% extends "list_page_base.html" %}
+{% load ui_helpers %}
+
+{% block page_header_actions %}
+<div class="page-header-right ms-auto">
+    <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-soft-secondary text-secondary">{{ result.total }} {{ list_page.count_label }}</span>
+        {% can_access_action "schedule_configuration" "view" as can_view_time_slots %}
+        {% if can_view_time_slots %}
+        <a href="{% url 'time_slots_list' %}" class="btn btn-outline-primary btn-sm">Períodos</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block list_body %}
+{% include "agenda/partials/schedule_classes_table.html" %}
+{% endblock %}

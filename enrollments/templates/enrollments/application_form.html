@@ -1,9 +1,20 @@
 {% extends "entity_form_base.html" %}
 
 {% block title %}{{ title }}{% endblock %}
-
-{% block breadcrumb %}
-<li class="breadcrumb-item"><a href="{% url 'secretary_dashboard' %}">Secretaria</a></li>
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{% url 'enrollment_application_list' %}">Matrículas</a></li>{% endblock %}
+{% block cancel_url %}{% url 'enrollment_application_list' %}{% endblock %}
+{% block form_fields %}
+<div class="row g-2">
+    <div class="col-12">
+        <label class="form-label" for="student-search">Buscar aluno</label>
+        <div class="input-group">
+        <input id="student-search" class="form-control" type="search" name="student_search" value="{{ student_search }}" placeholder="Nome ou matrícula"
+               hx-get="{% url 'enrollment_student_search' %}" hx-trigger="keyup changed delay:300ms, search"
+               hx-target="#id_student_id" hx-swap="innerHTML" aria-describedby="student-search-help">
+        <button class="btn btn-outline-secondary" type="submit" name="form_action" value="search" formnovalidate>Buscar</button>
+        </div>
+        <div id="student-search-help" class="form-text">Use Buscar para atualizar as opções também sem JavaScript.</div>
+    </div>
+    {% for field in form %}<div class="col-12{% if field.name == 'notes' %}{% else %} col-md-6{% endif %}">{% include "partials/form_field.html" with field=field %}</div>{% endfor %}
+</div>
 {% endblock %}
-
-{% block cancel_url %}{% url 'secretary_dashboard' %}{% endblock %}

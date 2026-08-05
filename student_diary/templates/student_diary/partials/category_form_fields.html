@@ -1,0 +1,12 @@
+<div class="row g-2">
+    {% include "partials/form_field.html" with field=form.name %}
+    {% include "partials/form_field.html" with field=form.section %}
+    {% include "partials/form_field.html" with field=form.display_order %}
+</div>
+<div class="row row-cols-2 g-2 align-items-start mt-1">
+    {% if form.is_enabled %}{% include "partials/form_field.html" with field=form.is_enabled inline_checkbox=True %}{% endif %}
+    {% include "partials/form_field.html" with field=form.is_required inline_checkbox=True %}
+    {% include "partials/form_field.html" with field=form.applies_morning inline_checkbox=True %}
+    {% include "partials/form_field.html" with field=form.applies_afternoon inline_checkbox=True %}
+</div>
+{% if form.version %}{{ form.version }}{% endif %}

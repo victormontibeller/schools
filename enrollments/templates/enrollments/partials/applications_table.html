@@ -1,60 +1,19 @@
-<div class="table-responsive">
-    <table class="table table-hover mb-0">
-        <thead>
-            <tr>
-                <th>Protocolo</th>
-                <th>Aluno</th>
-                <th>Matrícula</th>
-                <th>Turma</th>
-                <th>Situação</th>
-            </tr>
-        </thead>
+<div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Solicitações de matrícula">
+    <table class="table table-hover mb-0 sm-sticky-table sm-sticky-table--first-column">
+        <thead><tr><th>Protocolo</th><th>Aluno</th><th>Matrícula</th><th>Turma</th><th>Tipo</th><th>Situação</th><th>Ano</th></tr></thead>
         <tbody>
-            {% for app in result.items %}
+            {% for application in result.items %}
             <tr>
-                <td>
-                    <a href="{% url 'application_detail' app.pk %}">{{ app.application_number }}</a>
-                </td>
-                <td>{{ app.student.get_full_name }}</td>
-                <td>{{ app.student.enrollment_number }}</td>
-                <td>{{ app.class_obj.name }}</td>
-                <td>
-                    <span class="badge {% if app.status == 'APPROVED' %}bg-success{% elif app.status == 'REJECTED' %}bg-danger{% elif app.status == 'ENROLLED' %}bg-primary{% elif app.status == 'UNDER_REVIEW' %}bg-warning text-dark{% elif app.status == 'CANCELLED' %}bg-dark{% else %}bg-secondary{% endif %}">
-                        {{ app.get_status_display }}
-                    </span>
-                </td>
+                <td><a class="fw-semibold" href="{% url 'enrollment_application_detail' application.pk %}">{{ application.application_number }}</a></td>
+                <td>{{ application.student.get_full_name }}</td>
+                <td>{{ application.student.enrollment_number }}</td>
+                <td>{{ application.target_class|default:"—" }}</td>
+                <td>{{ application.get_application_type_display }}</td>
+                <td><span class="badge bg-soft-primary text-primary">{{ application.get_status_display }}</span></td>
+                <td>{{ application.academic_year }}</td>
             </tr>
-            {% empty %}
-            <tr>
-                <td colspan="5" class="text-center text-muted py-4">
-                    Nenhuma solicitação encontrada.
-                </td>
-            </tr>
-            {% endfor %}
+            {% empty %}<tr><td colspan="7" class="text-center text-muted py-4">Nenhuma solicitação encontrada.</td></tr>{% endfor %}
         </tbody>
     </table>
 </div>
-
-{% if result.total_pages > 1 %}
-<div class="d-flex justify-content-center py-3">
-    <ul class="pagination pagination-sm mb-0">
-        {% if result.has_previous %}
-        <li class="page-item">
-            <a class="page-link"
-               hx-get="?tab={{ tab }}&page={{ result.page|add:'-1' }}{% if q %}&q={{ q }}{% endif %}"
-               hx-target="#secretary-content" hx-swap="innerHTML">«</a>
-        </li>
-        {% endif %}
-        <li class="page-item active">
-            <span class="page-link">{{ result.page }} / {{ result.total_pages }}</span>
-        </li>
-        {% if result.has_next %}
-        <li class="page-item">
-            <a class="page-link"
-               hx-get="?tab={{ tab }}&page={{ result.page|add:'1' }}{% if q %}&q={{ q }}{% endif %}"
-               hx-target="#secretary-content" hx-swap="innerHTML">»</a>
-        </li>
-        {% endif %}
-    </ul>
-</div>
-{% endif %}
+{% include "partials/list_pagination.html" %}

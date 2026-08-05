@@ -15,16 +15,8 @@
         </div>
         <div class="card-body sm-profile-card-body">
             {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
-            <div class="sm-profile-hero d-flex flex-column flex-sm-row align-items-center text-center text-sm-start gap-3 pb-4 mb-4 border-bottom">
-                <div class="sm-profile-avatar-picker flex-shrink-0">
-                    <label for="{{ form.avatar.id_for_label }}" class="sm-profile-avatar-edit mb-0">
-                        {% if link.guardian.avatar %}<img src="{% url 'guardian_avatar' link.guardian.pk %}" alt="Foto do responsável" class="sm-profile-avatar">{% else %}<div class="avatar-text avatar-xl bg-soft-purple text-purple" style="width:72px;height:72px;font-size:1.75rem">{{ link.guardian.full_name|first|upper }}</div>{% endif %}
-                    </label>
-                    {{ form.avatar }}
-                    {% if form.avatar.errors %}<div class="invalid-feedback d-block text-center mt-2">{{ form.avatar.errors }}</div>{% endif %}
-                </div>
-                <div><h5 class="mb-1">{{ link.guardian.full_name }}</h5><p class="text-muted mb-0">{{ link.guardian.email }}</p></div>
-            </div>
+            {% if link.guardian.avatar %}{% url 'guardian_avatar' link.guardian.pk as profile_image_url %}{% endif %}
+            {% include "partials/person_profile_hero.html" with profile_avatar_field=form.avatar profile_has_image=link.guardian.avatar profile_image_url=profile_image_url profile_avatar_theme="bg-soft-purple text-purple" profile_initial=link.guardian.full_name profile_name=link.guardian.full_name profile_email=link.guardian.email %}
             {% include "partials/person_form_fields.html" with form=form exclude_field="avatar" %}
         </div>
     </form>

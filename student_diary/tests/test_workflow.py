@@ -19,7 +19,14 @@ from student_diary.models import (
 )
 from student_diary.selectors import StudentDiarySelector
 from student_diary.services import StudentDiaryService
-from student_diary.tests.test_services import _class, _enroll, _payload, _student, _teacher
+from student_diary.tests.test_services import (
+    _class,
+    _enroll,
+    _payload,
+    _set_aspect_enabled,
+    _student,
+    _teacher,
+)
 from student_diary.workflow_services import DiaryWorkflowService
 
 
@@ -346,7 +353,7 @@ def test_publish_serializes_custom_routine_item(user, monkeypatch):
     service = StudentDiaryService(user=user)
     aspect = service.create_routine_aspect({"name": "Hidratação", "display_order": 5})
     option = service.create_routine_option(aspect.pk, {"label": "Bebeu bem", "display_order": 1})
-    service.set_routine_aspect_enabled(aspect.pk, True, aspect.version)
+    _set_aspect_enabled(service, aspect, True)
     class_obj = _class(user)
     student = _student(user)
     _enroll(user, class_obj, student)
@@ -379,11 +386,10 @@ def test_publish_serializes_custom_meal_in_unified_snapshot(user, monkeypatch):
             "display_order": 4,
             "applies_morning": True,
             "applies_afternoon": False,
-            "applies_full": True,
         }
     )
     option = service.create_routine_option(item.pk, {"label": "Aceitou bem", "display_order": 1})
-    service.set_routine_aspect_enabled(item.pk, True, item.version)
+    _set_aspect_enabled(service, item, True)
     class_obj = _class(user)
     student = _student(user)
     _enroll(user, class_obj, student)

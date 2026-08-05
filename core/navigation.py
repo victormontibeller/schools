@@ -31,7 +31,7 @@ def _can_show_item(user, item: dict[str, Any]) -> bool:
     """Usa somente a política central; a taxonomia limita papéis com escopo."""
     if item["module"] == "__admin__":
         return getattr(user, "is_superuser", False) or role_name(user) == ADMIN
-    return can_access(user, item["module"], "view")
+    return can_access(user, item["module"], item.get("required_action", "view"))
 
 
 def build_school_navigation(user, view_name: str) -> dict[str, Any]:

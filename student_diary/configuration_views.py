@@ -11,8 +11,8 @@ from base.listing import build_querystring, build_sorting, resolve_listing_state
 from core.access_catalog import CREATE, EDIT, VIEW
 from core.permissions import access_policy
 from student_diary.forms import (
+    RoutineAspectEditForm,
     RoutineAspectForm,
-    RoutineAspectToggleForm,
     RoutineOptionForm,
     RoutineOptionToggleForm,
 )
@@ -78,7 +78,6 @@ def diary_aspect_create(request):
             "display_order": selector.next_category_display_order(default_section),
             "applies_morning": True,
             "applies_afternoon": True,
-            "applies_full": True,
         },
     )
     if request.method == "POST" and form.is_valid():
@@ -116,7 +115,7 @@ def diary_aspect_detail(request, category_id):
 def diary_aspect_edit(request, category_id):
     """Edita o item substituindo somente seu card de informações."""
     category = StudentDiarySelector().get_category_with_options(category_id)
-    form = RoutineAspectForm(request.POST or None, instance=category)
+    form = RoutineAspectEditForm(request.POST or None, instance=category)
     if request.method == "POST" and form.is_valid():
         try:
             category = StudentDiaryService(user=request.user).update_routine_aspect(
@@ -130,35 +129,6 @@ def diary_aspect_edit(request, category_id):
     if not request.headers.get("HX-Request"):
         return redirect("diary_aspect_detail", category_id=category_id)
     return _render_information_form(request, category, form, "Editar item", request.path)
-
-
-@login_required
-@access_policy("diary_configuration", EDIT)
-def diary_aspect_toggle(request, category_id):
-    """Mantém a rota compatível de ativação reversível do item."""
-    category = StudentDiarySelector().get_category_with_options(category_id)
-    form = RoutineAspectToggleForm(
-        request.POST if request.method == "POST" else None,
-        instance=category,
-    )
-    if request.method == "POST" and form.is_valid():
-        try:
-            category = StudentDiaryService(user=request.user).set_routine_aspect_enabled(
-                category_id,
-                form.cleaned_data["is_enabled"],
-                form.cleaned_data["version"],
-            )
-            if request.headers.get("HX-Request"):
-                return _render_information(request, category, saved=True)
-            messages.success(request, "Item da Agenda atualizado.")
-            return redirect("diary_aspect_detail", category_id=category_id)
-        except BusinessRuleViolationError as exc:
-            form.add_error(None, exc.message)
-    if not request.headers.get("HX-Request"):
-        return redirect("diary_aspect_detail", category_id=category_id)
-    return _render_information_form(
-        request, category, form, "Disponibilidade do item", request.path
-    )
 
 
 @login_required
@@ -261,7 +231,7 @@ def _render_options(request, category, *, saved=False, component_error=None):
 def _render_information_form(request, category, form, title, edit_url):
     return render(
         request,
-        "partials/information_form_card.html",
+        "student_diary/partials/category_information_form_card.html",
         {
             "form": form,
             "component_id": "diary-category-information-card",

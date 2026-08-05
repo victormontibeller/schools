@@ -1,69 +1,84 @@
-"""URLs do modulo de matriculas e secretaria."""
+"""Rotas canônicas do workflow interno de matrículas."""
 
 from django.urls import path
 
-from enrollments import views
+from enrollments import document_views, reenrollment_views, requirement_views, views
 
 urlpatterns = [
-    path("secretaria/", views.secretary_dashboard, name="secretary_dashboard"),
     path(
-        "secretaria/solicitacao/nova/",
-        views.application_create,
-        name="application_create",
+        "matriculas/requisitos/",
+        requirement_views.document_requirement_list,
+        name="document_requirement_list",
     ),
     path(
-        "secretaria/solicitacao/<uuid:pk>/",
-        views.application_detail,
-        name="application_detail",
+        "matriculas/requisitos/novo/",
+        requirement_views.document_requirement_create,
+        name="document_requirement_create",
     ),
     path(
-        "secretaria/solicitacao/<uuid:pk>/revisar/",
-        views.application_review,
-        name="application_review",
+        "matriculas/requisitos/<uuid:pk>/editar/",
+        requirement_views.document_requirement_edit,
+        name="document_requirement_edit",
     ),
     path(
-        "secretaria/solicitacao/<uuid:pk>/efetivar/",
-        views.application_complete_enrollment,
-        name="application_complete_enrollment",
+        "matriculas/requisitos/<uuid:pk>/desativar/",
+        requirement_views.document_requirement_deactivate,
+        name="document_requirement_deactivate",
+    ),
+    path("matriculas/", views.enrollment_application_list, name="enrollment_application_list"),
+    path(
+        "matriculas/nova/",
+        views.enrollment_application_create,
+        name="enrollment_application_create",
     ),
     path(
-        "secretaria/solicitacao/<uuid:pk>/cancelar/",
-        views.application_cancel,
-        name="application_cancel",
+        "matriculas/alunos/buscar/",
+        views.enrollment_student_search,
+        name="enrollment_student_search",
     ),
     path(
-        "secretaria/rematricula/",
-        views.bulk_reenroll_view,
-        name="bulk_reenroll",
+        "matriculas/<uuid:pk>/",
+        views.enrollment_application_detail,
+        name="enrollment_application_detail",
     ),
     path(
-        "secretaria/documento/novo/",
-        views.document_add,
-        name="document_add",
+        "matriculas/<uuid:pk>/acao/",
+        views.enrollment_application_action,
+        name="enrollment_application_action",
     ),
     path(
-        "secretaria/solicitacao/<uuid:application_id>/documento/novo/",
-        views.document_add,
-        name="document_add_for_application",
+        "matriculas/<uuid:pk>/corrigir/",
+        views.enrollment_application_correct,
+        name="enrollment_application_correct",
     ),
     path(
-        "secretaria/documento/<uuid:pk>/verificar/",
-        views.document_verify,
-        name="document_verify",
+        "matriculas/<uuid:pk>/lembretes/",
+        views.enrollment_reminder_send,
+        name="enrollment_reminder_send",
     ),
     path(
-        "secretaria/documento/<uuid:pk>/recusar/",
-        views.document_reject,
-        name="document_reject",
+        "matriculas/documentos/<uuid:pk>/entrega/",
+        document_views.enrollment_document_delivery,
+        name="enrollment_document_delivery",
     ),
     path(
-        "secretaria/documento/<uuid:pk>/download/",
-        views.document_download,
-        name="document_download",
+        "matriculas/documentos/<uuid:pk>/acao/",
+        document_views.enrollment_document_action,
+        name="enrollment_document_action",
     ),
     path(
-        "secretaria/aluno/<uuid:student_id>/notificar-pendencias/",
-        views.notify_pending_documents,
-        name="notify_pending_documents",
+        "matriculas/documentos/<uuid:pk>/download/",
+        document_views.enrollment_document_download,
+        name="enrollment_document_download",
+    ),
+    path(
+        "matriculas/rematricula/",
+        reenrollment_views.reenrollment_batch,
+        name="reenrollment_batch",
+    ),
+    path(
+        "matriculas/rematricula/confirmar/",
+        reenrollment_views.reenrollment_batch_confirm,
+        name="reenrollment_batch_confirm",
     ),
 ]

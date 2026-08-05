@@ -55,10 +55,19 @@ class ActivitySelector(BaseSelector):
         return self.get_by_id(activity_id)
 
     def list_submissions(self, activity_id):
-        """Retorna entregas de uma atividade."""
+        """Retorna entregas em ordem estável por nome e matrícula."""
         from activities.models import ActivitySubmission
 
-        return ActivitySubmission.objects.filter(activity_id=activity_id).select_related("student")
+        return (
+            ActivitySubmission.objects.filter(activity_id=activity_id)
+            .select_related("student")
+            .order_by(
+                "student__first_name",
+                "student__last_name",
+                "student__enrollment_number",
+                "pk",
+            )
+        )
 
     def list_groups(self, activity_id):
         """Lista grupos ativos com seus integrantes."""
