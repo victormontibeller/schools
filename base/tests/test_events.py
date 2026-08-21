@@ -15,7 +15,7 @@ from base.events import (
     publish_task_after_commit,
     publish_task_safely,
 )
-from base.services import BaseService
+from base.services import BaseService, _check_no_pii
 
 
 class TestEventDispatcher:
@@ -169,6 +169,58 @@ class TestBaseServiceLogGuardPII:
         finally:
             logging.disable(logging.NOTSET)
 
+    @pytest.mark.parametrize(
+        "sensitive_key",
+        [
+            "contact_email",
+            "contactemail",
+            "emailaddress",
+            "studentEmail",
+            "temporary_password",
+            "temporarypassword",
+            "passwordhash",
+            "raw_password",
+            "api_token",
+            "client_secret",
+            "student_name",
+            "profile_avatar",
+            "profileavatar",
+            "birth_date",
+            "dob",
+            "dateofbirth",
+            "street",
+            "postal_code",
+            "postalcode",
+            "city",
+            "district",
+            "complement",
+            "recipient",
+            "recipient_address",
+            "recipientaddress",
+            "cpf_number",
+            "document_rg",
+            "phoneNumber",
+            "phonenumber",
+            "full_name",
+            "studentfullname",
+            "reason",
+            "studentJustification",
+            "internalNotes",
+            "content",
+            "description",
+            "title",
+            "feedback",
+            "document",
+        ],
+    )
+    def test_rejects_explicit_sensitive_key_variants(self, settings, sensitive_key):
+        settings.DEBUG = True
+        with pytest.raises(RuntimeError, match="PII"):
+            BaseService()._log("anything", **{sensitive_key: "sensitive"})
+
+    def test_classifies_message_extra_as_sensitive_without_inspecting_log_message(self):
+        assert _check_no_pii({"message": "free text"}) == ["message"]
+
     def test_prod_drops_key_and_logs_warning_instead_of_raising(self, settings, caplog):
         settings.DEBUG = False
         svc = BaseService()
@@ -182,5 +234,25 @@ class TestBaseServiceLogGuardPII:
     def test_non_pii_keys_pass_through(self, settings):
         settings.DEBUG = True
         svc = BaseService()
-        # Estes são aceitos: IDs, contagens, modelo, etc.
-        svc._log("ok", user_id="123", model_name="Student", count=5)
+        # Substrings inocentes continuam aceitas; somente aliases sensíveis explícitos
+        # usam detecção por fragmento após a allowlist técnica.
+        svc._log(
+            "ok",
+            user_id="123",
+            model_name="Student",
+            count=5,
+            token_count=2,
+            secret_rotation_state="complete",
+            hostname="worker-1",
+            rg_state="SP",
+            event_name="dispatch_completed",
+            task_name="deliver_message",
+            schema_name="school_test",
+            channel_name="email",
+            role_name="COORDINATOR",
+            reason_code="provider_not_configured",
+            document_status="APPROVED",
+            message_log_id="00000000-0000-0000-0000-000000000000",
+            student_id="00000000-0000-0000-0000-000000000000",
+            profile_avatar_id="00000000-0000-0000-0000-000000000000",
+        )

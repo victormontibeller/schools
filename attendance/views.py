@@ -8,7 +8,7 @@ from django.shortcuts import redirect, render
 
 from attendance.forms import AttendanceRecordForm, JustificationForm
 from attendance.selectors import AttendanceSelector, JustificationSelector
-from attendance.services import AttendanceService
+from attendance.services import AttendanceService, can_review_justifications
 from base.exceptions import (
     BusinessRuleViolationError,
     ObjectNotFoundError,
@@ -46,23 +46,20 @@ JUSTIFICATION_SORTS = {
 
 @login_required
 def justification_document(request, pk):
-    """Entrega o anexo privado de uma justificativa após validar escopo do aluno."""
-    justification = JustificationSelector().get_by_id(pk)
-    from core.access_catalog import VIEW
+    """Entrega anexo somente a responsável vigente ou revisor elegível."""
+    from core.access_catalog import GUARDIAN, VIEW
     from core.access_selectors import ObjectAccessSelector
-    from core.permissions import can_access, role_name
+    from core.permissions import role_name
 
     role = role_name(request.user)
-    allowed = can_access(request.user, "attendance", VIEW)
-    if role == "GUARDIAN":
-        allowed = ObjectAccessSelector.guardian_can_access_student(
-            request.user.pk, justification.student_id
-        )
-    elif role == "TEACHER":
-        allowed = ObjectAccessSelector.teacher_can_access_student(
-            request.user.pk, justification.student_id
-        )
-    if not allowed:
+    reviewer_allowed = can_review_justifications(request.user, VIEW)
+    if role != GUARDIAN and not reviewer_allowed:
+        raise PermissionDeniedError("Sem permissão para acessar este documento.")
+
+    justification = JustificationSelector().get_by_id(pk)
+    if role == GUARDIAN and not ObjectAccessSelector.guardian_can_access_student(
+        request.user.pk, justification.student_id
+    ):
         raise PermissionDeniedError("Sem permissão para acessar este documento.")
     if not justification.document:
         raise ObjectNotFoundError("AttendanceJustificationDocument", str(pk))
@@ -72,6 +69,8 @@ def justification_document(request, pk):
 @login_required
 def attendance_records_list(request):
     """Lista registros de chamada com filtros por turma."""
+    from core.access_catalog import VIEW
+
     class_id = request.GET.get("class_obj") or None
     teacher_id = None
     if getattr(getattr(request.user, "role", None), "name", "") == "TEACHER":
@@ -93,6 +92,23 @@ def attendance_records_list(request):
     if class_id:
         for item in sorting.values():
             item["query"] = f"{item['query']}&class_obj={class_id}"
+    extra_actions = [
+        {
+            "url": "students_at_risk",
+            "label": "Alunos em risco",
+            "icon": "feather-alert-triangle",
+            "class": "btn-outline-danger",
+        }
+    ]
+    if can_review_justifications(request.user, VIEW):
+        extra_actions.append(
+            {
+                "url": "justifications_list",
+                "label": "Justificativas",
+                "icon": "feather-file-text",
+                "class": "btn-outline-secondary",
+            }
+        )
     context = {
         "result": AttendanceSelector().list_records(
             class_id=class_id,
@@ -110,20 +126,7 @@ def attendance_records_list(request):
             {"label": "Home", "url": "dashboard"},
             {"label": "Frequência", "url": None},
         ],
-        "extra_actions": [
-            {
-                "url": "students_at_risk",
-                "label": "Alunos em risco",
-                "icon": "feather-alert-triangle",
-                "class": "btn-outline-danger",
-            },
-            {
-                "url": "justifications_list",
-                "label": "Justificativas",
-                "icon": "feather-file-text",
-                "class": "btn-outline-secondary",
-            },
-        ],
+        "extra_actions": extra_actions,
     }
     if request.headers.get("HX-Request"):
         return render(request, "attendance/partials/records_table.html", context)
@@ -251,6 +254,11 @@ def students_at_risk(request):
 @login_required
 def justifications_list(request):
     """Lista justificativas de ausência; filtra por situação via ?status=."""
+    from core.access_catalog import VIEW
+
+    if not can_review_justifications(request.user, VIEW):
+        raise PermissionDeniedError("Sem permissão para revisar justificativas.")
+
     status = request.GET.get("status") or None
     state = resolve_listing_state(
         request,
@@ -299,6 +307,12 @@ def justifications_list(request):
 @login_required
 def justification_create(request):
     """Submissão de justificativa por responsável/aluno."""
+    from core.access_catalog import VIEW
+
+    return_view = (
+        "justifications_list" if can_review_justifications(request.user, VIEW) else "dashboard"
+    )
+    return_label = "Justificativas" if return_view == "justifications_list" else "Visão geral"
     eligible_students = StudentSelector().eligible_for_justification(request.user)
     form = JustificationForm(
         request.POST or None,
@@ -317,7 +331,7 @@ def justification_create(request):
                     "document": cd.get("document"),
                 }
             )
-            return redirect("justifications_list")
+            return redirect(return_view)
         except ValidationError as exc:
             for field, errs in exc.errors.items():
                 for e in errs:
@@ -325,7 +339,12 @@ def justification_create(request):
     return render(
         request,
         "attendance/justification_form.html",
-        {"form": form, "title": "Nova Justificativa"},
+        {
+            "form": form,
+            "title": "Nova Justificativa",
+            "justification_return_view": return_view,
+            "justification_return_label": return_label,
+        },
     )
 
 

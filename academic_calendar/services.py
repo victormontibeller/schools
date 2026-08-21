@@ -186,6 +186,7 @@ class CalendarService(BaseService):
             **updates,
         )
         self._record_audit("UPDATE", event, old_values=old)
+        self._log("Evento atualizado", event_id=str(event.pk))
         return event
 
     def cancel_event(self, event_id, reason: str = ""):

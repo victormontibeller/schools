@@ -7,6 +7,7 @@ e apenas avisando em prod, para evitar derrubar serviços por log ruidoso.
 """
 
 import logging
+import re
 from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, TypeVar
@@ -60,27 +61,109 @@ MUTATION_PREFIXES = (
     "log_",
 )
 
-# Chaves de `extra` que NUNCA devem carregar PII — ver docs/04_SECURITY.md §39.
-_PII_KEYS: frozenset[str] = frozenset(
+# Tokens semânticos que tornam uma chave de ``extra`` potencialmente sensível.
+_SENSITIVE_LOG_KEY_TOKENS: frozenset[str] = frozenset(
     {
-        "email",
-        "password",
-        "cpf",
-        "rg",
-        "phone",
-        "phone_whatsapp",
-        "user_email",
-        "first_name",
-        "last_name",
         "address",
         "avatar",
+        "birth",
+        "birthdate",
+        "cellphone",
+        "city",
+        "complement",
+        "content",
+        "cpf",
+        "description",
+        "district",
+        "dob",
+        "document",
+        "email",
+        "feedback",
+        "justification",
+        "message",
+        "mobile",
+        "name",
+        "note",
+        "notes",
+        "password",
+        "phone",
+        "reason",
+        "recipient",
+        "rg",
+        "secret",
+        "street",
+        "telephone",
+        "title",
+        "token",
+        "username",
+        "whatsapp",
     }
 )
+
+# Fragmentos deliberadamente específicos para grafias concatenadas que a
+# tokenização não consegue separar. ``email`` e ``password`` preservam a
+# proteção legada por substring; os demais representam aliases pessoais
+# conhecidos, sem recorrer a fragmentos amplos como ``name``.
+_SENSITIVE_LOG_KEY_FRAGMENTS: tuple[str, ...] = (
+    "birthdate",
+    "dateofbirth",
+    "email",
+    "fullname",
+    "password",
+    "phonenumber",
+    "postalcode",
+    "profileavatar",
+    "recipientaddress",
+)
+
+# Exceções opacas e enumeradas. Elas não transportam o dado descrito pelo token:
+# identificam tipo/estado técnico, nunca texto fornecido pelo usuário.
+_SAFE_TECHNICAL_LOG_KEYS: frozenset[str] = frozenset(
+    {
+        "channel_name",
+        "document_status",
+        "event_name",
+        "message_log_id",
+        "model_name",
+        "reason_code",
+        "rg_state",
+        "role_name",
+        "schema_name",
+        "secret_rotation_state",
+        "task_name",
+        "token_count",
+    }
+)
+
+_CAMEL_ACRONYM_BOUNDARY = re.compile(r"([A-Z]+)([A-Z][a-z])")
+_CAMEL_WORD_BOUNDARY = re.compile(r"([a-z0-9])([A-Z])")
+_NON_ALNUM_KEY_CHARS = re.compile(r"[^A-Za-z0-9]+")
+
+
+def _normalize_log_key(key: str) -> str:
+    """Normaliza camelCase, acrônimos e separadores para tokens snake_case."""
+    separated = _CAMEL_ACRONYM_BOUNDARY.sub(r"\1_\2", key)
+    separated = _CAMEL_WORD_BOUNDARY.sub(r"\1_\2", separated)
+    return _NON_ALNUM_KEY_CHARS.sub("_", separated).strip("_").casefold()
 
 
 def _check_no_pii(extra: dict) -> list[str]:
     """Retorna lista de chaves de `extra` que parecem PII (vazão potencia)."""
-    return [k for k in extra if k in _PII_KEYS or "email" in k.lower() or "password" in k.lower()]
+    leaked: list[str] = []
+    for key in extra:
+        normalized = _normalize_log_key(key)
+        if (
+            normalized in _SAFE_TECHNICAL_LOG_KEYS
+            or normalized == "id"
+            or normalized.endswith("_id")
+        ):
+            continue
+        compact = normalized.replace("_", "")
+        if set(normalized.split("_")) & _SENSITIVE_LOG_KEY_TOKENS or any(
+            fragment in compact for fragment in _SENSITIVE_LOG_KEY_FRAGMENTS
+        ):
+            leaked.append(key)
+    return leaked
 
 
 def service_command(method: CommandCallable) -> CommandCallable:

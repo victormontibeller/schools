@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+from django.http import HttpResponse
 from django.urls import reverse
 
 from agenda.models import Schedule, TimeSlot
@@ -14,7 +15,7 @@ from attendance.services import AttendanceService
 from audit.models import AuditLog
 from base.exceptions import BusinessRuleViolationError
 from classes.models import Class, Enrollment
-from core.models import CustomUser, Role
+from core.models import CustomUser, Role, RoleModuleAccess
 from guardians.models import Guardian, StudentGuardian
 from students.models import Student
 from teachers.models import Subject, Teacher
@@ -35,6 +36,30 @@ def _student(user, enrollment_number, last_name):
         last_name=last_name,
         birth_date=dt.date(2014, 1, 1),
         enrollment_number=enrollment_number,
+        created_by=user,
+        updated_by=user,
+    )
+
+
+def _grant_attendance_view(user, actor):
+    RoleModuleAccess.objects.update_or_create(
+        role=actor.role,
+        module_key="attendance",
+        defaults={
+            "can_view": True,
+            "created_by": user,
+            "updated_by": user,
+        },
+    )
+
+
+def _justification_with_document(user, student, suffix):
+    return AttendanceJustification.objects.create(
+        student=student,
+        start_date=dt.date(2026, 7, 10),
+        end_date=dt.date(2026, 7, 11),
+        reason="Atendimento",
+        document=f"attendance_justifications/{suffix}.pdf",
         created_by=user,
         updated_by=user,
     )
@@ -63,6 +88,98 @@ def test_justifications_list_preserves_status_filter_in_shared_header(client, us
     assert response.status_code == 200
     assert b"Lista de Justificativas" in response.content
     assert b'name="status"' in response.content
+
+
+@pytest.mark.django_db
+def test_guardian_with_current_custody_can_download_justification_document(client, user):
+    actor, guardian = _guardian_actor(user, "guardian-document@attendance.test")
+    _grant_attendance_view(user, actor)
+    student = _student(user, "DOCUMENT-GUARDIAN", "Documento")
+    StudentGuardian.objects.create(
+        student=student,
+        guardian=guardian,
+        has_custody=True,
+        created_by=user,
+        updated_by=user,
+    )
+    justification = _justification_with_document(user, student, "guardian")
+    client.force_login(actor)
+
+    with patch(
+        "attendance.views.private_file_response",
+        return_value=HttpResponse("private"),
+    ) as private_response:
+        response = client.get(reverse("justification_document", args=[justification.pk]))
+
+    assert response.status_code == 200
+    private_response.assert_called_once()
+    assert private_response.call_args.kwargs == {"as_attachment": True}
+
+
+@pytest.mark.django_db
+def test_coordinator_with_view_access_can_download_justification_document(client, user):
+    role, _ = Role.objects.get_or_create(name=Role.Name.COORDINATOR)
+    actor = CustomUser.objects.create_user(
+        email="coordinator-document@attendance.test",
+        password="Senha123",
+        role=role,
+    )
+    _grant_attendance_view(user, actor)
+    student = _student(user, "DOCUMENT-COORDINATOR", "Documento")
+    justification = _justification_with_document(user, student, "coordinator")
+    client.force_login(actor)
+
+    with patch(
+        "attendance.views.private_file_response",
+        return_value=HttpResponse("private"),
+    ) as private_response:
+        response = client.get(reverse("justification_document", args=[justification.pk]))
+
+    assert response.status_code == 200
+    private_response.assert_called_once()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "role_name",
+    [Role.Name.TEACHER, Role.Name.SECRETARY, Role.Name.FINANCE],
+)
+def test_ineligible_role_cannot_download_justification_document_by_uuid(client, user, role_name):
+    role, _ = Role.objects.get_or_create(name=role_name)
+    actor = CustomUser.objects.create_user(
+        email=f"{role_name.lower()}-document@attendance.test",
+        password="Senha123",
+        role=role,
+    )
+    _grant_attendance_view(user, actor)
+    student = _student(user, f"DOCUMENT-{role_name}", "Documento")
+    justification = _justification_with_document(user, student, role_name.lower())
+    client.force_login(actor)
+
+    with (
+        patch("attendance.views.JustificationSelector.get_by_id") as get_by_id,
+        patch("attendance.views.private_file_response") as private_response,
+    ):
+        response = client.get(reverse("justification_document", args=[justification.pk]))
+
+    assert response.status_code == 403
+    get_by_id.assert_not_called()
+    private_response.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_guardian_without_current_custody_cannot_download_justification_document(client, user):
+    actor, _ = _guardian_actor(user, "guardian-document-denied@attendance.test")
+    _grant_attendance_view(user, actor)
+    student = _student(user, "DOCUMENT-GUARDIAN-DENIED", "Documento")
+    justification = _justification_with_document(user, student, "guardian-denied")
+    client.force_login(actor)
+
+    with patch("attendance.views.private_file_response") as private_response:
+        response = client.get(reverse("justification_document", args=[justification.pk]))
+
+    assert response.status_code == 403
+    private_response.assert_not_called()
 
 
 @pytest.mark.django_db
@@ -418,11 +535,26 @@ def test_guardian_justification_view_lists_only_active_custody_students(client, 
     client.force_login(actor)
 
     response = client.get(reverse("justification_create"))
+    submit_response = client.post(
+        reverse("justification_create"),
+        {
+            "student": eligible.pk,
+            "start_date": "2026-07-10",
+            "end_date": "2026-07-11",
+            "reason": "Consulta",
+        },
+    )
 
     assert response.status_code == 200
     assert str(eligible.pk).encode() in response.content
     assert str(no_custody.pk).encode() not in response.content
     assert str(inactive_link.pk).encode() not in response.content
+    assert (
+        f'<a href="{reverse("dashboard")}" class="btn btn-sm btn-outline-secondary" '
+        "data-cancel-button>Cancelar</a>"
+    ).encode() in response.content
+    assert submit_response.status_code == 302
+    assert submit_response.url == reverse("dashboard")
 
 
 @pytest.mark.django_db

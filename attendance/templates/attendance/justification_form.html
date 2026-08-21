@@ -3,9 +3,11 @@
 {% block form_enctype %}enctype="multipart/form-data"{% endblock %}
 
 {% block breadcrumb %}
-<li class="breadcrumb-item"><a href="{% url 'justifications_list' %}">Justificativas</a></li>
+{% if justification_return_view != "dashboard" %}
+<li class="breadcrumb-item"><a href="{% url justification_return_view %}">{{ justification_return_label }}</a></li>
+{% endif %}
 {% endblock %}
 
-{% block cancel_url %}{% url 'justifications_list' %}{% endblock %}
+{% block cancel_url %}{% url justification_return_view %}{% endblock %}
 
 {% block submit_label %}Enviar{% endblock %}

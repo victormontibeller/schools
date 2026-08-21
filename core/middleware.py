@@ -184,6 +184,19 @@ class PermissionPolicyMiddleware(MiddlewareMixin):
             request.method,
             view_kwargs,
         )
+        if view_name in {
+            "justifications_list",
+            "justification_approve",
+            "justification_reject",
+        }:
+            from core.access_catalog import COORDINATOR, EDIT, VIEW
+
+            review_action = VIEW if view_name == "justifications_list" else EDIT
+            if not has_unrestricted_tenant_access(request.user) and not (
+                current_role == COORDINATOR
+                and can_access(request.user, "attendance", review_action)
+            ):
+                raise PermissionDenied("Sem permissão para revisar justificativas.")
         if (
             getattr(request.user, "access_mode", "") == "DEMO"
             and not has_unrestricted_tenant_access(request.user)

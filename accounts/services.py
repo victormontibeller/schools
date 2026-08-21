@@ -224,6 +224,7 @@ class AccountService(BaseService):
             ]
         )
         self._record_audit("UPDATE", user, old_values={"email_verified_at": None})
+        self._log("demo_user_verified", user_id=str(user.pk), access_mode=user.access_mode)
         return user
 
     @system_command
@@ -353,6 +354,7 @@ class AccountService(BaseService):
             raise BusinessRuleViolationError("Usuário não está desativado.")
         user.restore(user=self.user)
         self._record_audit("RESTORE", user)
+        self._log("Usuário restaurado", user_id=str(user.pk), state="active")
         return user
 
     def change_password(self, user_id, current_password: str, new_password: str):
@@ -377,6 +379,7 @@ class AccountService(BaseService):
         self._record_audit(
             "UPDATE", user, old_values={"password": "***"}, new_values={"password": "***"}
         )
+        self._log("Senha alterada", user_id=str(user.pk))
 
     @staticmethod
     def _validate_password(password: str, *, user=None) -> None:

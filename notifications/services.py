@@ -280,7 +280,7 @@ class AnnouncementService(BaseService):
             self._log(
                 "comunicado_whatsapp_ignorado",
                 announcement_id=str(announcement.pk),
-                reason="provider_not_configured",
+                reason_code="provider_not_configured",
             )
 
         self._log("Comunicado enviado", announcement_id=str(announcement.pk))

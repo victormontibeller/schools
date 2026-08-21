@@ -92,12 +92,24 @@ class TestDeactivateUser:
 
 @pytest.mark.django_db
 class TestRestoreUser:
-    def test_success(self, user):
+    def test_success(self, user, monkeypatch):
         target = CustomUser.objects.create_user(email="restore@test.com", password="Senha123")
         AccountService(user=user).deactivate_user(target.pk)
-        AccountService(user=user).restore_user(target.pk)
+        logged = {}
+        service = AccountService(user=user)
+        monkeypatch.setattr(
+            service,
+            "_log",
+            lambda message, **extra: logged.update(message=message, **extra),
+        )
+        service.restore_user(target.pk)
         target.refresh_from_db()
         assert target.deleted_at is None
+        assert logged == {
+            "message": "Usuário restaurado",
+            "user_id": str(target.pk),
+            "state": "active",
+        }
 
     def test_not_deleted(self, user):
         target = CustomUser.objects.create_user(email="nodelet@test.com", password="Senha123")
@@ -107,10 +119,18 @@ class TestRestoreUser:
 
 @pytest.mark.django_db
 class TestChangePassword:
-    def test_success(self, user):
-        AccountService(user=user).change_password(user.pk, "Senha123", "NovaSenha456")
+    def test_success(self, user, monkeypatch):
+        logged = {}
+        service = AccountService(user=user)
+        monkeypatch.setattr(
+            service,
+            "_log",
+            lambda message, **extra: logged.update(message=message, **extra),
+        )
+        service.change_password(user.pk, "Senha123", "NovaSenha456")
         user.refresh_from_db()
         assert user.check_password("NovaSenha456")
+        assert logged == {"message": "Senha alterada", "user_id": str(user.pk)}
 
     def test_weak_password(self, user):
         with pytest.raises(ValidationError):

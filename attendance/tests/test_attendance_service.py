@@ -125,12 +125,32 @@ def _set_teacher_attendance_access(user, teacher, *, can_create):
         defaults={
             "can_view": True,
             "can_create": can_create,
+            "can_edit": True,
             "created_by": user,
             "updated_by": user,
         },
     )
     teacher.user.role = role
     teacher.user.save(update_fields=["role", "updated_at"])
+
+
+def _make_role_actor(user, role_name, suffix, *, can_view=True, can_edit=True):
+    role, _ = Role.objects.get_or_create(name=role_name)
+    RoleModuleAccess.objects.update_or_create(
+        role=role,
+        module_key="attendance",
+        defaults={
+            "can_view": can_view,
+            "can_edit": can_edit,
+            "created_by": user,
+            "updated_by": user,
+        },
+    )
+    return CustomUser.objects.create_user(
+        email=f"{role_name.lower()}-{suffix}@attendance.test",
+        password="Senha123",
+        role=role,
+    )
 
 
 def _justification_payload(student):
@@ -443,10 +463,37 @@ class TestRecordAttendance:
                 record.pk, {str(uuid.uuid4()): AttendanceEntry.Status.ABSENT}
             )
 
+    def test_teacher_cannot_record_attendance_for_another_teacher_without_side_effects(self, user):
+        cls = _make_class(user, "RECORD-OTHER-TEACHER")
+        subject = _make_subject(user)
+        owner = _make_teacher(user, "RECORD-OWNER")
+        intruder = _make_teacher(user, "RECORD-INTRUDER", schedule_all=False)
+        _set_teacher_attendance_access(user, intruder, can_create=True)
+        student = _make_student(user, "RECORD-OTHER-STUDENT")
+        _enroll(user, cls, student)
+        record = AttendanceService(user=user).open_attendance(
+            {
+                "class_id": cls.pk,
+                "subject_id": subject.pk,
+                "teacher_id": owner.pk,
+                "date": dt.date(2025, 4, 10),
+            }
+        )
+        audit_count = AuditLog.objects.count()
+
+        with pytest.raises(PermissionDeniedError):
+            AttendanceService(user=intruder.user).record_attendance(
+                record.pk, {str(student.pk): AttendanceEntry.Status.ABSENT}
+            )
+
+        entry = record.entries.get(student=student)
+        assert entry.status == AttendanceEntry.Status.PRESENT
+        assert AuditLog.objects.count() == audit_count
+
 
 @pytest.mark.django_db
 class TestUpdateEntry:
-    def test_success(self, user):
+    def test_success(self, user, monkeypatch):
         cls = _make_class(user)
         subject = _make_subject(user)
         teacher = _make_teacher(user)
@@ -461,8 +508,49 @@ class TestUpdateEntry:
             }
         )
         entry = record.entries.get(student=s1)
-        updated = AttendanceService(user=user).update_entry(entry.pk, AttendanceEntry.Status.ABSENT)
+        logged = {}
+        service = AttendanceService(user=user)
+        monkeypatch.setattr(
+            service,
+            "_log",
+            lambda message, **extra: logged.update(message=message, **extra),
+        )
+        updated = service.update_entry(entry.pk, AttendanceEntry.Status.ABSENT)
         assert updated.status == AttendanceEntry.Status.ABSENT
+        assert logged == {
+            "message": "Lançamento individual atualizado",
+            "entry_id": str(entry.pk),
+            "record_id": str(record.pk),
+            "status": AttendanceEntry.Status.ABSENT,
+        }
+
+    def test_teacher_cannot_update_entry_from_another_teacher_without_side_effects(self, user):
+        cls = _make_class(user, "UPDATE-OTHER-TEACHER")
+        subject = _make_subject(user)
+        owner = _make_teacher(user, "UPDATE-OWNER")
+        intruder = _make_teacher(user, "UPDATE-INTRUDER", schedule_all=False)
+        _set_teacher_attendance_access(user, intruder, can_create=True)
+        student = _make_student(user, "UPDATE-OTHER-STUDENT")
+        _enroll(user, cls, student)
+        record = AttendanceService(user=user).open_attendance(
+            {
+                "class_id": cls.pk,
+                "subject_id": subject.pk,
+                "teacher_id": owner.pk,
+                "date": dt.date(2025, 4, 10),
+            }
+        )
+        entry = record.entries.get(student=student)
+        audit_count = AuditLog.objects.count()
+
+        with pytest.raises(PermissionDeniedError):
+            AttendanceService(user=intruder.user).update_entry(
+                entry.pk, AttendanceEntry.Status.ABSENT
+            )
+
+        entry.refresh_from_db()
+        assert entry.status == AttendanceEntry.Status.PRESENT
+        assert AuditLog.objects.count() == audit_count
 
 
 @pytest.mark.django_db
@@ -663,6 +751,62 @@ class TestApproveJustification:
         with pytest.raises(BusinessRuleViolationError):
             AttendanceService(user=user).approve_justification(just.pk)
 
+    def test_coordinator_with_edit_access_can_approve(self, user):
+        actor = _make_role_actor(user, Role.Name.COORDINATOR, "approve")
+        student = _make_student(user, "APR-COORDINATOR")
+        just = AttendanceService(user=user).submit_justification(_justification_payload(student))
+
+        result = AttendanceService(user=actor).approve_justification(just.pk)
+
+        assert result.status == AttendanceJustification.Status.APPROVED
+        assert result.approved_by == actor
+
+    @pytest.mark.parametrize("command", ["approve", "reject"])
+    def test_decision_reads_justification_with_select_for_update(self, user, monkeypatch, command):
+        student = _make_student(user, f"LOCK-{command.upper()}")
+        just = AttendanceService(user=user).submit_justification(_justification_payload(student))
+        locked_get_calls = []
+
+        class LockedQuerySet:
+            def get(self, **kwargs):
+                locked_get_calls.append(kwargs)
+                return just
+
+        lock_calls = []
+
+        def select_for_update():
+            lock_calls.append(True)
+            return LockedQuerySet()
+
+        monkeypatch.setattr(
+            AttendanceJustification.objects,
+            "select_for_update",
+            select_for_update,
+        )
+
+        service = AttendanceService(user=user)
+        if command == "approve":
+            service.approve_justification(just.pk)
+        else:
+            service.reject_justification(just.pk, "Documento insuficiente")
+
+        assert lock_calls == [True]
+        assert locked_get_calls == [{"pk": just.pk}]
+
+    @pytest.mark.parametrize("role_name", [Role.Name.TEACHER, Role.Name.SECRETARY])
+    def test_ineligible_role_cannot_approve_without_write_or_audit(self, user, role_name):
+        actor = _make_role_actor(user, role_name, f"approve-{role_name.lower()}")
+        student = _make_student(user, f"APR-DENIED-{role_name}")
+        just = AttendanceService(user=user).submit_justification(_justification_payload(student))
+        audit_count = AuditLog.objects.count()
+
+        with pytest.raises(PermissionDeniedError):
+            AttendanceService(user=actor).approve_justification(just.pk)
+
+        just.refresh_from_db()
+        assert just.status == AttendanceJustification.Status.PENDING
+        assert AuditLog.objects.count() == audit_count
+
 
 @pytest.mark.django_db
 class TestRejectJustification:
@@ -693,6 +837,39 @@ class TestRejectJustification:
         AttendanceService(user=user).reject_justification(just.pk)
         with pytest.raises(BusinessRuleViolationError):
             AttendanceService(user=user).reject_justification(just.pk)
+
+    def test_teacher_cannot_reject_without_write_or_audit(self, user):
+        actor = _make_role_actor(user, Role.Name.TEACHER, "reject")
+        student = _make_student(user, "REJ-DENIED-TEACHER")
+        just = AttendanceService(user=user).submit_justification(_justification_payload(student))
+        audit_count = AuditLog.objects.count()
+
+        with pytest.raises(PermissionDeniedError):
+            AttendanceService(user=actor).reject_justification(just.pk, "Não deve persistir")
+
+        just.refresh_from_db()
+        assert just.status == AttendanceJustification.Status.PENDING
+        assert just.rejection_reason == ""
+        assert AuditLog.objects.count() == audit_count
+
+    def test_coordinator_without_edit_access_cannot_reject_without_write_or_audit(self, user):
+        actor = _make_role_actor(
+            user,
+            Role.Name.COORDINATOR,
+            "reject-revoked",
+            can_edit=False,
+        )
+        student = _make_student(user, "REJ-COORDINATOR-REVOKED")
+        just = AttendanceService(user=user).submit_justification(_justification_payload(student))
+        audit_count = AuditLog.objects.count()
+
+        with pytest.raises(PermissionDeniedError):
+            AttendanceService(user=actor).reject_justification(just.pk, "Não deve persistir")
+
+        just.refresh_from_db()
+        assert just.status == AttendanceJustification.Status.PENDING
+        assert just.rejection_reason == ""
+        assert AuditLog.objects.count() == audit_count
 
 
 @pytest.mark.django_db

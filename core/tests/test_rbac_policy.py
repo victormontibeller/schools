@@ -2,6 +2,7 @@
 
 import uuid
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 from django.urls import reverse
@@ -100,6 +101,78 @@ def test_teacher_cannot_access_activity_not_owned(client):
     user = _role_user("TEACHER", "teacher-role@roles.test")
     client.force_login(user)
     assert client.get(reverse("activity_detail", kwargs={"pk": uuid.uuid4()})).status_code == 403
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("role_name", ["TEACHER", "SECRETARY"])
+def test_ineligible_role_cannot_list_justifications_or_reach_selector(client, role_name):
+    from core.models import RoleModuleAccess
+
+    actor = _role_user(role_name, f"{role_name.lower()}-justifications@roles.test")
+    RoleModuleAccess.objects.filter(role=actor.role, module_key="attendance").update(
+        can_view=True,
+        can_edit=True,
+    )
+    client.force_login(actor)
+
+    with patch("attendance.views.JustificationSelector.list_justifications") as list_items:
+        response = client.get(reverse("justifications_list"), {"q": "motivo privado"})
+
+    assert response.status_code == 403
+    assert b"motivo privado" not in response.content
+    list_items.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_teacher_cannot_approve_or_reject_justifications_at_http_boundary(client):
+    from core.models import RoleModuleAccess
+
+    actor = _role_user("TEACHER", "teacher-justification-actions@roles.test")
+    RoleModuleAccess.objects.filter(role=actor.role, module_key="attendance").update(
+        can_view=True,
+        can_edit=True,
+    )
+    client.force_login(actor)
+    object_id = uuid.uuid4()
+
+    with (
+        patch("attendance.views.AttendanceService.approve_justification") as approve,
+        patch("attendance.views.AttendanceService.reject_justification") as reject,
+    ):
+        approve_response = client.post(reverse("justification_approve", args=[object_id]))
+        reject_response = client.post(reverse("justification_reject", args=[object_id]))
+
+    assert approve_response.status_code == 403
+    assert reject_response.status_code == 403
+    approve.assert_not_called()
+    reject.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_eligible_coordinator_can_reach_justification_review_routes(client):
+    from core.models import RoleModuleAccess
+
+    actor = _role_user("COORDINATOR", "coordinator-justifications@roles.test")
+    RoleModuleAccess.objects.filter(role=actor.role, module_key="attendance").update(
+        can_view=True,
+        can_edit=True,
+    )
+    client.force_login(actor)
+    object_id = uuid.uuid4()
+
+    list_response = client.get(reverse("justifications_list"))
+    with (
+        patch("attendance.views.AttendanceService.approve_justification") as approve,
+        patch("attendance.views.AttendanceService.reject_justification") as reject,
+    ):
+        approve_response = client.post(reverse("justification_approve", args=[object_id]))
+        reject_response = client.post(reverse("justification_reject", args=[object_id]))
+
+    assert list_response.status_code == 200
+    assert approve_response.status_code == 302
+    assert reject_response.status_code == 302
+    approve.assert_called_once_with(object_id)
+    reject.assert_called_once_with(object_id, "")
 
 
 @pytest.mark.parametrize(

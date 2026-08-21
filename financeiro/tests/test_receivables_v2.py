@@ -651,6 +651,15 @@ def test_reminder_delivery_skip_email_failure_retry_and_service_idempotence(user
     assert retrying.message_log_id == retry_transport.last_log_id
 
     service = FinanceService(user=None)
+    unattached = reminder("EMAIL", 5)
+    message_log_id = uuid.uuid4()
+    with patch.object(service, "_log") as log:
+        service.attach_reminder_message_log(unattached.pk, message_log_id)
+    log.assert_called_once_with(
+        "collection_reminder_message_log_attached",
+        reminder_id=str(unattached.pk),
+        message_log_id=str(message_log_id),
+    )
     service.attach_reminder_message_log(retrying.pk, uuid.uuid4())
     same = service.complete_reminder_delivery(
         successful.pk, status=CollectionReminder.Status.FAILED

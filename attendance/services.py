@@ -1,8 +1,5 @@
 """AttendanceService: regras de negócio para controle de frequência."""
 
-import logging
-
-from django.db import transaction
 from django.utils import timezone
 
 from base.exceptions import (
@@ -14,11 +11,19 @@ from base.exceptions import (
 from base.repositories import BaseRepository
 from base.services import BaseService
 
-logger = logging.getLogger(__name__)
-
 # Limiares de alerta (percentual). 50% = crítica, 75% = alerta.
 ALERT_THRESHOLD = 75.0
 CRITICAL_THRESHOLD = 50.0
+
+
+def can_review_justifications(user, action: str) -> bool:
+    """Restringe a revisão a administradores escolares e coordenação elegível."""
+    from core.access_catalog import COORDINATOR
+    from core.permissions import can_access, has_unrestricted_tenant_access, role_name
+
+    return has_unrestricted_tenant_access(user) or (
+        role_name(user) == COORDINATOR and can_access(user, "attendance", action)
+    )
 
 
 class _RecordRepo(BaseRepository):
@@ -36,12 +41,18 @@ class _JustificationRepo(BaseRepository):
 
         return AttendanceJustification
 
+    def get_for_update(self, object_id):
+        """Obtém justificativa com lock pessimista para decisões concorrentes."""
+        try:
+            return self.model_class.objects.select_for_update().get(pk=object_id)
+        except self.model_class.DoesNotExist:
+            raise ObjectNotFoundError(self.model_class.__name__, str(object_id)) from None
+
 
 class AttendanceService(BaseService):
     """Serviço de aplicação para o domínio de frequência."""
 
     # ── Abertura de chamada ──────────────────────────────────────────────────
-    @transaction.atomic
     def open_attendance(self, data: dict):
         """Cria o registro de chamada e pré-cadastra entradas para todos os alunos ativos.
 
@@ -170,7 +181,6 @@ class AttendanceService(BaseService):
         return entries_data
 
     # ── Lançamento em lote ───────────────────────────────────────────────────
-    @transaction.atomic
     def record_attendance(self, record_id, entries_data: dict):
         """Atualiza as presenças a partir de um dict {student_id: status}.
 
@@ -180,6 +190,7 @@ class AttendanceService(BaseService):
         from attendance.models import AttendanceEntry
 
         record = _RecordRepo().get_by_id(record_id)
+        self._validate_teacher_attendance_scope(record.pk)
 
         valid = {
             AttendanceEntry.Status.PRESENT,
@@ -230,6 +241,7 @@ class AttendanceService(BaseService):
             entry = AttendanceEntry.objects.get(pk=entry_id)
         except AttendanceEntry.DoesNotExist as exc:
             raise ObjectNotFoundError("AttendanceEntry", str(entry_id)) from exc
+        self._validate_teacher_attendance_scope(entry.record_id)
 
         old = self._snapshot(entry, ["status", "justification"])
         entry.status = status
@@ -240,7 +252,31 @@ class AttendanceService(BaseService):
         entry.updated_by = self.user
         entry.save(update_fields=["status", "justification", "updated_by", "updated_at"])
         self._record_audit("UPDATE", entry, old_values=old)
+        self._log(
+            "Lançamento individual atualizado",
+            entry_id=str(entry.pk),
+            record_id=str(entry.record_id),
+            status=entry.status,
+        )
         return entry
+
+    def _validate_teacher_attendance_scope(self, record_id) -> None:
+        """Impede professor de alterar chamada pertencente a outro docente."""
+        from core.access_catalog import TEACHER
+        from core.access_selectors import ObjectAccessSelector
+        from core.permissions import role_name
+
+        if role_name(
+            self.user
+        ) == TEACHER and not ObjectAccessSelector.teacher_can_access_attendance(
+            self.user.pk, record_id
+        ):
+            raise PermissionDeniedError("Chamada fora do escopo do professor.")
+
+    def _validate_justification_reviewer(self, action: str) -> None:
+        """Nega decisões de justificativa a papéis fora do workflow canônico."""
+        if not can_review_justifications(self.user, action):
+            raise PermissionDeniedError("Sem permissão para revisar justificativas.")
 
     # ── Justificativas ──────────────────────────────────────────────────────
     def submit_justification(self, data: dict):
@@ -295,8 +331,10 @@ class AttendanceService(BaseService):
     def approve_justification(self, justification_id):
         """Coordenador aprova justificativa pendente."""
         from attendance.models import AttendanceJustification
+        from core.access_catalog import EDIT
 
-        just = _JustificationRepo().get_by_id(justification_id)
+        self._validate_justification_reviewer(EDIT)
+        just = _JustificationRepo().get_for_update(justification_id)
         if just.status != AttendanceJustification.Status.PENDING:
             raise BusinessRuleViolationError("Justificativa já foi processada.")
         old = {"status": just.status}
@@ -314,8 +352,10 @@ class AttendanceService(BaseService):
     def reject_justification(self, justification_id, reason: str = ""):
         """Coordenador rejeita justificativa pendente."""
         from attendance.models import AttendanceJustification
+        from core.access_catalog import EDIT
 
-        just = _JustificationRepo().get_by_id(justification_id)
+        self._validate_justification_reviewer(EDIT)
+        just = _JustificationRepo().get_for_update(justification_id)
         if just.status != AttendanceJustification.Status.PENDING:
             raise BusinessRuleViolationError("Justificativa já foi processada.")
         old = {"status": just.status}

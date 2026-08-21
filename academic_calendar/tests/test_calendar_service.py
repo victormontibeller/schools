@@ -133,7 +133,7 @@ class TestCreateEvent:
 
 @pytest.mark.django_db
 class TestUpdateEvent:
-    def test_success(self, user):
+    def test_success(self, user, monkeypatch):
         event = CalendarService(user=user).create_event(
             {
                 "title": "Evento Original",
@@ -142,11 +142,17 @@ class TestUpdateEvent:
                 "type": CalendarEvent.Type.MEETING,
             }
         )
-        updated = CalendarService(user=user).update_event(
-            event.pk, {"title": "Evento Atualizado", "is_public": True}
+        logged = {}
+        service = CalendarService(user=user)
+        monkeypatch.setattr(
+            service,
+            "_log",
+            lambda message, **extra: logged.update(message=message, **extra),
         )
+        updated = service.update_event(event.pk, {"title": "Evento Atualizado", "is_public": True})
         assert updated.title == "Evento Atualizado"
         assert updated.is_public is True
+        assert logged == {"message": "Evento atualizado", "event_id": str(event.pk)}
 
 
 @pytest.mark.django_db

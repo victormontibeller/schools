@@ -171,6 +171,11 @@ class ReminderLifecycleMixin:
             reminder.updated_by = self.user
             reminder.save(update_fields=["message_log_id", "updated_by", "updated_at"])
             self._record_audit("UPDATE", reminder, old_values={"message_log_id": None})
+            self._log(
+                "collection_reminder_message_log_attached",
+                reminder_id=str(reminder.pk),
+                message_log_id=str(message_log_id),
+            )
         return reminder
 
     @system_command

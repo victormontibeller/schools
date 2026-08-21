@@ -35,7 +35,7 @@ def test_create_demo_user_starts_inactive_and_schedules_verification(
 
 
 @pytest.mark.django_db
-def test_verify_demo_user_activates_for_seven_days():
+def test_verify_demo_user_activates_for_seven_days(monkeypatch):
     """Confirmação ativa a conta temporariamente."""
     with patch("accounts.tasks.send_demo_verification_task.delay"):
         user = AccountService().create_demo_user(
@@ -52,10 +52,22 @@ def test_verify_demo_user_activates_for_seven_days():
         from accounts.services import DEMO_VERIFY_SALT
 
         token = signing.dumps({"user_id": str(user.pk)}, salt=DEMO_VERIFY_SALT, compress=True)
-        verified = AccountService().verify_demo_user(token)
+        logged = {}
+        service = AccountService()
+        monkeypatch.setattr(
+            service,
+            "_log",
+            lambda message, **extra: logged.update(message=message, **extra),
+        )
+        verified = service.verify_demo_user(token)
     assert verified.is_active is True
     assert verified.email_verified_at is not None
     assert verified.expires_at - verified.email_verified_at == timedelta(days=7)
+    assert logged == {
+        "message": "demo_user_verified",
+        "user_id": str(user.pk),
+        "access_mode": user.access_mode,
+    }
 
 
 @pytest.mark.django_db
