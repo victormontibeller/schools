@@ -60,6 +60,7 @@ PUBLIC_VIEW_NAMES = frozenset(
         "service_worker",
         "offline",
         "resend_email_webhook",
+        "development_public_media",
     }
 )
 SELF_SERVICE_METHODS = frozenset(

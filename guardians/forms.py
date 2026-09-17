@@ -2,6 +2,8 @@
 
 from django import forms
 
+from base.forms import ImageUploadField
+
 
 class GuardianLinkForm(forms.Form):
     """Campos do vínculo editados no contexto de um aluno."""
@@ -48,7 +50,7 @@ class GuardianCreateForm(GuardianLinkForm):
     email = forms.EmailField(
         label="E-mail", widget=forms.EmailInput(attrs={"class": "form-control"})
     )
-    avatar = forms.ImageField(
+    avatar = ImageUploadField(
         required=False,
         label="Foto",
         widget=forms.ClearableFileInput(attrs={"class": "form-control"}),
@@ -145,7 +147,7 @@ class GuardianEditForm(forms.Form):
     email = forms.EmailField(
         required=False, label="E-mail", widget=forms.EmailInput(attrs={"class": "form-control"})
     )
-    avatar = forms.ImageField(
+    avatar = ImageUploadField(
         required=False,
         label="Foto do Responsável",
         widget=forms.ClearableFileInput(attrs={"class": "sm-profile-avatar-input"}),

@@ -1,17 +1,18 @@
 <div class="card mb-0 sm-profile-card" id="user-information-card">
-    <form hx-post="{% url 'user_edit' user_obj.pk %}" hx-encoding="multipart/form-data"
+    <form method="post" action="{% url 'user_edit' user_obj.pk %}" hx-post="{% url 'user_edit' user_obj.pk %}" hx-encoding="multipart/form-data"
           hx-target="#user-information-card" hx-swap="outerHTML" enctype="multipart/form-data">
         {% csrf_token %}
         <div class="card-header d-flex align-items-center justify-content-between gap-2">
             <h6 class="card-title mb-0">Informações da Pessoa</h6>
             <div class="d-flex gap-2">
-                <button type="button" class="btn btn-sm btn-outline-secondary"
+                <a href="{% url 'user_detail' user_obj.pk %}?component=information" class="btn btn-sm btn-outline-secondary"
                         hx-get="{% url 'user_detail' user_obj.pk %}?component=information"
-                        hx-target="#user-information-card" hx-swap="outerHTML">Cancelar</button>
+                        hx-target="#user-information-card" hx-swap="outerHTML">Cancelar</a>
                 <button type="submit" class="btn btn-sm btn-primary"><i class="feather-check me-1"></i> Salvar</button>
             </div>
         </div>
         <div class="card-body sm-profile-card-body">
+            {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
             {% if user_obj.avatar %}{% url 'user_avatar' user_obj.pk as profile_image_url %}{% endif %}
             {% include "partials/person_profile_hero.html" with profile_avatar_field=form.avatar profile_has_image=user_obj.avatar profile_image_url=profile_image_url profile_avatar_theme="bg-soft-primary text-primary" profile_initial=user_obj.get_short_name profile_name=user_obj.get_full_name profile_email=user_obj.email %}
             {% include "partials/person_form_fields.html" with form=form exclude_field="avatar" %}

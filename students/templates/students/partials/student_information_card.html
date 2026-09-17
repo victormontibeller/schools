@@ -3,13 +3,13 @@
 <div class="card mb-0 sm-profile-card" id="student-information-card">
     <div class="card-header d-flex align-items-center justify-content-between gap-2">
         <h6 class="card-title mb-0">Informações do Aluno</h6>
-        {% if can_edit_student %}<button type="button"
+        {% if can_edit_student %}<a href="{% url 'student_edit' student.pk %}"
                 class="btn btn-sm btn-outline-primary"
                 hx-get="{% url 'student_edit' student.pk %}"
                 hx-target="#student-information-card"
                 hx-swap="outerHTML">
             <i class="feather-edit-2 me-1"></i> Editar
-        </button>{% endif %}
+        </a>{% endif %}
     </div>
     <div class="card-body sm-profile-card-body">
         {% if saved %}

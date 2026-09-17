@@ -1,6 +1,7 @@
 """Cobertura do workflow canônico de solicitações e documentos."""
 
 import datetime as dt
+import logging
 from unittest.mock import Mock, call
 
 import pytest
@@ -375,6 +376,70 @@ def test_approve_waitlists_when_last_seat_is_reserved(user, student, class_obj):
 
 
 @pytest.mark.django_db
+def test_waitlist_positions_use_priority_then_age_and_do_not_promote_automatically(
+    user, student, class_obj
+):
+    from enrollments.models import EnrollmentApplication
+    from enrollments.selectors import EnrollmentApplicationSelector
+    from enrollments.services import EnrollmentApplicationService
+    from students.models import Student
+
+    class_obj.max_students = 1
+    class_obj.save(update_fields=["max_students"])
+    service = EnrollmentApplicationService(user=user)
+    reserved = _create_application(user, student, class_obj)
+    reserved = service.submit_application(reserved.pk, expected_version=reserved.version)
+    reserved = service.approve_application(reserved.pk, expected_version=reserved.version)
+
+    queued = []
+    for index, priority in ((2, 2), (3, 10)):
+        candidate = Student.objects.create(
+            first_name="Fila",
+            last_name=str(index),
+            birth_date=dt.date(2014, 6, index),
+            enrollment_number=f"ALU-WAIT-{index}",
+            created_by=user,
+            updated_by=user,
+        )
+        application = service.create_application(
+            {
+                "student_id": candidate.pk,
+                "target_class_id": class_obj.pk,
+                "application_type": EnrollmentApplication.ApplicationType.NEW,
+                "priority": priority,
+            }
+        )
+        application = service.submit_application(
+            application.pk, expected_version=application.version
+        )
+        queued.append(
+            service.approve_application(application.pk, expected_version=application.version)
+        )
+
+    selector = EnrollmentApplicationSelector()
+    high = selector.get_application_detail(queued[1].pk)
+    low = selector.get_application_detail(queued[0].pk)
+    listing = selector.list_applications(statuses=[EnrollmentApplication.Status.WAITLISTED])
+
+    assert (high.waitlist_position, high.waitlist_total) == (1, 2)
+    assert (low.waitlist_position, low.waitlist_total) == (2, 2)
+    assert [item.pk for item in listing.items] == [queued[1].pk, queued[0].pk]
+    assert [(item.waitlist_position, item.waitlist_total) for item in listing.items] == [
+        (1, 2),
+        (2, 2),
+    ]
+
+    service.cancel_application(
+        reserved.pk,
+        "Reserva cancelada.",
+        expected_version=reserved.version,
+    )
+    for application in queued:
+        application.refresh_from_db()
+        assert application.status == EnrollmentApplication.Status.WAITLISTED
+
+
+@pytest.mark.django_db
 def test_finalize_blocks_unverified_required_document(user, student, class_obj):
     from enrollments.models import EnrollmentApplication
     from enrollments.services import EnrollmentApplicationService, StudentDocumentService
@@ -430,14 +495,53 @@ def test_reject_and_cancel_require_reason(user, student, class_obj):
 
 
 @pytest.mark.django_db
-def test_pre_enrollment_cannot_be_cancelled(user, student, class_obj):
+def test_cancel_pre_enrollment_requires_reason_and_releases_student_year(user, student, class_obj):
+    from enrollments.models import EnrollmentApplication
     from enrollments.services import EnrollmentApplicationService
 
+    service = EnrollmentApplicationService(user=user)
     application = _create_application(user, student, class_obj)
+    with pytest.raises(ValidationError):
+        service.cancel_application(application.pk, "", expected_version=application.version)
+
+    cancelled = service.cancel_application(
+        application.pk,
+        "Solicitação aberta por engano.",
+        expected_version=application.version,
+    )
+    replacement = _create_application(user, student, class_obj)
+
+    assert cancelled.status == EnrollmentApplication.Status.CANCELLED
+    assert cancelled.transitions.last().reason == "Solicitação aberta por engano."
+    assert replacement.pk != cancelled.pk
+
+
+@pytest.mark.django_db
+def test_cancel_correction_required_checks_expected_version(user, student, class_obj):
+    from enrollments.services import EnrollmentApplicationService
+
+    service = EnrollmentApplicationService(user=user)
+    application = _create_application(user, student, class_obj)
+    application = service.submit_application(application.pk, expected_version=application.version)
+    application = service.request_correction(
+        application.pk,
+        "Corrigir dados do processo.",
+        expected_version=application.version,
+    )
+
     with pytest.raises(BusinessRuleViolationError):
-        EnrollmentApplicationService(user=user).cancel_application(
-            application.pk, "Incorreta", expected_version=application.version
+        service.cancel_application(
+            application.pk,
+            "Cancelamento solicitado.",
+            expected_version=application.version - 1,
         )
+
+    cancelled = service.cancel_application(
+        application.pk,
+        "Cancelamento solicitado.",
+        expected_version=application.version,
+    )
+    assert cancelled.status == "CANCELLED"
 
 
 @pytest.mark.django_db
@@ -528,6 +632,19 @@ def test_user_command_denies_missing_actor(student, class_obj):
                 "application_type": EnrollmentApplication.ApplicationType.NEW,
             }
         )
+    applications = EnrollmentApplicationService(user=None)
+    denied_application_commands = (
+        lambda: applications.correct_application(student.pk, {}, expected_version=0),
+        lambda: applications.submit_application(student.pk, expected_version=0),
+        lambda: applications.approve_application(student.pk, expected_version=0),
+        lambda: applications.request_correction(student.pk, "Motivo", expected_version=0),
+        lambda: applications.reject_application(student.pk, "Motivo", expected_version=0),
+        lambda: applications.finalize_application(student.pk, expected_version=0),
+        lambda: applications.cancel_application(student.pk, "Motivo", expected_version=0),
+    )
+    for command in denied_application_commands:
+        with pytest.raises(PermissionDeniedError):
+            command()
     with pytest.raises(PermissionDeniedError):
         ReenrollmentService(user=None).confirm_batch([])
     documents = StudentDocumentService(user=None)
@@ -539,6 +656,16 @@ def test_user_command_denies_missing_actor(student, class_obj):
         documents.deactivate_requirement(student.pk, expected_version=0)
     with pytest.raises(PermissionDeniedError):
         documents.waive_document(student.pk, "Motivo", expected_version=0)
+    denied_document_commands = (
+        lambda: documents.record_delivery(
+            student.pk, delivery_method="PHYSICAL", expected_version=0
+        ),
+        lambda: documents.verify_document(student.pk, expected_version=0),
+        lambda: documents.reject_document(student.pk, "Motivo", expected_version=0),
+    )
+    for command in denied_document_commands:
+        with pytest.raises(PermissionDeniedError):
+            command()
 
 
 @pytest.mark.django_db
@@ -668,6 +795,46 @@ def test_audit_failure_rolls_back_state_transition(user, student, class_obj, mon
 
     assert application.status == "PRE_ENROLLMENT"
     assert application.transitions.count() == 1
+
+
+@pytest.mark.django_db
+def test_enrollment_audits_include_redacted_old_and_new_snapshots(user, student, class_obj):
+    from audit.models import AuditLog
+    from enrollments.models import EnrollmentApplication
+    from enrollments.services import EnrollmentApplicationService, StudentDocumentService
+
+    service = EnrollmentApplicationService(user=user)
+    application = _create_application(user, student, class_obj)
+    service.submit_application(application.pk, expected_version=application.version)
+
+    transition_audit = AuditLog.objects.filter(
+        model_name="EnrollmentApplication",
+        object_id=str(application.pk),
+        operation=AuditLog.Operation.UPDATE,
+    ).latest("created_at")
+    assert transition_audit.old_values["status"] == "PRE_ENROLLMENT"
+    assert transition_audit.new_values["status"] == "UNDER_REVIEW"
+    assert transition_audit.old_values["notes"] == "[REDACTED]"
+    assert transition_audit.new_values["notes"] == "[REDACTED]"
+
+    requirement = StudentDocumentService(user=user).create_requirement(
+        {
+            "application_type": EnrollmentApplication.ApplicationType.NEW,
+            "code": "audit-delete",
+            "label": "Documento auditado",
+        }
+    )
+    StudentDocumentService(user=user).deactivate_requirement(
+        requirement.pk, expected_version=requirement.version
+    )
+    delete_audit = AuditLog.objects.get(
+        model_name="DocumentRequirement",
+        object_id=str(requirement.pk),
+        operation=AuditLog.Operation.DELETE,
+    )
+    assert delete_audit.old_values["is_active"] is True
+    assert delete_audit.new_values["is_active"] is False
+    assert delete_audit.new_values["deleted_at"] is not None
 
 
 @pytest.mark.django_db
@@ -1306,7 +1473,9 @@ def test_reminder_retry_does_not_resend_a_message_log_already_sent(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_failed_reminder_requeue_uses_a_new_message_log(user, student, class_obj, monkeypatch):
+def test_failed_reminder_requeue_uses_a_new_message_log(
+    user, student, class_obj, monkeypatch, caplog
+):
     from django.db import connection
 
     from enrollments.models import EnrollmentReminder
@@ -1324,11 +1493,20 @@ def test_failed_reminder_requeue_uses_a_new_message_log(user, student, class_obj
     )
     monkeypatch.setattr(send_enrollment_document_reminder, "delay", Mock())
     service = EnrollmentReminderService(user=user)
+    caplog.set_level(logging.INFO, logger="base.services")
 
     reminder = service.send_reminders(application.pk, expected_version=application.version)[0]
     claimed = EnrollmentReminderService(user=None).claim_for_delivery(
         reminder.pk, tenant_schema="test_school"
     )
+    claim_record = next(
+        record for record in caplog.records if record.getMessage() == "enrollment_reminder_claimed"
+    )
+    assert claim_record.reminder_id == str(reminder.pk)
+    assert claim_record.message_log_id == str(claimed.message_log_id)
+    assert claim_record.from_status == EnrollmentReminder.Status.PENDING
+    assert claim_record.to_status == EnrollmentReminder.Status.SENDING
+    assert not hasattr(claim_record, "email")
     first_log_id = claimed.message_log_id
     EnrollmentReminderService(user=None).record_delivery_result(
         reminder.pk,
@@ -1397,8 +1575,99 @@ def test_application_detail_projection_materializes_capacity_documents_and_trans
     assert isinstance(detail.documents, tuple)
     assert isinstance(detail.transitions, tuple)
     assert detail.has_pending_required_documents is True
+    assert detail.pending_required_document_count == 1
+    assert detail.can_finalize is False
+    assert detail.waitlist_position is None
+    assert detail.waitlist_total is None
     assert detail.capacity.maximum == class_obj.max_students
     assert detail.capacity.committed == 0
+
+
+@pytest.mark.django_db
+def test_services_translate_invalid_uuids_and_storage_lengths(user, student, class_obj):
+    from enrollments.models import EnrollmentApplication
+    from enrollments.services import EnrollmentApplicationService, StudentDocumentService
+
+    application_service = EnrollmentApplicationService(user=user)
+    with pytest.raises(ValidationError):
+        application_service.create_application(
+            {
+                "student_id": "not-a-uuid",
+                "target_class_id": class_obj.pk,
+                "application_type": EnrollmentApplication.ApplicationType.NEW,
+            }
+        )
+    with pytest.raises(ValidationError):
+        application_service.create_application(
+            {
+                "student_id": student.pk,
+                "target_class_id": "not-a-uuid",
+                "application_type": EnrollmentApplication.ApplicationType.NEW,
+            }
+        )
+    with pytest.raises(ValidationError) as school_error:
+        application_service.create_application(
+            {
+                "student_id": student.pk,
+                "target_class_id": class_obj.pk,
+                "application_type": EnrollmentApplication.ApplicationType.INBOUND_TRANSFER,
+                "origin_school": "x" * 201,
+            }
+        )
+    assert "origin_school" in school_error.value.errors
+
+    document_service = StudentDocumentService(user=user)
+    with pytest.raises(ValidationError) as label_error:
+        document_service.create_requirement(
+            {
+                "application_type": EnrollmentApplication.ApplicationType.NEW,
+                "code": "long-label",
+                "label": "x" * 121,
+            }
+        )
+    assert "label" in label_error.value.errors
+    with pytest.raises(ValidationError):
+        document_service.update_requirement("not-a-uuid", {}, expected_version=0)
+
+
+@pytest.mark.django_db
+def test_application_and_batch_services_reject_oversized_notes_directly(user, student, class_obj):
+    from enrollments.models import EnrollmentApplication
+    from enrollments.services import EnrollmentApplicationService, ReenrollmentService
+
+    service = EnrollmentApplicationService(user=user)
+    with pytest.raises(ValidationError) as create_error:
+        service.create_application(
+            {
+                "student_id": student.pk,
+                "target_class_id": class_obj.pk,
+                "application_type": EnrollmentApplication.ApplicationType.NEW,
+                "notes": "x" * 1001,
+            }
+        )
+    assert "notes" in create_error.value.errors
+
+    application = _create_application(user, student, class_obj)
+    with pytest.raises(ValidationError) as correction_error:
+        service.correct_application(
+            application.pk,
+            {"target_class_id": class_obj.pk, "notes": "x" * 1001},
+            expected_version=application.version,
+        )
+    assert "notes" in correction_error.value.errors
+
+    with pytest.raises(ValidationError) as batch_error:
+        ReenrollmentService(user=user).confirm_batch(
+            [
+                {
+                    "source_enrollment_id": application.pk,
+                    "target_class_id": class_obj.pk,
+                    "expected_version": 0,
+                    "exception_reason": "x" * 1001,
+                }
+            ]
+        )
+    assert "exception_reason" in batch_error.value.errors
 
 
 @pytest.mark.django_db
@@ -1415,6 +1684,88 @@ def test_reenrollment_batch_rejects_malformed_identifiers(user):
                 }
             ]
         )
+
+
+@pytest.mark.django_db
+def test_authenticated_user_without_create_or_edit_cannot_execute_enrollment_commands(
+    user, student, class_obj
+):
+    from django.utils import timezone
+
+    from core.models import Role, RoleModuleAccess
+    from enrollments.models import EnrollmentApplication
+    from enrollments.services import (
+        EnrollmentApplicationService,
+        ReenrollmentService,
+        StudentDocumentService,
+    )
+
+    application = _create_application(user, student, class_obj)
+    document = _add_pending_document(user, application)
+    coordinator = Role.objects.get(name=Role.Name.COORDINATOR)
+    RoleModuleAccess.objects.update_or_create(
+        role=coordinator,
+        module_key="enrollments",
+        defaults={
+            "can_view": True,
+            "can_create": False,
+            "can_edit": False,
+            "can_deactivate": False,
+        },
+    )
+    RoleModuleAccess.objects.update_or_create(
+        role=coordinator,
+        module_key="reenrollment",
+        defaults={
+            "can_view": True,
+            "can_create": False,
+            "can_edit": False,
+            "can_deactivate": False,
+        },
+    )
+    user.role = coordinator
+    user.is_superuser = False
+    user.access_mode = "DEMO"
+    user.email_verified_at = timezone.now()
+    user.save(update_fields=["role", "is_superuser", "access_mode", "email_verified_at"])
+    if hasattr(user, "_role_access_cache"):
+        del user._role_access_cache
+
+    applications = EnrollmentApplicationService(user=user)
+    denied_commands = (
+        lambda: applications.create_application(
+            {
+                "student_id": student.pk,
+                "target_class_id": class_obj.pk,
+                "application_type": EnrollmentApplication.ApplicationType.NEW,
+            }
+        ),
+        lambda: applications.correct_application(application.pk, {}, expected_version=0),
+        lambda: applications.submit_application(application.pk, expected_version=0),
+        lambda: applications.approve_application(application.pk, expected_version=0),
+        lambda: applications.request_correction(application.pk, "Motivo", expected_version=0),
+        lambda: applications.reject_application(application.pk, "Motivo", expected_version=0),
+        lambda: applications.finalize_application(application.pk, expected_version=0),
+        lambda: applications.cancel_application(application.pk, "Motivo", expected_version=0),
+    )
+    for command in denied_commands:
+        with pytest.raises(PermissionDeniedError):
+            command()
+
+    documents = StudentDocumentService(user=user)
+    denied_document_commands = (
+        lambda: documents.record_delivery(
+            document.pk, delivery_method="PHYSICAL", expected_version=0
+        ),
+        lambda: documents.verify_document(document.pk, expected_version=0),
+        lambda: documents.reject_document(document.pk, "Motivo", expected_version=0),
+        lambda: documents.waive_document(document.pk, "Motivo", expected_version=0),
+    )
+    for command in denied_document_commands:
+        with pytest.raises(PermissionDeniedError):
+            command()
+    with pytest.raises(PermissionDeniedError):
+        ReenrollmentService(user=user).confirm_batch([])
 
 
 @pytest.mark.django_db

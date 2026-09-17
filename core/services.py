@@ -5,12 +5,15 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from django.conf import settings
+from django.db import connection
 from django.utils import timezone
 
 if TYPE_CHECKING:
     from tenancy.contracts import School
 
-from base.exceptions import ObjectNotFoundError, ValidationError
+from base.exceptions import ObjectNotFoundError, PermissionDeniedError, ValidationError
+from base.image_services import image_updates
 from base.services import BaseService, system_command
 
 logger = logging.getLogger(__name__)
@@ -63,7 +66,7 @@ class BusinessUnitService(BaseService):
 
         cnpj_cleaned = self._validate_cnpj(data)
 
-        business_unit = BusinessUnit.objects.create(
+        business_unit = BusinessUnit(
             name=name,
             cnpj=cnpj_cleaned,
             legal_name=data.get("legal_name", ""),
@@ -81,6 +84,9 @@ class BusinessUnitService(BaseService):
             created_by=self.user,
             updated_by=self.user,
         )
+        for key, value in image_updates(business_unit, data, "logo").items():
+            setattr(business_unit, key, value)
+        business_unit.save()
         self._record_audit("INSERT", business_unit)
         self._log("empresa_criada", business_unit_id=str(business_unit.pk))
         return business_unit
@@ -94,7 +100,7 @@ class BusinessUnitService(BaseService):
         except BusinessUnit.DoesNotExist:
             raise ObjectNotFoundError("BusinessUnit", str(business_unit_id)) from None
 
-        old = {"name": business_unit.name, "cnpj": business_unit.cnpj}
+        old = self._snapshot(business_unit, ["name", "cnpj", "logo"])
         allowed = {
             "name",
             "legal_name",
@@ -121,6 +127,7 @@ class BusinessUnitService(BaseService):
                 raise ValidationError(errors={"name": ["Ja existe uma empresa com este nome."]})
             updates["name"] = new_name
 
+        updates.update(image_updates(business_unit, data, "logo"))
         for field, value in updates.items():
             setattr(business_unit, field, value)
         business_unit.updated_by = self.user
@@ -128,29 +135,6 @@ class BusinessUnitService(BaseService):
 
         self._record_audit("UPDATE", business_unit, old_values=old)
         self._log("empresa_atualizada", business_unit_id=str(business_unit.pk))
-        return business_unit
-
-    def update_business_unit_logo(self, business_unit_id, logo_file) -> School:
-        """Atualiza o logotipo da empresa."""
-        from core.models import BusinessUnit
-
-        try:
-            business_unit = BusinessUnit.objects.get(pk=business_unit_id)
-        except BusinessUnit.DoesNotExist:
-            raise ObjectNotFoundError("BusinessUnit", str(business_unit_id)) from None
-
-        old = self._snapshot(business_unit, ["logo"])
-        old_logo_name = business_unit.logo.name
-        logo_storage = business_unit.logo.storage
-        business_unit.logo = logo_file
-        business_unit.updated_by = self.user
-        business_unit.save(update_fields=["logo", "updated_by", "updated_at"])
-        from base.media import delete_replaced_file_after_commit
-
-        delete_replaced_file_after_commit(logo_storage, old_logo_name, business_unit.logo.name)
-
-        self._record_audit("UPDATE", business_unit, old_values=old)
-        self._log("logo_empresa_atualizado", business_unit_id=str(business_unit.pk))
         return business_unit
 
     def deactivate_business_unit(self, business_unit_id) -> School:
@@ -195,7 +179,7 @@ class SchoolService(BaseService):
 
         cnpj_cleaned = self._validate_cnpj(data)
 
-        school = School.objects.create(
+        school = School(
             name=name,
             cnpj=cnpj_cleaned,
             legal_name=data.get("legal_name", ""),
@@ -211,6 +195,9 @@ class SchoolService(BaseService):
             created_by=self.user,
             updated_by=self.user,
         )
+        for key, value in image_updates(school, data, "logo").items():
+            setattr(school, key, value)
+        school.save()
         self._record_audit("INSERT", school)
         self._log("Escola criada", school_id=str(school.pk))
         return school
@@ -219,15 +206,9 @@ class SchoolService(BaseService):
         """Atualiza dados institucionais e de contato da escola."""
         from tenancy.contracts import School
 
-        try:
-            school = School.objects.get(pk=school_id)
-        except School.DoesNotExist:
-            raise ObjectNotFoundError("School", str(school_id)) from None
+        school = self._prepare_school_update(school_id)
 
-        old = {
-            "name": school.name,
-            "cnpj": school.cnpj,
-        }
+        old = self._snapshot(school, ["name", "cnpj", "logo"])
 
         allowed = {
             "name",
@@ -256,17 +237,17 @@ class SchoolService(BaseService):
                 raise ValidationError(errors={"name": ["Ja existe uma escola com este nome."]})
             updates["name"] = new_name
 
+        updates.update(image_updates(school, data, "logo"))
         for field, value in updates.items():
             setattr(school, field, value)
-        school.updated_by = self.user
         school.save()
 
         self._record_audit("UPDATE", school, old_values=old)
         self._log("Escola atualizada", school_id=str(school.pk))
         return school
 
-    def update_logo(self, school_id, logo_file) -> School:
-        """Atualiza o logotipo da escola."""
+    def _prepare_school_update(self, school_id) -> School:
+        """Valida o escopo e evita FK de ator escolar no catálogo público."""
         from tenancy.contracts import School
 
         try:
@@ -274,18 +255,12 @@ class SchoolService(BaseService):
         except School.DoesNotExist:
             raise ObjectNotFoundError("School", str(school_id)) from None
 
-        old = self._snapshot(school, ["logo"])
-        old_logo_name = school.logo.name
-        logo_storage = school.logo.storage
-        school.logo = logo_file
-        school.updated_by = self.user
-        school.save(update_fields=["logo", "updated_by", "updated_at"])
-        from base.media import delete_replaced_file_after_commit
-
-        delete_replaced_file_after_commit(logo_storage, old_logo_name, school.logo.name)
-
-        self._record_audit("UPDATE", school, old_values=old)
-        self._log("Logo da escola atualizado", school_id=str(school.pk))
+        tenant_actor = not settings.TESTING and connection.schema_name != "public"
+        if tenant_actor and school.schema_name != connection.schema_name:
+            raise PermissionDeniedError("A escola não pertence ao tenant ativo.")
+        # A autoria real permanece em self.user, gravada na auditoria do tenant.
+        # A FK de School.updated_by aponta exclusivamente para usuários públicos.
+        school.updated_by = None if tenant_actor else self.user
         return school
 
     def deactivate_school(self, school_id) -> School:

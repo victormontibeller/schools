@@ -15,6 +15,7 @@ from base.exceptions import (
 from base.forms import apply_validation_errors, submitted_form_data
 from base.listing import build_querystring, build_sorting, resolve_listing_state
 from base.media import private_file_response
+from base.views import render_component_form
 from teachers.forms import SubjectForm, TeacherEditForm, TeacherForm, TeacherSubjectsForm
 from teachers.selectors import SubjectSelector, TeacherSelector
 from teachers.services import SubjectService, TeacherService
@@ -193,12 +194,11 @@ def teacher_edit(request, pk):
     else:
         form = TeacherEditForm(initial=initial)
 
-    if not request.headers.get("HX-Request"):
-        return redirect("teacher_detail", pk=pk)
-    return render(
+    return render_component_form(
         request,
         "teachers/partials/teacher_information_form.html",
         {"form": form, "teacher": teacher},
+        title="Editar professor",
     )
 
 

@@ -26,6 +26,7 @@ from enrollments.services import StudentDocumentService
 def enrollment_document_delivery(request, pk):
     """Registra upload digital ou conferência física do item do checklist."""
     document = EnrollmentApplicationSelector().get_document_by_id(pk)
+    is_htmx = request.headers.get("HX-Request") == "true"
     form = DocumentDeliveryForm(
         request.POST or None,
         request.FILES or None,
@@ -41,15 +42,51 @@ def enrollment_document_delivery(request, pk):
                 expected_version=form.cleaned_data["expected_version"],
             )
             messages.success(request, "Entrega registrada.")
+            if is_htmx:
+                from enrollments.presentation import application_detail_context
+
+                detail = EnrollmentApplicationSelector().get_application_detail(
+                    document.application_id
+                )
+                context = application_detail_context(detail, htmx_messages=True)
+                context["include_process_card_oob"] = True
+                return render(
+                    request,
+                    "enrollments/partials/application_documents_card.html",
+                    context,
+                )
             return redirect("enrollment_application_detail", pk=document.application_id)
         except ValidationError as exc:
             apply_validation_errors(form, exc)
         except BusinessRuleViolationError as exc:
             messages.error(request, exc.message)
+            document = EnrollmentApplicationSelector().get_document_by_id(pk)
+            delivery_method = ""
+            if hasattr(form, "cleaned_data"):
+                delivery_method = form.cleaned_data.get("delivery_method", "")
+            form = DocumentDeliveryForm(
+                initial={
+                    "expected_version": document.version,
+                    "delivery_method": delivery_method,
+                },
+                allows_physical=document.allows_physical,
+            )
+    context = {
+        "form": form,
+        "document": document,
+        "title": document.requirement_label,
+        "htmx_messages": is_htmx,
+    }
+    if is_htmx:
+        return render(
+            request,
+            "enrollments/partials/document_delivery_form.html",
+            context,
+        )
     return render(
         request,
         "enrollments/document_form.html",
-        {"form": form, "document": document, "title": document.requirement_label},
+        context,
     )
 
 
@@ -82,10 +119,12 @@ def enrollment_document_action(request, pk):
         from enrollments.presentation import application_detail_context
 
         detail = EnrollmentApplicationSelector().get_application_detail(document.application_id)
+        context = application_detail_context(detail, htmx_messages=True)
+        context["include_process_card_oob"] = True
         return render(
             request,
             "enrollments/partials/application_documents_card.html",
-            application_detail_context(detail, htmx_messages=True),
+            context,
         )
     return redirect("enrollment_application_detail", pk=document.application_id)
 

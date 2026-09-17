@@ -1,5 +1,7 @@
 """Comandos seguros do checklist documental de matrículas."""
 
+from uuid import UUID
+
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
@@ -33,6 +35,8 @@ class StudentDocumentService(BaseService):
         label = str(data["label"]).strip()
         if not label:
             raise ValidationError(errors={"label": ["Campo obrigatório."]})
+        if len(label) > 120:
+            raise ValidationError(errors={"label": ["Informe no máximo 120 caracteres."]})
         if DocumentRequirement.objects.filter(
             application_type=data["application_type"], code=code
         ).exists():
@@ -53,7 +57,7 @@ class StudentDocumentService(BaseService):
             raise ValidationError(
                 errors={"code": ["Requisito já cadastrado para este tipo."]}
             ) from None
-        self._record_audit("INSERT", requirement)
+        self._record_audit("INSERT", requirement, new_values=self._snapshot(requirement))
         self._log("document_requirement_created", requirement_id=str(requirement.pk))
         return requirement
 
@@ -70,6 +74,8 @@ class StudentDocumentService(BaseService):
         label = str(data.get("label", requirement.label)).strip()
         if not label:
             raise ValidationError(errors={"label": ["Campo obrigatório."]})
+        if len(label) > 120:
+            raise ValidationError(errors={"label": ["Informe no máximo 120 caracteres."]})
         if (
             DocumentRequirement.objects.filter(application_type=application_type, code=code)
             .exclude(pk=requirement.pk)
@@ -87,7 +93,7 @@ class StudentDocumentService(BaseService):
             ),
             "updated_by": self.user,
         }
-        old = self._snapshot(requirement, [key for key in updates if key != "updated_by"])
+        old = self._snapshot(requirement)
         for field, value in updates.items():
             setattr(requirement, field, value)
         try:
@@ -97,7 +103,12 @@ class StudentDocumentService(BaseService):
             raise ValidationError(
                 errors={"code": ["Requisito já cadastrado para este tipo."]}
             ) from None
-        self._record_audit("UPDATE", requirement, old_values=old)
+        self._record_audit(
+            "UPDATE",
+            requirement,
+            old_values=old,
+            new_values=self._snapshot(requirement),
+        )
         self._log("document_requirement_updated", requirement_id=str(requirement.pk))
         return requirement
 
@@ -141,7 +152,7 @@ class StudentDocumentService(BaseService):
                 validate_document_upload(file)
             except DjangoValidationError as exc:
                 raise ValidationError(errors={"file": list(exc.messages)}) from exc
-        old = self._snapshot(document, ["status", "delivery_method", "file"])
+        old = self._snapshot(document)
         old_file_name = document.file.name
         storage = document.file.storage
         updates = {
@@ -161,7 +172,12 @@ class StudentDocumentService(BaseService):
             elif delivery_method == StudentDocument.DeliveryMethod.PHYSICAL:
                 updates["file"] = None
             document = self._save_locked_document(document, updates)
-            self._record_audit("UPDATE", document, old_values=old)
+            self._record_audit(
+                "UPDATE",
+                document,
+                old_values=old,
+                new_values=self._snapshot(document),
+            )
         except Exception:
             if new_file_name and new_file_name != old_file_name:
                 storage.delete(new_file_name)
@@ -223,7 +239,7 @@ class StudentDocumentService(BaseService):
         expected_version: int,
         reason: str = "",
     ):
-        old = self._snapshot(document, ["status", "decision_reason"])
+        old = self._snapshot(document)
         document = self._save_locked_document(
             document,
             {
@@ -234,7 +250,12 @@ class StudentDocumentService(BaseService):
                 "updated_by": self.user,
             },
         )
-        self._record_audit("UPDATE", document, old_values=old)
+        self._record_audit(
+            "UPDATE",
+            document,
+            old_values=old,
+            new_values=self._snapshot(document),
+        )
         self._log(
             "student_document_decided",
             document_id=str(document.pk),
@@ -254,12 +275,13 @@ class StudentDocumentService(BaseService):
     def _lock_document(document_id, expected_version: int):
         from enrollments.models import StudentDocument
 
+        normalized_document_id = StudentDocumentService._normalize_uuid(document_id, "document_id")
         try:
             expected = int(expected_version)
         except (TypeError, ValueError):
             raise ValidationError(errors={"expected_version": ["Versão inválida."]}) from None
         try:
-            document = StudentDocument.objects.select_for_update().get(pk=document_id)
+            document = StudentDocument.objects.select_for_update().get(pk=normalized_document_id)
         except StudentDocument.DoesNotExist:
             raise ObjectNotFoundError("StudentDocument", str(document_id)) from None
         if document.version != expected:
@@ -272,12 +294,17 @@ class StudentDocumentService(BaseService):
     def _lock_requirement(requirement_id, expected_version: int):
         from enrollments.models import DocumentRequirement
 
+        normalized_requirement_id = StudentDocumentService._normalize_uuid(
+            requirement_id, "requirement_id"
+        )
         try:
             expected = int(expected_version)
         except (TypeError, ValueError):
             raise ValidationError(errors={"expected_version": ["Versão inválida."]}) from None
         try:
-            requirement = DocumentRequirement.objects.select_for_update().get(pk=requirement_id)
+            requirement = DocumentRequirement.objects.select_for_update().get(
+                pk=normalized_requirement_id
+            )
         except DocumentRequirement.DoesNotExist:
             raise ObjectNotFoundError("DocumentRequirement", str(requirement_id)) from None
         if requirement.version != expected:
@@ -320,3 +347,11 @@ class StudentDocumentService(BaseService):
         if not clean:
             raise ValidationError(errors={"reason": ["Informe o motivo."]})
         return clean
+
+    @staticmethod
+    def _normalize_uuid(value, field: str) -> UUID:
+        """Converte identificadores externos em erros de validação do domínio."""
+        try:
+            return UUID(str(value))
+        except (TypeError, ValueError, AttributeError):
+            raise ValidationError(errors={field: ["Identificador inválido."]}) from None

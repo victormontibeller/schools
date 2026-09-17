@@ -132,14 +132,34 @@ def enrollment_application_list(request):
 @access_policy("enrollments", CREATE)
 def enrollment_application_create(request):
     """Cria solicitação para aluno já cadastrado."""
-    selected_student_id = request.GET.get("student") or request.POST.get("student_id")
+    selected_student_id = (
+        request.POST.get("student_id")
+        or request.GET.get("student")
+        or request.GET.get("student_id")
+    )
     student_search = request.POST.get("student_search", "").strip()
     kwargs = application_form_choices(selected_student_id, student_search=student_search)
-    is_search = request.method == "POST" and request.POST.get("form_action") == "search"
+    form_action = request.POST.get("form_action", "")
+    is_refresh = request.method == "POST" and form_action in {"search", "refresh_context"}
+    is_context_refresh = (
+        is_refresh
+        and form_action == "refresh_context"
+        and request.headers.get("HX-Request") == "true"
+        and request.headers.get("HX-Target") == "application-context-fields"
+    )
+    application_type = (
+        request.POST.get("application_type")
+        or request.GET.get("application_type")
+        or ("NEW" if request.GET.get("class") else "")
+    )
     initial = {
-        "target_class_id": request.POST.get("target_class_id") or request.GET.get("class", ""),
+        "target_class_id": (
+            request.POST.get("target_class_id")
+            or request.GET.get("target_class_id")
+            or request.GET.get("class", "")
+        ),
         "student_id": selected_student_id or "",
-        "application_type": request.POST.get("application_type", ""),
+        "application_type": application_type,
         "source_enrollment_id": request.POST.get("source_enrollment_id", ""),
         "origin_school": request.POST.get("origin_school", ""),
         "destination_school": request.POST.get("destination_school", ""),
@@ -147,11 +167,17 @@ def enrollment_application_create(request):
         "notes": request.POST.get("notes", ""),
     }
     form = EnrollmentApplicationForm(
-        None if is_search else request.POST or None,
+        None if is_refresh else request.POST or None,
         initial=initial,
         **kwargs,
     )
-    if request.method == "POST" and not is_search and form.is_valid():
+    if is_context_refresh:
+        return render(
+            request,
+            "enrollments/partials/application_context_fields.html",
+            {"form": form, "selected_application_type": application_type},
+        )
+    if request.method == "POST" and not is_refresh and form.is_valid():
         try:
             application = EnrollmentApplicationService(user=request.user).create_application(
                 form.cleaned_data
@@ -169,6 +195,7 @@ def enrollment_application_create(request):
             "form": form,
             "title": "Nova solicitação de matrícula",
             "student_search": student_search,
+            "selected_application_type": application_type,
         },
     )
 
@@ -246,21 +273,35 @@ def enrollment_application_action(request, pk):
     version = parse_optional_int(request.POST.get("expected_version"))
     reason = request.POST.get("reason", "")
     try:
+        updated_application = None
         if action == "submit":
-            service.submit_application(pk, expected_version=version)
+            updated_application = service.submit_application(pk, expected_version=version)
         elif action == "approve":
-            service.approve_application(pk, expected_version=version)
+            updated_application = service.approve_application(pk, expected_version=version)
         elif action == "correction":
-            service.request_correction(pk, reason, expected_version=version)
+            updated_application = service.request_correction(pk, reason, expected_version=version)
         elif action == "reject":
-            service.reject_application(pk, reason, expected_version=version)
+            updated_application = service.reject_application(pk, reason, expected_version=version)
         elif action == "finalize":
-            service.finalize_application(pk, expected_version=version, reason=reason)
+            updated_application = service.finalize_application(
+                pk, expected_version=version, reason=reason
+            )
         elif action == "cancel":
-            service.cancel_application(pk, reason, expected_version=version)
+            updated_application = service.cancel_application(pk, reason, expected_version=version)
         else:
             raise ValidationError(errors={"action": ["Ação inválida."]})
-        messages.success(request, "Solicitação atualizada.")
+        if (
+            action == "approve"
+            and updated_application.status == EnrollmentApplication.Status.WAITLISTED
+        ):
+            placement = EnrollmentApplicationSelector().get_application_detail(pk)
+            messages.warning(
+                request,
+                "Turma sem vaga. Solicitação incluída na lista de espera "
+                f"na posição {placement.waitlist_position} de {placement.waitlist_total}.",
+            )
+        else:
+            messages.success(request, "Solicitação atualizada.")
     except (ValidationError, BusinessRuleViolationError, ObjectNotFoundError) as exc:
         messages.error(request, exc.message)
     if request.headers.get("HX-Request"):

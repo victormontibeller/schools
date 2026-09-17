@@ -2,6 +2,8 @@
 
 from django import forms
 
+from base.forms import ImageUploadField
+
 
 class _OrganizationForm(forms.Form):
     """Campos institucionais compartilhados por escola e unidades."""
@@ -54,7 +56,7 @@ class _OrganizationForm(forms.Form):
         label="E-mail",
         widget=forms.EmailInput(attrs={"class": "form-control"}),
     )
-    logo = forms.ImageField(
+    logo = ImageUploadField(
         required=False,
         label="Logotipo",
         widget=forms.ClearableFileInput(attrs={"class": "sm-profile-avatar-input"}),

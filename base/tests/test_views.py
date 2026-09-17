@@ -297,16 +297,6 @@ class TestGuardianViews:
         assert resp.status_code == 302
         assert f"/guardians/{g.pk}/editar/" in resp["Location"]
 
-    def test_teacher_edit_get_redirects_to_profile(self, force_login_client, user):
-        from teachers.models import Teacher
-
-        t = Teacher.objects.create(
-            user=user, registration_number="EDT001", created_by=user, updated_by=user
-        )
-        resp = force_login_client.get(f"/teachers/{t.pk}/editar/")
-        assert resp.status_code == 302
-        assert resp["Location"] == f"/teachers/{t.pk}/"
-
     def test_teacher_edit_post_updates(self, force_login_client, user):
         from teachers.models import Teacher
 
@@ -336,16 +326,3 @@ class TestGuardianViews:
         t.refresh_from_db()
         assert str(t.hire_date) == "2025-06-15"
         assert t.phone_mobile == "11999999999"
-
-    def test_student_edit_get_redirects_to_profile(self, force_login_client):
-        from students.models import Student
-
-        s = Student.objects.create(
-            first_name="Edit",
-            last_name="Test",
-            birth_date="2010-01-01",
-            enrollment_number="EDT-STU",
-        )
-        resp = force_login_client.get(f"/students/{s.pk}/editar/")
-        assert resp.status_code == 302
-        assert resp["Location"] == f"/students/{s.pk}/"

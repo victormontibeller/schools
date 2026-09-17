@@ -201,6 +201,66 @@ def test_create_rejects_malformed_student_id_without_http_500(client, user, reco
 
 
 @pytest.mark.django_db
+def test_create_updates_context_fields_with_htmx_and_server_fallback(client, user, records):
+    client.force_login(user)
+    url = reverse("enrollment_application_create")
+    params = {
+        "student_id": records[0].pk,
+        "application_type": "OUTBOUND_TRANSFER",
+    }
+
+    fragment = client.post(
+        url,
+        {**params, "form_action": "refresh_context"},
+        HTTP_HX_REQUEST="true",
+        HTTP_HX_TARGET="application-context-fields",
+    )
+    html = fragment.content.decode()
+    assert fragment.status_code == 200
+    assert '<div class="col-12" id="application-context-fields">' in html
+    assert 'name="source_enrollment_id"' in html
+    assert 'name="destination_school"' in html
+    assert 'name="target_class_id"' not in html
+    assert "<html" not in html
+
+    navigation = client.get(
+        url,
+        params,
+        HTTP_HX_REQUEST="true",
+        HTTP_HX_TARGET="app-main",
+    )
+    assert navigation.status_code == 200
+    assert b"<html" in navigation.content
+    assert b'id="primary-form"' in navigation.content
+
+    wrong_target = client.post(
+        url,
+        {**params, "form_action": "refresh_context"},
+        HTTP_HX_REQUEST="true",
+        HTTP_HX_TARGET="app-main",
+    )
+    assert wrong_target.status_code == 200
+    assert b"<html" in wrong_target.content
+
+    fallback = client.post(
+        url,
+        {**params, "form_action": "refresh_context", "priority": 0},
+    )
+    assert fallback.status_code == 200
+    assert b'name="destination_school"' in fallback.content
+    assert b'name="target_class_id"' not in fallback.content
+
+    full_html = fallback.content.decode()
+    assert f'hx-post="{url}"' in full_html
+    assert f'hx-get="{url}"' not in full_html
+    assert 'hx-include="#primary-form"' not in full_html
+    assert (
+        "student_search"
+        not in full_html.split('hx-params="', maxsplit=1)[1].split('"', maxsplit=1)[0]
+    )
+
+
+@pytest.mark.django_db
 def test_action_htmx_replaces_only_process_card(client, user, records):
     client.force_login(user)
     application = records[2]
@@ -221,6 +281,31 @@ def test_action_htmx_replaces_only_process_card(client, user, records):
         HTTP_HX_REQUEST="true",
     )
     assert b"alterado por outra pessoa" in failed.content
+
+
+@pytest.mark.django_db
+def test_approve_full_class_reports_waitlist_position_and_list_criterion(client, user, records):
+    from classes.models import Class
+    from enrollments.services import EnrollmentApplicationService
+
+    Class.objects.filter(pk=records[1].pk).update(max_students=0)
+    application = EnrollmentApplicationService(user=user).submit_application(
+        records[2].pk, expected_version=records[2].version
+    )
+    client.force_login(user)
+
+    response = client.post(
+        reverse("enrollment_application_action", args=[application.pk]),
+        {"action": "approve", "expected_version": application.version},
+        HTTP_HX_REQUEST="true",
+    )
+    assert "incluída na lista de espera na posição 1 de 1".encode() in response.content
+    assert "Posição na espera".encode() in response.content
+
+    listing = client.get(reverse("enrollment_application_list"), {"tab": "espera"})
+    assert b"maior prioridade, depois entrada mais antiga" in listing.content
+    assert b"1 de 1" in listing.content
+    assert b"promo\xc3\xa7\xc3\xa3o n\xc3\xa3o \xc3\xa9 autom\xc3\xa1tica" in listing.content
 
 
 @pytest.mark.django_db
@@ -262,7 +347,20 @@ def test_document_action_htmx_replaces_only_checklist_card(client, user, records
         delivery_method=StudentDocument.DeliveryMethod.PHYSICAL,
         expected_version=document.version,
     )
+    from enrollments.services import EnrollmentApplicationService
+
+    application = EnrollmentApplicationService(user=user).submit_application(
+        records[2].pk, expected_version=records[2].version
+    )
+    application = EnrollmentApplicationService(user=user).approve_application(
+        application.pk, expected_version=application.version
+    )
     client.force_login(user)
+
+    blocked = client.get(reverse("enrollment_application_detail", args=[application.pk]))
+    assert b"<strong>1</strong> documento" in blocked.content
+    assert b"finalize-blocked-help" in blocked.content
+    assert b'name="action" value="finalize"' not in blocked.content
 
     response = client.post(
         reverse("enrollment_document_action", args=[document.pk]),
@@ -272,9 +370,111 @@ def test_document_action_htmx_replaces_only_checklist_card(client, user, records
 
     assert response.status_code == 200
     assert b"application-documents-card" in response.content
+    assert b'application-process-card" hx-swap-oob="outerHTML"' in response.content
     assert b"Verificado" in response.content
     assert b"Documento atualizado" in response.content
+    assert b'name="action" value="finalize"' in response.content
     assert b"<html" not in response.content
+
+
+@pytest.mark.django_db
+def test_document_delivery_has_inline_htmx_form_errors_success_and_http_cancel(
+    client, user, records
+):
+    from enrollments.models import StudentDocument
+
+    document = StudentDocument.objects.create(
+        application=records[2],
+        requirement_code="inline-delivery",
+        requirement_label="Documento inline",
+        is_required=True,
+        allows_physical=True,
+        created_by=user,
+        updated_by=user,
+    )
+    client.force_login(user)
+    detail_url = reverse("enrollment_application_detail", args=[records[2].pk])
+    delivery_url = reverse("enrollment_document_delivery", args=[document.pk])
+
+    checklist = client.get(detail_url)
+    checklist_html = checklist.content.decode()
+    assert f'href="{delivery_url}"' in checklist_html
+    assert f'hx-get="{delivery_url}"' in checklist_html
+
+    inline = client.get(delivery_url, HTTP_HX_REQUEST="true")
+    inline_html = inline.content.decode()
+    assert inline.status_code == 200
+    assert '<div class="card" id="application-documents-card">' in inline_html
+    assert f'action="{delivery_url}"' in inline_html
+    assert f'href="{detail_url}"' in inline_html
+    assert f'hx-get="{detail_url}"' in inline_html
+    assert 'hx-select="#application-documents-card"' in inline_html
+    assert "<html" not in inline_html
+
+    invalid = client.post(
+        delivery_url,
+        {
+            "expected_version": document.version,
+            "delivery_method": StudentDocument.DeliveryMethod.DIGITAL,
+        },
+        HTTP_HX_REQUEST="true",
+    )
+    assert invalid.status_code == 200
+    assert b"Selecione o arquivo entregue" in invalid.content
+    assert b"application-documents-card" in invalid.content
+    assert b"<html" not in invalid.content
+
+    delivered = client.post(
+        delivery_url,
+        {
+            "expected_version": document.version,
+            "delivery_method": StudentDocument.DeliveryMethod.PHYSICAL,
+        },
+        HTTP_HX_REQUEST="true",
+    )
+    assert delivered.status_code == 200
+    assert b"Entrega registrada" in delivered.content
+    assert b'application-process-card" hx-swap-oob="outerHTML"' in delivered.content
+    assert "Físico".encode() in delivered.content
+    assert b"<html" not in delivered.content
+
+
+@pytest.mark.django_db
+def test_document_delivery_htmx_conflict_shows_message_and_current_version(client, user, records):
+    from enrollments.models import StudentDocument
+
+    document = StudentDocument.objects.create(
+        application=records[2],
+        requirement_code="stale-inline-delivery",
+        requirement_label="Documento concorrente",
+        is_required=True,
+        allows_physical=True,
+        created_by=user,
+        updated_by=user,
+    )
+    stale_version = document.version
+    current_version = stale_version + 1
+    StudentDocument.objects.filter(pk=document.pk).update(version=current_version)
+    client.force_login(user)
+
+    response = client.post(
+        reverse("enrollment_document_delivery", args=[document.pk]),
+        {
+            "expected_version": stale_version,
+            "delivery_method": StudentDocument.DeliveryMethod.PHYSICAL,
+        },
+        HTTP_HX_REQUEST="true",
+    )
+    html = response.content.decode()
+
+    assert response.status_code == 200
+    assert "alterado por outra pessoa" in html
+    assert f'name="expected_version" value="{current_version}"' in html
+    assert '<option value="PHYSICAL" selected>' in html
+    assert "<html" not in html
+    document.refresh_from_db()
+    assert document.status == StudentDocument.Status.PENDING
+    assert document.version == current_version
 
 
 @pytest.mark.django_db
@@ -697,6 +897,7 @@ def test_reenrollment_preselects_only_unique_pedagogical_destination(client, use
     from classes.services import ClassService
     from core.models import Role, RoleModuleAccess
     from enrollments.services import EnrollmentApplicationService
+    from students.models import Student
 
     application = records[2]
     service = EnrollmentApplicationService(user=user)
@@ -704,6 +905,30 @@ def test_reenrollment_preselects_only_unique_pedagogical_destination(client, use
     application = service.approve_application(application.pk, expected_version=application.version)
     source = service.finalize_application(
         application.pk, expected_version=application.version
+    ).result_enrollment
+    second_student = Student.objects.create(
+        first_name="Nina",
+        last_name="Lote HTTP",
+        birth_date=dt.date(2015, 2, 1),
+        enrollment_number="HTTP-REENROLL-2",
+        created_by=user,
+        updated_by=user,
+    )
+    second_application = service.create_application(
+        {
+            "student_id": second_student.pk,
+            "target_class_id": records[1].pk,
+            "application_type": "NEW",
+        }
+    )
+    second_application = service.submit_application(
+        second_application.pk, expected_version=second_application.version
+    )
+    second_application = service.approve_application(
+        second_application.pk, expected_version=second_application.version
+    )
+    second_source = service.finalize_application(
+        second_application.pk, expected_version=second_application.version
     ).result_enrollment
     suggested = ClassService(user=user).create_class(
         {
@@ -714,6 +939,8 @@ def test_reenrollment_preselects_only_unique_pedagogical_destination(client, use
             "shift": records[1].shift,
         }
     )
+    suggested.max_students = 0
+    suggested.save(update_fields=["max_students"])
     repetition = ClassService(user=user).create_class(
         {
             "name": "HTTP 4A repetência",
@@ -779,6 +1006,12 @@ def test_reenrollment_preselects_only_unique_pedagogical_destination(client, use
     assert response.status_code == 200
     assert f'action="{reverse("reenrollment_batch_confirm")}"' in html
     assert f'value="{suggested.pk}" selected' in html
+    assert 'name="form_action" value="select_all"' in html
+    assert 'name="form_action" value="clear_selection"' in html
+    assert 'name="source_enrollment_ids"' in html
+    assert 'name="select_all"' not in html
+    assert 'name="all_source_enrollment_ids"' not in html
+    assert "LOTADA" in html
     assert f'value="{repetition.pk}" selected' not in html
     assert str(exceptional.pk) in html
     assert "repetência (justifique)" in html
@@ -787,16 +1020,86 @@ def test_reenrollment_preselects_only_unique_pedagogical_destination(client, use
     assert reverse("student_profile", args=[source.student_id]) not in html
 
     assert client.post(reverse("reenrollment_batch"), {}).status_code == 405
+    cleared = client.post(
+        reverse("reenrollment_batch_confirm"),
+        {
+            "source_class_id": records[1].pk,
+            "batch_submitted": "1",
+            "form_action": "clear_selection",
+            "source_enrollment_ids": [source.pk, second_source.pk],
+            f"target_{source.pk}": suggested.pk,
+            f"version_{source.pk}": source.version,
+            f"reason_{source.pk}": "Destino preservado um",
+            f"target_{second_source.pk}": suggested.pk,
+            f"version_{second_source.pk}": second_source.version,
+            f"reason_{second_source.pk}": "Destino preservado dois",
+        },
+    )
+    cleared_html = cleared.content.decode()
+    assert cleared.status_code == 200
+    assert "data-reenrollment-row checked" not in cleared_html
+    assert 'value="Destino preservado um"' in cleared_html
+    assert 'value="Destino preservado dois"' in cleared_html
+
+    from enrollments.models import EnrollmentApplication
+
+    reenrollments = EnrollmentApplication.objects.filter(application_type="REENROLLMENT")
+    assert reenrollments.count() == 0
+
+    selected_all = client.post(
+        reverse("reenrollment_batch_confirm"),
+        {
+            "source_class_id": records[1].pk,
+            "batch_submitted": "1",
+            "form_action": "select_all",
+            f"target_{source.pk}": suggested.pk,
+            f"version_{source.pk}": source.version,
+            f"reason_{source.pk}": "Destino preservado um",
+            f"target_{second_source.pk}": suggested.pk,
+            f"version_{second_source.pk}": second_source.version,
+            f"reason_{second_source.pk}": "Destino preservado dois",
+        },
+    )
+    selected_all_html = selected_all.content.decode()
+    assert selected_all.status_code == 200
+    assert selected_all_html.count("data-reenrollment-row checked") == 2
+    assert selected_all_html.count(f'value="{suggested.pk}" selected') == 2
+    assert reenrollments.count() == 0
+
+    failed = client.post(
+        reverse("reenrollment_batch_confirm"),
+        {
+            "source_class_id": records[1].pk,
+            "batch_submitted": "1",
+            "form_action": "confirm",
+            "source_enrollment_ids": [source.pk],
+            f"target_{source.pk}": "",
+            f"version_{source.pk}": source.version,
+            f"reason_{source.pk}": "Escolha preservada",
+        },
+    )
+    failed_html = failed.content.decode()
+    assert failed.status_code == 200
+    assert f'value="{source.pk}" data-reenrollment-row checked' in failed_html
+    assert f'value="{second_source.pk}" data-reenrollment-row checked' not in failed_html
+    assert 'value="Escolha preservada"' in failed_html
+
     confirmed = client.post(
         reverse("reenrollment_batch_confirm"),
         {
             "source_class_id": records[1].pk,
+            "form_action": "confirm",
             "source_enrollment_ids": [source.pk],
+            "select_all": "1",
             f"target_{source.pk}": suggested.pk,
             f"version_{source.pk}": source.version,
             f"reason_{source.pk}": "",
+            f"target_{second_source.pk}": suggested.pk,
+            f"version_{second_source.pk}": second_source.version,
         },
     )
     assert confirmed.status_code == 302
     assert confirmed.url == reverse("reenrollment_batch")
     assert client.get(confirmed.url).status_code == 200
+    assert reenrollments.count() == 1
+    assert reenrollments.get().student_id == source.student_id

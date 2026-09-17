@@ -85,7 +85,7 @@
             </div>
             <div class="header-center mx-auto d-none d-lg-flex align-items-center justify-content-center">
                 {% if is_platform_schema %}
-                <div class="header-school-brand d-inline-flex align-items-center gap-3">
+                <div class="header-school-brand d-inline-flex align-items-center gap-2">
                     <div class="avatar-text avatar-sm bg-soft-primary text-primary header-school-fallback">
                         P
                     </div>
@@ -95,7 +95,7 @@
                 </div>
                 {% elif current_school %}
                 <a href="{% url 'school_settings_detail' %}"
-                   class="header-school-brand d-inline-flex align-items-center gap-3 text-decoration-none">
+                   class="header-school-brand d-inline-flex align-items-center gap-2 text-decoration-none">
                     {% if current_school.logo %}
                     <img src="{{ current_school.logo.url }}"
                          alt="Logotipo de {{ current_school.name }}"
@@ -222,6 +222,7 @@
     <script src="{% static 'js/common-init.min.js' %}"></script>
     <script src="{% static 'js/htmx.min.js' %}"></script>
     <script src="{% static 'js/pwa.js' %}"></script>
+    <script src="{% static 'js/sm-image-picker.js' %}"></script>
     <script src="{% static 'js/sm-floating-dropdowns.js' %}"></script>
     <script src="{% static 'js/sm-activity-score-feedback.js' %}"></script>
     <script src="{% static 'js/sm-schedule-modals.js' %}"></script>

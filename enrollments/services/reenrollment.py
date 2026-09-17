@@ -15,10 +15,20 @@ class ReenrollmentService(BaseService):
         from classes.contracts import GRADE_PEDAGOGICAL_ORDER, Class, Enrollment
         from enrollments.models import EnrollmentApplication
         from enrollments.services.applications import EnrollmentApplicationService
+        from enrollments.services.validation import ApplicationValidationMixin
         from students.contracts import Student
 
         if not mappings:
             raise ValidationError(errors={"mappings": ["Selecione ao menos um aluno."]})
+        normalized_reasons = []
+        for mapping in mappings:
+            if not isinstance(mapping, dict):
+                raise ValidationError(errors={"mappings": ["Informe um mapeamento válido."]})
+            normalized_reasons.append(
+                ApplicationValidationMixin._normalize_notes(
+                    mapping.get("exception_reason", ""), "exception_reason"
+                )
+            )
         try:
             source_ids = sorted(
                 str(UUID(str(item.get("source_enrollment_id", "")))) for item in mappings
@@ -56,7 +66,7 @@ class ReenrollmentService(BaseService):
             .order_by("pk")
         }
         created = []
-        for mapping in mappings:
+        for mapping, exception_reason in zip(mappings, normalized_reasons, strict=True):
             source_id = str(mapping.get("source_enrollment_id", ""))
             target_id = str(mapping.get("target_class_id", ""))
             source = sources.get(source_id)
@@ -90,7 +100,7 @@ class ReenrollmentService(BaseService):
             is_standard_progression = bool(
                 next_grade and target.grade == next_grade and target.shift == source.class_obj.shift
             )
-            if not is_standard_progression and not str(mapping.get("exception_reason", "")).strip():
+            if not is_standard_progression and not exception_reason:
                 raise ValidationError(
                     errors={"exception_reason": ["Justifique o destino pedagógico excepcional."]}
                 )
@@ -101,7 +111,7 @@ class ReenrollmentService(BaseService):
                         "source_enrollment_id": source.pk,
                         "target_class_id": target.pk,
                         "application_type": EnrollmentApplication.ApplicationType.REENROLLMENT,
-                        "notes": str(mapping.get("exception_reason", "")).strip(),
+                        "notes": exception_reason,
                         "priority": 10,
                     }
                 )

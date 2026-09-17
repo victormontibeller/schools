@@ -113,14 +113,18 @@ OFX/CSV bancário, PIX/boleto, webhooks financeiros e documentos fiscais.
 - Toda matrícula acadêmica nasce de uma solicitação interna para aluno já cadastrado. O workflow
   cobre matrícula nova, rematrícula, transferência interna, recebida e de saída.
 - Aprovar reserva vaga; se a capacidade estiver comprometida, a solicitação entra em lista de
-  espera, ordenada por prioridade e data, sem promoção automática.
+  espera, ordenada deterministicamente por maior prioridade e entrada mais antiga. A posição é
+  exibida por turma e não existe promoção automática.
 - Cada solicitação mantém protocolo anual `MAT-AAAA-NNNNNN`, versão concorrente e histórico
   append-only de transições. Recusa, correção, transferência e cancelamento exigem motivo.
 - Requisitos documentais são configurados por tipo e copiados para um checklist imutável na
   abertura. Documentos obrigatórios bloqueiam apenas a efetivação; Administrador pode dispensar
   um item com justificativa.
 - Rematrícula confirma atomicamente um mapeamento aluno–turma do ano seguinte. A interface sugere
-  a próxima série no mesmo turno e permite repetência ou exceção justificada.
+  a próxima série no mesmo turno, permite selecionar somente parte dos alunos e aceita repetência
+  ou exceção justificada. A atomicidade cobre exatamente o subconjunto confirmado.
+- Pré-matrícula e Correção necessária podem ser canceladas com motivo e versão esperada; o
+  encerramento libera o aluno/ano para uma nova solicitação.
 - Rematrícula em lote e Requisitos documentais são capacidades independentes, delegáveis somente
   a Secretaria e Coordenação. Secretaria recebe rematrícula por padrão; a configuração documental
   não possui concessão padrão. A dispensa de item continua exclusiva do Administrador.

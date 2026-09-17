@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from students.models import Student
 
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+from base.image_services import image_updates
 from base.repositories import BaseRepository
 from base.services import BaseService
 
@@ -56,7 +57,7 @@ class StudentService(BaseService):
             raise ValidationError(errors={"enrollment_number": ["Matrícula já cadastrada."]})
 
         cpf_cleaned = self._validate_cpf(data)
-        student = Student.objects.create(
+        student = Student(
             first_name=data["first_name"].strip(),
             last_name=data["last_name"].strip(),
             birth_date=data["birth_date"],
@@ -69,12 +70,14 @@ class StudentService(BaseService):
             rg_number=data.get("rg_number", ""),
             phone_mobile=data.get("phone_mobile", ""),
             email=data.get("email", ""),
-            photo=data.get("photo"),
             accepts_email_notifications=bool(data.get("accepts_email_notifications")),
             accepts_whatsapp_notifications=bool(data.get("accepts_whatsapp_notifications")),
             created_by=self.user,
             updated_by=self.user,
         )
+        for key, value in image_updates(student, data, "photo").items():
+            setattr(student, key, value)
+        student.save()
         self._record_audit("INSERT", student)
         self._log("Aluno criado", student_id=str(student.pk))
         return student
@@ -83,8 +86,6 @@ class StudentService(BaseService):
         """Atualiza dados do aluno e registra auditoria com valores antigos."""
         repo = _StudentRepo()
         student = repo.get_by_id(student_id)
-        old_photo_name = student.photo.name
-        photo_storage = student.photo.storage
 
         # A edição inline pode enviar somente os campos alterados. Valida o
         # estado resultante, não apenas o fragmento submetido.
@@ -136,16 +137,14 @@ class StudentService(BaseService):
             )
             updates["cpf"] = cpf_cleaned
 
+        updates.pop("photo", None)
+        updates.update(image_updates(student, data, "photo"))
         updates["updated_by"] = self.user
         student = repo.update(
             student,
             expected_version=data.get("version", student.version),
             **updates,
         )
-        if "photo" in updates:
-            from base.media import delete_replaced_file_after_commit
-
-            delete_replaced_file_after_commit(photo_storage, old_photo_name, student.photo.name)
         self._record_audit("UPDATE", student, old_values=old)
         self._log("Aluno atualizado", student_id=str(student.pk))
         return student

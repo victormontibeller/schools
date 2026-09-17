@@ -73,6 +73,28 @@ class TestUpdateSchool:
     def test_update_succeeds(self, service, school):
         result = service.update_school(school.pk, {"legal_name": "Nova Razao"})
         assert result.legal_name == "Nova Razao"
+        assert result.updated_by_id == service.user.pk
+
+    def test_update_school_with_logo_preserves_actor_in_single_schema(
+        self, service, school, settings, tmp_path
+    ):
+        from io import BytesIO
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+
+        from audit.models import AuditLog
+
+        settings.MEDIA_ROOT = tmp_path
+        image = BytesIO()
+        Image.new("RGB", (3, 3), "blue").save(image, format="PNG")
+        result = service.update_school(
+            school.pk,
+            {"logo": SimpleUploadedFile("logo.png", image.getvalue(), content_type="image/png")},
+        )
+        result.refresh_from_db()
+        assert result.updated_by_id == service.user.pk
+        assert AuditLog.objects.get(object_id=str(school.pk)).user_id == service.user.pk
 
     def test_update_fails_when_school_not_found(self, service):
         import uuid

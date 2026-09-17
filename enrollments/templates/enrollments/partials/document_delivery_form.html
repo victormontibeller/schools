@@ -1,0 +1,32 @@
+<div class="card" id="application-documents-card">
+    <div class="card-header d-flex align-items-center justify-content-between gap-2">
+        <h6 class="card-title mb-0">Entregar {{ document.requirement_label }}</h6>
+        <a class="btn btn-outline-secondary btn-sm"
+           href="{% url 'enrollment_application_detail' document.application_id %}"
+           hx-get="{% url 'enrollment_application_detail' document.application_id %}"
+           hx-select="#application-documents-card"
+           hx-target="#application-documents-card"
+           hx-swap="outerHTML">Cancelar</a>
+    </div>
+    {% include "enrollments/partials/flash_messages.html" %}
+    <div class="card-body">
+        <p class="text-muted">Registre a entrega digital ou, quando permitida, a conferência física.</p>
+        <form method="post"
+              action="{% url 'enrollment_document_delivery' document.pk %}"
+              enctype="multipart/form-data"
+              hx-post="{% url 'enrollment_document_delivery' document.pk %}"
+              hx-encoding="multipart/form-data"
+              hx-target="#application-documents-card"
+              hx-swap="outerHTML">
+            {% csrf_token %}
+            <div class="row g-3">
+                {% for field in form %}
+                <div class="col-12">{% include "partials/form_field.html" with field=field %}</div>
+                {% endfor %}
+            </div>
+            <div class="d-flex justify-content-end mt-3">
+                <button class="btn btn-primary btn-sm" type="submit">Registrar entrega</button>
+            </div>
+        </form>
+    </div>
+</div>

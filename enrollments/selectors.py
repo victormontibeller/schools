@@ -27,6 +27,10 @@ class ApplicationDetail:
     transitions: tuple[object, ...]
     capacity: ClassCapacity | None
     has_pending_required_documents: bool
+    pending_required_document_count: int
+    can_finalize: bool
+    waitlist_position: int | None
+    waitlist_total: int | None
 
 
 class EnrollmentApplicationSelector(BaseSelector):
@@ -72,10 +76,17 @@ class EnrollmentApplicationSelector(BaseSelector):
         if document_status:
             queryset = queryset.filter(documents__status=document_status).distinct()
         if statuses == [self.model_class.Status.WAITLISTED]:
-            queryset = queryset.order_by("-priority", "waitlisted_at", "created_at")
+            queryset = queryset.order_by("-priority", "waitlisted_at", "created_at", "id")
         else:
             queryset = queryset.order_by("-created_at")
-        return self._paginate(queryset, page=page, page_size=page_size)
+        result = self._paginate(queryset, page=page, page_size=page_size)
+        if statuses == [self.model_class.Status.WAITLISTED]:
+            placements = self._waitlist_placements()
+            for application in result.items:
+                position, total = placements.get(application.pk, (None, None))
+                application.waitlist_position = position
+                application.waitlist_total = total
+        return result
 
     def status_counts(self) -> dict[str, int]:
         """Retorna contadores de todas as etapas em uma única consulta."""
@@ -126,20 +137,54 @@ class EnrollmentApplicationSelector(BaseSelector):
                 maximum=maximum,
                 available=max(maximum - committed - reserved, 0),
             )
-        pending_statuses = {
+        completed_statuses = {
             StudentDocument.Status.VERIFIED,
             StudentDocument.Status.WAIVED,
         }
+        pending_required_document_count = sum(
+            document.is_required and document.status not in completed_statuses
+            for document in documents
+        )
+        waitlist_position = None
+        waitlist_total = None
+        if application.status == EnrollmentApplication.Status.WAITLISTED:
+            waitlist_position, waitlist_total = self._waitlist_placements().get(
+                application.pk, (None, None)
+            )
         return ApplicationDetail(
             application=application,
             documents=documents,
             transitions=transitions,
             capacity=capacity,
-            has_pending_required_documents=any(
-                document.is_required and document.status not in pending_statuses
-                for document in documents
+            has_pending_required_documents=pending_required_document_count > 0,
+            pending_required_document_count=pending_required_document_count,
+            can_finalize=(
+                application.status == EnrollmentApplication.Status.APPROVED
+                and pending_required_document_count == 0
             ),
+            waitlist_position=waitlist_position,
+            waitlist_total=waitlist_total,
         )
+
+    def _waitlist_placements(self) -> dict[object, tuple[int, int]]:
+        """Calcula posições determinísticas por turma sem promover solicitações."""
+        waitlisted = list(
+            self.model_class.objects.filter(status=self.model_class.Status.WAITLISTED)
+            .values_list("pk", "target_class_id")
+            .order_by("target_class_id", "-priority", "waitlisted_at", "created_at", "id")
+        )
+        totals: dict[object, int] = {}
+        for _application_id, target_class_id in waitlisted:
+            totals[target_class_id] = totals.get(target_class_id, 0) + 1
+        positions: dict[object, int] = {}
+        placements: dict[object, tuple[int, int]] = {}
+        for application_id, target_class_id in waitlisted:
+            positions[target_class_id] = positions.get(target_class_id, 0) + 1
+            placements[application_id] = (
+                positions[target_class_id],
+                totals[target_class_id],
+            )
+        return placements
 
     def get_documents(self, application_id):
         """Retorna o snapshot documental da solicitação."""
@@ -262,6 +307,12 @@ class EnrollmentApplicationSelector(BaseSelector):
         for destination in destinations:
             destination.projected_enrollment_count = (
                 destination.active_enrollment_count + destination.approved_reservation_count
+            )
+            destination.is_at_capacity = (
+                destination.projected_enrollment_count >= destination.max_students
+            )
+            destination.is_over_capacity = (
+                destination.projected_enrollment_count > destination.max_students
             )
             destination.is_pedagogical_suggestion = bool(
                 next_grade

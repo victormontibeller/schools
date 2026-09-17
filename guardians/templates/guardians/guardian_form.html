@@ -26,13 +26,7 @@
           {% if guardian %}
           {% include "partials/person_profile_hero.html" with profile_avatar_field=form.avatar profile_has_image=guardian.avatar profile_image_url=profile_image_url profile_avatar_theme="bg-soft-purple text-purple" profile_initial=guardian.full_name profile_name=guardian.full_name profile_email=guardian.email %}
           {% else %}
-          <div class="sm-profile-hero text-center pb-3 mb-3 border-bottom">
-            <label for="{{ form.avatar.id_for_label }}" class="sm-profile-avatar-edit">
-              <span class="avatar-text avatar-xl bg-soft-purple text-purple mx-auto">+</span>
-            </label>
-            {{ form.avatar }}
-            {% for error in form.avatar.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-          </div>
+          {% include "partials/person_profile_hero.html" with profile_avatar_field=form.avatar profile_avatar_theme="bg-soft-purple text-purple" profile_initial="+" profile_name="Novo responsável" %}
           {% endif %}
           {% include "partials/person_form_fields.html" with form=form exclude_field="avatar" %}
         </div>

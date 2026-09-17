@@ -40,3 +40,18 @@ class VersionedModelForm(forms.ModelForm):
                     "Este registro foi alterado por outra pessoa. Recarregue os dados."
                 )
         return cleaned_data
+
+
+class ImageUploadField(forms.ImageField):
+    """Valida o mesmo conteúdo limitado aceito pelos services de imagem."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.widget.attrs["accept"] = "image/jpeg,image/png,image/webp"
+
+    def to_python(self, data):
+        from base.upload_validators import validate_image_upload
+
+        if data:
+            validate_image_upload(data)
+        return super().to_python(data)

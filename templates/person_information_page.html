@@ -1,0 +1,12 @@
+{% extends "page_shell_base.html" %}
+{% block title %}{{ title }} — School Manager{% endblock %}
+{% block page_heading %}{{ title }}{% endblock %}
+{% block page_breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+<li class="breadcrumb-item active">{{ title }}</li>
+{% endblock %}
+{% block page_content %}
+<div class="row g-3 align-items-start">
+    <div class="col-12 col-xl-5">{% include component_template %}</div>
+</div>
+{% endblock %}

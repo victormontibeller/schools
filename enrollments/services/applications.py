@@ -43,8 +43,8 @@ class EnrollmentApplicationService(
         "CANCELLED",
     )
     ALLOWED_TRANSITIONS = {
-        "PRE_ENROLLMENT": {"UNDER_REVIEW"},
-        "CORRECTION_REQUIRED": {"UNDER_REVIEW"},
+        "PRE_ENROLLMENT": {"UNDER_REVIEW", "CANCELLED"},
+        "CORRECTION_REQUIRED": {"UNDER_REVIEW", "CANCELLED"},
         "UNDER_REVIEW": {"CORRECTION_REQUIRED", "APPROVED", "WAITLISTED", "REJECTED", "CANCELLED"},
         "WAITLISTED": {"APPROVED", "CORRECTION_REQUIRED", "REJECTED", "CANCELLED"},
         "APPROVED": {"ENROLLED", "TRANSFERRED", "CORRECTION_REQUIRED", "CANCELLED"},
@@ -80,11 +80,14 @@ class EnrollmentApplicationService(
         source = self._resolve_source(
             command_data, application.application_type, application.student, Enrollment
         )
-        notes = str(data.get("notes", application.notes)).strip()
-        origin_school = str(data.get("origin_school", application.origin_school)).strip()
-        destination_school = str(
-            data.get("destination_school", application.destination_school)
-        ).strip()
+        notes = self._normalize_notes(data.get("notes", application.notes))
+        origin_school = self._normalize_school(
+            data.get("origin_school", application.origin_school), "origin_school"
+        )
+        destination_school = self._normalize_school(
+            data.get("destination_school", application.destination_school),
+            "destination_school",
+        )
         derived_year = target.academic_year if target else source.academic_year
         if derived_year != application.academic_year:
             raise BusinessRuleViolationError(
@@ -107,11 +110,16 @@ class EnrollmentApplicationService(
             "priority": self._validate_priority(data.get("priority", application.priority)),
             "updated_by": self.user,
         }
-        old = self._snapshot(application, [key for key in updates if key != "updated_by"])
+        old = self._snapshot(application)
         application = _ApplicationRepository().update(
             application, expected_version=expected_version, **updates
         )
-        self._record_audit("UPDATE", application, old_values=old)
+        self._record_audit(
+            "UPDATE",
+            application,
+            old_values=old,
+            new_values=self._snapshot(application),
+        )
         self._log("enrollment_application_corrected", application_id=str(application.pk))
         return application
 
@@ -328,6 +336,7 @@ class EnrollmentApplicationService(
         if new_status in self.REASON_REQUIRED_STATUSES:
             clean_reason = self._required_reason(clean_reason)
         old_status = application.status
+        old = self._snapshot(application)
         if new_status not in self.ALLOWED_TRANSITIONS.get(old_status, set()):
             raise BusinessRuleViolationError("Transição de situação inválida.")
         values = {"status": new_status, "updated_by": self.user, **(updates or {})}
@@ -343,8 +352,13 @@ class EnrollmentApplicationService(
             created_by=self.user,
             updated_by=self.user,
         )
-        self._record_audit("UPDATE", application, old_values={"status": old_status})
-        self._record_audit("INSERT", transition)
+        self._record_audit(
+            "UPDATE",
+            application,
+            old_values=old,
+            new_values=self._snapshot(application),
+        )
+        self._record_audit("INSERT", transition, new_values=self._snapshot(transition))
         self._log(
             "enrollment_application_transitioned",
             application_id=str(application.pk),

@@ -1,4 +1,4 @@
-<div class="sm-profile-hero d-flex flex-column flex-sm-row align-items-center text-center text-sm-start gap-3 pb-4 mb-4 border-bottom">
+<div class="sm-profile-hero d-flex flex-column flex-sm-row align-items-center text-center text-sm-start gap-3 pb-4 mb-4 border-bottom" data-image-picker data-image-fit="contain">
     <div class="sm-profile-avatar-picker flex-shrink-0">
         <label for="{{ form.logo.id_for_label }}" class="sm-profile-avatar-edit mb-0">
             {% if organization.logo %}
@@ -6,10 +6,15 @@
             {% else %}
             <div class="avatar-text avatar-xl bg-soft-primary text-primary">{{ organization.name|first|upper }}</div>
             {% endif %}
+            <span class="visually-hidden">Selecionar logotipo</span>
         </label>
         {{ form.logo }}
         {% for error in form.logo.errors %}<div class="invalid-feedback d-block text-center mt-2">{{ error }}</div>{% endfor %}
     </div>
-    <div class="min-w-0"><h5 class="mb-1">{{ organization.name }}</h5><p class="text-muted mb-0">Clique no logotipo para alterá-lo.</p></div>
+    <div class="min-w-0">
+        <h5 class="mb-1">{{ organization.name }}</h5>
+        <p class="text-muted mb-0">Clique no logotipo para alterá-lo.</p>
+        <p class="small text-muted mb-0 mt-2" role="status" aria-live="polite" data-image-status></p>
+    </div>
 </div>
 {% include "partials/person_form_fields.html" with form=form exclude_field="logo" %}

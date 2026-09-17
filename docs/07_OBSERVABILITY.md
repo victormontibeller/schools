@@ -61,6 +61,11 @@ Toda requisição HTTP deverá possuir um **Correlation ID** único.
 Access logs do Gunicorn registram somente `%U` (caminho) e o Traefik descarta query parameters.
 Tokens, PII e texto bruto de exceções não podem ser incluídos em mensagens ou campos extras.
 
+O logger `PIL` permanece em `WARNING`, com handler de console e sem propagação, em todos os
+ambientes, mesmo quando o logger raiz está em `DEBUG`. O diagnóstico interno do Pillow pode
+incluir metadados EXIF e ICC pessoais antes da remoção; esse nível mantém os avisos sem emitir
+os detalhes de depuração das imagens.
+
 ---
 
 ## Métricas Obrigatórias

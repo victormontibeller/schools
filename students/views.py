@@ -10,6 +10,7 @@ from base.exceptions import (
 from base.forms import apply_validation_errors, submitted_form_data
 from base.listing import build_querystring, build_sorting, resolve_listing_state
 from base.media import private_file_response
+from base.views import render_component_form
 from students.forms import StudentEditForm, StudentForm
 from students.selectors import StudentSelector
 from students.services import StudentService
@@ -128,12 +129,11 @@ def student_edit(request, pk):
     else:
         form = StudentEditForm(instance=student)
 
-    if not request.headers.get("HX-Request"):
-        return redirect("student_profile", pk=pk)
-    return render(
+    return render_component_form(
         request,
         "students/partials/student_information_form.html",
         {"form": form, "student": student},
+        title="Editar aluno",
     )
 
 
@@ -177,13 +177,18 @@ def student_guardian_create(request, pk):
         try:
             data = form.cleaned_data
             GuardianService(user=request.user).create_and_link_student(student.pk, data, data)
+            if not request.headers.get("HX-Request"):
+                return redirect("student_profile", pk=student.pk)
             return _render_guardians_card(request, student, saved=True)
         except ValidationError as exc:
             apply_validation_errors(form, exc)
         except BusinessRuleViolationError as exc:
             form.add_error(None, exc.message)
-    return render(
-        request, "students/partials/guardian_create_form.html", {"student": student, "form": form}
+    return render_component_form(
+        request,
+        "students/partials/guardian_create_form.html",
+        {"student": student, "form": form},
+        title="Novo responsável",
     )
 
 
@@ -290,13 +295,18 @@ def student_guardian_contact_edit(request, pk, link_pk):
     if request.method == "POST" and form.is_valid():
         try:
             GuardianService(user=request.user).update_guardian(guardian.pk, form.cleaned_data)
+            if not request.headers.get("HX-Request"):
+                return redirect("student_profile", pk=student.pk)
             return _render_guardians_card(request, student, saved=True)
         except ValidationError as exc:
             apply_validation_errors(form, exc)
-    return render(
+        except BusinessRuleViolationError as exc:
+            form.add_error(None, exc.message)
+    return render_component_form(
         request,
         "students/partials/guardian_contact_form.html",
         {"student": student, "link": link, "form": form},
+        title="Editar responsável",
     )
 
 

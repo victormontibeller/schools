@@ -1,0 +1,20 @@
+<div class="col-12" id="application-context-fields">
+    <div class="row g-2">
+    {% if selected_application_type == "NEW" %}
+        <div class="col-12 col-md-6">{% include "partials/form_field.html" with field=form.target_class_id %}</div>
+    {% elif selected_application_type == "REENROLLMENT" or selected_application_type == "INTERNAL_TRANSFER" %}
+        <div class="col-12 col-md-6">{% include "partials/form_field.html" with field=form.source_enrollment_id %}</div>
+        <div class="col-12 col-md-6">{% include "partials/form_field.html" with field=form.target_class_id %}</div>
+    {% elif selected_application_type == "INBOUND_TRANSFER" %}
+        <div class="col-12 col-md-6">{% include "partials/form_field.html" with field=form.origin_school %}</div>
+        <div class="col-12 col-md-6">{% include "partials/form_field.html" with field=form.target_class_id %}</div>
+    {% elif selected_application_type == "OUTBOUND_TRANSFER" %}
+        <div class="col-12 col-md-6">{% include "partials/form_field.html" with field=form.source_enrollment_id %}</div>
+        <div class="col-12 col-md-6">{% include "partials/form_field.html" with field=form.destination_school %}</div>
+    {% else %}
+        <div class="col-12">
+            <p class="form-text mb-0">Selecione o tipo para exibir os campos necessários.</p>
+        </div>
+    {% endif %}
+    </div>
+</div>

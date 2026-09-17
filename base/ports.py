@@ -62,3 +62,19 @@ def can_execute(
     if _authorization_port is None:
         raise RuntimeError("Porta de autorização não registrada.")
     return _authorization_port.can_execute(user, app_label, method_name, service_name)
+
+
+_media_reference_port = None
+
+
+def register_media_reference_port(port) -> None:
+    """Registra a consulta de referências de mídia, incluindo registros inativos."""
+    global _media_reference_port
+    _media_reference_port = port
+
+
+def media_is_referenced(storage, name: str) -> bool:
+    """Falha fechada se o catálogo completo de referências estiver indisponível."""
+    if _media_reference_port is None:
+        raise RuntimeError("Porta de referências de mídia não registrada.")
+    return _media_reference_port(storage, name)

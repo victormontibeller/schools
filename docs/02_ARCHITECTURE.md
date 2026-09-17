@@ -212,6 +212,11 @@ públicas sem contrato explícito sempre falham.
   diferentes sem compartilhar senha, sessão ou permissões.
 - Operadores do `public` administram escolas e operadores sem acesso ou impersonação de tenants.
 
+Em desenvolvimento (`DEBUG=True`), Django entrega `/media/` exclusivamente pelo storage
+público (`media/public`), inclusive no `runserver` local. A rota não existe com `DEBUG=False`;
+em produção, o Nginx entrega essa mesma pasta. `media/private` continua acessível somente
+pelos endpoints autenticados de cada domínio.
+
 ## Autorização escolar
 
 - `RoleModuleAccess` guarda a matriz tenant-specific dos cinco papéis configuráveis. Administrador

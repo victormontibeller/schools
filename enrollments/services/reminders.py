@@ -9,6 +9,7 @@ from django.utils import timezone
 from base.context import active_tenant_schema, require_tenant_schema
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError
 from base.services import BaseService, system_command
+from enrollments.services.validation import ApplicationValidationMixin
 
 logger = logging.getLogger(__name__)
 
@@ -46,11 +47,11 @@ class EnrollmentReminderService(BaseService):
                 defaults={"created_by": self.user, "updated_by": self.user},
             )
             if created:
-                self._record_audit("INSERT", reminder)
+                self._record_audit("INSERT", reminder, new_values=self._snapshot(reminder))
             if created:
                 reminders.append(reminder)
             elif reminder.status == EnrollmentReminder.Status.FAILED:
-                old = self._snapshot(reminder, ["status", "message_log_id"])
+                old = self._snapshot(reminder)
                 reminder.status = EnrollmentReminder.Status.PENDING
                 reminder.message_log_id = None
                 reminder.sent_at = None
@@ -64,7 +65,12 @@ class EnrollmentReminderService(BaseService):
                         "updated_at",
                     ]
                 )
-                self._record_audit("UPDATE", reminder, old_values=old)
+                self._record_audit(
+                    "UPDATE",
+                    reminder,
+                    old_values=old,
+                    new_values=self._snapshot(reminder),
+                )
                 reminders.append(reminder)
         if reminders:
             from enrollments.tasks import send_enrollment_document_reminder
@@ -130,11 +136,17 @@ class EnrollmentReminderService(BaseService):
         require_tenant_schema(tenant_schema)
         from enrollments.models import EnrollmentReminder
 
+        normalized_reminder_id = ApplicationValidationMixin._normalize_uuid(
+            reminder_id, "reminder_id"
+        )
+        normalized_message_log_id = ApplicationValidationMixin._normalize_optional_uuid(
+            message_log_id, "message_log_id"
+        )
         try:
             reminder = (
                 EnrollmentReminder.objects.select_for_update()
                 .select_related("recipient", "application")
-                .get(pk=reminder_id)
+                .get(pk=normalized_reminder_id)
             )
         except EnrollmentReminder.DoesNotExist:
             raise ObjectNotFoundError("EnrollmentReminder", str(reminder_id)) from None
@@ -148,19 +160,24 @@ class EnrollmentReminderService(BaseService):
         if not EnrollmentApplicationSelector().is_reminder_recipient_eligible(
             reminder.application_id, reminder.recipient_id
         ):
-            old = {"status": reminder.status}
+            old = self._snapshot(reminder)
             reminder.status = EnrollmentReminder.Status.FAILED
             reminder.sent_at = None
             reminder.updated_by = self.user
             reminder.save(update_fields=["status", "sent_at", "updated_by", "updated_at"])
-            self._record_audit("UPDATE", reminder, old_values=old)
+            self._record_audit(
+                "UPDATE",
+                reminder,
+                old_values=old,
+                new_values=self._snapshot(reminder),
+            )
             self._log(
                 "enrollment_reminder_recipient_ineligible",
                 reminder_id=str(reminder.pk),
             )
             return None
         if reminder.status == EnrollmentReminder.Status.SENDING:
-            if message_log_id and str(reminder.message_log_id) == str(message_log_id):
+            if normalized_message_log_id and reminder.message_log_id == normalized_message_log_id:
                 return reminder if self._reconcile_stale_message_log(reminder) else None
             if (
                 not message_log_id
@@ -169,9 +186,9 @@ class EnrollmentReminderService(BaseService):
             ):
                 return reminder if self._reconcile_stale_message_log(reminder) else None
             return None
-        if reminder.status != EnrollmentReminder.Status.PENDING or message_log_id:
+        if reminder.status != EnrollmentReminder.Status.PENDING or normalized_message_log_id:
             return None
-        old = {"status": reminder.status}
+        old = self._snapshot(reminder)
         if reminder.message_log_id is None:
             from notifications.delivery_services import MessageDeliveryService
 
@@ -183,7 +200,19 @@ class EnrollmentReminderService(BaseService):
             reminder.message_log_id = message_log.pk
         reminder.status = EnrollmentReminder.Status.SENDING
         reminder.save(update_fields=["status", "message_log_id", "updated_at"])
-        self._record_audit("UPDATE", reminder, old_values=old)
+        self._record_audit(
+            "UPDATE",
+            reminder,
+            old_values=old,
+            new_values=self._snapshot(reminder),
+        )
+        self._log(
+            "enrollment_reminder_claimed",
+            reminder_id=str(reminder.pk),
+            message_log_id=str(reminder.message_log_id),
+            from_status=EnrollmentReminder.Status.PENDING,
+            to_status=EnrollmentReminder.Status.SENDING,
+        )
         return reminder
 
     @system_command
@@ -212,10 +241,15 @@ class EnrollmentReminderService(BaseService):
                     if not self._reconcile_stale_message_log(reminder):
                         continue
                 else:
-                    old = self._snapshot(reminder, ["status", "updated_at"])
+                    old = self._snapshot(reminder)
                     reminder.updated_by = self.user
                     reminder.save(update_fields=["updated_by", "updated_at"])
-                    self._record_audit("UPDATE", reminder, old_values=old)
+                    self._record_audit(
+                        "UPDATE",
+                        reminder,
+                        old_values=old,
+                        new_values=self._snapshot(reminder),
+                    )
                     self._log(
                         "enrollment_reminder_pending_recovered",
                         reminder_id=str(reminder.pk),
@@ -259,12 +293,17 @@ class EnrollmentReminderService(BaseService):
             if reminder.message_log_id
             else None
         )
-        old = self._snapshot(reminder, ["status", "sent_at", "updated_at"])
+        old = self._snapshot(reminder)
         if message_log and message_log.status == MessageLog.Status.PENDING:
             reminder.updated_at = timezone.now()
             reminder.updated_by = self.user
             reminder.save(update_fields=["updated_at", "updated_by"])
-            self._record_audit("UPDATE", reminder, old_values=old)
+            self._record_audit(
+                "UPDATE",
+                reminder,
+                old_values=old,
+                new_values=self._snapshot(reminder),
+            )
             self._log(
                 "enrollment_reminder_claim_resumed",
                 reminder_id=str(reminder.pk),
@@ -288,7 +327,12 @@ class EnrollmentReminderService(BaseService):
         )
         reminder.updated_by = self.user
         reminder.save(update_fields=["status", "sent_at", "updated_by", "updated_at"])
-        self._record_audit("UPDATE", reminder, old_values=old)
+        self._record_audit(
+            "UPDATE",
+            reminder,
+            old_values=old,
+            new_values=self._snapshot(reminder),
+        )
         self._log(
             "enrollment_reminder_abandoned_claim_closed",
             reminder_id=str(reminder.pk),
@@ -309,8 +353,14 @@ class EnrollmentReminderService(BaseService):
         require_tenant_schema(tenant_schema)
         from enrollments.models import EnrollmentReminder
 
+        normalized_reminder_id = ApplicationValidationMixin._normalize_uuid(
+            reminder_id, "reminder_id"
+        )
+        normalized_message_log_id = ApplicationValidationMixin._normalize_optional_uuid(
+            message_log_id, "message_log_id"
+        )
         try:
-            reminder = EnrollmentReminder.objects.select_for_update().get(pk=reminder_id)
+            reminder = EnrollmentReminder.objects.select_for_update().get(pk=normalized_reminder_id)
         except EnrollmentReminder.DoesNotExist:
             raise ObjectNotFoundError("EnrollmentReminder", str(reminder_id)) from None
         if reminder.status == EnrollmentReminder.Status.SENT:
@@ -321,22 +371,27 @@ class EnrollmentReminderService(BaseService):
         }:
             return reminder
         if (
-            message_log_id
+            normalized_message_log_id
             and reminder.message_log_id
-            and str(message_log_id) != str(reminder.message_log_id)
+            and normalized_message_log_id != reminder.message_log_id
         ):
             return reminder
-        old = {"status": reminder.status}
+        old = self._snapshot(reminder)
         reminder.status = (
             EnrollmentReminder.Status.SENT if success else EnrollmentReminder.Status.FAILED
         )
-        reminder.message_log_id = message_log_id or reminder.message_log_id
+        reminder.message_log_id = normalized_message_log_id or reminder.message_log_id
         reminder.sent_at = timezone.now() if success else None
         reminder.updated_by = self.user
         reminder.save(
             update_fields=["status", "message_log_id", "sent_at", "updated_by", "updated_at"]
         )
-        self._record_audit("UPDATE", reminder, old_values=old)
+        self._record_audit(
+            "UPDATE",
+            reminder,
+            old_values=old,
+            new_values=self._snapshot(reminder),
+        )
         self._log(
             "enrollment_reminder_result_recorded",
             reminder_id=str(reminder.pk),

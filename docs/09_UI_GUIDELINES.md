@@ -160,6 +160,18 @@
 - Usuários seguem o mesmo padrão de perfil, incluindo avatar editável no topo.
 - **Unidades** é a nomenclatura da entidade `BusinessUnit`; não usar “Empresas” na interface atual. Escola é a configuração do tenant e permanece distinta de Unidades.
 - Unidade e Escola exibem e editam o logotipo no topo do card de informações.
+- No cabeçalho global, logotipo e monograma medem 32×32 px, com nome de 1rem truncado
+  quando necessário. Na ficha de Escola e Unidade, o logotipo ocupa 64×64 px ao lado do
+  nome, sem aumentar a altura pela proporção da imagem; usar `object-fit: contain`.
+- A seleção de logo/avatar/foto em Escola, Unidades, Usuários, Professores, Responsáveis e Alunos
+  usa `sm-image-picker.js` e os componentes compartilhados de pessoa/organização, com prévia
+  local imediata, inclusive em
+  formulários carregados por HTMX, com a indicação “Prévia — clique em Salvar para confirmar”.
+  Selecionar não grava a imagem; cancelar a seleção preserva a prévia atual e cancelar a edição
+  preserva a imagem salva. Falhas de prévia são anunciadas em uma região acessível. Sem
+  JavaScript, o formulário mantém o envio POST multipart pelo botão Salvar. Editar usa `href`
+  real; o mesmo fragmento é renderizado em `person_information_page.html` no GET/POST comum,
+  preservando erros, cancelamento e CSRF, inclusive para responsáveis dentro da ficha do aluno.
 - Matrículas de professor e aluno são informativas e somente leitura; o sistema as gera ao salvar.
 - Na edição do aluno, o e-mail é somente leitura e as observações internas permanecem no card de
   informações; o backend repete ambos os contratos e não confia no atributo HTML `readonly`.
@@ -267,6 +279,11 @@
   direita. Matrícula de origem, escolas envolvidas e observações permanecem visíveis na revisão.
   Ações HTMX substituem somente o card afetado, mostram seu feedback no próprio fragmento e
   mantêm `action`, CSRF e fallback HTTP real.
+- A efetivação fica visualmente indisponível enquanto houver documentos obrigatórios pendentes,
+  com quantidade e link para o checklist. Uma ação documental atualiza o checklist e o estado do
+  card de processo por OOB; sem JavaScript, a ficha completa é recarregada.
+- A lista de espera exibe posição e total por turma e explica a ordenação por maior prioridade e
+  entrada mais antiga. Aprovação sem vaga informa a posição obtida e não promove outra solicitação.
 - A ficha da turma oferece Abrir solicitação com a turma predefinida. A relação de matriculados é
   somente leitura; não existe formulário de vínculo direto em `classes`.
 - Entrega documental digital usa `multipart/form-data` e `hx-encoding` quando aplicável; entrega
@@ -276,6 +293,11 @@
   existentes. A dispensa de um item materializado continua exclusiva do Administrador.
 - A busca de aluno aceita nome ou matrícula, preserva a seleção fora da primeira página e oferece
   botão de busca server-side como fallback sem JavaScript.
+- A criação mostra somente os campos contextuais ao tipo e atualiza matrículas de origem ao trocar
+  o aluno. A mesma rota atende o fragmento HTMX e o botão server-side de atualização do contexto.
+- A rematrícula em lote oferece seleção individual e ações server-side para selecionar todos ou
+  limpar a seleção, exige destino apenas nas linhas marcadas, preserva destinos e motivos ao
+  recompor o workspace e sinaliza destinos lotados sem impedir a seleção.
 
 ## HTMX, acessibilidade e feedback
 

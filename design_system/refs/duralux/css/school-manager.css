@@ -515,6 +515,10 @@ html.app-skin-dark .sm-sticky-table--first-column > tbody > tr:hover > :first-ch
     object-fit: cover;
 }
 
+[data-image-fit="contain"] .sm-profile-avatar {
+    object-fit: contain;
+}
+
 .sm-profile-card-body {
     min-height: 470px;
     display: flex;
@@ -535,6 +539,21 @@ html.app-skin-dark .sm-sticky-table--first-column > tbody > tr:hover > :first-ch
 .sm-profile-hero {
     min-height: 118px;
     flex-shrink: 0;
+}
+
+.sm-organization-hero {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-height: 64px;
+}
+
+.sm-organization-logo {
+    width: 64px;
+    height: 64px;
+    flex-shrink: 0;
+    border-radius: 12px;
+    object-fit: contain;
 }
 
 .sm-subject-item {
@@ -796,10 +815,10 @@ html.app-skin-dark .sm-schedule-modal .btn-close {
 }
 
 .header-school-brand {
-    max-width: 720px;
-    padding: 14px 24px;
+    max-width: min(480px, 100%);
+    padding: 6px 12px;
     border: 1px solid #e2e8f0;
-    border-radius: 24px;
+    border-radius: 12px;
     color: #0f172a;
     background: linear-gradient(135deg, #fff 0%, #f8fbff 100%);
     box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
@@ -811,16 +830,18 @@ html.app-skin-dark .sm-schedule-modal .btn-close {
 }
 
 .header-school-logo {
-    width: 72px;
-    height: 72px;
-    border-radius: 22px;
-    object-fit: cover;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    object-fit: contain;
 }
 
 .header-school-fallback {
-    width: 72px;
-    height: 72px;
-    border-radius: 22px;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    border-radius: 8px;
 }
 
 .header-school-copy {
@@ -830,7 +851,7 @@ html.app-skin-dark .sm-schedule-modal .btn-close {
 .header-school-copy span {
     display: block;
     overflow: hidden;
-    font-size: 1.45rem;
+    font-size: 1rem;
     font-weight: 700;
     line-height: 1.1;
     text-overflow: ellipsis;

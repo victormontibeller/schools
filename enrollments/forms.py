@@ -3,6 +3,7 @@
 from collections.abc import Iterable
 
 from django import forms
+from django.urls import reverse
 
 from enrollments.models import DocumentRequirement, EnrollmentApplication, StudentDocument
 
@@ -70,6 +71,22 @@ class EnrollmentApplicationForm(forms.Form):
             ("", "Não se aplica"),
             *enrollment_choices,
         ]
+        context_url = reverse("enrollment_application_create")
+        for field_name in ("student_id", "application_type"):
+            self.fields[field_name].widget.attrs.update(
+                {
+                    "hx-post": context_url,
+                    "hx-trigger": "change",
+                    "hx-target": "#application-context-fields",
+                    "hx-swap": "outerHTML",
+                    "hx-include": (
+                        "#primary-form input[name='csrfmiddlewaretoken'], "
+                        "#id_student_id, #id_application_type"
+                    ),
+                    "hx-vals": '{"form_action": "refresh_context"}',
+                    "hx-params": ("csrfmiddlewaretoken, student_id, application_type, form_action"),
+                }
+            )
 
 
 class DocumentDeliveryForm(forms.Form):

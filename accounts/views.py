@@ -22,6 +22,7 @@ from base.exceptions import (
 from base.forms import apply_validation_errors
 from base.listing import build_querystring, build_sorting, resolve_listing_state
 from base.media import private_file_response
+from base.views import render_component_form
 
 logger = logging.getLogger(__name__)
 
@@ -253,6 +254,8 @@ def user_edit_view(request, pk):
             user_obj = AccountService(user=request.user).update_user(pk, data)
         except ValidationError as exc:
             apply_validation_errors(form, exc)
+        except BusinessRuleViolationError as exc:
+            form.add_error(None, exc.message)
         else:
             if request.headers.get("HX-Request"):
                 return render(
@@ -261,12 +264,11 @@ def user_edit_view(request, pk):
                     {"user_obj": user_obj, "saved": True},
                 )
             return redirect("user_detail", pk=pk)
-    if not request.headers.get("HX-Request"):
-        return redirect("user_detail", pk=pk)
-    return render(
+    return render_component_form(
         request,
         "accounts/partials/user_information_form.html",
         {"form": form, "user_obj": user_obj},
+        title="Editar usuário",
     )
 
 

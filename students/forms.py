@@ -2,12 +2,18 @@
 
 from django import forms
 
-from base.forms import VersionedModelForm
+from base.forms import ImageUploadField, VersionedModelForm
 from students.models import Student
 
 
 class StudentForm(VersionedModelForm):
     """Formulário de cadastro e edição de aluno."""
+
+    photo = ImageUploadField(
+        required=False,
+        label="Foto",
+        widget=forms.FileInput(attrs={"class": "sm-profile-avatar-input"}),
+    )
 
     REQUIRED_FIELDS = (
         "first_name",

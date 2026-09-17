@@ -162,7 +162,9 @@ somente para scripts/estilos legados do tema e deverá ser removida conforme for
 
 ### Uploads
 
-- Imagens: JPEG, PNG ou WebP válidos, até 5 MiB.
+- Avatares, fotos e logotipos: JPEG, PNG ou WebP estáticos, íntegros, até 5 MiB e 25 megapixels.
+  Somente a versão WebP normalizada é armazenada, sem metadados pessoais; orientação, proporção
+  e transparência são preservadas. Services e forms validam conteúdo real, sem confiar na extensão.
 - Documentos: PDF, JPEG, PNG ou WebP válidos, até 10 MiB.
 - Documentos escolares são entregues por download autenticado, como anexo e sem cache público.
 

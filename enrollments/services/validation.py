@@ -1,5 +1,7 @@
 """Invariantes compartilhadas dos tipos de solicitação."""
 
+from uuid import UUID
+
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 
 
@@ -109,6 +111,35 @@ class ApplicationValidationMixin:
         return priority
 
     @staticmethod
+    def _normalize_uuid(value, field: str) -> UUID:
+        """Converte identificadores externos sem deixar erros do ORM escaparem."""
+        try:
+            return UUID(str(value))
+        except (TypeError, ValueError, AttributeError):
+            raise ValidationError(errors={field: ["Identificador inválido."]}) from None
+
+    @staticmethod
+    def _normalize_optional_uuid(value, field: str) -> UUID | None:
+        """Normaliza UUID opcional preservando ausência como ``None``."""
+        return ApplicationValidationMixin._normalize_uuid(value, field) if value else None
+
+    @staticmethod
+    def _normalize_school(value, field: str) -> str:
+        """Normaliza nomes de escola dentro do limite do schema persistido."""
+        school = str(value or "").strip()
+        if len(school) > 200:
+            raise ValidationError(errors={field: ["Informe no máximo 200 caracteres."]})
+        return school
+
+    @staticmethod
+    def _normalize_notes(value, field: str = "notes") -> str:
+        """Normaliza observações e justificativas dentro do limite persistido."""
+        notes = str(value or "").strip()
+        if len(notes) > 1000:
+            raise ValidationError(errors={field: ["Informe no máximo 1000 caracteres."]})
+        return notes
+
+    @staticmethod
     def _lock_application(application_id, expected_version: int):
         """Bloqueia aluno e solicitação antes de validar a versão otimista."""
         from enrollments.models import EnrollmentApplication
@@ -118,8 +149,11 @@ class ApplicationValidationMixin:
             expected = int(expected_version)
         except (TypeError, ValueError):
             raise ValidationError(errors={"expected_version": ["Versão inválida."]}) from None
+        normalized_application_id = ApplicationValidationMixin._normalize_uuid(
+            application_id, "application_id"
+        )
         student_id = (
-            EnrollmentApplication.objects.filter(pk=application_id)
+            EnrollmentApplication.objects.filter(pk=normalized_application_id)
             .values_list("student_id", flat=True)
             .first()
         )
@@ -127,7 +161,9 @@ class ApplicationValidationMixin:
             raise ObjectNotFoundError("EnrollmentApplication", str(application_id))
         Student.objects.select_for_update().get(pk=student_id)
         try:
-            application = EnrollmentApplication.objects.select_for_update().get(pk=application_id)
+            application = EnrollmentApplication.objects.select_for_update().get(
+                pk=normalized_application_id
+            )
         except EnrollmentApplication.DoesNotExist:
             raise ObjectNotFoundError("EnrollmentApplication", str(application_id)) from None
         if application.version != expected:

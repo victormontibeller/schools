@@ -1,11 +1,11 @@
 <div class="card mb-3 sm-profile-card" id="student-guardians-card">
     <div class="card-header d-flex align-items-center justify-content-between gap-2">
         <h6 class="card-title mb-0">Responsáveis</h6>
-        <button type="button" class="btn btn-sm btn-primary"
+        <a href="{% url 'student_guardian_create' student.pk %}" class="btn btn-sm btn-primary"
                 hx-get="{% url 'student_guardian_create' student.pk %}"
                 hx-target="#student-guardians-card" hx-swap="outerHTML">
             <i class="feather-plus me-1"></i> Adicionar
-        </button>
+        </a>
     </div>
     <div class="card-body sm-selection-card-body">
         {% if saved %}<div class="alert alert-success py-2" role="alert">Responsáveis atualizados com sucesso.</div>{% endif %}
@@ -22,8 +22,8 @@
             <div class="d-flex gap-1">
                 <button type="button" class="btn btn-sm btn-outline-primary" aria-label="Editar vínculo de {{ link.guardian.full_name }}"
                         hx-get="{% url 'student_guardian_link_edit' student.pk link.pk %}" hx-target="#student-guardians-card" hx-swap="outerHTML"><i class="feather-edit-2"></i></button>
-                <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Editar dados de {{ link.guardian.full_name }}"
-                        hx-get="{% url 'student_guardian_contact_edit' student.pk link.pk %}" hx-target="#student-guardians-card" hx-swap="outerHTML"><i class="feather-user"></i></button>
+                <a href="{% url 'student_guardian_contact_edit' student.pk link.pk %}" class="btn btn-sm btn-outline-secondary" aria-label="Editar dados de {{ link.guardian.full_name }}"
+                        hx-get="{% url 'student_guardian_contact_edit' student.pk link.pk %}" hx-target="#student-guardians-card" hx-swap="outerHTML"><i class="feather-user"></i></a>
                 <button type="button" class="btn btn-sm btn-outline-danger" aria-label="Desvincular {{ link.guardian.full_name }}"
                         hx-post="{% url 'student_guardian_unlink' student.pk link.pk %}" hx-target="#student-guardians-card" hx-swap="outerHTML" hx-confirm="Desvincular este responsável do aluno?"><i class="feather-x"></i></button>
             </div>

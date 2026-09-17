@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import logging
 import mimetypes
 import uuid
 from pathlib import Path
@@ -72,8 +74,30 @@ def private_file_response(field_file, *, as_attachment: bool) -> FileResponse:
     return response
 
 
-def delete_replaced_file_after_commit(storage, old_name: str, new_name: str) -> None:
+def delete_replaced_file_after_commit(
+    storage, old_name: str, new_name: str, *, check_references: bool = False
+) -> None:
     """Remove a versão substituída somente depois que a escrita for confirmada."""
     if not old_name or old_name == new_name:
         return
-    transaction.on_commit(lambda: storage.delete(old_name))
+
+    def cleanup():
+        try:
+            from base.ports import media_is_referenced
+
+            if not check_references or not media_is_referenced(storage, old_name):
+                storage.delete(old_name)
+        except Exception:
+            logging.getLogger(__name__).warning(
+                "media_cleanup_failed", extra={"reason_code": "reference_or_storage"}
+            )
+
+    transaction.on_commit(cleanup)
+
+
+def image_namespace(schema: str) -> str:
+    """Mantém paths em varchar(100), inclusive para schemas de 63 caracteres."""
+    namespace = schema
+    if len(namespace) <= 28:
+        return namespace
+    return "~s" + hashlib.sha256(namespace.encode("utf-8")).hexdigest()[:26]

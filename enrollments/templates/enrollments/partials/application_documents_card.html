@@ -39,7 +39,11 @@
                         <td>
                             <div class="d-flex flex-wrap gap-1">
                                 {% if can_edit_enrollment and document.status != 'VERIFIED' and document.status != 'WAIVED' %}
-                                <a class="btn btn-outline-primary btn-sm" href="{% url 'enrollment_document_delivery' document.pk %}">Entregar</a>
+                                <a class="btn btn-outline-primary btn-sm"
+                                   href="{% url 'enrollment_document_delivery' document.pk %}"
+                                   hx-get="{% url 'enrollment_document_delivery' document.pk %}"
+                                   hx-target="#application-documents-card"
+                                   hx-swap="outerHTML">Entregar</a>
                                 {% endif %}
                                 {% if document.file %}
                                 <a class="btn btn-outline-secondary btn-sm" href="{% url 'enrollment_document_download' document.pk %}">Baixar</a>
@@ -94,3 +98,6 @@
         </div>
     </div>
 </div>
+{% if include_process_card_oob %}
+    {% include "enrollments/partials/application_process_card.html" with process_card_oob=True htmx_messages=False %}
+{% endif %}

@@ -165,7 +165,7 @@ class TestAssignSubject:
         assert updated.registration_number == teacher.registration_number
         assert updated.user.first_name == "Marina"
         assert updated.user.last_name == "Oliveira"
-        assert updated.user.avatar.name.endswith(".png")
+        assert updated.user.avatar.name.endswith(".webp")
         assert "avatar" in updated.user.avatar.name
 
     def test_duplicate_assignment(self, user):

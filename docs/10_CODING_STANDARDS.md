@@ -97,3 +97,16 @@ class WhatsAppChannel(BaseChannel):
 - **Todo comando público declara seu contrato** — prefixo reconhecido, `@service_command` ou
   `@system_command`; o checker de services bloqueia omissões.
 - **Nenhum segredo em código** — credenciais via `School.settings` (tenant) ou variáveis de ambiente.
+
+## Imagens gerenciadas
+
+- Services de pessoas e organizações usam `base.image_services.image_updates(instance, data,
+  field_name)` dentro do comando `BaseService`; o helper grava a imagem normalizada e retorna o
+  nome pronto para `save()` ou compare-and-swap do repository. Ausência de upload preserva a foto.
+- Forms usam `ImageUploadField`, com a mesma validação de conteúdo de `base.images`; validação
+  server-side no service é obrigatória mesmo quando o form já validou o arquivo.
+- A porta de referências de mídia conecta `base` a `core.media_selectors.ImageSelector`, sem
+  dependência de domínio na camada base. Inclui registros inativos/excluídos e aliases de storage
+  com a mesma pasta física.
+- Testes isolam aliases e os FileFields já materializados via fixture global; mudar somente
+  `MEDIA_ROOT` ou `STORAGES` depois da inicialização do Django não é isolamento suficiente.

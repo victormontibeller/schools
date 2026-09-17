@@ -8,13 +8,21 @@
     <div class="col-12">
         <label class="form-label" for="student-search">Buscar aluno</label>
         <div class="input-group">
-        <input id="student-search" class="form-control" type="search" name="student_search" value="{{ student_search }}" placeholder="Nome ou matrícula"
-               hx-get="{% url 'enrollment_student_search' %}" hx-trigger="keyup changed delay:300ms, search"
-               hx-target="#id_student_id" hx-swap="innerHTML" aria-describedby="student-search-help">
+        <input id="student-search" class="form-control" type="search" name="student_search" value="{{ student_search }}" placeholder="Nome ou matrícula" aria-describedby="student-search-help">
         <button class="btn btn-outline-secondary" type="submit" name="form_action" value="search" formnovalidate>Buscar</button>
         </div>
         <div id="student-search-help" class="form-text">Use Buscar para atualizar as opções também sem JavaScript.</div>
     </div>
-    {% for field in form %}<div class="col-12{% if field.name == 'notes' %}{% else %} col-md-6{% endif %}">{% include "partials/form_field.html" with field=field %}</div>{% endfor %}
+    <div class="col-12 col-md-6">{% include "partials/form_field.html" with field=form.student_id %}</div>
+    <div class="col-12 col-md-6">{% include "partials/form_field.html" with field=form.application_type %}</div>
+    {% include "enrollments/partials/application_context_fields.html" %}
+    <div class="col-12 col-md-6">{% include "partials/form_field.html" with field=form.priority %}</div>
+    <div class="col-12">{% include "partials/form_field.html" with field=form.notes %}</div>
+    <div class="col-12">
+        <button class="btn btn-outline-secondary btn-sm" type="submit" name="form_action" value="refresh_context" formnovalidate>
+            Atualizar campos do tipo
+        </button>
+        <span class="form-text ms-2">Use este botão para atualizar os campos sem JavaScript.</span>
+    </div>
 </div>
 {% endblock %}

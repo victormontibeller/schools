@@ -1,4 +1,4 @@
-const CACHE_NAME = "schools-shell-v3";
+const CACHE_NAME = "schools-shell-v4";
 const SHELL = [
     "/offline/",
     "/static/css/bootstrap.min.css",

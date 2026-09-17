@@ -2,7 +2,9 @@
 
 from django.conf import settings
 from django.contrib import admin
-from django.urls import include, path
+from django.core.files.storage import storages
+from django.urls import include, path, re_path
+from django.views.static import serve
 
 from core.views import (
     access_settings,
@@ -64,6 +66,14 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:
+    urlpatterns += [
+        re_path(
+            r"^media/(?P<path>.*)$",
+            serve,
+            {"document_root": storages["public"].location},
+            name="development_public_media",
+        ),
+    ]
     try:
         import debug_toolbar
 

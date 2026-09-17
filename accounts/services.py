@@ -13,6 +13,7 @@ from django.utils import timezone
 
 from base.events import publish_task_after_commit
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+from base.image_services import image_updates
 from base.repositories import BaseRepository
 from base.services import BaseService, system_command
 
@@ -276,7 +277,9 @@ class AccountService(BaseService):
             except Role.DoesNotExist:
                 raise ObjectNotFoundError("Role", str(role_id)) from None
 
+        prepared = image_updates(candidate, data, "avatar")
         user = CustomUser.objects.create_user(
+            **prepared,
             email=data["email"],
             password=data["password"],
             first_name=data.get("first_name", ""),
@@ -298,9 +301,7 @@ class AccountService(BaseService):
             model_class = CustomUser
 
         user = UserRepo().get_by_id(user_id)
-        old_avatar_name = user.avatar.name
-        avatar_storage = user.avatar.storage
-        old = {"email": user.email, "first_name": user.first_name}
+        old = self._snapshot(user, ["email", "first_name", "avatar"])
         allowed = {"first_name", "last_name", "phone", "avatar", "is_active"}
         updates = {
             key: value
@@ -326,11 +327,11 @@ class AccountService(BaseService):
             else:
                 updates["role"] = None
         updates["updated_by"] = self.user
-        user = UserRepo().update(user, **updates)
-        if "avatar" in updates:
-            from base.media import delete_replaced_file_after_commit
-
-            delete_replaced_file_after_commit(avatar_storage, old_avatar_name, user.avatar.name)
+        updates.pop("avatar", None)
+        updates.update(image_updates(user, data, "avatar"))
+        user = UserRepo().update(
+            user, expected_version=data.get("version", user.version), **updates
+        )
         self._record_audit("UPDATE", user, old_values=old)
         self._log("Usuário atualizado", user_id=str(user.pk))
         return user

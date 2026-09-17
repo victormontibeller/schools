@@ -350,6 +350,7 @@ LOGGING = {
     "root": {"handlers": ["console"], "level": LOG_LEVEL},
     "loggers": {
         "django": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "PIL": {"handlers": ["console"], "level": "WARNING", "propagate": False},
     },
 }
 

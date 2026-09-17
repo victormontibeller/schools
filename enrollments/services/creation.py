@@ -34,9 +34,11 @@ class ApplicationCreationMixin:
         application_type = data["application_type"]
         if application_type not in EnrollmentApplication.ApplicationType.values:
             raise ValidationError(errors={"application_type": ["Tipo de solicitação inválido."]})
+        notes = self._normalize_notes(data.get("notes", ""))
         self._reject_inconsistent_fields(data, application_type)
+        student_id = self._normalize_uuid(data["student_id"], "student_id")
         try:
-            student = Student.objects.select_for_update().get(pk=data["student_id"])
+            student = Student.objects.select_for_update().get(pk=student_id)
         except Student.DoesNotExist:
             raise ObjectNotFoundError("Student", str(data["student_id"])) from None
         target_class = self._resolve_target(data, application_type, Class)
@@ -48,9 +50,11 @@ class ApplicationCreationMixin:
             application_type,
             target_class=target_class,
             source_enrollment=source_enrollment,
-            origin_school=str(data.get("origin_school", "")).strip(),
-            destination_school=str(data.get("destination_school", "")).strip(),
-            notes=str(data.get("notes", "")).strip(),
+            origin_school=self._normalize_school(data.get("origin_school", ""), "origin_school"),
+            destination_school=self._normalize_school(
+                data.get("destination_school", ""), "destination_school"
+            ),
+            notes=notes,
         )
         if application_type in {
             EnrollmentApplication.ApplicationType.NEW,
@@ -77,9 +81,11 @@ class ApplicationCreationMixin:
             application_number=number,
             application_type=application_type,
             priority=self._validate_priority(data.get("priority", 0)),
-            notes=str(data.get("notes", "")).strip(),
-            origin_school=str(data.get("origin_school", "")).strip(),
-            destination_school=str(data.get("destination_school", "")).strip(),
+            notes=notes,
+            origin_school=self._normalize_school(data.get("origin_school", ""), "origin_school"),
+            destination_school=self._normalize_school(
+                data.get("destination_school", ""), "destination_school"
+            ),
             created_by=self.user,
             updated_by=self.user,
         )
@@ -106,9 +112,9 @@ class ApplicationCreationMixin:
         if documents:
             StudentDocument.objects.bulk_create(documents)
             for document in documents:
-                self._record_audit("INSERT", document)
-        self._record_audit("INSERT", application)
-        self._record_audit("INSERT", transition)
+                self._record_audit("INSERT", document, new_values=self._snapshot(document))
+        self._record_audit("INSERT", application, new_values=self._snapshot(application))
+        self._record_audit("INSERT", transition, new_values=self._snapshot(transition))
         self._log(
             "enrollment_application_created",
             application_id=str(application.pk),
@@ -122,7 +128,8 @@ class ApplicationCreationMixin:
             return None
         self.validate_required(data, ["target_class_id"])
         try:
-            return class_model.objects.select_for_update().get(pk=data["target_class_id"])
+            target_class_id = self._normalize_uuid(data["target_class_id"], "target_class_id")
+            return class_model.objects.select_for_update().get(pk=target_class_id)
         except class_model.DoesNotExist:
             raise ObjectNotFoundError("Class", str(data["target_class_id"])) from None
 
@@ -130,11 +137,14 @@ class ApplicationCreationMixin:
         if application_type not in self.SOURCE_TYPES:
             return None
         self.validate_required(data, ["source_enrollment_id"])
+        source_enrollment_id = self._normalize_uuid(
+            data["source_enrollment_id"], "source_enrollment_id"
+        )
         try:
             source = (
                 enrollment_model.objects.select_for_update()
                 .select_related("class_obj")
-                .get(pk=data["source_enrollment_id"], student=student)
+                .get(pk=source_enrollment_id, student=student)
             )
         except enrollment_model.DoesNotExist:
             raise ObjectNotFoundError("Enrollment", str(data["source_enrollment_id"])) from None

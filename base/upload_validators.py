@@ -17,22 +17,9 @@ def _rewind(upload) -> None:
 
 def validate_image_upload(upload) -> None:
     """Aceita somente JPEG, PNG ou WebP íntegros até 5 MiB."""
-    if getattr(upload, "size", 0) > IMAGE_MAX_BYTES:
-        raise ValidationError("A imagem deve ter no máximo 5 MiB.")
-    try:
-        from PIL import Image
+    from base.images import decoded_image
 
-        _rewind(upload)
-        image = Image.open(upload)
-        image.verify()
-        if image.format not in ALLOWED_IMAGE_FORMATS:
-            raise ValidationError("Formato de imagem não permitido.")
-    except ValidationError:
-        raise
-    except Exception as exc:
-        raise ValidationError("Arquivo de imagem inválido.") from exc
-    finally:
-        _rewind(upload)
+    decoded_image(upload)
 
 
 def validate_document_upload(upload) -> None:
@@ -41,7 +28,23 @@ def validate_document_upload(upload) -> None:
         raise ValidationError("O documento deve ter no máximo 10 MiB.")
     suffix = Path(getattr(upload, "name", "")).suffix.lower()
     if suffix in {".jpg", ".jpeg", ".png", ".webp"}:
-        validate_image_upload(upload)
+        # Documentos não participam da política de fotos e logotipos.
+        if getattr(upload, "size", 0) > IMAGE_MAX_BYTES:
+            raise ValidationError("A imagem deve ter no máximo 5 MiB.")
+        try:
+            from PIL import Image
+
+            _rewind(upload)
+            image = Image.open(upload)
+            image.verify()
+            if image.format not in ALLOWED_IMAGE_FORMATS:
+                raise ValidationError("Formato de imagem não permitido.")
+        except ValidationError:
+            raise
+        except Exception as exc:
+            raise ValidationError("Arquivo de imagem inválido.") from exc
+        finally:
+            _rewind(upload)
         return
     if suffix != ".pdf":
         raise ValidationError("Envie um arquivo PDF, JPEG, PNG ou WebP.")

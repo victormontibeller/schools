@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from teachers.models import Subject, Teacher
 
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
+from base.image_services import image_updates
 from base.repositories import BaseRepository
 from base.services import BaseService
 
@@ -179,9 +180,11 @@ class TeacherService(BaseService):
         if subjects:
             teacher.subjects.set(subjects)
         if data.get("avatar"):
-            user.avatar = data["avatar"]
+            user_old = self._snapshot(user, ["avatar"])
+            user.avatar = image_updates(user, data, "avatar")["avatar"]
             user.updated_by = self.user
             user.save(update_fields=["avatar", "updated_by", "updated_at"])
+            self._record_audit("UPDATE", user, old_values=user_old)
         self._record_audit("INSERT", teacher)
         self._log("Professor criado", teacher_id=str(teacher.pk))
         return teacher
@@ -190,8 +193,6 @@ class TeacherService(BaseService):
         """Atualiza dados do professor e registra auditoria com valores antigos."""
         repo = _TeacherRepo()
         teacher = repo.get_by_id(teacher_id)
-        old_avatar_name = teacher.user.avatar.name
-        avatar_storage = teacher.user.avatar.storage
 
         self.validate_required(data, TEACHER_EDIT_REQUIRED_FIELDS)
 
@@ -213,6 +214,7 @@ class TeacherService(BaseService):
             updates["cpf"] = cpf_cleaned
 
         user_updates = self._person_user_updates(data)
+        user_updates.update(image_updates(teacher.user, data, "avatar"))
         if "email" in data:
             from core.contracts import CustomUser
 
@@ -227,12 +229,6 @@ class TeacherService(BaseService):
         for field, value in user_updates.items():
             setattr(teacher.user, field, value)
         teacher.user.save(update_fields=[*user_updates.keys(), "updated_at"])
-        if "avatar" in user_updates:
-            from base.media import delete_replaced_file_after_commit
-
-            delete_replaced_file_after_commit(
-                avatar_storage, old_avatar_name, teacher.user.avatar.name
-            )
 
         updates["updated_by"] = self.user
         teacher = repo.update(

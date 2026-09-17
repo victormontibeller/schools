@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from guardians.models import Guardian
 
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError
+from base.image_services import image_updates
 from base.repositories import BaseRepository
 from base.services import BaseService, service_command
 
@@ -51,12 +52,11 @@ class GuardianService(BaseService):
 
         cpf_cleaned = self._validate_cpf(data)
 
-        guardian = Guardian.objects.create(
+        guardian = Guardian(
             user=None,
             first_name=data["first_name"].strip(),
             last_name=data["last_name"].strip(),
             email=data.get("email", "").strip().lower(),
-            avatar=data.get("avatar"),
             birth_date=data.get("birth_date"),
             gender=data.get("gender", Guardian.Gender.NOT_INFORMED),
             cpf=cpf_cleaned if cpf_cleaned else "",
@@ -71,6 +71,9 @@ class GuardianService(BaseService):
             created_by=self.user,
             updated_by=self.user,
         )
+        for key, value in image_updates(guardian, data, "avatar").items():
+            setattr(guardian, key, value)
+        guardian.save()
         self._record_audit("INSERT", guardian)
         self._log("Responsavel criado", guardian_id=str(guardian.pk))
         return guardian
@@ -79,8 +82,6 @@ class GuardianService(BaseService):
         """Atualiza dados do responsável e registra auditoria com valores antigos."""
         repo = _GuardianRepo()
         guardian = repo.get_by_id(guardian_id)
-        old_avatar_name = guardian.avatar.name
-        avatar_storage = guardian.avatar.storage
 
         self.validate_required(data, GUARDIAN_EDIT_REQUIRED_FIELDS)
 
@@ -111,16 +112,14 @@ class GuardianService(BaseService):
         if "email" in updates:
             updates["email"] = updates["email"].strip().lower()
 
+        updates.pop("avatar", None)
+        updates.update(image_updates(guardian, data, "avatar"))
         updates["updated_by"] = self.user
         guardian = repo.update(
             guardian,
             expected_version=data.get("version", guardian.version),
             **updates,
         )
-        if "avatar" in updates:
-            from base.media import delete_replaced_file_after_commit
-
-            delete_replaced_file_after_commit(avatar_storage, old_avatar_name, guardian.avatar.name)
         self._record_audit("UPDATE", guardian, old_values=old)
         self._log("Responsavel atualizado", guardian_id=str(guardian.pk))
         return guardian

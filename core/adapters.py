@@ -36,3 +36,8 @@ def register_base_adapters() -> None:
 
     register_audit_port(AuditAdapter())
     register_authorization_port(AuthorizationAdapter())
+
+    from base.ports import register_media_reference_port
+    from core.media_selectors import ImageSelector
+
+    register_media_reference_port(ImageSelector.is_referenced)

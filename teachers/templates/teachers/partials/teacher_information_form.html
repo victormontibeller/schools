@@ -1,5 +1,5 @@
 <div class="card mb-0 sm-profile-card" id="teacher-information-card">
-    <form hx-post="{% url 'teacher_edit' teacher.pk %}"
+    <form method="post" action="{% url 'teacher_edit' teacher.pk %}" hx-post="{% url 'teacher_edit' teacher.pk %}"
           hx-encoding="multipart/form-data"
           hx-target="#teacher-information-card"
           hx-swap="outerHTML"
@@ -8,13 +8,11 @@
         <div class="card-header d-flex align-items-center justify-content-between gap-2">
             <h6 class="card-title mb-0">Informações do Professor</h6>
             <div class="d-flex align-items-center gap-2">
-                <button type="button"
+                <a href="{% url 'teacher_detail' teacher.pk %}?component=information"
                         class="btn btn-sm btn-outline-secondary"
                         hx-get="{% url 'teacher_detail' teacher.pk %}?component=information"
                         hx-target="#teacher-information-card"
-                        hx-swap="outerHTML">
-                    Cancelar
-                </button>
+                        hx-swap="outerHTML">Cancelar</a>
                 <button type="submit" class="btn btn-sm btn-primary">
                     <i class="feather-check me-1"></i> Salvar
                 </button>

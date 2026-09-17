@@ -7,11 +7,11 @@
                 <i class="feather-lock me-1"></i> Alterar senha
             </a>
             {% endif %}
-            <button type="button" class="btn btn-sm btn-outline-primary"
+            <a href="{% url 'user_edit' user_obj.pk %}" class="btn btn-sm btn-outline-primary"
                     hx-get="{% url 'user_edit' user_obj.pk %}"
                     hx-target="#user-information-card" hx-swap="outerHTML">
                 <i class="feather-edit-2 me-1"></i> Editar
-            </button>
+            </a>
         </div>
     </div>
     <div class="card-body sm-profile-card-body">

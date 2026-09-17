@@ -2,6 +2,7 @@
 
 from django import forms
 
+from base.forms import ImageUploadField
 from teachers.models import Subject
 
 
@@ -63,7 +64,7 @@ class TeacherForm(forms.Form):
             attrs={"class": "form-control", "readonly": True, "placeholder": "Gerada ao salvar"}
         ),
     )
-    avatar = forms.ImageField(
+    avatar = ImageUploadField(
         required=False,
         label="Foto do Professor",
         widget=forms.ClearableFileInput(attrs={"class": "sm-profile-avatar-input"}),
@@ -163,7 +164,7 @@ class TeacherEditForm(forms.Form):
         label="E-mail",
         widget=forms.EmailInput(attrs={"class": "form-control", "data_grid": "col-12 col-lg-6"}),
     )
-    avatar = forms.ImageField(
+    avatar = ImageUploadField(
         required=False,
         label="Foto do Professor",
         widget=forms.ClearableFileInput(attrs={"class": "sm-profile-avatar-input"}),

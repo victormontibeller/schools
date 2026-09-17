@@ -58,3 +58,27 @@ periodicamente a restauração do backup do NFS.
 
 Guardar fora do repositório: IDs dos snapshots, checksums agregados, resultado dos scans, serial
 e validade do certificado, imagens/digests implantados, horário de início/fim e decisão de go/no-go.
+
+## Otimização e reconciliação de imagens
+
+Executar com o mesmo acesso ao PostgreSQL e NFS da aplicação. Primeiro inventariar, depois
+simular e aplicar explicitamente; substituir `demo` pelo schema desejado ou usar `--all`:
+
+```bash
+python manage.py manage_images --schema demo
+python manage.py manage_images --schema demo --operation optimize
+python manage.py manage_images --schema demo --operation optimize --apply
+python manage.py manage_images --schema demo --operation reconcile
+python manage.py manage_images --schema demo --operation reconcile --apply
+```
+
+Sem `--apply` nenhuma escrita, exclusão ou auditoria é produzida. O inventário valida a possibilidade
+de conversão; JSON final mostra os contadores, e erros registram schema/UUID/tipo sem PII. Arquivos
+inválidos ou ausentes são preservados. `--all` inclui usuários públicos e cada tenant inativo ou
+excluído; Professor compartilha o avatar de Usuário e não gera conversão duplicada. Imagens já
+em `optimized/v1` não são recomprimidas. Conversões verificam nome e versão esperados por registro.
+
+A reconciliação só alcança UUIDs gerenciados nas categorias de logos, avatares e fotos, sem
+referência em qualquer schema e com mais de 24 horas; documentos, nomes desconhecidos e symlinks
+são ignorados. Falha de consulta global impede exclusão. Revisar o inventário e manter backup do
+volume antes de aplicação operacional. Consulte ADR-0010 para formatos, namespaces e limites.

@@ -1,5 +1,5 @@
 <div class="card mb-3 sm-profile-card" id="student-guardians-card">
-    <form method="post" enctype="multipart/form-data"
+    <form method="post" action="{% url 'student_guardian_contact_edit' student.pk link.pk %}" enctype="multipart/form-data"
           hx-post="{% url 'student_guardian_contact_edit' student.pk link.pk %}"
           hx-encoding="multipart/form-data"
           hx-target="#student-guardians-card" hx-swap="outerHTML">
@@ -7,9 +7,9 @@
         <div class="card-header d-flex align-items-center justify-content-between gap-2">
             <h6 class="card-title mb-0">Editar responsável</h6>
             <div class="d-flex align-items-center gap-2">
-                <button type="button" class="btn btn-sm btn-outline-secondary"
+                <a href="{% url 'student_profile' student.pk %}" class="btn btn-sm btn-outline-secondary"
                         hx-get="{% url 'student_guardians_component' student.pk %}"
-                        hx-target="#student-guardians-card" hx-swap="outerHTML">Cancelar</button>
+                        hx-target="#student-guardians-card" hx-swap="outerHTML">Cancelar</a>
                 <button class="btn btn-sm btn-primary" type="submit"><i class="feather-check me-1"></i> Salvar</button>
             </div>
         </div>

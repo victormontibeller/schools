@@ -1,4 +1,4 @@
-<div class="sm-profile-hero d-flex flex-column flex-sm-row align-items-center text-center text-sm-start gap-3 pb-4 mb-4 border-bottom">
+<div class="sm-profile-hero d-flex flex-column flex-sm-row align-items-center text-center text-sm-start gap-3 pb-4 mb-4 border-bottom"{% if profile_avatar_field %} data-image-picker{% endif %}>
     {% if profile_avatar_field %}<div class="sm-profile-avatar-picker flex-shrink-0">
         <label for="{{ profile_avatar_field.id_for_label }}" class="sm-profile-avatar-edit mb-0">
             {% endif %}{% if profile_has_image %}
@@ -16,6 +16,7 @@
         {% endfor %}
     </div>{% endif %}
     <div class="min-w-0">
+        {% if profile_avatar_field %}<p class="small text-muted mb-2" role="status" aria-live="polite" data-image-status></p>{% endif %}
         <h5 class="mb-1">{{ profile_name }}</h5>
         <p class="text-muted {% if profile_identifier %}mb-2{% else %}mb-0{% endif %} text-break">{{ profile_email|default:"—" }}</p>
         {% if profile_identifier %}

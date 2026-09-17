@@ -168,7 +168,7 @@ def _check_no_pii(extra: dict) -> list[str]:
 
 def service_command(method: CommandCallable) -> CommandCallable:
     """Declara um comando de usuário autorizado e transacional."""
-    from django.db import transaction
+    from base.image_services import transactional_image_command
 
     if getattr(method, "_base_service_atomic", False):
         return method
@@ -183,7 +183,7 @@ def service_command(method: CommandCallable) -> CommandCallable:
             raise PermissionDeniedError("Sem permissão para executar esta operação.")
         return method(self, *args, **kwargs)
 
-    wrapped = transaction.atomic(authorized)
+    wrapped = transactional_image_command(authorized)
     wrapped._base_service_atomic = True
     wrapped._service_command_kind = "user"
     return wrapped
@@ -191,12 +191,12 @@ def service_command(method: CommandCallable) -> CommandCallable:
 
 def system_command(method: CommandCallable) -> CommandCallable:
     """Declara um comando interno transacional sem autorização de usuário."""
-    from django.db import transaction
+    from base.image_services import transactional_image_command
 
     if getattr(method, "_base_service_atomic", False):
         return method
 
-    wrapped = transaction.atomic(method)
+    wrapped = transactional_image_command(method)
     wrapped._base_service_atomic = True
     wrapped._service_command_kind = "system"
     return wrapped
@@ -237,9 +237,12 @@ class BaseService:
             return value
         return str(value)
 
-    def _snapshot(self, instance, fields: list[str]) -> dict:
-        """Captura valores antigos de campos antes de uma mutação."""
-        return {field: self._audit_value(getattr(instance, field, None)) for field in fields}
+    def _snapshot(self, instance, fields: list[str] | None = None) -> dict:
+        """Captura campos concretos para auditoria antes ou depois de uma mutação."""
+        snapshot_fields = fields or [field.attname for field in instance._meta.concrete_fields]
+        return {
+            field: self._audit_value(getattr(instance, field, None)) for field in snapshot_fields
+        }
 
     def _validate_unique_cpf(
         self,
@@ -291,9 +294,6 @@ class BaseService:
             updates["first_name"] = data["first_name"].strip()
         if data.get("last_name"):
             updates["last_name"] = data["last_name"].strip()
-        avatar = data.get("avatar")
-        if avatar:
-            updates["avatar"] = avatar
         return updates
 
     def _deactivate(self, model_class, entity_id, entity_label: str):
@@ -311,8 +311,14 @@ class BaseService:
             raise ObjectNotFoundError(entity_label, str(entity_id)) from None
         if instance.is_deleted:
             raise BusinessRuleViolationError(f"{entity_label} ja esta desativado(a).")
+        old = self._snapshot(instance)
         instance.soft_delete(user=self.user)
-        self._record_audit("DELETE", instance)
+        self._record_audit(
+            "DELETE",
+            instance,
+            old_values=old,
+            new_values=self._snapshot(instance),
+        )
         self._log("entidade_desativada", entity_type=entity_label, entity_id=str(instance.pk))
         return instance
 

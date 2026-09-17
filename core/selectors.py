@@ -31,6 +31,11 @@ class SchoolSelector(BaseSelector):
 
     def get_current_school(self):
         """Retorna a escola do tenant ativo, ou None."""
-        from tenancy.contracts import School
+        from django.conf import settings
 
-        return School.objects.order_by("name").first()
+        from tenancy.selectors import SchoolSelector as TenantSchoolSelector
+
+        if settings.TESTING:
+            # Perfil SQLite sem schemas, conforme ADR-0001.
+            return self.model_class.objects.order_by("name").first()
+        return TenantSchoolSelector().get_current_school()

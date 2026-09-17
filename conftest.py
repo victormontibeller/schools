@@ -100,3 +100,11 @@ def reset_context_vars():
     yield
     for var_name, token in tokens.items():
         getattr(context, var_name).reset(token)
+
+
+@pytest.fixture(autouse=True)
+def isolated_upload_storage(settings, monkeypatch, tmp_path):
+    """Nenhum teste SQLite, PostgreSQL ou UI escreve na mídia da instalação."""
+    from base.tests.images import isolate_media_storages
+
+    return isolate_media_storages(settings, monkeypatch, tmp_path / "media")

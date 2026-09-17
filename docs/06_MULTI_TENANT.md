@@ -59,6 +59,18 @@ Auth, sessions e `CustomUser` possuem tabelas independentes em cada schema. O `p
 somente operadores da plataforma. Trocar o domínio troca a tabela de usuários consultada; uma
 sessão escolar não concede identidade em outra escola.
 
+A ficha de Escola resolve o cadastro público pelo schema da conexão ativa. Os comandos de
+edição de dados e logotipo recusam identificadores de outra escola antes de escrever ou
+auditar. Somente o perfil de testes SQLite (`TESTING`, ADR-0001), sem schemas, usa a primeira
+escola da fixture como contexto.
+
+Ao editar a própria Escola a partir de um tenant PostgreSQL, `School.updated_by` fica nulo:
+essa FK pertence ao catálogo `public` e não pode referenciar um usuário privado da escola.
+O autor autenticado permanece obrigatório na autorização e no `AuditLog` do tenant, na mesma
+transação da alteração. `created_by` é preservado; não se copia nem se substitui o usuário por
+um operador público. Operações no schema `public` e testes SQLite mantêm a atribuição normal
+de `updated_by` ao ator do respectivo schema.
+
 ---
 
 ## Ciclo de Vida do Tenant

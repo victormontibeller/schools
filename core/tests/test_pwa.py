@@ -34,7 +34,7 @@ def test_service_worker_refreshes_custom_css_before_using_cache(client):
     content = b"".join(response.streaming_content).decode()
     shell = content.split("const SHELL", 1)[1].split("];", 1)[0]
 
-    assert 'CACHE_NAME = "schools-shell-v3"' in content
+    assert 'CACHE_NAME = "schools-shell-v4"' in content
     assert "school-manager.css" not in shell
     assert "school-manager(?:\\.[0-9a-f]{12})?\\.css" in content
     assert 'fetch(event.request, {cache: "no-store"})' in content

@@ -77,12 +77,7 @@ def business_unit_create(request: HttpRequest) -> HttpResponse:
     if request.method == "POST" and form.is_valid():
         try:
             data = form.cleaned_data.copy()
-            logo = data.pop("logo", None)
             business_unit = BusinessUnitService(user=request.user).create_business_unit(data)
-            if logo:
-                BusinessUnitService(user=request.user).update_business_unit_logo(
-                    business_unit.pk, logo
-                )
             messages.success(request, "Empresa criada com sucesso.")
             return redirect("business_unit_detail", pk=business_unit.pk)
         except ValidationError as exc:
@@ -114,10 +109,7 @@ def business_unit_edit(request: HttpRequest, pk) -> HttpResponse:
         if form.is_valid():
             try:
                 data = form.cleaned_data.copy()
-                logo = data.pop("logo", None)
                 BusinessUnitService(user=request.user).update_business_unit(pk, data)
-                if logo:
-                    BusinessUnitService(user=request.user).update_business_unit_logo(pk, logo)
                 business_unit = BusinessUnitSelector().get_by_id(pk)
                 if request.headers.get("HX-Request"):
                     return render(
@@ -220,12 +212,7 @@ def school_edit(request: HttpRequest) -> HttpResponse:
                 service = SchoolService(user=request.user)
                 data = form.cleaned_data.copy()
 
-                # Tratar logo separadamente
-                logo = data.pop("logo", None)
                 service.update_school(school.pk, data)
-
-                if logo:
-                    service.update_logo(school.pk, logo)
 
                 school = SchoolSelector().get_current_school()
                 if request.headers.get("HX-Request"):

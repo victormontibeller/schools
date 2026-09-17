@@ -13,6 +13,7 @@
     <form method="post" action="{% url 'reenrollment_batch_confirm' %}" class="sm-workspace-row d-flex flex-column">
         {% csrf_token %}
         <input type="hidden" name="source_class_id" value="{{ preparation.0.pk }}">
+        <input type="hidden" name="batch_submitted" value="1">
         <div class="card-body p-0 sm-viewport-body">
             <div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Mapeamento da rematrícula">
                 <table class="table table-hover mb-0 sm-sticky-table sm-sticky-table--first-column">
@@ -21,19 +22,21 @@
                         {% for enrollment in preparation.1 %}
                         <tr>
                             <td>
-                                <input type="hidden" name="source_enrollment_ids" value="{{ enrollment.pk }}">
+                                <span class="d-flex align-items-center gap-2">
+                                <input class="form-check-input" type="checkbox" name="source_enrollment_ids" value="{{ enrollment.pk }}" data-reenrollment-row{% if enrollment.is_selected_for_batch %} checked{% endif %}{% if not can_confirm_reenrollment %} disabled{% endif %} aria-label="Selecionar {{ enrollment.student.get_full_name }}">
                                 <input type="hidden" name="version_{{ enrollment.pk }}" value="{{ enrollment.version }}">
                                 {% if can_view_students %}<a href="{% url 'student_profile' enrollment.student_id %}">{{ enrollment.student.get_full_name }}</a>{% else %}{{ enrollment.student.get_full_name }}{% endif %}
+                                </span>
                             </td>
                             <td>
-                                <select class="form-select form-select-sm" name="target_{{ enrollment.pk }}" required{% if not can_confirm_reenrollment %} disabled{% endif %}>
+                                <select class="form-select form-select-sm" name="target_{{ enrollment.pk }}" data-reenrollment-target{% if not can_confirm_reenrollment %} disabled{% endif %}>
                                     <option value="">Selecione</option>
                                     {% for target in preparation.2 %}
-                                    <option value="{{ target.pk }}"{% if target.is_preselected %} selected{% endif %}>{{ target }} · projetado {{ target.projected_enrollment_count }}/{{ target.max_students }}{% if target.is_pedagogical_suggestion %} · sugerida{% elif target.is_repetition %} · repetência (justifique){% else %} · exceção (justifique){% endif %}</option>
+                                    {% with target_id=target.pk|stringformat:"s" %}<option value="{{ target.pk }}"{% if enrollment.selected_target_id == target_id %} selected{% endif %}>{{ target }} · projetado {{ target.projected_enrollment_count }}/{{ target.max_students }}{% if target.is_over_capacity %} · ACIMA DA CAPACIDADE{% elif target.is_at_capacity %} · LOTADA{% endif %}{% if target.is_pedagogical_suggestion %} · sugerida{% elif target.is_repetition %} · repetência (justifique){% else %} · exceção (justifique){% endif %}</option>{% endwith %}
                                     {% endfor %}
                                 </select>
                             </td>
-                            <td><input class="form-control form-control-sm" name="reason_{{ enrollment.pk }}" maxlength="1000" placeholder="Obrigatório para repetência, turno ou série excepcional"{% if not can_confirm_reenrollment %} disabled{% endif %}></td>
+                            <td><input class="form-control form-control-sm" name="reason_{{ enrollment.pk }}" value="{{ enrollment.submitted_exception_reason }}" maxlength="1000" placeholder="Obrigatório para repetência, turno ou série excepcional"{% if not can_confirm_reenrollment %} disabled{% endif %}></td>
                         </tr>
                         {% empty %}
                         <tr><td colspan="3" class="text-center text-muted py-4">Nenhuma matrícula ativa na origem.</td></tr>
@@ -43,7 +46,13 @@
             </div>
         </div>
         {% if can_confirm_reenrollment %}
-        <div class="card-footer d-flex justify-content-end flex-shrink-0"><button class="btn btn-success" type="submit">Confirmar lote</button></div>
+        <div class="card-footer d-flex flex-wrap justify-content-between gap-2 flex-shrink-0">
+            <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-outline-secondary btn-sm" type="submit" name="form_action" value="select_all" formnovalidate data-reenrollment-select-all>Selecionar todos</button>
+                <button class="btn btn-outline-secondary btn-sm" type="submit" name="form_action" value="clear_selection" formnovalidate data-reenrollment-clear>Limpar seleção</button>
+            </div>
+            <button class="btn btn-success" type="submit" name="form_action" value="confirm">Confirmar lote</button>
+        </div>
         {% endif %}
     </form>
     {% else %}
@@ -52,3 +61,34 @@
     </div>
     {% endif %}
 </div>
+{% if preparation and can_confirm_reenrollment %}
+<script>
+(function () {
+    var workspace = document.getElementById("reenrollment-workspace");
+    if (!workspace || workspace.dataset.selectionReady === "true") return;
+    workspace.dataset.selectionReady = "true";
+    var selectAll = workspace.querySelector("[data-reenrollment-select-all]");
+    var clearSelection = workspace.querySelector("[data-reenrollment-clear]");
+    var rows = Array.from(workspace.querySelectorAll("[data-reenrollment-row]"));
+    function syncRequired() {
+        rows.forEach(function (checkbox) {
+            var row = checkbox.closest("tr");
+            var target = row && row.querySelector("[data-reenrollment-target]");
+            if (target) target.required = checkbox.checked;
+        });
+    }
+    selectAll.addEventListener("click", function (event) {
+        event.preventDefault();
+        rows.forEach(function (item) { item.checked = true; });
+        syncRequired();
+    });
+    clearSelection.addEventListener("click", function (event) {
+        event.preventDefault();
+        rows.forEach(function (item) { item.checked = false; });
+        syncRequired();
+    });
+    rows.forEach(function (item) { item.addEventListener("change", syncRequired); });
+    syncRequired();
+}());
+</script>
+{% endif %}

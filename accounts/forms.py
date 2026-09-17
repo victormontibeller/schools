@@ -2,6 +2,8 @@
 
 from django import forms
 
+from base.forms import ImageUploadField
+
 
 class TeacherInvitationForm(forms.Form):
     """Formulário público para definição inicial da senha do professor."""
@@ -106,7 +108,7 @@ class UserEditForm(forms.Form):
         label="E-mail",
         widget=forms.EmailInput(attrs={"class": "form-control", "autocomplete": "email"}),
     )
-    avatar = forms.ImageField(
+    avatar = ImageUploadField(
         required=False,
         label="Foto do Usuário",
         widget=forms.ClearableFileInput(attrs={"class": "sm-profile-avatar-input"}),
