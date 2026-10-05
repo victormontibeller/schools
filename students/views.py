@@ -11,6 +11,7 @@ from base.forms import apply_validation_errors, submitted_form_data
 from base.listing import build_querystring, build_sorting, resolve_listing_state
 from base.media import private_file_response
 from base.views import render_component_form
+from core.permissions import EDIT, access_policy
 from students.forms import StudentEditForm, StudentForm
 from students.selectors import StudentSelector
 from students.services import StudentService
@@ -193,6 +194,7 @@ def student_guardian_create(request, pk):
 
 
 @login_required
+@access_policy("guardians", EDIT)
 def student_guardian_search(request, pk):
     """Busca contatos existentes para vincular ao aluno, sem alterar estado."""
     from guardians.selectors import GuardianSelector

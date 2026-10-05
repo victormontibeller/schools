@@ -4,6 +4,7 @@ import uuid
 
 from django import forms
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils import timezone
 
 from financeiro.models import (
     BillingEntry,
@@ -178,6 +179,13 @@ class PaymentBatchForm(forms.Form):
 
 
 class PaymentReversalForm(forms.Form):
+    adjustment_due_date = forms.DateField(
+        label="Vencimento da recomposição",
+        required=False,
+        initial=timezone.localdate,
+        help_text="Obrigatório se o pagamento estiver vinculado a uma cobrança renegociada.",
+        widget=forms.DateInput(format="%Y-%m-%d", attrs={"class": "form-control", "type": "date"}),
+    )
     reason = forms.CharField(
         label="Motivo do estorno",
         widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),

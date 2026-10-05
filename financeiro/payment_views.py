@@ -150,7 +150,9 @@ def payment_reverse(request: HttpRequest, pk) -> HttpResponse:
     if request.method == "POST" and form.is_valid():
         try:
             PaymentService(user=request.user).reverse_payment(
-                pk, reason=form.cleaned_data["reason"]
+                pk,
+                reason=form.cleaned_data["reason"],
+                adjustment_due_date=form.cleaned_data["adjustment_due_date"],
             )
             messages.success(request, "Pagamento estornado; o movimento negativo foi registrado.")
             return redirect("payment_queue")

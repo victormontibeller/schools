@@ -1,7 +1,7 @@
-from django.contrib.staticfiles.storage import ManifestStaticFilesStorage
+from whitenoise.storage import CompressedManifestStaticFilesStorage
 
 
-class SchoolManagerManifestStaticFilesStorage(ManifestStaticFilesStorage):
+class SchoolManagerManifestStaticFilesStorage(CompressedManifestStaticFilesStorage):
     """Content-hashed assets in production without brittle missing-manifest failures."""
 
     manifest_strict = False

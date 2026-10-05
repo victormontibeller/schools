@@ -4,7 +4,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from classes.models import Enrollment
 from core.access_selectors import ObjectAccessSelector
 
 
@@ -13,7 +12,6 @@ from core.access_selectors import ObjectAccessSelector
     [
         ("activities.models.Activity", "teacher_can_access_activity", ("u", "a")),
         ("attendance.models.AttendanceRecord", "teacher_can_access_attendance", ("u", "r")),
-        ("classes.models.Enrollment", "teacher_can_access_student", ("u", "s")),
     ],
 )
 def test_direct_scope_selectors_return_exists_result(target, method, args):
@@ -36,23 +34,3 @@ def test_guardian_scope_delegates_to_canonical_selectors():
     ) as activity_access:
         assert ObjectAccessSelector.guardian_can_access_activity("u", "a") is True
     activity_access.assert_called_once_with("u", "a")
-
-
-def test_teacher_class_scope_checks_teacher_and_schedule_relationships():
-    manager = MagicMock()
-    manager.filter.return_value.exists.return_value = True
-    with patch("classes.models.Class.objects", manager):
-        assert ObjectAccessSelector.teacher_can_access_class("u", "c") is True
-    manager.filter.return_value.exists.assert_called_once_with()
-
-
-def test_teacher_student_scope_requires_active_enrollment():
-    manager = MagicMock()
-    manager.filter.return_value.exists.return_value = True
-    with patch("classes.models.Enrollment.objects", manager):
-        assert ObjectAccessSelector.teacher_can_access_student("u", "s") is True
-
-    assert manager.filter.call_args.kwargs == {
-        "student_id": "s",
-        "status": Enrollment.Status.ACTIVE,
-    }

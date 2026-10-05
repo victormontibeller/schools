@@ -321,7 +321,7 @@ def handler500(request: HttpRequest) -> HttpResponse:
         "Erro interno do servidor (500)",
         extra={
             "correlation_id": cid,
-            "path": request.path,
+            "route": getattr(getattr(request, "resolver_match", None), "view_name", "unresolved"),
             "method": request.method,
         },
     )

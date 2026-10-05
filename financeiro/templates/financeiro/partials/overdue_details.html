@@ -1,0 +1,14 @@
+{% load ui_helpers %}
+{% can_access_action "finance_billings" "view" as can_view_billings %}
+<div class="card" id="overdue-details">
+    <div class="card-header"><h6 class="card-title mb-0">Drill-down por aluno, turma e contrato</h6></div>
+    <div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Detalhamento da inadimplência">
+        <table class="table mb-0 sm-sticky-table sm-sticky-table--first-column">
+            <thead><tr><th>Aluno</th><th>Faixa</th><th>Turma</th><th>Contrato</th><th>Mais antigo</th><th>Títulos</th><th class="text-end">Saldo</th></tr></thead>
+            <tbody>
+                {% for row in result.items %}<tr><td>{% if can_view_billings %}<a href="{% url 'student_financial_statement' row.student_id %}">{{ row.student__first_name }} {{ row.student__last_name }}</a>{% else %}{{ row.student__first_name }} {{ row.student__last_name }}{% endif %}</td><td>{{ row.aging_band }}</td><td>{{ row.contract__class_obj__name|default:"—" }}</td><td>{{ row.contract__name|default:"Avulsa" }}</td><td>{{ row.oldest_due|date:"d/m/Y" }}</td><td>{{ row.quantity }}</td><td class="text-end">R$ {{ row.total|floatformat:2 }}</td></tr>{% empty %}<tr><td colspan="7" class="text-center text-muted py-4">Nenhuma inadimplência.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% include "partials/list_pagination.html" %}
+</div>

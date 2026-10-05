@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -22,8 +23,10 @@ class FinanceRulesMixin:
         from financeiro.models import StudentFinancialContract
 
         try:
-            return StudentFinancialContract.objects.select_related("student", "class_obj").get(
-                pk=contract_id
+            return (
+                StudentFinancialContract.objects.select_for_update(of=("self",))
+                .select_related("student", "class_obj")
+                .get(pk=contract_id)
             )
         except StudentFinancialContract.DoesNotExist:
             raise ObjectNotFoundError("StudentFinancialContract", str(contract_id)) from None
@@ -47,23 +50,10 @@ class FinanceRulesMixin:
         }.get(frequency, 1)
 
     @staticmethod
-    def _normalize_month(year: int, month: int) -> tuple[int, int]:
-        """Normaliza month > 12 rolando para o ano seguinte."""
-        while month > 12:
-            month -= 12
-            year += 1
-        return year, month
-
-    @staticmethod
-    def _installment_for_month(contract, month: int) -> int | None:
-        """Calcula o numero da parcela esperada para o mes (1-based) ou None."""
-        step = FinanceRulesMixin._month_step(contract.billing_frequency)
-        if step == 0:
-            return None
-        index = (month - 1) // step + 1
-        if index > contract.installment_count:
-            return None
-        return index
+    def _add_months(value: date, months: int) -> date:
+        """Avança competências pelo calendário preservando o primeiro dia do mês."""
+        absolute = value.year * 12 + value.month - 1 + months
+        return date(absolute // 12, absolute % 12 + 1, 1)
 
     @staticmethod
     def _next_installment_number(contract_id) -> int:

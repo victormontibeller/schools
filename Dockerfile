@@ -16,7 +16,10 @@ RUN pip install --require-hashes -r /tmp/requirements.lock
 
 FROM python:3.13-slim@sha256:eb43ff125d8d58d7449dcba7d336c23bcac412f526d861db493b9994d8010280 AS runtime
 
-ENV PYTHONUNBUFFERED=1 \
+ENV OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=django,logging \
+    OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=false \
+    OTEL_LOGS_EXPORTER=none \
+    PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH"
 
@@ -43,6 +46,4 @@ USER schools
 EXPOSE 8000
 
 ENTRYPOINT ["schools-entrypoint"]
-CMD ["opentelemetry-instrument", "gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--access-logfile", "-", "--access-logformat", "%(h)s %(l)s %(u)s %(t)s \"%(m)s %(U)s %(H)s\" %(s)s %(b)s \"%(f)s\" \"%(a)s\""]
-
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/', timeout=3)"]
+CMD ["opentelemetry-instrument", "gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--access-logfile", "-", "--access-logformat", "status=%(s)s duration=%(L)s bytes=%(b)s"]

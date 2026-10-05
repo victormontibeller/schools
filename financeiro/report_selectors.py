@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import Iterator
 from decimal import Decimal
+from itertools import islice
 
 from django.db.models import Case, CharField, Count, DecimalField, F, Min, Sum, Value, When
 from django.db.models.functions import Coalesce
 from django.utils import timezone
+
+from base.selectors import PageResult
 
 ZERO = Decimal("0.00")
 MONEY = DecimalField(max_digits=12, decimal_places=2)
@@ -82,7 +86,7 @@ class BillingReportingMixin:
         totals["period"] = f"{month:02d}/{selected_year}" if month else str(selected_year)
         return totals
 
-    def overdue_details(self, *, reference_date=None) -> list[dict]:
+    def _overdue_queryset(self, *, reference_date=None):
         """Drill-down agrupado no banco por faixa, aluno, turma e contrato."""
         from financeiro.models import BillingEntry
 
@@ -119,9 +123,40 @@ class BillingReportingMixin:
                 oldest_due=Min("due_date"),
                 total=Sum("balance"),
             )
-            .order_by("aging_band", "student__first_name", "student__last_name")
+            .order_by(
+                "aging_band",
+                "student__first_name",
+                "student__last_name",
+                "student_id",
+                "contract_id",
+            )
         )
-        return list(qs)
+        return qs
+
+    def overdue_details(self, *, reference_date=None, page=1, page_size=20) -> PageResult:
+        """Pagina o relatório usando o limite canônico de até cem grupos."""
+        return self._paginate(
+            self._overdue_queryset(reference_date=reference_date), page=page, page_size=page_size
+        )
+
+    def iter_overdue_details(self, *, tenant_schema: str, reference_date=None) -> Iterator[dict]:
+        """Lê blocos limitados mantendo o tenant explícito durante cada avanço."""
+        from base.context import tenant_schema_context
+
+        with tenant_schema_context(tenant_schema):
+            rows_iterator = self._overdue_queryset(reference_date=reference_date).iterator(
+                chunk_size=500
+            )
+        try:
+            while True:
+                with tenant_schema_context(tenant_schema):
+                    rows = list(islice(rows_iterator, 500))
+                if not rows:
+                    return
+                yield from rows
+        finally:
+            with tenant_schema_context(tenant_schema):
+                rows_iterator.close()
 
     def cash_report(self, *, year=None, month=None) -> dict:
         from financeiro.models import PaymentRecord

@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import pytest
 from django.http import HttpResponse
+from django.templatetags.static import static
 from django.urls import reverse
 
 from agenda.models import Schedule, TimeSlot
@@ -289,7 +290,7 @@ def test_attendance_fill_post_returns_only_card_for_htmx(client, user):
     assert "Detalhes da aula" not in full_content
     assert "sm-attendance-context" not in full_content
     assert "sm-attendance-lesson-details" not in full_content
-    assert "js/sm-floating-dropdowns.js" in full_content
+    assert static("js/sm-floating-dropdowns.js") in full_content
     assert (
         "initializeAttendanceFill(event.target || (event.detail && event.detail.elt));"
         in full_content

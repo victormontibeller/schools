@@ -10,7 +10,6 @@ http:
         stsSeconds: 31536000
         stsIncludeSubdomains: true
         stsPreload: true
-        referrerPolicy: "no-referrer-when-downgrade"
     rate-limit-auth:
       rateLimit:
         average: 10

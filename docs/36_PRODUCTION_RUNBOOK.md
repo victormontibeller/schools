@@ -82,3 +82,37 @@ A reconciliação só alcança UUIDs gerenciados nas categorias de logos, avatar
 referência em qualquer schema e com mais de 24 horas; documentos, nomes desconhecidos e symlinks
 são ignorados. Falha de consulta global impede exclusão. Revisar o inventário e manter backup do
 volume antes de aplicação operacional. Consulte ADR-0010 para formatos, namespaces e limites.
+
+## Sondas, estáticos e proteção dos logs
+
+- Web: GET exato `http://127.0.0.1:8000/health/`, independente de Host, HTTPS, sessão e banco.
+  Readiness permanece separada, autenticada e capaz de testar dependências.
+- Worker: `celery -A core.celery inspect ping --destination celery@$HOSTNAME --timeout 5`;
+  a sonda precisa receber resposta do próprio worker. Beat usa reinício em falha e agenda em
+  `/tmp/celerybeat-schedule`; nenhum processo Celery herda uma sonda HTTP da imagem.
+- WhiteNoise serve somente `STATIC_ROOT`, após SecurityMiddleware, usando o storage canônico
+  comprimido e com hash. Nginx permanece restrito a mídia pública e fixado por digest.
+- No smoke externo, buscar CSS/JS com hash e conferir 200/cache; tentar mídia privada sem
+  autenticação e exigir bloqueio. Testar web/worker/Beat saudáveis e reinício após falha real.
+- Enviar marcador sintético em token de convite, reset, URL desconhecida e erro controlado;
+  confirmar ausência nos logs de Django/Gunicorn/Traefik e spans exportados. Verificar
+  `strict-origin` e `no-store` nas páginas de token, inclusive após passagem pelo proxy, erros
+  antecipados e escola inativa. Páginas comuns usam `same-origin`; Traefik preserva esses headers.
+  Submeter convites, recuperação e estorno com/sem JavaScript e verificar CSRF ativo e Referer
+  sem caminho/query/token nas páginas sensíveis.
+
+A estabilização de 17/09/2026 exige reset dev/demo pelo novo grafo inicial antes da integração.
+Build Docker/Swarm, duas réplicas, scans e validação externa devem ser comprovados no ambiente
+operacional; verificações locais não substituem essa evidência e não autorizam deploy automático.
+
+O reset local aceita `PYTHON_BIN=/caminho/do/venv/bin/python3.13` para selecionar explicitamente
+Python 3.13; sem override, mantém `./.venv/bin/python`. O mesmo executável é usado no fallback
+PostgreSQL, nas migrations e no seed. As confirmações e restrições de host continuam obrigatórias.
+
+O CSV de inadimplência mantém uma única consulta/cursor, consumida em blocos de 500 sob o schema
+capturado. Pagamentos entre blocos não deslocam posições nem omitem grupos. O cursor é fechado
+no contexto do tenant também quando o consumidor interrompe a leitura.
+
+Os testes Chromium com `live_server` usam arquivos fonte via `StaticFilesStorage`, pois o handler
+de estáticos do Django intercepta as URLs antes do middleware. O manifesto local de `collectstatic`
+não altera essa suíte; testes de produção continuam exigindo WhiteNoise e assets com hash.

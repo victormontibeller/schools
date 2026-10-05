@@ -248,7 +248,10 @@
 - A baixa permite selecionar o aluno, editar a distribuição entre cobranças abertas e revisar os
   encargos; a confirmação ocorre na fila de conciliação. Recibo e extrato abrem PDFs server-side.
 - Relatórios sempre exibem período e base de cálculo. Competência e caixa são cards separados;
-  inadimplência oferece drill-down e CSV.
+  inadimplência oferece drill-down paginado (20 grupos por padrão, máximo 100) e CSV completo
+  em streaming tenant-scoped, em blocos de 500. Paginação usa o componente compartilhado.
+- Estorno pode solicitar vencimento atual ou futuro de recomposição, sugerindo hoje. Fichas
+  mostram vínculos entre pagamento, cobrança original e ajuste conforme permissões do destino.
 - Todos os CTAs respeitam `can_access_url` ou a ação equivalente. A visão do Responsável omite
   notas, referência manual, conciliação e auditoria e limita dados aos alunos sob guarda ativa.
 - Para funcionários, Financeiro permanece como departamento. Para Responsáveis habilitados,

@@ -45,6 +45,11 @@ services:
 
   app:
     image: ${SCHOOLS_IMAGE:?SCHOOLS_IMAGE deve conter uma imagem fixada por digest}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     environment: &app_environment
       DJANGO_ENV: production
       DEBUG: "False"
@@ -91,6 +96,12 @@ services:
   worker:
     image: ${SCHOOLS_IMAGE:?SCHOOLS_IMAGE deve conter uma imagem fixada por digest}
     command: ["opentelemetry-instrument", "celery", "-A", "core.celery", "worker", "--loglevel=info"]
+    healthcheck:
+      test: ["CMD-SHELL", "schools-entrypoint celery -A core.celery inspect ping --destination celery@$$HOSTNAME --timeout 5"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
     environment:
       <<: *app_environment
       OTEL_SERVICE_NAME: schools-worker
@@ -104,7 +115,7 @@ services:
 
   beat:
     image: ${SCHOOLS_IMAGE:?SCHOOLS_IMAGE deve conter uma imagem fixada por digest}
-    command: ["celery", "-A", "core.celery", "beat", "--loglevel=info"]
+    command: ["celery", "-A", "core.celery", "beat", "--loglevel=info", "--schedule=/tmp/celerybeat-schedule"]
     environment:
       <<: *app_environment
       OTEL_SERVICE_NAME: schools-beat
@@ -112,11 +123,13 @@ services:
     networks: [backend]
     deploy:
       replicas: 1
+      restart_policy:
+        condition: on-failure
       placement:
         constraints: [node.role == manager]
 
   media-public:
-    image: nginx:1.27-alpine
+    image: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
     configs:
       - source: media_nginx_config
         target: /etc/nginx/conf.d/default.conf
@@ -151,6 +164,11 @@ services:
       - --certificatesresolvers.le.acme.storage=/acme/acme.json
       - --log.format=json
       - --accesslog.format=json
+      - --accesslog.fields.defaultmode=drop
+      - --accesslog.fields.names.RouterName=keep
+      - --accesslog.fields.names.DownstreamStatus=keep
+      - --accesslog.fields.names.Duration=keep
+      - --accesslog.fields.headers.defaultmode=drop
       - --accesslog.fields.queryparameters.defaultmode=drop
     ports:
       - target: 80

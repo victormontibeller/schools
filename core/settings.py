@@ -118,13 +118,16 @@ TENANT_DOMAIN_MODEL = "tenancy.Domain"
 
 # ── Middleware ─────────────────────────────────────────────────────────────────
 MIDDLEWARE = [
+    "core.request_security.LivenessMiddleware",
+    "core.middleware.SecurityHeadersMiddleware",
+    "core.request_security.HttpTracingMiddleware",
     *([] if TESTING else ["django_prometheus.middleware.PrometheusBeforeMiddleware"]),
-    *([] if TESTING else ["django_tenants.middleware.main.TenantMainMiddleware"]),
+    *([] if TESTING else ["core.request_security.ActiveTenantMiddleware"]),
     "core.middleware.TenantContextMiddleware",
     "axes.middleware.AxesMiddleware",
     "core.middleware.CorrelationIdMiddleware",
     "django.middleware.security.SecurityMiddleware",
-    "core.middleware.SecurityHeadersMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -339,12 +342,13 @@ LOGGING = {
     },
     "filters": {
         "correlation_id": {"()": "core.middleware.CorrelationIdFilter"},
+        "safe_http": {"()": "core.request_security.SafeHttpLogFilter"},
     },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "json",
-            "filters": ["correlation_id"],
+            "filters": ["safe_http", "correlation_id"],
         },
     },
     "root": {"handlers": ["console"], "level": LOG_LEVEL},

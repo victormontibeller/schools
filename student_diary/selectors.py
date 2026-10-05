@@ -45,9 +45,9 @@ class StudentDiarySelector(DiaryConfigurationSelectorMixin, BaseSelector):
             shift__in=[Class.Shift.MORNING, Class.Shift.AFTERNOON, Class.Shift.FULL],
         )
         if role_name(user) == "TEACHER":
-            qs = qs.filter(
-                Q(class_teacher__user_id=user.pk) | Q(schedules__teacher__user_id=user.pk)
-            ).distinct()
+            from core.access_selectors import ObjectAccessSelector
+
+            qs = qs.filter(pk__in=ObjectAccessSelector.teacher_classes(user.pk).values("pk"))
         return qs.order_by("name")
 
     def get_class(self, class_id):

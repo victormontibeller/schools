@@ -5,6 +5,7 @@ import logging
 from collections.abc import Callable
 
 from django.http import HttpRequest, HttpResponse
+from django.urls import Resolver404, resolve
 from django.utils.deprecation import MiddlewareMixin
 
 from base import context
@@ -76,7 +77,23 @@ class SecurityHeadersMiddleware:
             "connect-src 'self'; object-src 'none'; base-uri 'self'; "
             "form-action 'self'; frame-ancestors 'none'",
         )
-        response.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response["Referrer-Policy"] = "same-origin"
+        match = getattr(request, "resolver_match", None)
+        if match is None:
+            try:
+                match = resolve(request.path_info, urlconf=getattr(request, "urlconf", None))
+            except Resolver404:
+                pass
+        if (
+            match is None and response.status_code >= 300 and response.status_code != 304
+        ) or getattr(match, "url_name", "") in {
+            "demo_verify",
+            "teacher_invitation",
+            "guardian_invitation",
+            "password_reset_confirm",
+        }:
+            response["Referrer-Policy"] = "strict-origin"
+            response["Cache-Control"] = "no-store"
         response.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
         response.setdefault("Cross-Origin-Opener-Policy", "same-origin")
         return response
@@ -282,7 +299,9 @@ class PermissionPolicyMiddleware(MiddlewareMixin):
                 )
             ):
                 raise PermissionDenied("Chamada fora do escopo do professor.")
-            student_id = view_kwargs.get("student_id")
+            student_id = ObjectAccessSelector.student_id_for_route(
+                view_func.__module__, view_kwargs
+            )
             if student_id and not ObjectAccessSelector.teacher_can_access_student(
                 request.user.pk, student_id
             ):
@@ -348,7 +367,9 @@ class ExceptionHandlerMiddleware:
                 "correlation_id": cid,
                 "exception_type": type(exc).__name__,
                 "status_code": status,
-                "path": request.path,
+                "route": getattr(
+                    getattr(request, "resolver_match", None), "view_name", "unresolved"
+                ),
                 "method": request.method,
             },
         )

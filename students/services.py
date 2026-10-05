@@ -84,6 +84,9 @@ class StudentService(BaseService):
 
     def update_student(self, student_id, data: dict) -> Student:
         """Atualiza dados do aluno e registra auditoria com valores antigos."""
+        from core.access_selectors import ObjectAccessSelector
+
+        ObjectAccessSelector.require_student_access(self.user, student_id)
         repo = _StudentRepo()
         student = repo.get_by_id(student_id)
 
@@ -151,13 +154,19 @@ class StudentService(BaseService):
 
     def deactivate_student(self, student_id) -> Student:
         """Aplica exclusão lógica no aluno e registra auditoria."""
+        from core.access_selectors import ObjectAccessSelector
         from students.models import Student
+
+        ObjectAccessSelector.require_student_access(self.user, student_id)
 
         return self._deactivate(Student, student_id, "Student")
 
     def restore_student(self, student_id) -> Student:
         """Reverte a exclusão lógica do aluno e registra auditoria."""
+        from core.access_selectors import ObjectAccessSelector
         from students.models import Student
+
+        ObjectAccessSelector.require_student_access(self.user, student_id)
 
         try:
             student = Student.all_objects.get(pk=student_id)

@@ -4,6 +4,7 @@ import datetime as dt
 
 import pytest
 from django.contrib.staticfiles import finders
+from django.templatetags.static import static
 from django.urls import reverse
 
 from classes.models import Class
@@ -69,7 +70,7 @@ def test_diary_daily_renders_canonical_roster_for_admin(client, user):
     assert f'name="student-{student.pk}-notes"'.encode() in response.content
     assert response.content.count(b"Salvar Agenda") == 1
     assert response.content.count(reverse("diary_configuration").encode()) == 1
-    assert b"js/sm-floating-dropdowns.js" in response.content
+    assert static("js/sm-floating-dropdowns.js").encode() in response.content
     assert b"data-sm-floating-dropdown" in response.content
     helper_path = finders.find("js/sm-floating-dropdowns.js")
     assert helper_path is not None

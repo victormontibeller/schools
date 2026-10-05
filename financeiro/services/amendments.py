@@ -57,10 +57,17 @@ class ContractAmendmentMixin:
         effective = data["effective_competency"].replace(day=1)
         if effective <= timezone.localdate().replace(day=1):
             raise ValidationError(errors={"effective_competency": ["A vigência deve ser futura."]})
+        if FinancialContractAmendment.objects.filter(
+            contract=contract, effective_competency__gt=effective
+        ).exists():
+            raise ValidationError(
+                errors={"effective_competency": ["A vigência não pode preceder o último aditivo."]}
+            )
         future = list(
             BillingEntry.objects.select_for_update()
-            .filter(contract=contract, competency__gte=effective)
+            .filter(contract=contract, competency__gte=effective, renegotiated_from__isnull=True)
             .exclude(status=BillingEntry.Status.CANCELLED)
+            .order_by("pk")
         )
         if any(item.paid_value > ZERO for item in future):
             raise BusinessRuleViolationError(
@@ -76,6 +83,7 @@ class ContractAmendmentMixin:
             updated_by=self.user,
         )
         self._record_audit("INSERT", amendment)
+        old_count = contract.installment_count
         old_start = contract.start_competency
         for field, value in changed.items():
             setattr(contract, field, value)
@@ -91,6 +99,7 @@ class ContractAmendmentMixin:
         )
         for old in future:
             old.status = BillingEntry.Status.CANCELLED
+            old.cancelling_amendment = amendment
             old.cancelled_reason = f"Substituída pelo aditivo {amendment.revision}"
             old.updated_by = self.user
             old.save()
@@ -108,13 +117,21 @@ class ContractAmendmentMixin:
         step = self._month_step(contract.billing_frequency)
         for number in range(1, contract.installment_count + 1):
             competency = self._add_months(old_start, (number - 1) * step)
-            if (
-                competency < effective
-                or BillingEntry.objects.filter(
+            if competency < effective:
+                continue
+            previous = (
+                BillingEntry.all_objects.filter(
                     contract=contract,
                     installment_number=number,
-                    schedule_revision=amendment.revision,
-                ).exists()
+                    renegotiated_from__isnull=True,
+                )
+                .order_by("-schedule_revision")
+                .first()
+            )
+            if previous and not (
+                number > old_count
+                and previous.status == BillingEntry.Status.CANCELLED
+                and previous.cancelling_amendment_id
             ):
                 continue
             self._create_replacement(
@@ -148,6 +165,8 @@ class ContractAmendmentMixin:
             description=description,
             principal_value=contract.installment_value,
             discount_value=contract.discount_value,
+            late_fee_percent=contract.late_fee_percent,
+            daily_interest_percent=contract.daily_interest_percent,
             competency=competency,
             due_date=competency.replace(day=contract.due_day),
             created_by=self.user,

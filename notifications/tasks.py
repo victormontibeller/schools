@@ -117,12 +117,17 @@ def notify_audience_all_task(
 
         chunk_size = 500
         total = 0
-        user_ids = list(CustomUser.objects.filter(is_active=True).values_list("pk", flat=True))
+        from itertools import batched
 
-        for i in range(0, len(user_ids), chunk_size):
-            chunk = user_ids[i : i + chunk_size]
+        user_ids = (
+            CustomUser.objects.filter(is_active=True)
+            .order_by("pk")
+            .values_list("pk", flat=True)
+            .iterator(chunk_size=chunk_size)
+        )
+        for chunk in batched(user_ids, chunk_size):
             total += NotificationService().create_notifications_bulk(
-                chunk,
+                list(chunk),
                 {
                     "title": title,
                     "message": message,

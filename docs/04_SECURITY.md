@@ -97,8 +97,26 @@ somente para scripts/estilos legados do tema e deverá ser removida conforme for
 
 ### Logs e tokens
 
-- Gunicorn registra o caminho sem query string e o Traefik descarta query parameters do
-  access log.
+- Gunicorn registra somente status, duração e tamanho. Traefik usa allowlist de router, status
+  e duração, sem caminhos, queries ou headers. Django sanitiza mensagens/exceções HTTP usando
+  nome canônico da rota; endpoints desconhecidos usam `unresolved`.
+- Páginas comuns usam `Referrer-Policy: same-origin`. Convites, recuperação de senha e verificação
+  DEMO usam `strict-origin` e `Cache-Control: no-store`: o Referer contém somente a origem, nunca
+  caminho/query/token. Essa política foi autorizada em 17/09/2026 para preservar o POST nativo e
+  a proteção CSRF, inclusive sem JavaScript; `no-referrer` produz `Origin: null` nesses POSTs.
+- O proxy preserva os cabeçalhos Django. O wrapper de cabeçalhos precede a resolução de tenant e
+  aplica a política também a escolas indisponíveis e erros antecipados; respostas de erro ou
+  redirecionamento sem rota identificável recebem `strict-origin`/`no-store`. Assets servidos com
+  sucesso e revalidações HTTP 304 mantêm seu cache immutable. As URLs e a validação CSRF permanecem integrais.
+- Spans HTTP próprios contêm somente rota, método e status, sem URLs ou eventos de exceção.
+  O pacote de instrumentação Django foi removido; a configuração também impede instrumentação
+  automática de Django/logging e exportação de logs OTEL.
+- Escolas inativas ou excluídas recebem 404 antes de ativar schema/sessão. O catálogo público
+  permanece acessível para reativação. Somente GET/HEAD exatos de `/health/` dispensam tenancy.
+- Escopo docente centralizado exige conta/perfil, turma, matrícula e aluno ativos e não excluídos,
+  data de matrícula vigente e atribuição por titularidade ou grade vigente. Somente a consulta
+  de grade recebe referência histórica; ela não amplia acesso a fichas atuais. O picker global
+  de responsáveis exige `guardians/edit`, a mesma capacidade do vínculo.
 - Logs de aplicação incluem tenant, usuário e correlation ID por identificadores opacos.
   Mensagens não interpolam exceções nem PII.
 - O `X-Correlation-ID` recebido por HTTP nunca é confiável: somente UUID válido é aceito e

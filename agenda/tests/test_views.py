@@ -5,6 +5,7 @@ import json
 
 import pytest
 from django.contrib.messages import get_messages
+from django.templatetags.static import static
 from django.urls import reverse
 
 from agenda.models import Schedule, TimeSlot
@@ -175,7 +176,7 @@ def test_schedule_matrix_renders_monday_to_friday_and_htmx_workspace(client, use
     assert b'id="app-modal-root"' in response.content
     assert b'id="schedule-cell-modal"' in response.content
     assert b'id="schedule-copy-modal"' in response.content
-    assert b"sm-schedule-modals.js" in response.content
+    assert static("js/sm-schedule-modals.js").encode() in response.content
     assert b"data-sm-schedule-cell-modal" in response.content
     assert b"data-sm-schedule-copy-modal" in response.content
     assert b"scheduleModalState" not in response.content

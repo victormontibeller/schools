@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 from django.contrib.staticfiles import finders
+from django.contrib.staticfiles.storage import staticfiles_storage
+from django.templatetags.static import static
 from django.urls import reverse
 
 
@@ -118,12 +120,13 @@ def test_render_loads_only_local_assets(client, settings):
     asset_urls = stylesheet_urls + script_urls
 
     assert asset_urls
-    assert any(url.startswith(f"{settings.STATIC_URL}css/landing.css") for url in asset_urls)
-    assert any(url.startswith(f"{settings.STATIC_URL}js/landing.js") for url in asset_urls)
+    asset_paths = [url.partition("?")[0] for url in asset_urls]
+    assert static("css/landing.css").partition("?")[0] in asset_paths
+    assert static("js/landing.js").partition("?")[0] in asset_paths
     assert all(url.startswith(settings.STATIC_URL) for url in asset_urls)
     for url in asset_urls:
         asset_path = url.removeprefix(settings.STATIC_URL).partition("?")[0]
-        assert finders.find(asset_path) is not None
+        assert staticfiles_storage.exists(asset_path) or finders.find(asset_path) is not None
 
 
 def test_public_assets_support_progressive_and_reduced_motion():

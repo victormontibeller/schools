@@ -284,6 +284,73 @@ class TestTenantSchemaIsolation(TenantTestCase):
         assert StudentFinancialContract.objects.get().pk == contract_a.pk
         assert not StudentFinancialContract.objects.filter(pk=contract_b.pk).exists()
 
+    def test_disabled_school_blocks_existing_session_and_new_login(self):
+        from django.test import Client
+
+        actor = CustomUser.objects.create_user(
+            email="disabled-tenant@test.local",
+            password="Test-pass-123",
+            is_superuser=True,
+        )
+        client = Client(HTTP_HOST=self.get_test_tenant_domain())
+        client.force_login(actor)
+        connection.set_schema_to_public()
+        School.all_objects.filter(pk=self.tenant.pk).update(is_active=False)
+        try:
+            assert client.get("/students/").status_code == 404
+            token_response = client.get("/convite-professor/synthetic-secret/")
+            assert token_response.status_code == 404
+            assert token_response["Referrer-Policy"] == "strict-origin"
+            assert token_response["Cache-Control"] == "no-store"
+            unknown_response = client.get("/unknown/synthetic-secret/")
+            assert unknown_response.status_code == 404
+            assert unknown_response["Referrer-Policy"] == "strict-origin"
+            assert unknown_response["Cache-Control"] == "no-store"
+            assert (
+                client.post(
+                    "/login/", {"username": actor.email, "password": "Test-pass-123"}
+                ).status_code
+                == 404
+            )
+            assert connection.schema_name == "public"
+        finally:
+            School.all_objects.filter(pk=self.tenant.pk).update(is_active=True)
+            connection.set_tenant(self.tenant)
+        assert client.get("/students/").status_code == 200
+
+    def test_overdue_stream_reads_origin_schema_after_request_context_changes(self):
+        import datetime as dt
+
+        from financeiro.models import BillingEntry
+        from financeiro.selectors import BillingSelector
+
+        actor = CustomUser.objects.create_user(
+            email="stream-tenant@test.local",
+            password="Test-pass-123",
+            is_superuser=True,
+        )
+        student = self._make_student("STREAM-A")
+        BillingEntry.objects.create(
+            student=student, description="A", principal_value=100, due_date=dt.date(2000, 1, 1)
+        )
+        stream = BillingSelector(user=actor).iter_overdue_details(
+            tenant_schema=self.tenant.schema_name
+        )
+        connection.set_tenant(self.tenant_b)
+        other = self._make_student("STREAM-B")
+        BillingEntry.objects.create(
+            student=other, description="B", principal_value=200, due_date=dt.date(2000, 1, 1)
+        )
+        token = context.current_tenant.set(self.tenant_b.schema_name)
+        try:
+            rows = list(stream)
+            assert [row["student_id"] for row in rows] == [student.pk]
+            assert connection.schema_name == self.tenant_b.schema_name
+            assert context.current_tenant.get() == self.tenant_b.schema_name
+        finally:
+            context.current_tenant.reset(token)
+            connection.set_tenant(self.tenant)
+
     def test_demo_seed_is_idempotent_on_postgresql_tenant(self):
         """O seed canônico pode ser repetido no schema sem duplicar dados."""
         from audit.models import AuditLog

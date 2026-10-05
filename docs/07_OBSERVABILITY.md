@@ -58,7 +58,11 @@ Toda requisição HTTP deverá possuir um **Correlation ID** único.
   a publicação com `transaction.on_commit()`. Falhas do broker posteriores ao commit geram log
   estruturado sem PII e não alteram o resultado da transação já confirmada.
 
-Access logs do Gunicorn registram somente `%U` (caminho) e o Traefik descarta query parameters.
+Access logs do Gunicorn registram somente status, duração e bytes; Traefik mantém somente router,
+status e duração. Nenhum caminho bruto, query ou header integra esses logs. Django redige a
+mensagem e a exceção dos loggers HTTP antes da formatação. A instrumentação HTTP própria emite
+rota canônica, método conhecido e status, com gravação de exceções desabilitada. O entrypoint
+bloqueia auto-instrumentação Django/logging e exportação de logs OTEL.
 Tokens, PII e texto bruto de exceções não podem ser incluídos em mensagens ou campos extras.
 
 O logger `PIL` permanece em `WARNING`, com handler de console e sem propagação, em todos os

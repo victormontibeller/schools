@@ -169,6 +169,10 @@ class AddressService(BaseService):
         entity_label: str,
     ) -> Address:
         """Cria endereco e vincula-o a uma entidade de dominio."""
+        if entity_field == "student":
+            from core.access_selectors import ObjectAccessSelector
+
+            ObjectAccessSelector.require_student_access(self.user, entity_id)
         try:
             entity = entity_model.objects.get(pk=entity_id)
         except entity_model.DoesNotExist:
@@ -237,6 +241,7 @@ class AddressService(BaseService):
         except Address.DoesNotExist:
             raise ObjectNotFoundError("Address", str(address_id)) from None
 
+        self._require_address_student_access(address)
         old = {
             "street": address.street,
             "number": address.number,
@@ -258,5 +263,23 @@ class AddressService(BaseService):
     def deactivate_address(self, address_id) -> Address:
         """Aplica exclusao logica no endereco e registra auditoria."""
         from addresses.models import Address
+        from addresses.selectors import AddressSelector
+        from core.permissions import role_name
 
+        if role_name(self.user) in {"TEACHER", "GUARDIAN"}:
+            self._require_address_student_access(AddressSelector().get_by_id(address_id))
         return self._deactivate(Address, address_id, "Address")
+
+    def _require_address_student_access(self, address) -> None:
+        from addresses.selectors import AddressSelector
+        from base.exceptions import PermissionDeniedError
+        from core.access_selectors import ObjectAccessSelector
+        from core.permissions import role_name
+
+        if role_name(self.user) not in {"TEACHER", "GUARDIAN"}:
+            return
+        entity_type, entity_id = AddressSelector().get_entity_context(address)
+        if entity_type == "student":
+            ObjectAccessSelector.require_student_access(self.user, entity_id)
+        else:
+            raise PermissionDeniedError("Endereço fora do escopo do ator.")

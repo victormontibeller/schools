@@ -138,8 +138,8 @@ OPERATIONAL_GRID_CONTRACTS = (
     ),
     GridContract(
         "financeiro/templates/financeiro/overdue_report.html",
-        "financeiro/templates/financeiro/overdue_report.html",
-        "financeiro/templates/financeiro/overdue_report.html",
+        "financeiro/templates/financeiro/partials/overdue_details.html",
+        "financeiro/templates/financeiro/partials/overdue_details.html",
     ),
     GridContract(
         "financeiro/templates/financeiro/student_statement.html",

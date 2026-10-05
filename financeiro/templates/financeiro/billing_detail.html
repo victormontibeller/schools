@@ -26,6 +26,9 @@
                 <dl class="row mb-0">
                     <dt class="col-5">Aluno</dt><dd class="col-7"><a href="{% url 'student_financial_statement' billing.student_id %}">{{ billing.student }}</a></dd>
                     <dt class="col-5">Origem</dt><dd class="col-7">{{ billing.contract.name|default:"Cobrança avulsa" }}</dd>
+                    {% if billing.reversal_allocation_id %}
+                    <dt class="col-5">Recomposição</dt><dd class="col-7"><a href="{% url 'billing_detail' billing.reversal_allocation.billing_id %}">Cobrança original</a>{% if can_view_payments and not guardian_view %} · <a href="{% url 'payment_detail' billing.reversal_allocation.payment_id %}">Pagamento estornado</a>{% endif %}</dd>
+                    {% endif %}
                     <dt class="col-5">Competência</dt><dd class="col-7">{{ billing.competency|date:"m/Y" }}</dd>
                     <dt class="col-5">Vencimento</dt><dd class="col-7">{{ billing.due_date|date:"d/m/Y" }}</dd>
                     <dt class="col-5">Principal</dt><dd class="col-7">R$ {{ billing.principal_value|floatformat:2 }}</dd>

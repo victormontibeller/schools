@@ -16,6 +16,7 @@ env/
 *.log
 local_settings.py
 media/
+staticfiles/
 
 # Environment
 .env

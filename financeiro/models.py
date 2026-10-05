@@ -151,6 +151,14 @@ class BillingEntry(BaseModel):
         related_name="generated_billings",
         verbose_name="Aditivo",
     )
+    cancelling_amendment = models.ForeignKey(
+        "financeiro.FinancialContractAmendment",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,  # Identifica supressão da agenda sem interpretar texto livre.
+        related_name="cancelled_billings",
+        verbose_name="Aditivo de cancelamento",
+    )
     student = models.ForeignKey(
         "students.Student",
         on_delete=models.CASCADE,  # O título não existe sem seu devedor escolar.
@@ -177,6 +185,20 @@ class BillingEntry(BaseModel):
     )
     interest_value = models.DecimalField(
         max_digits=10, decimal_places=2, default=ZERO, verbose_name="Juros"
+    )
+    late_fee_percent = models.DecimalField(
+        max_digits=5, decimal_places=2, default=ZERO, verbose_name="Multa contratada (%)"
+    )
+    daily_interest_percent = models.DecimalField(
+        max_digits=6, decimal_places=4, default=ZERO, verbose_name="Juros diários contratados (%)"
+    )
+    reversal_allocation = models.OneToOneField(
+        "financeiro.PaymentAllocation",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,  # Preserva a origem auditável da recomposição.
+        related_name="reversal_billing",
+        verbose_name="Alocação estornada",
     )
     paid_value = models.DecimalField(
         max_digits=10, decimal_places=2, default=ZERO, verbose_name="Total Pago"
@@ -224,11 +246,18 @@ class BillingEntry(BaseModel):
             models.Index(fields=["contract", "installment_number"]),
         ]
         constraints = [
+            models.CheckConstraint(
+                condition=models.Q(late_fee_percent__gte=0), name="billing_fee_rate_nonnegative"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(daily_interest_percent__gte=0),
+                name="billing_interest_rate_nonnegative",
+            ),
             models.UniqueConstraint(
                 fields=["contract", "installment_number", "schedule_revision"],
                 condition=models.Q(contract__isnull=False),
                 name="uniq_contract_installment_revision",
-            )
+            ),
         ]
 
     def __str__(self) -> str:

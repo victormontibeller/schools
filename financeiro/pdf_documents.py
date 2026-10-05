@@ -177,15 +177,20 @@ def render_student_statement(student, billings, *, school_name="Escola") -> byte
     total_balance = 0
     for billing in billings:
         total_paid += billing.paid_value
-        total_balance += billing.outstanding_value
+        balance = billing.outstanding_value if billing.status != "CANCELLED" else 0
+        total_balance += balance
         rows.append(
             [
                 billing.competency.strftime("%m/%Y") if billing.competency else "—",
                 billing.description,
                 billing.due_date.strftime("%d/%m/%Y"),
-                f"{billing.settlement_status_label} / {billing.due_status_label}",
+                (
+                    "Cancelada"
+                    if billing.status == "CANCELLED"
+                    else f"{billing.settlement_status_label} / {billing.due_status_label}"
+                ),
                 _money(billing.paid_value),
-                _money(billing.outstanding_value),
+                _money(balance),
             ]
         )
     rows.append(["", "Totais", "", "", _money(total_paid), _money(total_balance)])

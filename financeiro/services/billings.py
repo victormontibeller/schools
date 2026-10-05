@@ -90,8 +90,12 @@ class BillingLifecycleMixin:
         installment_count: int = 1,
     ) -> list:
         """Substitui o saldo de uma cobrança por novas parcelas mensais."""
-        from financeiro.models import BillingEntry
+        from financeiro.models import BillingEntry, StudentFinancialContract
 
+        # Ordem global: contrato, depois cobrança. A numeração é serializada por contrato.
+        source = BillingEntry.objects.filter(pk=billing_id).values("contract_id").first()
+        if source and source["contract_id"]:
+            StudentFinancialContract.objects.select_for_update().get(pk=source["contract_id"])
         try:
             billing = (
                 BillingEntry.objects.select_for_update(of=("self",))
@@ -125,13 +129,15 @@ class BillingLifecycleMixin:
             replacement = BillingEntry.objects.create(
                 contract=billing.contract,
                 student=billing.student,
-                installment_number=number + index,
+                installment_number=number + index if number is not None else None,
                 schedule_revision=(billing.contract.terms_revision if billing.contract else 1),
                 category=BillingEntry.Category.ADJUSTMENT,
                 description=(
                     f"Renegociação - {billing.description} " f"({index + 1}/{installment_count})"
                 ),
                 principal_value=value,
+                late_fee_percent=billing.late_fee_percent,
+                daily_interest_percent=billing.daily_interest_percent,
                 competency=competency,
                 due_date=competency.replace(day=min(new_due_date.day, 28)),
                 renegotiated_from=billing,
@@ -166,9 +172,10 @@ class BillingLifecycleMixin:
     def _assess_late_charges(self, billing, reference: date) -> None:
         if billing.status == billing.Status.CANCELLED or billing.is_settled:
             return
-        if reference <= billing.due_date or not billing.contract_id:
+        if reference <= billing.due_date or (
+            billing.late_fee_percent == ZERO and billing.daily_interest_percent == ZERO
+        ):
             return
-        contract = billing.contract
         old = {
             "late_fee_value": str(billing.late_fee_value),
             "interest_value": str(billing.interest_value),
@@ -176,7 +183,7 @@ class BillingLifecycleMixin:
         }
         if billing.late_fee_value == ZERO:
             billing.late_fee_value = (
-                billing.contractual_value * contract.late_fee_percent / Decimal("100")
+                billing.contractual_value * billing.late_fee_percent / Decimal("100")
             ).quantize(Decimal("0.01"))
         start = billing.interest_calculated_until or billing.due_date
         if reference < start:
@@ -191,7 +198,7 @@ class BillingLifecycleMixin:
         if days > 0 and outstanding_principal > ZERO:
             billing.interest_value += (
                 outstanding_principal
-                * contract.daily_interest_percent
+                * billing.daily_interest_percent
                 * Decimal(days)
                 / Decimal("100")
             ).quantize(Decimal("0.01"))
@@ -209,8 +216,3 @@ class BillingLifecycleMixin:
                 billing_id=str(billing.pk),
                 reference_date=reference.isoformat(),
             )
-
-    @staticmethod
-    def _add_months(value: date, months: int) -> date:
-        absolute = value.year * 12 + value.month - 1 + months
-        return date(absolute // 12, absolute % 12 + 1, 1)

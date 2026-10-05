@@ -1,6 +1,8 @@
 #!/usr/bin/env sh
 set -eu
 
+python_bin="${PYTHON_BIN:-./.venv/bin/python}"
+
 if [ "${CONFIRM_RESET_DEV:-}" != "RESET" ]; then
     printf 'Esta operação apaga schools_db, schools_test_db, mídia, cache e filas locais. Digite RESET: '
     read -r confirmation
@@ -44,7 +46,7 @@ if command -v psql >/dev/null 2>&1; then
             -v ON_ERROR_STOP=1 -c "CREATE DATABASE ${database}"
     done
 else
-    DB_HOST="$db_host" DB_PORT="$db_port" DB_USER="$db_user" ./.venv/bin/python -c '
+    DB_HOST="$db_host" DB_PORT="$db_port" DB_USER="$db_user" "$python_bin" -c '
 import os
 import psycopg2
 from psycopg2 import sql
@@ -70,6 +72,6 @@ fi
 mkdir -p media/public media/private
 find media/public media/private -mindepth 1 -delete
 
-./.venv/bin/python manage.py migrate_schemas --shared
-./.venv/bin/python manage.py seed_dev
+"$python_bin" manage.py migrate_schemas --shared
+"$python_bin" manage.py seed_dev
 echo "Ambiente de desenvolvimento reinicializado."

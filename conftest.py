@@ -82,7 +82,7 @@ def _django_tenants_enabled() -> bool:
     try:
         from django.conf import settings
 
-        return "django_tenants.middleware.main.TenantMainMiddleware" in settings.MIDDLEWARE
+        return "django_tenants" in settings.INSTALLED_APPS
     except Exception:  # noqa: BLE001
         return False
 
@@ -108,3 +108,13 @@ def isolated_upload_storage(settings, monkeypatch, tmp_path):
     from base.tests.images import isolate_media_storages
 
     return isolate_media_storages(settings, monkeypatch, tmp_path / "media")
+
+
+@pytest.fixture(autouse=True)
+def ui_source_staticfiles(request, settings):
+    """live_server serves source files; collected hashes belong to production tests."""
+    if request.node.get_closest_marker("ui"):
+        settings.STORAGES = {
+            **settings.STORAGES,
+            "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+        }

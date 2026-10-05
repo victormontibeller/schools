@@ -129,9 +129,13 @@ class BillingSelector(BillingReportingMixin, FinanceScopeMixin, BaseSelector):
         return BillingEntry
 
     def base_queryset(self):
-        qs = self.model_class.objects.select_related("student", "contract", "amendment").annotate(
-            balance=_billing_balance_expression()
-        )
+        qs = self.model_class.objects.select_related(
+            "student",
+            "contract",
+            "amendment",
+            "reversal_allocation__payment",
+            "reversal_allocation__billing",
+        ).annotate(balance=_billing_balance_expression())
         return self._scope_students(qs)
 
     def list_billings(
@@ -233,7 +237,9 @@ class PaymentSelector(FinanceScopeMixin, BaseSelector):
     ) -> PageResult:
         from financeiro.models import PaymentRecord
 
-        qs = PaymentRecord.objects.prefetch_related("allocations__billing__student")
+        qs = PaymentRecord.objects.prefetch_related(
+            "allocations__billing__student", "allocations__reversal_billing"
+        )
         qs = self._scope_students(qs, prefix="allocations__billing__student")
         if search:
             qs = qs.filter(Q(receipt_number__icontains=search) | Q(reference__icontains=search))
@@ -245,7 +251,9 @@ class PaymentSelector(FinanceScopeMixin, BaseSelector):
         from financeiro.models import PaymentRecord
 
         try:
-            qs = PaymentRecord.all_objects.prefetch_related("allocations__billing__student")
+            qs = PaymentRecord.all_objects.prefetch_related(
+                "allocations__billing__student", "allocations__reversal_billing"
+            )
             qs = self._scope_students(qs, prefix="allocations__billing__student")
             payment = qs.get(pk=payment_id)
             if self._is_guardian():

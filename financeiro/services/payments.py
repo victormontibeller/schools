@@ -227,7 +227,9 @@ class PaymentService(FinanceRulesMixin, BaseService):
         return payment
 
     @service_command
-    def reverse_payment(self, payment_id, *, reason: str) -> PaymentRecord:
+    def reverse_payment(
+        self, payment_id, *, reason: str, adjustment_due_date: date | None = None
+    ) -> PaymentRecord:
         """Estorna componentes confirmados sem excluir o registro financeiro."""
         from financeiro.models import BillingEntry, PaymentAllocation, PaymentRecord
 
@@ -246,12 +248,14 @@ class PaymentService(FinanceRulesMixin, BaseService):
         )
         billings = {
             item.pk: item
-            for item in BillingEntry.objects.select_for_update().filter(
-                pk__in=[allocation.billing_id for allocation in allocations]
-            )
+            for item in BillingEntry.objects.select_for_update()
+            .filter(pk__in=[allocation.billing_id for allocation in allocations])
+            .order_by("pk")
         }
         for allocation in allocations:
             billing = billings[allocation.billing_id]
+            if billing.status == BillingEntry.Status.CANCELLED:
+                self._recompose_reversed_allocation(billing, allocation, adjustment_due_date)
             old = {"paid_value": str(billing.paid_value), "status": billing.status}
             billing.paid_late_fee_value = max(
                 billing.paid_late_fee_value - allocation.late_fee_amount, ZERO
@@ -275,3 +279,39 @@ class PaymentService(FinanceRulesMixin, BaseService):
         self._record_audit("UPDATE", payment, old_values={"status": "CONFIRMED"})
         self._log("payment_reversed", payment_id=str(payment.pk))
         return payment
+
+    def _recompose_reversed_allocation(self, billing, allocation, due_date):
+        """Recompõe componentes sem reescrever o título renegociado nem suas sucessoras."""
+        from financeiro.models import BillingEntry
+
+        if not BillingEntry.all_objects.filter(renegotiated_from=billing).exists():
+            raise BusinessRuleViolationError(
+                "Cobrança cancelada sem renegociação não pode ser estornada."
+            )
+        if not isinstance(due_date, date) or due_date < timezone.localdate():
+            raise ValidationError(
+                errors={
+                    "adjustment_due_date": [
+                        "Informe vencimento atual ou futuro para a recomposição."
+                    ]
+                }
+            )
+        adjustment = BillingEntry.objects.create(
+            student=billing.student,
+            category=BillingEntry.Category.ADJUSTMENT,
+            description="Recomposição de estorno",
+            reversal_allocation=allocation,
+            principal_value=allocation.principal_amount,
+            late_fee_value=allocation.late_fee_amount,
+            interest_value=allocation.interest_amount,
+            competency=billing.competency,
+            due_date=due_date,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        self._record_audit("INSERT", adjustment)
+        self._log(
+            "payment_reversal_recomposed",
+            billing_id=str(adjustment.pk),
+            allocation_id=str(allocation.pk),
+        )

@@ -79,7 +79,10 @@ de `updated_by` ao ator do respectivo schema.
 2. Um novo Schema PostgreSQL é criado automaticamente via django-tenants.
 3. As migrations são aplicadas no novo Schema.
 4. O domínio é configurado e o Tenant fica ativo.
-5. Em caso de desativação, o Schema é preservado e apenas o Tenant é marcado como inativo.
+5. Em caso de desativação, o Schema é preservado e o Tenant é marcado como inativo. A próxima
+   requisição recebe 404 antes de sessão/autenticação, inclusive para sessões existentes.
+   O middleware mantém o catálogo público disponível para reativação. A única exceção sem
+   resolução de tenant é GET/HEAD exato em `/health/`.
 
 ---
 

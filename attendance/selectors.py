@@ -1,6 +1,6 @@
 """AttendanceSelector: consultas somente-leitura de frequência."""
 
-from django.db.models import Q
+from django.db.models import Count, Q
 
 from base.selectors import BaseSelector, PageResult
 
@@ -56,52 +56,57 @@ class AttendanceSelector(BaseSelector):
 
     def get_class_attendance_summary(self, class_id, *, student_ids=None):
         """Resumo por aluno da turma: presenças, ausências, justificadas, %."""
+        return self.get_classes_attendance_summary([class_id], student_ids=student_ids).get(
+            class_id, {"summary": [], "at_risk": []}
+        )
+
+    def get_classes_attendance_summary(self, class_ids, *, student_ids=None) -> dict:
+        """Agrega todas as turmas em duas consultas, independentemente dos alunos."""
         from attendance.models import AttendanceEntry
         from classes.contracts import Enrollment
 
         active = Enrollment.objects.filter(
-            class_obj_id=class_id,
+            class_obj_id__in=class_ids,
             status=Enrollment.Status.ACTIVE,
             is_active=True,
-            deleted_at__isnull=True,
         ).select_related("student")
+        entries = AttendanceEntry.objects.filter(record__class_obj_id__in=class_ids)
         if student_ids is not None:
             active = active.filter(student_id__in=student_ids)
-
-        summary: list[dict] = []
-        at_risk: list[dict] = []
-        for enr in active:
-            entries = AttendanceEntry.objects.filter(
-                record__class_obj_id=class_id, student=enr.student
+            entries = entries.filter(student_id__in=student_ids)
+        counts = {
+            (row["record__class_obj_id"], row["student_id"]): row
+            for row in entries.order_by()
+            .values("record__class_obj_id", "student_id")
+            .annotate(
+                total=Count("pk"),
+                present=Count("pk", filter=Q(status=AttendanceEntry.Status.PRESENT)),
+                absent=Count("pk", filter=Q(status=AttendanceEntry.Status.ABSENT)),
+                justified=Count("pk", filter=Q(status=AttendanceEntry.Status.JUSTIFIED)),
             )
-            total = entries.count()
-            if total == 0:
-                summary.append(
-                    {
-                        "student": enr.student,
-                        "present": 0,
-                        "absent": 0,
-                        "justified": 0,
-                        "rate": None,
-                    }
-                )
-                continue
-            present = entries.filter(status=AttendanceEntry.Status.PRESENT).count()
-            absent = entries.filter(status=AttendanceEntry.Status.ABSENT).count()
-            justified = entries.filter(status=AttendanceEntry.Status.JUSTIFIED).count()
-            rate = round(((present + justified) / total) * 100, 2)
+        }
+        result = {}
+        for enrollment in active:
+            count = counts.get((enrollment.class_obj_id, enrollment.student_id), {})
+            total = count.get("total", 0)
+            present, absent, justified = (
+                count.get(key, 0) for key in ("present", "absent", "justified")
+            )
+            rate = round((present + justified) * 100 / total, 2) if total else None
             item = {
-                "student": enr.student,
+                "student": enrollment.student,
                 "present": present,
                 "absent": absent,
                 "justified": justified,
                 "rate": rate,
             }
-            summary.append(item)
+            group = result.setdefault(enrollment.class_obj_id, {"summary": [], "at_risk": []})
+            group["summary"].append(item)
             if rate is not None and rate < 75:
-                at_risk.append(item)
-        at_risk.sort(key=lambda x: (x["rate"] is None, x["rate"]))
-        return {"summary": summary, "at_risk": at_risk}
+                group["at_risk"].append(item)
+        for group in result.values():
+            group["at_risk"].sort(key=lambda item: item["rate"])
+        return result
 
     def get_student_attendance(self, student_id, class_id=None):
         """Histórico de presença de um aluno (opcionalmente filtrado por turma)."""

@@ -148,7 +148,10 @@ imutáveis e qualquer alteração de schema seguirá uma cadeia evolutiva revisa
   as cobranças futuras; títulos anteriores, pagos ou parcialmente pagos nunca são reescritos.
 - `BillingEntry` aceita origem contratual ou avulsa, guarda competência, vencimento, principal,
   desconto, multa, juros e os respectivos componentes pagos. A unicidade por contrato, parcela e
-  revisão torna a materialização idempotente. Atraso e quitação são calculados por expressão no
+  revisão protege a agenda; materialização reconhece parcelas em todas as revisões sob lock.
+  Multa e juros diários são snapshots não negativos no título, sem fallback ao contrato.
+  `cancelling_amendment` distingue supressão por aditivo; `reversal_allocation` único vincula
+  ajustes avulsos aos componentes estornados. Atraso e quitação são calculados por expressão no
   banco e propriedades de domínio; o ciclo persistido contém somente `ACTIVE` e `CANCELLED`.
 - `PaymentRecord` representa a transação pendente, confirmada ou estornada. `PaymentAllocation`
   distribui uma baixa por cobrança e discrimina principal, multa e juros. A confirmação usa

@@ -43,7 +43,8 @@ def test_school_manager_css_comes_from_design_system() -> None:
     assert Path(finders.find("css/school-manager.css")) == expected
 
 
-def test_static_url_is_simple_in_development() -> None:
+def test_static_url_is_simple_in_development(settings) -> None:
+    settings.DEBUG = True
     assert staticfiles_storage.url("css/school-manager.css") == "/static/css/school-manager.css"
 
 
@@ -77,3 +78,31 @@ def test_collectstatic_generates_hashed_manifest(settings, tmp_path) -> None:
         base_url="/static/",
     )
     assert storage.url("css/school-manager.css") == f"/static/{hashed_name}"
+
+
+def test_serve_collected_hash_in_production_and_never_private_media(settings, tmp_path):
+    from django.http import HttpResponseNotFound
+    from django.test import RequestFactory
+    from whitenoise.middleware import WhiteNoiseMiddleware
+
+    from core.middleware import SecurityHeadersMiddleware
+
+    settings.DEBUG = False
+    settings.STATIC_ROOT = tmp_path
+    call_command("collectstatic", interactive=False, verbosity=0)
+    manifest = json.loads((tmp_path / "staticfiles.json").read_text())
+    hashed = manifest["paths"]["css/school-manager.css"]
+    middleware = SecurityHeadersMiddleware(
+        WhiteNoiseMiddleware(lambda request: HttpResponseNotFound())
+    )
+    response = middleware(RequestFactory().get("/static/" + hashed))
+    assert response.status_code == 200
+    assert response["Cache-Control"].startswith("max-age=315360000")
+    assert b"sm-scroll-region" in b"".join(response.streaming_content)
+    revalidated = middleware(
+        RequestFactory().get("/static/" + hashed, HTTP_IF_NONE_MATCH=response["ETag"])
+    )
+    assert revalidated.status_code == 304
+    assert revalidated["Cache-Control"] == response["Cache-Control"]
+    assert revalidated["ETag"] == response["ETag"]
+    assert middleware(RequestFactory().get("/media/private/student.webp")).status_code == 404

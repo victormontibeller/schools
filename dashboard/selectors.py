@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import datetime as dt
-import statistics
 
 from django.db.models import Count, F, OuterRef, Q, Subquery
 from django.utils import timezone
@@ -140,24 +139,19 @@ class DashboardSelector(BaseSelector):
         from classes.contracts import Class
 
         student_ids = self._guardian_student_ids(user)
+        class_ids = (
+            self._guardian_active_class_ids(user)
+            if student_ids is not None
+            else Class.objects.filter(is_active=True).values("pk")
+        )
+        groups = AttendanceSelector().get_classes_attendance_summary(
+            class_ids, student_ids=student_ids
+        )
         if student_ids is not None:
-            allowed_ids = set(student_ids)
-            class_ids = self._guardian_active_class_ids(user)
-            at_risk_ids = set()
-            for class_id in class_ids:
-                at_risk_ids.update(
-                    item["student"].pk
-                    for item in AttendanceSelector().get_students_at_risk(
-                        class_id, student_ids=allowed_ids
-                    )
-                )
-            return len(at_risk_ids)
-
-        count = 0
-        for cls in Class.objects.filter(is_active=True):
-            at_risk = AttendanceSelector().get_students_at_risk(cls.pk)
-            count += len(at_risk)
-        return count
+            return len(
+                {item["student"].pk for group in groups.values() for item in group["at_risk"]}
+            )
+        return sum(len(group["at_risk"]) for group in groups.values())
 
     def get_financial_kpis(self, user=None) -> dict:
         """KPIs financeiros operacionais para o dashboard escolar."""
@@ -251,9 +245,11 @@ class DashboardSelector(BaseSelector):
             }
         sheets = DiarySheet.objects.all()
         if role == "TEACHER":
+            from core.access_selectors import ObjectAccessSelector
+
             sheets = sheets.filter(
-                Q(class_obj__class_teacher__user=user) | Q(class_obj__schedules__teacher__user=user)
-            ).distinct()
+                class_obj_id__in=ObjectAccessSelector.teacher_classes(user.pk).values("pk")
+            )
         latest_publication = (
             DiaryPublication.objects.filter(sheet_id=OuterRef("entry__publication__sheet_id"))
             .order_by("-revision_number")
@@ -269,12 +265,22 @@ class DashboardSelector(BaseSelector):
             first_viewed_at__isnull=False,
             first_viewed_at__lte=F("entry__publication__published_at") + dt.timedelta(hours=24),
         ).count()
-        lead_times = [
-            (item.published_at - item.sheet.submitted_at).total_seconds()
-            for item in DiaryPublication.objects.filter(
-                sheet__in=sheets, sheet__submitted_at__isnull=False
-            ).select_related("sheet")
-        ]
+        durations = (
+            DiaryPublication.objects.filter(
+                sheet__in=sheets,
+                sheet__submitted_at__isnull=False,
+            )
+            .annotate(duration=F("published_at") - F("sheet__submitted_at"))
+            .order_by("duration", "pk")
+            .values_list("duration", flat=True)
+        )
+        count = durations.count()
+        centers = list(durations[(count - 1) // 2 : count // 2 + 1]) if count else []
+        median_hours = (
+            round(sum(value.total_seconds() for value in centers) / len(centers) / 3600, 1)
+            if centers
+            else None
+        )
         completion = self._diary_publication_completion(sheets)
         return {
             "role": role,
@@ -282,9 +288,7 @@ class DashboardSelector(BaseSelector):
             "pending_review": sheets.filter(status=DiarySheet.Status.PENDING_REVIEW).count(),
             "changes_requested": sheets.filter(status=DiarySheet.Status.CHANGES_REQUESTED).count(),
             "view_rate_24h": round(viewed_24h * 100 / notified, 1) if notified else None,
-            "approval_median_hours": (
-                round(statistics.median(lead_times) / 3600, 1) if lead_times else None
-            ),
+            "approval_median_hours": median_hours,
             **completion,
         }
 

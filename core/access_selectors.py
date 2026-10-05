@@ -1,11 +1,48 @@
 """Consultas read-only de propriedade usadas pelas políticas de acesso."""
 
-from django.db.models import Q
+from datetime import date
+
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 
 class ObjectAccessSelector:
     """Verifica vínculos entre o usuário e objetos do domínio."""
+
+    @staticmethod
+    def student_id_for_route(view_module: str, view_kwargs: dict) -> object | None:
+        """Resolve o aluno também nas rotas genéricas de endereço."""
+        student_id = view_kwargs.get("student_id")
+        if view_module == "students.views":
+            return view_kwargs.get("pk", student_id)
+        if view_module == "addresses.views":
+            entity_type, entity_id = view_kwargs.get("entity_type"), view_kwargs.get("entity_id")
+            if view_kwargs.get("address_id"):
+                from addresses.selectors import AddressSelector
+
+                selector = AddressSelector()
+                entity_type, entity_id = selector.get_entity_context(
+                    selector.get_by_id(view_kwargs["address_id"])
+                )
+            if entity_type == "student":
+                return entity_id
+        return student_id
+
+    @staticmethod
+    def require_student_access(user, student_id) -> None:
+        """Repete o escopo obrigatório antes de mutações do aluno e seus dados."""
+        from base.exceptions import PermissionDeniedError
+        from core.permissions import role_name
+
+        role = role_name(user)
+        if role == "TEACHER" and not ObjectAccessSelector.teacher_can_access_student(
+            user.pk, student_id
+        ):
+            raise PermissionDeniedError("Aluno fora do escopo do professor.")
+        if role == "GUARDIAN" and not ObjectAccessSelector.guardian_can_access_student(
+            user.pk, student_id
+        ):
+            raise PermissionDeniedError("Aluno fora do escopo do responsável.")
 
     @staticmethod
     def guardian_can_access_student(user_id, student_id) -> bool:
@@ -22,21 +59,45 @@ class ObjectAccessSelector:
         return ActivitySelector().guardian_can_access_activity(user_id, activity_id)
 
     @staticmethod
-    def teacher_can_access_class(user_id, class_id, on_date=None) -> bool:
-        """Confirma responsabilidade ou horário do professor na turma."""
+    def teacher_classes(user_id, on_date: date | None = None) -> QuerySet:
+        """Turmas ativas atribuídas a uma conta e perfil docentes válidos."""
         from classes.contracts import Class
+        from teachers.contracts import Teacher
 
-        reference_date = on_date or timezone.localdate()
-        schedule_scope = Q(
-            schedules__teacher__user_id=user_id,
+        reference = on_date or timezone.localdate()
+        teachers = Teacher.objects.filter(
+            user_id=user_id,
+            is_active=True,
+            user__is_active=True,
+            user__deleted_at__isnull=True,
+        ).values("pk")
+        owner = Q(class_teacher_id__in=teachers)
+        schedule = Q(
+            schedules__teacher_id__in=teachers,
             schedules__is_active=True,
             schedules__deleted_at__isnull=True,
-            schedules__valid_from__lte=reference_date,
-        ) & (Q(schedules__valid_until__isnull=True) | Q(schedules__valid_until__gte=reference_date))
-        return Class.objects.filter(
-            Q(class_teacher__user_id=user_id) | schedule_scope,
-            pk=class_id,
-        ).exists()
+            schedules__valid_from__lte=reference,
+        ) & (Q(schedules__valid_until__isnull=True) | Q(schedules__valid_until__gte=reference))
+        return Class.objects.filter(owner | schedule, is_active=True).distinct()
+
+    @staticmethod
+    def teacher_enrollments(user_id) -> QuerySet:
+        """Matrículas e alunos vigentes nas turmas atualmente acessíveis."""
+        from classes.contracts import Enrollment
+
+        return Enrollment.objects.filter(
+            class_obj_id__in=ObjectAccessSelector.teacher_classes(user_id).values("pk"),
+            status=Enrollment.Status.ACTIVE,
+            is_active=True,
+            enrollment_date__lte=timezone.localdate(),
+            student__is_active=True,
+            student__deleted_at__isnull=True,
+        )
+
+    @staticmethod
+    def teacher_can_access_class(user_id, class_id, on_date=None) -> bool:
+        """Confirma a atribuição válida, com referência histórica apenas na grade."""
+        return ObjectAccessSelector.teacher_classes(user_id, on_date).filter(pk=class_id).exists()
 
     @staticmethod
     def teacher_can_access_teacher(user_id, teacher_id) -> bool:
@@ -90,23 +151,7 @@ class ObjectAccessSelector:
 
     @staticmethod
     def teacher_can_access_student(user_id, student_id) -> bool:
-        """Confirma matrícula do aluno em turma do professor."""
-        from django.db.models import Q
-
-        from classes.contracts import Enrollment
-
-        today = timezone.localdate()
-        schedule_scope = Q(
-            class_obj__schedules__teacher__user_id=user_id,
-            class_obj__schedules__is_active=True,
-            class_obj__schedules__deleted_at__isnull=True,
-            class_obj__schedules__valid_from__lte=today,
-        ) & (
-            Q(class_obj__schedules__valid_until__isnull=True)
-            | Q(class_obj__schedules__valid_until__gte=today)
+        """Confirma matrícula vigente do aluno no escopo docente canônico."""
+        return (
+            ObjectAccessSelector.teacher_enrollments(user_id).filter(student_id=student_id).exists()
         )
-        return Enrollment.objects.filter(
-            Q(class_obj__class_teacher__user_id=user_id) | schedule_scope,
-            student_id=student_id,
-            status=Enrollment.Status.ACTIVE,
-        ).exists()

@@ -59,3 +59,19 @@ def test_notify_all_chunks_active_users(user):
     create_bulk.assert_called_once()
     assert create_bulk.call_args.args[0] == [user.pk]
     assert create_bulk.call_args.args[1]["correlation_id"] == "corr-id"
+
+
+@pytest.mark.django_db
+def test_notify_all_limits_each_batch_to_500_without_losing_recipients(user):
+    from core.models import CustomUser
+
+    CustomUser.objects.bulk_create(
+        [CustomUser(email=f"batch-{index}@test.local", is_active=True) for index in range(1000)]
+    )
+    with patch(
+        "notifications.services.NotificationService.create_notifications_bulk", return_value=1
+    ) as create_bulk:
+        notify_audience_all_task.run("demo", "Title", "Message")
+    batches = [call.args[0] for call in create_bulk.call_args_list]
+    assert [len(batch) for batch in batches] == [500, 500, 1]
+    assert len({recipient for batch in batches for recipient in batch}) == 1001

@@ -122,12 +122,9 @@ class ScheduleSelector(BaseSelector):
     @staticmethod
     def _teacher_class_scope(user_id, as_of: date) -> Q:
         """Limita o escopo docente à titularidade ou grade vigente na referência."""
-        return Q(class_teacher__user_id=user_id) | Q(
-            schedules__teacher__user_id=user_id,
-            schedules__is_active=True,
-            schedules__deleted_at__isnull=True,
-            schedules__valid_from__lte=as_of,
-        ) & (Q(schedules__valid_until__isnull=True) | Q(schedules__valid_until__gte=as_of))
+        from core.access_selectors import ObjectAccessSelector
+
+        return Q(pk__in=ObjectAccessSelector.teacher_classes(user_id, as_of).values("pk"))
 
     @classmethod
     def teacher_can_access_class(cls, class_id, *, user_id, as_of: date) -> bool:

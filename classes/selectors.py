@@ -28,9 +28,11 @@ class ClassSelector(BaseSelector):
 
         queryset = Class.objects.filter(**(filters or {}))
         if role_name == "TEACHER":
+            from core.access_selectors import ObjectAccessSelector
+
             queryset = queryset.filter(
-                Q(class_teacher__user_id=user_id) | Q(schedules__teacher__user_id=user_id)
-            ).distinct()
+                pk__in=ObjectAccessSelector.teacher_classes(user_id).values("pk")
+            )
         if order_by in {"grade", "-grade"}:
             from classes.contracts import GRADE_PEDAGOGICAL_ORDER
 

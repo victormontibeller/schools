@@ -38,16 +38,12 @@ class StudentSelector(BaseSelector):
         page_size: int = 20,
     ) -> PageResult:
         """Aplica os escopos obrigatórios de professor e responsável à listagem."""
-        from classes.contracts import Enrollment
+        from core.access_selectors import ObjectAccessSelector
 
         qs = self.model_class.objects.all()
         if role_name == "TEACHER":
             qs = qs.filter(
-                Q(enrollments__class_obj__class_teacher__user_id=user_id)
-                | Q(enrollments__class_obj__schedules__teacher__user_id=user_id),
-                enrollments__status=Enrollment.Status.ACTIVE,
-                enrollments__is_active=True,
-                enrollments__deleted_at__isnull=True,
+                pk__in=ObjectAccessSelector.teacher_enrollments(user_id).values("student_id")
             )
         elif role_name == "GUARDIAN":
             from guardians.selectors import GuardianSelector
@@ -60,17 +56,13 @@ class StudentSelector(BaseSelector):
 
     def eligible_for_justification(self, user):
         """Retorna alunos que o ator pode selecionar ao justificar uma ausência."""
-        from classes.contracts import Enrollment
+        from core.access_selectors import ObjectAccessSelector
 
         qs = self.model_class.objects.all()
         actor_role = getattr(getattr(user, "role", None), "name", "")
         if actor_role == "TEACHER":
             qs = qs.filter(
-                Q(enrollments__class_obj__class_teacher__user_id=user.pk)
-                | Q(enrollments__class_obj__schedules__teacher__user_id=user.pk),
-                enrollments__status=Enrollment.Status.ACTIVE,
-                enrollments__is_active=True,
-                enrollments__deleted_at__isnull=True,
+                pk__in=ObjectAccessSelector.teacher_enrollments(user.pk).values("student_id")
             )
         elif actor_role == "GUARDIAN":
             from guardians.selectors import GuardianSelector

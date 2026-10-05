@@ -186,10 +186,14 @@ class ContractLifecycleMixin:
         contract = self._get_contract(contract_id)
         if contract.status != StudentFinancialContract.Status.ACTIVE:
             raise BusinessRuleViolationError("Apenas contratos ativos geram cobranças.")
-        return self._materialize_billings(contract)
+        created = self._materialize_billings(contract)
+        self._log(
+            "financial_contract_materialized", contract_id=str(contract.pk), created_count=created
+        )
+        return created
 
-    def _materialize_billings(self, contract, *, amendment=None) -> int:
-        from financeiro.models import BillingEntry
+    def _materialize_billings(self, contract, *, target=None) -> int:
+        from financeiro.models import BillingEntry, FinancialContractAmendment
 
         if contract.installment_value - contract.discount_value <= ZERO:
             raise ValidationError(
@@ -197,15 +201,26 @@ class ContractLifecycleMixin:
             )
         start = contract.start_competency or date(contract.academic_year, 1, 1)
         step = self._month_step(contract.billing_frequency)
+        amendment = (
+            FinancialContractAmendment.objects.filter(contract=contract)
+            .order_by("-revision")
+            .first()
+        )
         created = 0
         for number in range(1, contract.installment_count + 1):
+            competency = self._add_months(start, (number - 1) * step)
+            if target is not None and competency != target:
+                continue
             if BillingEntry.all_objects.filter(
                 contract=contract,
                 installment_number=number,
-                schedule_revision=contract.terms_revision,
+                renegotiated_from__isnull=True,
             ).exists():
                 continue
-            competency = self._add_months(start, (number - 1) * step)
+            if amendment and competency < amendment.effective_competency:
+                raise BusinessRuleViolationError(
+                    "Parcela histórica ausente; os termos atuais não podem recompô-la."
+                )
             billing = BillingEntry.objects.create(
                 contract=contract,
                 amendment=amendment,
@@ -216,6 +231,8 @@ class ContractLifecycleMixin:
                 description=f"{contract.name} - Parcela {number}/{contract.installment_count}",
                 principal_value=contract.installment_value,
                 discount_value=contract.discount_value,
+                late_fee_percent=contract.late_fee_percent,
+                daily_interest_percent=contract.daily_interest_percent,
                 competency=competency,
                 due_date=competency.replace(day=contract.due_day),
                 status=BillingEntry.Status.ACTIVE,
@@ -232,7 +249,7 @@ class ContractLifecycleMixin:
     ) -> int:
         """Gera a competência informada para contratos ativos da turma."""
         from classes.contracts import Class
-        from financeiro.models import BillingEntry, StudentFinancialContract
+        from financeiro.models import StudentFinancialContract
 
         try:
             class_obj = Class.objects.get(pk=class_id)
@@ -240,45 +257,20 @@ class ContractLifecycleMixin:
             raise ObjectNotFoundError("Class", str(class_id)) from None
         target = date(academic_year, month or timezone.localdate().month, 1)
         created = 0
-        contracts = StudentFinancialContract.objects.filter(
-            class_obj=class_obj,
-            academic_year=academic_year,
-            status=StudentFinancialContract.Status.ACTIVE,
-            start_competency__lte=target,
-            end_competency__gte=target,
-        ).select_related("student")
+        contracts = (
+            StudentFinancialContract.objects.select_for_update(of=("self",))
+            .filter(
+                class_obj=class_obj,
+                academic_year=academic_year,
+                status=StudentFinancialContract.Status.ACTIVE,
+                start_competency__lte=target,
+                end_competency__gte=target,
+            )
+            .select_related("student")
+            .order_by("pk")
+        )
         for contract in contracts:
-            step = self._month_step(contract.billing_frequency)
-            distance = (target.year - contract.start_competency.year) * 12 + (
-                target.month - contract.start_competency.month
-            )
-            if distance < 0 or distance % step:
-                continue
-            number = distance // step + 1
-            if (
-                number > contract.installment_count
-                or BillingEntry.all_objects.filter(
-                    contract=contract,
-                    installment_number=number,
-                    schedule_revision=contract.terms_revision,
-                ).exists()
-            ):
-                continue
-            billing = BillingEntry.objects.create(
-                contract=contract,
-                student=contract.student,
-                installment_number=number,
-                schedule_revision=contract.terms_revision,
-                description=f"{contract.name} - Competência {target:%m/%Y}",
-                principal_value=contract.installment_value,
-                discount_value=contract.discount_value,
-                competency=target,
-                due_date=target.replace(day=contract.due_day),
-                created_by=self.user,
-                updated_by=self.user,
-            )
-            self._record_audit("INSERT", billing)
-            created += 1
+            created += self._materialize_billings(contract, target=target)
         self._log(
             "contract_billings_generated_by_class",
             class_id=str(class_obj.pk),
@@ -357,8 +349,3 @@ class ContractLifecycleMixin:
         self._record_audit("UPDATE", contract, old_values=old)
         self._log("financial_contract_closed", contract_id=str(contract.pk))
         return contract
-
-    @staticmethod
-    def _add_months(value: date, months: int) -> date:
-        absolute = value.year * 12 + value.month - 1 + months
-        return date(absolute // 12, absolute % 12 + 1, 1)
