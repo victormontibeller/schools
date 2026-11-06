@@ -90,3 +90,14 @@ corrigida ocorre no build e scan reais do CI.
 
 Churn deste ajuste: um arquivo de infraestrutura (`Dockerfile`, quatro linhas adicionadas),
 um documento atualizado, zero arquivos de testes ou migrations e nenhum caminho legado removido.
+
+## Acompanhamento do CI — interpretador do teste de reset
+
+A suíte SQLite remota encontrou uma dependência indevida da fixture em `./.venv/bin/python`:
+esse caminho existe no desenvolvimento local, mas o runner instala dependências no Python de
+`actions/setup-python`. O teste agora informa `PYTHON_BIN=sys.executable`, usando a opção já
+suportada pelo script. A asserção de recusa de host remoto e a prova de que `psql` não foi chamado
+continuam sendo verificadas. O script de reset não foi executado contra bancos locais/reais.
+
+Churn deste ajuste: um arquivo de teste com duas linhas adicionadas e este documento; zero
+alterações de produto ou migrations e nenhum caminho legado removido.

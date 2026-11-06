@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -16,6 +17,7 @@ def test_reset_dev_rejects_remote_database_before_running_psql(tmp_path):
     env = {
         **os.environ,
         "PATH": f"{fake_bin}:{os.environ['PATH']}",
+        "PYTHON_BIN": sys.executable,
         "CONFIRM_RESET_DEV": "RESET",
         "DB_HOST": "db.example.test",
         "DEV_PLATFORM_ADMIN_PASSWORD": "unused",
