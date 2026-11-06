@@ -7,6 +7,8 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 RUN apt-get update \
+    && apt-get -o Acquire::Retries=0 install -y --no-install-recommends \
+        --only-upgrade apt libapt-pkg7.0 \
     && apt-get install -y --no-install-recommends build-essential libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
@@ -28,6 +30,8 @@ ARG APP_UID=10001
 ARG APP_GID=10001
 
 RUN apt-get update \
+    && apt-get -o Acquire::Retries=0 install -y --no-install-recommends \
+        --only-upgrade apt libapt-pkg7.0 \
     && apt-get install -y --no-install-recommends libpq5 \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system --gid "${APP_GID}" schools \

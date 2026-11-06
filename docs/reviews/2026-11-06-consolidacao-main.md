@@ -74,3 +74,19 @@ Foi criado e verificado um bundle completo antes da limpeza das branches, preser
 em `.git/schools-branches-20261106.bundle`. A limpeza abrange as dez branches antigas do
 Dependabot e a branch do Copilot, cujo único commit exclusivo era vazio. O objetivo da publicação
 é manter apenas `main` nos heads locais e remotos, sem reescrever o histórico da `main`.
+
+## Acompanhamento do CI — imagem Docker
+
+O primeiro CI de `440ca09` identificou a CVE-2026-109518 nos pacotes Debian `apt` e
+`libapt-pkg7.0` 3.0.3 da imagem final. O scan dos arquivos e dependências Python passou; o scan
+da imagem bloqueou a publicação por duas ocorrências HIGH da mesma vulnerabilidade.
+
+Os estágios builder e runtime agora atualizam explicitamente esses pacotes antes das demais
+dependências. O bootstrap usa `Acquire::Retries=0`, mitigação documentada para a versão antiga,
+e instala a correção disponível em `trixie-security` (3.0.4 ou posterior). Referência:
+[Debian Security Tracker](https://security-tracker.debian.org/tracker/CVE-2026-109518).
+O digest base e os critérios bloqueantes do Trivy são preservados; a verificação da imagem
+corrigida ocorre no build e scan reais do CI.
+
+Churn deste ajuste: um arquivo de infraestrutura (`Dockerfile`, quatro linhas adicionadas),
+um documento atualizado, zero arquivos de testes ou migrations e nenhum caminho legado removido.
