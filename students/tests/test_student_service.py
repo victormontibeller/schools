@@ -62,7 +62,7 @@ class TestUpdateStudent:
         assert updated.first_name == "Ana"
         assert updated.version == 1
 
-    def test_update_rejects_tampered_email_and_audits_observations_as_redacted(self, user):
+    def test_update_contact_and_observations_are_audited_as_redacted(self, user):
         from audit.models import AuditLog
 
         s = StudentService(user=user).create_student(
@@ -74,15 +74,13 @@ class TestUpdateStudent:
             }
         )
 
-        with pytest.raises(ValidationError):
-            StudentService(user=user).update_student(
-                s.pk,
-                {"email": "student-updated@test.com"},
-            )
-
         updated = StudentService(user=user).update_student(
             s.pk,
-            {"first_name": "Ana", "observations": "Observação atualizada."},
+            {
+                "first_name": "Ana",
+                "observations": "Observação atualizada.",
+                "email": "updated@example.test",
+            },
         )
 
         log = AuditLog.objects.filter(
@@ -92,8 +90,8 @@ class TestUpdateStudent:
         ).latest("created_at")
         assert log.old_values["first_name"] == "[REDACTED]"
         assert log.old_values["observations"] == "[REDACTED]"
-        assert "email" not in log.old_values
-        assert updated.email == "student-audit@test.com"
+        assert log.old_values["email"] == "[REDACTED]"
+        assert updated.email == "updated@example.test"
         assert updated.observations == "Observação atualizada."
 
     def test_enrollment_is_immutable_on_update(self, user):
@@ -143,3 +141,15 @@ class TestDeactivateRestoreStudent:
         StudentService(user=user).deactivate_student(s.pk)
         with pytest.raises(BusinessRuleViolationError):
             StudentService(user=user).deactivate_student(s.pk)
+
+
+@pytest.mark.django_db
+def test_create_child_needs_no_contact_document_or_account(user):
+    data = {"first_name": "Infantil", "last_name": "Fictício", "birth_date": "2022-01-01"}
+    service = StudentService(user=user)
+    student = service.create_student(data)
+    assert student.cpf is None and student.user_id is None and student.email == ""
+    with pytest.raises(ValidationError) as error:
+        service.create_student({**data, "user": user})
+
+    assert "user" in error.value.errors

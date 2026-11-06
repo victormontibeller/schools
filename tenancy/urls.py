@@ -5,6 +5,11 @@ from django.urls import path
 from tenancy import views
 
 urlpatterns = [
+    path(
+        "platform/escolas/<uuid:pk>/administrador/",
+        views.platform_school_bootstrap,
+        name="platform_school_bootstrap",
+    ),
     path("platform/", views.platform_dashboard, name="platform_dashboard"),
     path("platform/escolas/", views.platform_school_list, name="platform_school_list"),
     path(

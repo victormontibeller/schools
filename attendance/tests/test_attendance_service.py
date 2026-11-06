@@ -380,8 +380,8 @@ class TestRecordAttendance:
         AttendanceService(user=user).record_attendance(
             record.pk,
             {
-                str(s1.pk): AttendanceEntry.Status.ABSENT,
-                str(s2.pk): AttendanceEntry.Status.PRESENT,
+                str(s1.pk): {"status": AttendanceEntry.Status.ABSENT, "version": 0},
+                str(s2.pk): {"status": AttendanceEntry.Status.PRESENT, "version": 0},
             },
         )
         entries = record.entries.all()
@@ -410,6 +410,7 @@ class TestRecordAttendance:
                 str(s1.pk): {
                     "status": AttendanceEntry.Status.JUSTIFIED,
                     "justification": "Atestado médico",
+                    "version": 0,
                 },
             },
         )

@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import datetime as dt
 
-from django.db import connection
 from django.utils import timezone
 
-from base.events import publish_task_after_commit
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError, ValidationError
 from base.services import service_command, system_command
 
@@ -74,8 +72,11 @@ class ReminderLifecycleMixin:
     @system_command
     def run_scheduled_reminders(self, *, reference_date=None) -> int:
         """Materializa somente regras que vencem na data da execução."""
+        from base.context import active_tenant_schema
         from financeiro.models import BillingEntry, CollectionReminderPolicy
+        from tenancy.selectors import SchoolSelector
 
+        SchoolSelector().get_active_by_schema(active_tenant_schema())
         reference = reference_date or timezone.localdate()
         policy = CollectionReminderPolicy.objects.filter(enabled=True).first()
         if policy is None or not policy.offset_days or not policy.channels:
@@ -130,18 +131,26 @@ class ReminderLifecycleMixin:
                 )
                 if created:
                     self._record_audit("INSERT", reminder)
-                    created_ids.append(str(reminder.pk))
-        if created_ids:
-            tenant_schema = getattr(connection, "schema_name", "public")
-            from financeiro.tasks import deliver_collection_reminder_task
+                    from django.urls import reverse
 
-            for reminder_id in created_ids:
-                publish_task_after_commit(
-                    deliver_collection_reminder_task,
-                    tenant_schema,
-                    reminder_id,
-                    tenant_schema=tenant_schema,
-                )
+                    from notifications.outbox_services import OutboxService
+                    from notifications.projection_services import DeliveryProjectionService
+
+                    logs = OutboxService(user=self.user).create_event_deliveries(
+                        source_type="financial_reminder",
+                        source_id=str(reminder.pk),
+                        recipient=guardian.user,
+                        event="financial_reminder",
+                        action_url=reverse("billing_detail", args=[billing.pk]),
+                        send_email=channel == "EMAIL",
+                        inbox=channel == "IN_APP",
+                        scope={"student_ids": [str(billing.student_id)]},
+                    )
+                    reminder.message_log_id = logs[0].pk
+                    reminder.save()
+                    self._record_audit("UPDATE", reminder)
+                    DeliveryProjectionService().synchronize_delivery(logs[0])
+                    created_ids.append(str(reminder.pk))
         self._log(
             "collection_reminders_enqueued",
             billing_id=str(billing.pk),
@@ -156,57 +165,3 @@ class ReminderLifecycleMixin:
         if channel == "EMAIL":
             return bool(guardian.user_id and guardian.accepts_email_notifications)
         return False
-
-    @system_command
-    def attach_reminder_message_log(self, reminder_id, message_log_id):
-        """Vincula a tentativa externa antes de um retry idempotente."""
-        from financeiro.models import CollectionReminder
-
-        try:
-            reminder = CollectionReminder.objects.select_for_update().get(pk=reminder_id)
-        except CollectionReminder.DoesNotExist:
-            raise ObjectNotFoundError("CollectionReminder", str(reminder_id)) from None
-        if reminder.message_log_id is None:
-            reminder.message_log_id = message_log_id
-            reminder.updated_by = self.user
-            reminder.save(update_fields=["message_log_id", "updated_by", "updated_at"])
-            self._record_audit("UPDATE", reminder, old_values={"message_log_id": None})
-            self._log(
-                "collection_reminder_message_log_attached",
-                reminder_id=str(reminder.pk),
-                message_log_id=str(message_log_id),
-            )
-        return reminder
-
-    @system_command
-    def complete_reminder_delivery(
-        self,
-        reminder_id,
-        *,
-        status: str,
-        message_log_id=None,
-        error_code: str = "",
-    ):
-        from financeiro.models import CollectionReminder
-
-        try:
-            reminder = CollectionReminder.objects.select_for_update().get(pk=reminder_id)
-        except CollectionReminder.DoesNotExist:
-            raise ObjectNotFoundError("CollectionReminder", str(reminder_id)) from None
-        if reminder.status != CollectionReminder.Status.PENDING:
-            return reminder
-        old = {"status": reminder.status}
-        reminder.status = status
-        reminder.message_log_id = message_log_id
-        reminder.error_code = error_code[:80]
-        reminder.sent_at = timezone.now() if status == CollectionReminder.Status.SENT else None
-        reminder.updated_by = self.user
-        reminder.save()
-        self._record_audit("UPDATE", reminder, old_values=old)
-        self._log(
-            "collection_reminder_completed",
-            reminder_id=str(reminder.pk),
-            channel=reminder.channel,
-            status=reminder.status,
-        )
-        return reminder

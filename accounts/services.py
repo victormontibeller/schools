@@ -6,7 +6,6 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.core import signing
-from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import connection
 from django.utils import timezone
@@ -29,43 +28,18 @@ class AccountService(BaseService):
     @system_command
     def create_teacher_invitation_token(self, user_id) -> str:
         """Cria token assinado para a definição inicial de senha do professor."""
-        return signing.dumps({"user_id": str(user_id)}, salt=TEACHER_INVITE_SALT, compress=True)
+        from accounts.invitation_tokens import InvitationTokenService
+
+        return InvitationTokenService(user=self.user).issue_token(user_id, salt=TEACHER_INVITE_SALT)
 
     @system_command
     def activate_teacher_invitation(self, token: str, password: str):
-        """Ativa uma conta de professor pendente após definir senha forte."""
-        from core.contracts import CustomUser
+        """Ativa o perfil docente através do convite vigente de uso único."""
+        from accounts.invitation_tokens import InvitationTokenService
 
-        try:
-            payload = signing.loads(
-                token, salt=TEACHER_INVITE_SALT, max_age=TEACHER_INVITE_TTL_SECONDS
-            )
-        except signing.BadSignature as exc:
-            raise BusinessRuleViolationError("Convite inválido ou expirado.") from exc
-        try:
-            user = CustomUser.all_objects.select_related("teacher_profile").get(
-                pk=payload.get("user_id"), deleted_at__isnull=True
-            )
-        except CustomUser.DoesNotExist:
-            raise ObjectNotFoundError("CustomUser", str(payload.get("user_id"))) from None
-        try:
-            teacher_profile = user.teacher_profile
-        except ObjectDoesNotExist as exc:
-            raise BusinessRuleViolationError("Convite não pertence a um professor.") from exc
-        if teacher_profile is None:
-            raise BusinessRuleViolationError("Convite não pertence a um professor.")
-        if user.is_active or user.email_verified_at:
-            raise BusinessRuleViolationError("Este convite já foi utilizado.")
-        self._validate_password(password, user=user)
-        old = {"is_active": user.is_active, "email_verified_at": None}
-        user.set_password(password)
-        user.is_active = True
-        user.email_verified_at = timezone.now()
-        user.updated_by = user
-        user.save()
-        self._record_audit("UPDATE", user, old_values=old)
-        self._log("teacher_invitation_accepted", user_id=str(user.pk))
-        return user
+        return InvitationTokenService().consume_token(
+            token, password, salt=TEACHER_INVITE_SALT, profile="teacher_profile"
+        )
 
     def create_platform_user(self, data: dict):
         """Cria operador persistente no schema público."""
@@ -258,6 +232,9 @@ class AccountService(BaseService):
 
     def create_user(self, data: dict):
         """Cria um usuário validando senha, e-mail único e papel, e registra auditoria."""
+        from accounts.user_guards import lock_and_refresh_administrator
+
+        lock_and_refresh_administrator(self)
         from core.contracts import CustomUser, Role
 
         candidate = CustomUser(
@@ -300,7 +277,16 @@ class AccountService(BaseService):
         class UserRepo(BaseRepository):
             model_class = CustomUser
 
-        user = UserRepo().get_by_id(user_id)
+        from accounts.user_guards import lock_and_refresh_administrator, validate_user_change
+
+        lock_and_refresh_administrator(self)
+        from guardians.contracts import Guardian
+
+        guardian = Guardian.all_objects.select_for_update().filter(user_id=user_id).first()
+        try:
+            user = CustomUser.objects.select_for_update().get(pk=user_id)
+        except CustomUser.DoesNotExist:
+            raise ObjectNotFoundError("CustomUser", str(user_id)) from None
         old = self._snapshot(user, ["email", "first_name", "avatar"])
         allowed = {"first_name", "last_name", "phone", "avatar", "is_active"}
         updates = {
@@ -317,6 +303,10 @@ class AccountService(BaseService):
             ):
                 raise ValidationError(errors={"email": ["Este e-mail já está em uso."]})
             updates["email"] = email
+            if email != user.email and user.invitation_nonce:
+                updates.update(
+                    invitation_nonce=None, invitation_expires_at=None, invitation_sent_at=None
+                )
         if "role_id" in data:
             role_id = data["role_id"]
             if role_id:
@@ -326,6 +316,7 @@ class AccountService(BaseService):
                     raise ObjectNotFoundError("Role", str(role_id)) from None
             else:
                 updates["role"] = None
+        validate_user_change(user, updates)
         updates["updated_by"] = self.user
         updates.pop("avatar", None)
         updates.update(image_updates(user, data, "avatar"))
@@ -333,18 +324,34 @@ class AccountService(BaseService):
             user, expected_version=data.get("version", user.version), **updates
         )
         self._record_audit("UPDATE", user, old_values=old)
+        if guardian and "email" in updates and guardian.email != user.email:
+            guardian_old = self._snapshot(guardian, ["email"])
+            guardian.email = user.email
+            guardian.updated_by = self.user
+            guardian.save()
+            self._record_audit("UPDATE", guardian, old_values=guardian_old)
         self._log("Usuário atualizado", user_id=str(user.pk))
         return user
 
     def deactivate_user(self, user_id):
         """Aplica exclusão lógica no usuário e registra auditoria."""
+        from accounts.user_guards import lock_and_refresh_administrator, validate_user_change
         from core.contracts import CustomUser
 
+        lock_and_refresh_administrator(self)
+        try:
+            user = CustomUser.all_objects.get(pk=user_id)
+        except CustomUser.DoesNotExist:
+            raise ObjectNotFoundError("CustomUser", str(user_id)) from None
+        validate_user_change(user, {"is_active": False})
         return self._deactivate(CustomUser, user_id, "CustomUser")
 
     def restore_user(self, user_id):
         """Reverte a exclusão lógica do usuário e registra auditoria."""
+        from accounts.user_guards import lock_and_refresh_administrator
         from core.contracts import CustomUser
+
+        lock_and_refresh_administrator(self)
 
         try:
             user = CustomUser.all_objects.get(pk=user_id)

@@ -1,0 +1,4 @@
+{% extends "list_page_base.html" %}
+{% load ui_helpers %}
+{% block page_header_actions %}{{ block.super }}{% can_access_action '__admin__' 'edit' as can_configure %}{% if can_configure %}<a class="btn btn-outline-secondary btn-sm ms-2" href="{% url 'service_request_configuration' %}">Configurar atendimento</a>{% endif %}{% endblock %}
+{% block list_body %}{% include "service_requests/partials/requests_table.html" %}{% endblock %}

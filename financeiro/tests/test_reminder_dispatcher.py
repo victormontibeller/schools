@@ -45,12 +45,12 @@ def test_dispatcher_publishes_each_active_non_public_schema_and_continues_after_
     assert [call.args for call in delay.call_args_list] == [("school_a",), ("school_b",)]
 
 
-def test_beat_schedules_only_enrollment_recovery_and_financial_dispatcher():
+def test_beat_schedules_durable_recovery_and_financial_dispatcher():
     """Beat não agenda expiração DEMO nem atualização de dashboards neste pacote."""
     schedule = project_settings.CELERY_BEAT_SCHEDULE
 
     assert {entry["task"] for entry in schedule.values()} == {
-        "enrollments.dispatch_stale_document_reminder_recovery",
+        "notifications.recover_communications",
         "financeiro.dispatch_collection_reminders",
     }
     financial = schedule["dispatch-daily-collection-reminders"]["schedule"]

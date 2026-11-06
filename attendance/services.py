@@ -52,13 +52,8 @@ class _JustificationRepo(BaseRepository):
 class AttendanceService(BaseService):
     """Serviço de aplicação para o domínio de frequência."""
 
-    # ── Abertura de chamada ──────────────────────────────────────────────────
     def open_attendance(self, data: dict):
-        """Cria o registro de chamada e pré-cadastra entradas para todos os alunos ativos.
-
-        Espera em `data`: class_id, subject_id, teacher_id, date, lesson_number,
-        lesson_content e notes?.
-        """
+        """Abre chamada da turma, disciplina, professor e data com entradas dos alunos ativos."""
         from attendance.models import AttendanceEntry, AttendanceRecord
         from classes.contracts import Class, Enrollment
         from teachers.contracts import Subject, Teacher
@@ -82,6 +77,13 @@ class AttendanceService(BaseService):
 
         date = data["date"]
         self._validate_teacher_scope(cls, subject, teacher, date)
+        from students.contracts import ImportUsageService
+
+        ImportUsageService(user=self.user).seal_for_use(
+            student_ids=Enrollment.objects.filter(class_obj=cls, status="ACTIVE").values_list(
+                "student_id", flat=True
+            )
+        )
 
         lesson_number = int(data.get("lesson_number", 1) or 1)
         if AttendanceRecord.objects.filter(
@@ -134,6 +136,8 @@ class AttendanceService(BaseService):
         from core.access_selectors import ObjectAccessSelector
         from core.permissions import role_name
 
+        if not teacher.is_active or not teacher.user.is_active:
+            raise PermissionDeniedError("Professor desativado não pode registrar chamadas.")
         if not teacher.subjects.filter(pk=subject.pk).exists():
             raise ValidationError(
                 errors={"subject": ["A disciplina não está vinculada ao professor."]}
@@ -175,6 +179,7 @@ class AttendanceService(BaseService):
                 status, justification = raw, ""
             entries_data[str(entry.student_id)] = {
                 "status": status,
+                "version": post_data.get(f"version_{entry.student_id}"),
                 "justification": justification,
                 "note": post_data.get(f"note_{entry.student_id}", ""),
             }
@@ -182,11 +187,7 @@ class AttendanceService(BaseService):
 
     # ── Lançamento em lote ───────────────────────────────────────────────────
     def record_attendance(self, record_id, entries_data: dict):
-        """Atualiza as presenças a partir de um dict {student_id: status}.
-
-        `status` ∈ {PRESENT, ABSENT, JUSTIFIED}. Para JUSTIFIED, permite
-        `justification` informado por aluno via dict {"status":..., "justification":...}.
-        """
+        """Salva atomicamente status, versão vista e observações de cada aluno."""
         from attendance.models import AttendanceEntry
 
         record = _RecordRepo().get_by_id(record_id)
@@ -199,22 +200,27 @@ class AttendanceService(BaseService):
         }
         updated = 0
         for student_id, payload in entries_data.items():
-            # Suporta valor simples (str) ou dict com justification.
-            if isinstance(payload, dict):
-                status = payload.get("status")
-                justification = payload.get("justification", "")
-                note = payload.get("note", "")
-            else:
-                status = payload
-                justification = ""
-                note = ""
-
-            if status not in valid:
-                raise ValidationError(errors={"__all__": [f"Status inválido: {status}"]})
             try:
                 entry = record.entries.get(student_id=student_id)
             except AttendanceEntry.DoesNotExist:
                 raise ObjectNotFoundError("AttendanceEntry", student_id) from None
+            if not isinstance(payload, dict):
+                raise ValidationError(errors={"__all__": ["Informe status e versão por aluno."]})
+            status = payload.get("status")
+            justification = payload.get("justification", "")
+            note = payload.get("note", "")
+            if status not in valid:
+                raise ValidationError(errors={"__all__": ["Status de presença inválido."]})
+            try:
+                expected_version = int(payload["version"])
+            except (KeyError, TypeError, ValueError):
+                raise ValidationError(
+                    errors={"__all__": ["Recarregue a chamada antes de salvar."]}
+                ) from None
+            if expected_version != entry.version:
+                raise BusinessRuleViolationError(
+                    "Esta chamada foi alterada por outra pessoa. Recarregue antes de salvar."
+                )
 
             old = self._snapshot(entry, ["status", "justification", "note"])
             entry.status = status
@@ -306,9 +312,12 @@ class AttendanceService(BaseService):
         elif not can_access(self.user, "attendance", CREATE):
             raise PermissionDeniedError("Sem permissão para enviar justificativas.")
 
+        from students.contracts import ImportUsageService
+
         try:
+            ImportUsageService(user=self.user).seal_for_use(student_ids=[data["student_id"]])
             student = Student.objects.get(pk=data["student_id"])
-        except Student.DoesNotExist as exc:
+        except (Student.DoesNotExist, ObjectNotFoundError) as exc:
             raise ValidationError(errors={"student_id": ["Aluno não encontrado."]}) from exc
 
         if data["end_date"] < data["start_date"]:
@@ -370,13 +379,8 @@ class AttendanceService(BaseService):
         self._log("Justificativa rejeitada", justification_id=str(just.pk))
         return just
 
-    # ── Cálculo de frequência ───────────────────────────────────────────────
     def calculate_attendance_rate(self, student_id, class_id):
-        """Retorna o percentual de frequência (0-100) do aluno na turma.
-
-        Considera apenas as chamadas já lançadas. Os ausentes justificados não
-        contam como faltas.
-        """
+        """Percentual das chamadas lançadas; ausências justificadas não contam."""
         from attendance.selectors import AttendanceSelector
 
         return AttendanceSelector().get_student_attendance_rate(student_id, class_id)

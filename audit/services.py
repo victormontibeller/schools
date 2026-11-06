@@ -12,6 +12,7 @@ SENSITIVE_FIELD_FRAGMENTS: frozenset[str] = frozenset(
     {
         "password",
         "token",
+        "nonce",
         "secret",
         "api_key",
         "email",
@@ -27,6 +28,8 @@ SENSITIVE_FIELD_FRAGMENTS: frozenset[str] = frozenset(
 SENSITIVE_EXACT_FIELDS: frozenset[str] = frozenset(
     {
         "recipient",
+        "subject",
+        "immediate_contact",
         "street",
         "number",
         "complement",

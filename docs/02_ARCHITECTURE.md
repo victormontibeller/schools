@@ -129,7 +129,8 @@ academic_calendar/ → Calendário acadêmico e eventos
 enrollments/    → Matrículas, rematrículas e documentos
 financeiro/     → Modelos, contratos, cobranças, alocações, conciliação e lembretes
 addresses/      → Endereços unificados
-notifications/  → Notificações, e-mails e WhatsApp
+notifications/  → Comunicados, recibos, notificações e outbox de e-mail
+service_requests/ → Atendimento privado por setor e calendário administrativo
 dashboard/      → Dashboards técnico, escolar e executivo
 audit/          → Auditoria de todas as ações do sistema
 ```

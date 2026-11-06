@@ -7,19 +7,16 @@ from django.shortcuts import redirect, render
 
 def _detect_dashboard_role(user) -> str:
     """Determina o perfil operacional para a home interna."""
-    if hasattr(user, "teacher_profile"):
-        return "TEACHER"
-    if hasattr(user, "guardian_profile"):
-        return "GUARDIAN"
-    if user.role_id and user.role:
-        return user.role.name
-    if user.is_staff:
-        return "ADMIN"
-    return "COORDINATOR"
+    from core.permissions import role_name
+
+    return role_name(user)
 
 
-def _dashboard_quick_actions(role_name: str) -> list[dict[str, str]]:
+def _dashboard_quick_actions(user) -> list[dict[str, str]]:
     """Retorna atalhos prioritarios conforme o perfil do usuario."""
+    from core.templatetags.ui_helpers import can_access_url
+
+    role_name = _detect_dashboard_role(user)
     quick_actions_map = {
         "ADMIN": [
             {"label": "Revisar agendas", "url": "diary_daily", "icon": "feather-check-square"},
@@ -36,7 +33,7 @@ def _dashboard_quick_actions(role_name: str) -> list[dict[str, str]]:
             {"label": "Calendário", "url": "calendar_month", "icon": "feather-calendar"},
         ],
         "TEACHER": [
-            {"label": "Minhas disciplinas", "url": "teachers_list", "icon": "feather-book-open"},
+            {"label": "Minhas turmas", "url": "classes_list", "icon": "feather-book-open"},
             {"label": "Atividades", "url": "activities_list", "icon": "feather-edit-3"},
             {
                 "label": "Lançar frequência",
@@ -52,7 +49,9 @@ def _dashboard_quick_actions(role_name: str) -> list[dict[str, str]]:
             {"label": "Meu perfil", "url": "profile", "icon": "feather-settings"},
         ],
     }
-    return quick_actions_map.get(role_name, quick_actions_map["COORDINATOR"])
+    actions = quick_actions_map.get(role_name, quick_actions_map["ADMIN"])
+    request = type("DashboardRequest", (), {"user": user})()
+    return [action for action in actions if can_access_url({"request": request}, action["url"])]
 
 
 def _dashboard_greeting() -> str:
@@ -102,7 +101,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         "dashboard.html",
         {
             "data": data,
-            "quick_actions": _dashboard_quick_actions(role_name),
+            "quick_actions": _dashboard_quick_actions(request.user),
             "role_name": _dashboard_role_label(request.user, role_name),
             "greeting": _dashboard_greeting(),
             "can_view_financial": can_view_financial,

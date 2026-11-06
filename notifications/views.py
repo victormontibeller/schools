@@ -12,18 +12,9 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError
-from base.listing import build_querystring, build_sorting, resolve_listing_state
-from notifications.selectors import AnnouncementSelector, NotificationSelector
+from notifications.selectors import NotificationSelector
 
 logger = logging.getLogger(__name__)
-ANNOUNCEMENT_SORTS = {
-    "title": "title",
-    "-title": "-title",
-    "sent_at": "sent_at",
-    "-sent_at": "-sent_at",
-    "audience": "audience",
-    "-audience": "-audience",
-}
 RESEND_EMAIL_EVENTS = {
     "email.sent",
     "email.delivered",
@@ -159,41 +150,3 @@ def _render_header_notifications(request) -> HttpResponse:
         "notifications/partials/header_notifications.html",
         {"notifications": notifications, "unread_count": unread_count},
     )
-
-
-@login_required
-def announcement_list(request) -> HttpResponse:
-    """Lista comunicados enviados."""
-    state = resolve_listing_state(
-        request,
-        scope="announcements_list",
-        allowed_sorts=set(ANNOUNCEMENT_SORTS),
-        default_sort="-sent_at",
-    )
-    context = {
-        "result": AnnouncementSelector().list_sent(
-            state["q"], ANNOUNCEMENT_SORTS[state["sort"]], state["page"]
-        ),
-        "q": state["q"],
-        "sort": state["sort"],
-        "sorting": build_sorting(
-            current_sort=state["sort"],
-            search=state["q"],
-            sortable_fields=["title", "sent_at", "audience"],
-        ),
-        "list_query": build_querystring({"q": state["q"], "sort": state["sort"]}),
-        "breadcrumb_items": [
-            {"label": "Home", "url": "dashboard"},
-            {"label": "Comunicados", "url": None},
-        ],
-    }
-    if request.headers.get("HX-Request"):
-        return render(request, "notifications/partials/announcements_table.html", context)
-    return render(request, "notifications/announcement_list.html", context)
-
-
-@login_required
-def announcement_detail(request, pk) -> HttpResponse:
-    """Exibe o comunicado selecionado pela listagem."""
-    announcement = AnnouncementSelector().get_by_id(pk)
-    return render(request, "notifications/announcement_detail.html", {"announcement": announcement})

@@ -114,15 +114,13 @@ def test_preview_logo_ignores_old_reads(page):
             {"form": SchoolEditForm(), "organization": SimpleNamespace(name="Escola")},
         )
     )
-    page.evaluate(
-        """() => {
+    page.evaluate("""() => {
         window.readers = [];
         window.FileReader = class {
             constructor() { window.readers.push(this); }
             readAsDataURL() {}
         };
-    }"""
-    )
+    }""")
     page.add_script_tag(path=str(settings.BASE_DIR / "static/js/sm-image-picker.js"))
     field = page.locator('input[name="logo"]')
     for color in ("red", "blue"):

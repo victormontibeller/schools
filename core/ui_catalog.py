@@ -32,11 +32,17 @@ class ListPageDefinition:
 
 
 LIST_PAGE_CATALOG: dict[str, ListPageDefinition] = {
+    "communication_delivery_list": ListPageDefinition(
+        "Entregas", "communication_delivery_list", "#deliveries-table", None
+    ),
+    "service_request_list": ListPageDefinition(
+        "Solicitações", "service_request_list", "#requests-table", "service_request_create"
+    ),
     "academic_years_list": ListPageDefinition(
         "Anos Letivos", "academic_years_list", "#academic-years-table", "academic_year_create"
     ),
     "announcement_list": ListPageDefinition(
-        "Comunicados", "announcement_list", "#announcements-table"
+        "Comunicados", "announcement_list", "#announcements-table", "announcement_create"
     ),
     "activities_list": ListPageDefinition(
         "Atividades", "activities_list", "#activities-table", "activity_create"
@@ -133,7 +139,7 @@ LIST_PAGE_CATALOG: dict[str, ListPageDefinition] = {
     "time_slots_list": ListPageDefinition(
         "Períodos", "time_slots_list", "#time-slots-table", "time_slot_create"
     ),
-    "users_list": ListPageDefinition("Usuários", "users_list", "#users-table"),
+    "users_list": ListPageDefinition("Usuários", "users_list", "#users-table", "staff_user_create"),
 }
 
 

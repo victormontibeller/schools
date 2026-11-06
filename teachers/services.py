@@ -187,6 +187,18 @@ class TeacherService(BaseService):
             self._record_audit("UPDATE", user, old_values=user_old)
         self._record_audit("INSERT", teacher)
         self._log("Professor criado", teacher_id=str(teacher.pk))
+        if not user.is_active:
+            from accounts.services import AccountService
+
+            AccountService(user=self.user).create_teacher_invitation_token(user.pk)
+        return teacher
+
+    def send_teacher_invitation(self, teacher_id):
+        """Reemite acesso pendente, invalidando a emissão anterior."""
+        from accounts.services import AccountService
+
+        teacher = _TeacherRepo().get_for_update(teacher_id)
+        AccountService(user=self.user).create_teacher_invitation_token(teacher.user_id)
         return teacher
 
     def update_teacher(self, teacher_id, data: dict) -> Teacher:

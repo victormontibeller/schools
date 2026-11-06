@@ -22,6 +22,11 @@ class CalendarSelector(BaseSelector):
         """Aplica a projeção familiar sem alterar os demais papéis."""
         from core.permissions import role_name
 
+        if role_name(user) == "TEACHER":
+            from core.access_selectors import ObjectAccessSelector
+
+            if not ObjectAccessSelector.teacher_profile_is_current(user.pk):
+                return queryset.none()
         if role_name(user) != "GUARDIAN":
             return queryset
         from academic_calendar.models import CalendarEvent
@@ -41,7 +46,6 @@ class CalendarSelector(BaseSelector):
             audience__in=[
                 CalendarEvent.Audience.ALL,
                 CalendarEvent.Audience.GUARDIANS,
-                CalendarEvent.Audience.STUDENTS,
             ],
         )
         custodial_class = Q(

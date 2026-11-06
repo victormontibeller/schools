@@ -20,6 +20,15 @@
     <div class="row g-3 align-items-start">
         <div class="col-12 col-xl-5">
             {% include "accounts/partials/user_information_card.html" %}
+            {% if not user_obj.is_active and not user_obj.email_verified_at %}
+            <div class="card mt-3"><div class="card-body">
+                <h6>Ativação pendente</h6>
+                <p>Convite emitido em {{ user_obj.invitation_sent_at|date:"d/m/Y H:i"|default:"—" }}. Validade: {{ user_obj.invitation_expires_at|date:"d/m/Y H:i"|default:"—" }}.</p>
+                {% if user_obj.role.name == 'ADMIN' or user_obj.role.name == 'SECRETARY' or user_obj.role.name == 'COORDINATOR' or user_obj.role.name == 'FINANCE' %}
+                <form method="post" action="{% url 'staff_user_invite' user_obj.pk %}">{% csrf_token %}<button class="btn btn-outline-primary" type="submit">Reenviar convite</button></form>
+                {% endif %}
+            </div></div>
+            {% endif %}
         </div>
     </div>
 </div>

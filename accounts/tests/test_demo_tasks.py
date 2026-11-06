@@ -7,7 +7,6 @@ import pytest
 from accounts.tasks import (
     expire_demo_users_task,
     send_demo_verification_task,
-    send_teacher_invitation_task,
 )
 from notifications.channels import ChannelResult
 
@@ -62,38 +61,10 @@ def test_expire_demo_task_delegates_inside_schema():
 
 
 @pytest.mark.django_db
-def test_teacher_invitation_task_ignores_missing_user():
-    assert (
-        send_teacher_invitation_task.run("demo", "00000000-0000-0000-0000-000000000000", "url")
-        is None
-    )
-
-
-@pytest.mark.django_db
-def test_teacher_invitation_task_sends_and_retries(user):
-    transport = _email_transport(success=True)
-    with patch("accounts.tasks.get_transport", return_value=transport):
-        send_teacher_invitation_task.run("demo", str(user.pk), "https://demo/invite")
-    transport.send_individual.assert_called_once()
-
-    transport = _email_transport(success=False, retryable=True)
-    with (
-        patch("accounts.tasks.get_transport", return_value=transport),
-        patch.object(
-            send_teacher_invitation_task, "retry", side_effect=RuntimeError("retry")
-        ) as retry,
-        pytest.raises(RuntimeError, match="retry"),
-    ):
-        send_teacher_invitation_task.run("demo", str(user.pk), "https://demo/invite")
-    assert retry.call_args.kwargs["kwargs"]["message_log_id"] == "opaque-message-log"
-
-
-@pytest.mark.django_db
 @pytest.mark.parametrize(
     ("task", "url"),
     [
         (send_demo_verification_task, "https://demo/verify"),
-        (send_teacher_invitation_task, "https://demo/invite"),
     ],
 )
 def test_account_email_tasks_do_not_retry_permanent_failure(user, task, url):
@@ -111,7 +82,6 @@ def test_account_email_tasks_do_not_retry_permanent_failure(user, task, url):
     ("task", "url"),
     [
         (send_demo_verification_task, "https://demo/verify"),
-        (send_teacher_invitation_task, "https://demo/invite"),
     ],
 )
 def test_account_email_tasks_forward_message_log_on_retry(user, task, url):

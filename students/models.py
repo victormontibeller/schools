@@ -11,6 +11,15 @@ from base.upload_validators import validate_image_upload
 class Student(BaseModel):
     """Aluno da escola — pode ou não ter acesso ao sistema."""
 
+    origin_import_batch = models.ForeignKey(
+        "students.AssistedImportBatch",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,  # Proveniência e histórico da carga não podem desaparecer.
+        related_name="%(class)s_imported_objects",
+        editable=False,
+    )
+
     class Gender(models.TextChoices):
         MALE = "M", "Masculino"
         FEMALE = "F", "Feminino"
@@ -94,3 +103,26 @@ class Student(BaseModel):
 
     def get_full_name(self) -> str:
         return f"{self.first_name} {self.last_name}".strip()
+
+
+class AssistedImportBatch(BaseModel):
+    """Manifesto durável de uma carga assistida e de sua eventual reversão."""
+
+    class Status(models.TextChoices):
+        IMPORTED = "IMPORTED", "Importado"
+        SEALED = "SEALED", "Em uso operacional"
+        REVERTED = "REVERTED", "Desfeito"
+
+    source_key = models.SlugField(max_length=100, unique=True)
+    fingerprint = models.CharField(max_length=64)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.IMPORTED)
+    manifest = models.JSONField(default=list)
+    counts = models.JSONField(default=dict)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Lote de importação assistida"
+        verbose_name_plural = "Lotes de importação assistida"
+
+    def __str__(self):
+        return f"Importação {self.pk}"

@@ -395,12 +395,10 @@ def _assert_geometry(page: Page, screen: Screen, gutter: int) -> None:
         assert before["firstBody"]["width"] <= 140.5
         assert before["firstStatus"]["right"] <= before["scroller"]["right"] + 1
 
-    page.locator(screen.scroller).evaluate(
-        """element => {
+    page.locator(screen.scroller).evaluate("""element => {
             element.scrollTop = element.scrollHeight;
             element.scrollLeft = element.scrollWidth;
-        }"""
-    )
+        }""")
     after = _geometry(page, screen)
 
     if not uses_stacked_mobile_flow:
@@ -434,8 +432,7 @@ def _assert_geometry(page: Page, screen: Screen, gutter: int) -> None:
 
 
 def _assert_access_matrix_layout(page: Page) -> None:
-    has_full_selector = page.evaluate(
-        """() => {
+    has_full_selector = page.evaluate("""() => {
             const cell = Array.from(document.querySelectorAll('[data-access-cell]')).find(
                 candidate => candidate.querySelector(
                     ".sm-access-action-input[value='deactivate']"
@@ -451,12 +448,10 @@ def _assert_access_matrix_layout(page: Page) -> None:
                 }
             });
             return true;
-        }"""
-    )
+        }""")
     assert has_full_selector is True
 
-    metrics = page.locator("#access-matrix-card .sm-scroll-region").evaluate(
-        """scroller => {
+    metrics = page.locator("#access-matrix-card .sm-scroll-region").evaluate("""scroller => {
             const table = scroller.querySelector('.sm-access-table');
             const moduleHeader = table.querySelector('.sm-access-module-column');
             const roleHeaders = Array.from(table.querySelectorAll('.sm-access-role-column'));
@@ -479,8 +474,7 @@ def _assert_access_matrix_layout(page: Page) -> None:
                 scrollsVertically: scroller.scrollHeight > scroller.clientHeight,
                 documentWidth: document.documentElement.scrollWidth,
             };
-        }"""
-    )
+        }""")
 
     assert metrics["scrollsVertically"] is True
     assert metrics["documentWidth"] <= metrics["viewportWidth"] + 1
@@ -498,14 +492,11 @@ def _assert_access_matrix_layout(page: Page) -> None:
     assert metrics["scrollsHorizontally"] is (metrics["scrollerClientWidth"] < minimum_table_width)
 
     scroller = page.locator("#access-matrix-card .sm-scroll-region")
-    scroller.evaluate(
-        """element => {
+    scroller.evaluate("""element => {
             element.scrollTop = element.scrollHeight;
             element.scrollLeft = element.scrollWidth;
-        }"""
-    )
-    sticky = scroller.evaluate(
-        """element => {
+        }""")
+    sticky = scroller.evaluate("""element => {
             const rect = target => target.getBoundingClientRect();
             return {
                 scroller: rect(element),
@@ -514,8 +505,7 @@ def _assert_access_matrix_layout(page: Page) -> None:
                     'tbody tr:not([hidden]):not(.sm-access-department-row) > :first-child'
                 )),
             };
-        }"""
-    )
+        }""")
     assert abs(sticky["firstHeader"]["top"] - sticky["scroller"]["top"]) <= 2
     assert abs(sticky["firstBody"]["left"] - sticky["scroller"]["left"]) <= 2
 
@@ -534,8 +524,7 @@ def _assert_last_diary_dropdown(page: Page) -> None:
     scroller.evaluate("element => { element.scrollTop = element.scrollHeight; }")
     button = page.locator(".sm-diary-notes-column .sm-diary-selector").last
     button.click()
-    state = page.evaluate(
-        """() => ({
+    state = page.evaluate("""() => ({
             expanded: document.querySelectorAll(
                 '.sm-diary-notes-column .sm-diary-selector'
             )[document.querySelectorAll(
@@ -544,8 +533,7 @@ def _assert_last_diary_dropdown(page: Page) -> None:
             bootstrap: typeof window.bootstrap,
             shownMenus: document.querySelectorAll('.sm-diary-notes-menu.show').length,
             bodyMenus: document.querySelectorAll('body > .sm-diary-notes-menu').length,
-        })"""
-    )
+        })""")
     assert state["expanded"] == "true", state
     menu = page.locator(".sm-diary-notes-menu.show").last
     expect(menu).to_be_visible()
@@ -683,8 +671,7 @@ def _assert_activity_score_observation(page: Page) -> None:
     expect(enhanced.locator("textarea").first).to_be_enabled()
     expect(selector).to_have_attribute("data-sm-floating-initialized", "true")
 
-    widths = card.locator(".sm-activity-score-table").evaluate(
-        """table => {
+    widths = card.locator(".sm-activity-score-table").evaluate("""table => {
             const width = selector => table.querySelector(selector).getBoundingClientRect().width;
             return {
                 viewport: innerWidth,
@@ -693,8 +680,7 @@ def _assert_activity_score_observation(page: Page) -> None:
                 score: width('thead .sm-activity-score-value-column'),
                 observation: width('thead .sm-activity-score-feedback-column'),
             };
-        }"""
-    )
+        }""")
     assert abs(widths["enrollment"] - 112) <= 1
     assert abs(widths["score"] - 96) <= 1
     assert abs(widths["observation"] - 180) <= 1
@@ -863,16 +849,11 @@ def _assert_schedule_matrix_layout(page: Page) -> None:
 
 def _assert_modal_navigation_is_clean(page: Page) -> None:
     expect(page.locator(".modal-backdrop")).to_have_count(0)
-    assert (
-        page.locator("body").evaluate(
-            """body => ({
+    assert page.locator("body").evaluate("""body => ({
             modalOpen: body.classList.contains('modal-open'),
             overflow: body.style.overflow,
             paddingRight: body.style.paddingRight,
-        })"""
-        )
-        == {"modalOpen": False, "overflow": "", "paddingRight": ""}
-    )
+        })""") == {"modalOpen": False, "overflow": "", "paddingRight": ""}
 
 
 @pytest.mark.ui
@@ -1351,8 +1332,7 @@ def test_document_requirement_form_preserves_layout_theme_keyboard_and_no_overfl
 
 
 def _tab_style(locator) -> dict[str, str]:
-    return locator.evaluate(
-        """element => {
+    return locator.evaluate("""element => {
             const style = getComputedStyle(element);
             return {
                 backgroundColor: style.backgroundColor,
@@ -1365,8 +1345,7 @@ def _tab_style(locator) -> dict[str, str]:
                 outlineStyle: style.outlineStyle,
                 outlineWidth: style.outlineWidth,
             };
-        }"""
-    )
+        }""")
 
 
 def _contrast_ratio(first: str, second: str) -> float:
@@ -1434,8 +1413,7 @@ def _assert_tabs_visual_contract(page: Page, *, dark: bool) -> None:
 
 
 def _assert_tabs_responsiveness(page: Page, *, expect_overflow: bool) -> None:
-    metrics = page.locator(".sm-tabs").evaluate(
-        """element => {
+    metrics = page.locator(".sm-tabs").evaluate("""element => {
             const style = getComputedStyle(element);
             return {
                 clientWidth: element.clientWidth,
@@ -1445,8 +1423,7 @@ def _assert_tabs_responsiveness(page: Page, *, expect_overflow: bool) -> None:
                 scrollWidth: element.scrollWidth,
                 viewportWidth: innerWidth,
             };
-        }"""
-    )
+        }""")
 
     assert metrics["flexWrap"] == "nowrap"
     assert metrics["overflowX"] in {"auto", "scroll"}
@@ -1475,8 +1452,7 @@ def _assert_tab_keyboard_activation(
     expect(active_tab).to_be_focused()
     assert original_tab.evaluate("element => element.isConnected") is False
 
-    metrics = navigation.evaluate(
-        """element => {
+    metrics = navigation.evaluate("""element => {
             const active = element.querySelector("[data-sm-tab-id].active");
             const navigationBox = element.getBoundingClientRect();
             const activeBox = active.getBoundingClientRect();
@@ -1487,8 +1463,7 @@ def _assert_tab_keyboard_activation(
                 navigationRight: navigationBox.right,
                 scrollLeft: element.scrollLeft,
             };
-        }"""
-    )
+        }""")
     assert metrics["activeLeft"] >= metrics["navigationLeft"] - 1
     assert metrics["activeRight"] <= metrics["navigationRight"] + 1
     if expect_horizontal_scroll:

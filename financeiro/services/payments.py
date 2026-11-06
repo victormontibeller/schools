@@ -143,6 +143,7 @@ class PaymentService(FinanceRulesMixin, BaseService):
         finance_service = FinanceService(user=self.user)
         for allocation in allocations:
             billing = billings[allocation.billing_id]
+            finance_service._reconcile_first_payment_charges(billing, payment.paid_date)
             finance_service._assess_late_charges(billing, payment.paid_date)
             billing.refresh_from_db()
             if billing.status == BillingEntry.Status.CANCELLED:

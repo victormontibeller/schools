@@ -7,7 +7,7 @@ from students.forms import StudentEditForm
 
 
 @pytest.mark.django_db
-def test_student_edit_requires_all_personal_fields_except_optional_groups():
+def test_student_edit_requires_identification_without_child_digital_contact():
     form = StudentEditForm(data={})
 
     assert not form.is_valid()
@@ -16,29 +16,28 @@ def test_student_edit_requires_all_personal_fields_except_optional_groups():
         "first_name",
         "last_name",
         "birth_date",
+    ]:
+        assert field_name in form.errors
+    for field_name in [
+        "observations",
         "gender",
         "blood_type",
         "cpf",
         "rg_number",
         "phone_mobile",
         "email",
-    ]:
-        assert field_name in form.errors
-    for field_name in [
-        "observations",
         "photo",
     ]:
         assert field_name not in form.errors
 
 
-def test_student_edit_keeps_email_readonly_and_includes_observations():
+def test_student_edit_allows_later_contact_completion_without_account_or_alert_preferences():
     form = StudentEditForm()
-
     assert "observations" in form.fields
-    assert form.fields["email"].widget.attrs["readonly"] is True
-    assert form.fields["accepts_email_notifications"].widget.attrs["data_grid"] == "col-12 col-md-6"
+    assert not form.fields["email"].widget.attrs.get("readonly")
     assert (
-        form.fields["accepts_whatsapp_notifications"].widget.attrs["data_grid"] == "col-12 col-md-6"
+        not {"user", "accepts_email_notifications", "accepts_whatsapp_notifications"}
+        & form.fields.keys()
     )
 
 

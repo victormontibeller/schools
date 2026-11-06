@@ -173,6 +173,10 @@ class AddressService(BaseService):
             from core.access_selectors import ObjectAccessSelector
 
             ObjectAccessSelector.require_student_access(self.user, entity_id)
+        if entity_field in {"student", "guardian"}:
+            from students.contracts import ImportUsageService
+
+            ImportUsageService(user=self.user).seal_for_use(**{f"{entity_field}_ids": [entity_id]})
         try:
             entity = entity_model.objects.get(pk=entity_id)
         except entity_model.DoesNotExist:

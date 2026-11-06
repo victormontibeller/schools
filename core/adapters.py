@@ -41,3 +41,7 @@ def register_base_adapters() -> None:
     from core.media_selectors import ImageSelector
 
     register_media_reference_port(ImageSelector.is_referenced)
+    from base.ports import register_task_publication_port
+    from core.fictitious import task_publication_enabled
+
+    register_task_publication_port(task_publication_enabled)

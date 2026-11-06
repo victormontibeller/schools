@@ -65,3 +65,14 @@ mantém um único vocabulário de domínio e não admite estados persistidos de 
 
 O grafo inicial completo é regenerado pelo Django. Reset dev/demo e validações PostgreSQL fazem
 parte da integração; nenhuma migration evolutiva ou reconciliação de dados antigos é mantida.
+
+## Primeira baixa registrada após apuração — 25/10/2026
+
+Confirmação pode reapurar encargos pela data efetiva do pagamento quando a cobrança nunca teve
+alocação CONFIRMED ou REVERSED e nenhum componente pago. A barreira é o lock da cobrança;
+principal e taxas de origem permanecem inalterados. Pagamento pontual zera a apuração antecipada,
+e pagamento atrasado calcula apenas até a data efetiva. Parcial preserva o vencimento como base
+para encargos futuros sobre principal remanescente. Se o valor exceder o saldo reapurado ou a
+auditoria falhar, toda a transação reverte, inclusive reapuração, mantendo pagamento pendente.
+A retroatividade que exigiria reescrever baixas/recibos históricos é recusada com orientação para
+reconciliação assistida. O comando geral de apuração não apaga encargos históricos.

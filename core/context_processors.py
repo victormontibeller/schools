@@ -58,3 +58,12 @@ def canonical_page_layout(request):
     resolver_match = getattr(request, "resolver_match", None)
     url_name = getattr(resolver_match, "url_name", "") or ""
     return {"list_page": get_list_page_definition(url_name)}
+
+
+def fictitious_environment(request):
+    from django.conf import settings
+
+    return {
+        "fictitious_environment": settings.FICTITIOUS_MODE,
+        "fictitious_school": getattr(request, "tenant", None) if settings.FICTITIOUS_MODE else None,
+    }

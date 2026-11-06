@@ -238,6 +238,7 @@ def user_edit_view(request, pk):
         request.POST or None,
         request.FILES or None,
         initial={
+            "version": user_obj.version,
             "first_name": user_obj.first_name,
             "email": user_obj.email,
             "last_name": user_obj.last_name,

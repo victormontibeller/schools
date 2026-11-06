@@ -57,6 +57,9 @@ class ContractLifecycleMixin:
                 "due_day",
             ],
         )
+        from students.contracts import ImportUsageService
+
+        ImportUsageService(user=self.user).seal_for_use(student_ids=[payload["student_id"]])
         try:
             student = Student.objects.get(pk=payload["student_id"])
         except Student.DoesNotExist:

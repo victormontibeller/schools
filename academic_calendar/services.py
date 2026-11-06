@@ -97,7 +97,7 @@ class CalendarService(BaseService):
             raise ValidationError(errors={"end_date": ["Término deve ser após o início."]})
 
         audience = data.get("audience", CalendarEvent.Audience.ALL)
-        class_obj_id = data.get("class_obj_id")
+        class_obj_id = data.get("class_obj_id") if audience == "CLASS" else None
         if audience == CalendarEvent.Audience.CLASS and not class_obj_id:
             raise ValidationError(
                 errors={"class_obj_id": ["Informe a turma para público 'Turma específica'."]}
@@ -145,7 +145,11 @@ class CalendarService(BaseService):
         """Atualiza campos permitidos de um evento existente."""
         repo = _EventRepo()
         event = repo.get_by_id(event_id)
-        old = {"title": event.title, "start_date": str(event.start_date)}
+        old = {
+            "title": event.title,
+            "start_date": str(event.start_date),
+            "is_public": event.is_public,
+        }
 
         allowed = {
             "title",
@@ -179,6 +183,12 @@ class CalendarService(BaseService):
             else:
                 updates["class_obj"] = None
 
+        if updates.get("audience", event.audience) == "CLASS" and not updates.get(
+            "class_obj", event.class_obj
+        ):
+            raise ValidationError(errors={"class_obj_id": ["Selecione a turma deste evento."]})
+        if updates.get("audience", event.audience) != "CLASS":
+            updates["class_obj"] = None
         updates["updated_by"] = self.user
         event = repo.update(
             event,

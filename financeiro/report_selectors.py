@@ -82,6 +82,16 @@ class BillingReportingMixin:
             received=Coalesce(Sum("paid_value"), Value(ZERO), output_field=MONEY),
             outstanding=Coalesce(Sum("balance"), Value(ZERO), output_field=MONEY),
         )
+        from financeiro.models import PaymentAllocation, PaymentRecord
+
+        # Recebimentos pertencem à competência original mesmo após renegociação.
+        totals["received"] = PaymentAllocation.objects.filter(
+            billing_id__in=self.base_queryset().values("pk"),
+            billing__competency__gte=start,
+            billing__competency__lt=end,
+            payment__status=PaymentRecord.Status.CONFIRMED,
+            payment__deleted_at__isnull=True,
+        ).aggregate(total=Coalesce(Sum("amount"), Value(ZERO), output_field=MONEY))["total"]
         totals["expected"] = totals["principal"] - totals["discounts"]
         totals["period"] = f"{month:02d}/{selected_year}" if month else str(selected_year)
         return totals

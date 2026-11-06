@@ -75,7 +75,9 @@ Todo código deverá ser escrito como se fosse ser mantido por outra pessoa no f
 
 - Toda decisão arquitetural significativa deverá ser documentada como **ADR** (Architecture Decision Record) na pasta `docs/adr/`.
 - Todo provedor de serviço externo (e-mail, WhatsApp, SMS, push) deverá ser abstraído atrás de uma interface **SDK** (`channels/BaseChannel`), nunca chamado diretamente. Ver ADR-0005.
-- Toda lógica de transporte de mensagens (renderização de template, log de entrega, retry) deverá ser centralizada no **MessageTransport**, não duplicada em tasks.
+- Transporte e SDK ficam centralizados em **MessageTransport** e `notifications/channels/`.
+  Comunicações duráveis usam **OutboxService** (ADR-0023) para intenção, payload congelado,
+  lease e recuperação; tasks são wrappers de contexto, sem duplicar regras de entrega.
 - Rotinas genéricas reutilizáveis (validação de campos obrigatórios, soft-delete) deverão residir no **BaseService**. Ver `docs/10_CODING_STANDARDS.md` — Catálogo de Rotinas Genéricas.
 
 ---

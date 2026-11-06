@@ -234,7 +234,7 @@ class EnrollmentApplicationSelector(BaseSelector):
             raise ObjectNotFoundError("DocumentRequirement", str(requirement_id)) from None
 
     def reminder_recipient_ids(self, application_id) -> list:
-        """Resolve responsável principal com guarda e aluno, ambos consentidos."""
+        """Resolve somente responsáveis principais com guarda e conta ativa."""
         application = self.get_application_by_id(application_id)
         from guardians.contracts import StudentGuardian
 
@@ -249,18 +249,8 @@ class EnrollmentApplicationSelector(BaseSelector):
                 guardian__deleted_at__isnull=True,
                 guardian__user__isnull=False,
                 guardian__user__is_active=True,
-                guardian__accepts_email_notifications=True,
             ).values_list("guardian__user_id", flat=True)
         )
-        student = application.student
-        if (
-            student.is_active
-            and not student.is_deleted
-            and student.user_id
-            and student.accepts_email_notifications
-            and student.user.is_active
-        ):
-            recipient_ids.append(student.user_id)
         return list(dict.fromkeys(recipient_ids))
 
     def is_reminder_recipient_eligible(self, application_id, recipient_id) -> bool:

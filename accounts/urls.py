@@ -1,15 +1,17 @@
 from django.contrib.auth.views import (
     PasswordResetCompleteView,
-    PasswordResetConfirmView,
     PasswordResetDoneView,
-    PasswordResetView,
 )
 from django.urls import path
 
-from accounts import views
+from accounts import staff_views, views
 from accounts.invitation_views import guardian_invitation_view
+from accounts.recovery_views import SchoolPasswordResetConfirmView, SchoolPasswordResetView
 
 urlpatterns = [
+    path("users/novo/", staff_views.staff_user_create, name="staff_user_create"),
+    path("users/<uuid:pk>/convidar/", staff_views.staff_user_invite, name="staff_user_invite"),
+    path("convite-equipe/", staff_views.staff_invitation, name="staff_invitation"),
     path("demo/cadastro/", views.demo_signup_view, name="demo_signup"),
     path("demo/verificar/<str:token>/", views.demo_verify_view, name="demo_verify"),
     path(
@@ -41,10 +43,10 @@ urlpatterns = [
         views.platform_user_edit_view,
         name="platform_user_edit",
     ),
-    # Recuperação de senha — views nativas (Sprint 02 §55).
+    # Recuperação mantém protocolo Django com confirmação auditada.
     path(
         "password-reset/",
-        PasswordResetView.as_view(template_name="auth/password_reset_form.html"),
+        SchoolPasswordResetView.as_view(template_name="auth/password_reset_form.html"),
         name="password_reset",
     ),
     path(
@@ -54,7 +56,7 @@ urlpatterns = [
     ),
     path(
         "password-reset/confirm/<uidb64>/<token>/",
-        PasswordResetConfirmView.as_view(template_name="auth/password_reset_confirm.html"),
+        SchoolPasswordResetConfirmView.as_view(template_name="auth/password_reset_confirm.html"),
         name="password_reset_confirm",
     ),
     path(

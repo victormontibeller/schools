@@ -14,7 +14,7 @@ def get_tenant_resend_config() -> dict[str, object]:
         from django_tenants.utils import get_tenant_model
 
         schema = getattr(connection, "schema_name", "public")
-        tenant = get_tenant_model().objects.filter(schema_name=schema).first()
+        tenant = get_tenant_model().objects.filter(schema_name=schema, is_active=True).first()
         email_config = dict((tenant.settings or {}).get("email", {})) if tenant else {}
         return {
             "from_email": str(email_config.get("from_email", "")).strip(),

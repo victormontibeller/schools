@@ -186,6 +186,7 @@ def test_eligible_coordinator_can_reach_justification_review_routes(client):
         ("GUARDIAN", False),
     ],
 )
+@pytest.mark.django_db
 def test_can_configure_student_diary_follows_central_role_policy(role_name, expected):
     user = SimpleNamespace(
         is_authenticated=True,
@@ -193,6 +194,14 @@ def test_can_configure_student_diary_follows_central_role_policy(role_name, expe
         access_mode="STANDARD",
         role=SimpleNamespace(name=role_name),
     )
+    if role_name == "TEACHER":
+        from core.models import CustomUser, Role
+        from teachers.models import Teacher
+
+        user = CustomUser.objects.create_user(
+            email="policy-teacher@example.test", role=Role.objects.get(name=Role.Name.TEACHER)
+        )
+        Teacher.objects.create(user=user, registration_number="POLICY-TEACHER")
 
     token = context.current_tenant.set("school_test") if role_name == "ADMIN" else None
     try:

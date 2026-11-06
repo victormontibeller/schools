@@ -29,3 +29,24 @@ ENROLLMENT_WORKFLOW_NAVIGATION_ITEMS = (
         "prefixes": ("document_requirement_",),
     },
 )
+
+REQUEST_NAVIGATION = {
+    "label": "Atendimento",
+    "icon": "feather-message-circle",
+    "items": (
+        {
+            "label": "Solicitações",
+            "icon": "feather-inbox",
+            "url_name": "service_request_list",
+            "module": "service_requests",
+            "prefixes": ("service_request_",),
+        },
+        {
+            "label": "Entregas",
+            "icon": "feather-mail",
+            "url_name": "communication_delivery_list",
+            "module": "communication_delivery",
+            "prefixes": ("communication_delivery_",),
+        },
+    ),
+}

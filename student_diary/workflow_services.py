@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 from django.conf import settings
-from django.db import connection, transaction
+from django.db import transaction
 from django.urls import reverse
 from django.utils import timezone
 
-from base.events import publish_task_after_commit
 from base.exceptions import BusinessRuleViolationError, PermissionDeniedError, ValidationError
 from base.services import BaseService
 
@@ -156,7 +155,9 @@ class DiaryWorkflowService(BaseService):
             )
             self._record_audit("INSERT", receipt)
             absolute_url = f"{base_url.rstrip('/')}{action_url}" if base_url else action_url
-            self._schedule_family_delivery(link.guardian.user_id, absolute_url, publication.pk)
+            self._schedule_family_delivery(
+                link.guardian.user_id, absolute_url, publication.pk, entry.pk
+            )
         old = self._snapshot(sheet, ["status", "reviewed_at", "reviewed_by_id"])
         sheet.status = DiarySheet.Status.PUBLISHED
         sheet.reviewed_at = now
@@ -251,7 +252,7 @@ class DiaryWorkflowService(BaseService):
                     "action_url": action_url,
                 }
             )
-            self._schedule_staff_delivery(reviewer.pk, absolute_url, "review_requested")
+            self._schedule_staff_delivery(reviewer.pk, absolute_url, "review_requested", sheet)
 
     def _notify_submitter_changes(self, sheet, base_url: str) -> None:
         """Avisa o autor da submissão sem colocar o motivo no canal externo."""
@@ -270,7 +271,9 @@ class DiaryWorkflowService(BaseService):
                 "action_url": action_url,
             }
         )
-        self._schedule_staff_delivery(sheet.submitted_by_id, absolute_url, "changes_requested")
+        self._schedule_staff_delivery(
+            sheet.submitted_by_id, absolute_url, "changes_requested", sheet
+        )
 
     @staticmethod
     def _sheet_action_url(sheet) -> str:
@@ -296,33 +299,32 @@ class DiaryWorkflowService(BaseService):
         if not enabled:
             raise BusinessRuleViolationError("Publicação da Agenda ainda não está habilitada.")
 
-    @staticmethod
-    def _schedule_family_delivery(user_id, action_url: str, publication_id) -> None:
-        """Agenda e-mail somente depois do commit da publicação."""
-        from notifications.tasks import send_diary_email_task
+    def _schedule_family_delivery(self, user_id, action_url, publication_id, entry_id):
+        """Persiste intenção de e-mail na transação da publicação."""
+        from accounts.selectors import AccountSelector
+        from notifications.outbox_services import OutboxService
 
-        schema_name = getattr(connection, "schema_name", "public")
-        publish_task_after_commit(
-            send_diary_email_task,
-            schema_name,
-            str(user_id),
-            "publication",
-            action_url,
-            str(publication_id),
-            tenant_schema=schema_name,
+        OutboxService(user=self.user).create_event_deliveries(
+            source_type="student_diary",
+            source_id=str(entry_id),
+            recipient=AccountSelector().get_by_id(user_id),
+            action_url=action_url,
+            event="publication",
+            diary_publication_id=publication_id,
+            inbox=False,
         )
 
-    @staticmethod
-    def _schedule_staff_delivery(user_id, action_url: str, event: str) -> None:
-        """Agenda e-mail de workflow somente após a transação confirmar."""
-        from notifications.tasks import send_diary_email_task
+    def _schedule_staff_delivery(self, user_id, action_url, event, sheet):
+        """Persiste cada transição de workflow sem duplicar a notificação interna."""
+        from accounts.selectors import AccountSelector
+        from notifications.outbox_services import OutboxService
 
-        schema_name = getattr(connection, "schema_name", "public")
-        publish_task_after_commit(
-            send_diary_email_task,
-            schema_name,
-            str(user_id),
-            event,
-            action_url,
-            tenant_schema=schema_name,
+        OutboxService(user=self.user).create_event_deliveries(
+            source_type="student_diary",
+            source_id=str(sheet.pk),
+            recipient=AccountSelector().get_by_id(user_id),
+            action_url=action_url,
+            event=event,
+            event_version=str(sheet.version),
+            inbox=False,
         )

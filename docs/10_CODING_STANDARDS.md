@@ -84,7 +84,7 @@ class WhatsAppChannel(BaseChannel):
 | `selectors.py` | Consultas read-only, paginação, agregação | `ClassSelector.list_ordered()`, `get_month_grid()` |
 | `views.py` | Orquestração HTTP (receber request → chamar service/selector → renderizar) | `class_create(request)` |
 | `forms.py` | Validação de formulário (apenas field-level: required, tipo, choices) | `ClassForm(forms.ModelForm)` |
-| `tasks.py` | Operações assíncronas (Celery wrappers finos) | `send_diary_email_task.delay(schema, user_id, event, url)` |
+| `tasks.py` | Operações assíncronas (Celery wrappers finos) | `deliver_outbox_task.delay(schema, message_log_id)` |
 | `handlers.py` | Eventos cross-module (DomainEvent → notificação) | `_handle_student_created(event)` |
 
 ## Regras Invioláveis

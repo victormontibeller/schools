@@ -22,6 +22,10 @@ class EmailChannel(BaseChannel):
 
         from core.tenant_email import get_tenant_resend_config
 
+        if settings.FICTITIOUS_MODE:
+            from notifications.channels.local_fixture import LocalFixtureEmailChannel
+
+            return LocalFixtureEmailChannel().send(recipient_address, subject, body, **meta)
         config = get_tenant_resend_config()
         if not settings.RESEND_API_KEY:
             return self._failure(recipient_address, "provider_not_configured")
@@ -39,6 +43,8 @@ class EmailChannel(BaseChannel):
             from_value = (
                 f"{sender_name} <{config['from_email']}>" if sender_name else config["from_email"]
             )
+            if meta.get("expected_sender") is not None and meta["expected_sender"] != from_value:
+                return self._failure(recipient_address, "sender_changed")
             params: resend.Emails.SendParams = {
                 "from": str(from_value),
                 "to": [recipient_address],
@@ -50,6 +56,15 @@ class EmailChannel(BaseChannel):
                     {"name": "category", "value": str(meta.get("category", "notification"))},
                 ],
             }
+            if meta.get("action_url"):
+                from html import escape
+
+                action_url = escape(str(meta["action_url"]), quote=True)
+                params["html"] = (
+                    f'<p>{escape(str(meta.get("school_name", "")))}</p>'
+                    f'<p>{escape(str(meta.get("generic_message", "")))}</p>'
+                    f'<p><a href="{action_url}">Acessar conta</a></p>'
+                )
             response = resend.Emails.send(
                 params,
                 {"idempotency_key": str(meta["idempotency_key"])},

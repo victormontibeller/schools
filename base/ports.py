@@ -78,3 +78,17 @@ def media_is_referenced(storage, name: str) -> bool:
     if _media_reference_port is None:
         raise RuntimeError("Porta de referências de mídia não registrada.")
     return _media_reference_port(storage, name)
+
+
+_task_publication_port = None
+
+
+def register_task_publication_port(port):
+    """Configura política explícita de publicação pela infraestrutura."""
+    global _task_publication_port
+    _task_publication_port = port
+
+
+def task_publication_enabled(schema):
+    """Publicação real por padrão; o adaptador pode exigir dreno local explícito."""
+    return _task_publication_port(schema) if _task_publication_port else True

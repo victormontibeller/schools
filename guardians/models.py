@@ -11,6 +11,15 @@ from base.upload_validators import validate_image_upload
 class Guardian(BaseModel):
     """Responsável legal pelo aluno."""
 
+    origin_import_batch = models.ForeignKey(
+        "students.AssistedImportBatch",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,  # Proveniência e histórico da carga não podem desaparecer.
+        related_name="%(class)s_imported_objects",
+        editable=False,
+    )
+
     class Gender(models.TextChoices):
         MALE = "M", "Masculino"
         FEMALE = "F", "Feminino"
@@ -73,6 +82,13 @@ class Guardian(BaseModel):
     )
 
     class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["cpf"],
+                condition=models.Q(is_active=True, deleted_at__isnull=True) & ~models.Q(cpf=""),
+                name="guardian_active_cpf_unique",
+            )
+        ]
         ordering = ["first_name", "last_name"]
         verbose_name = "Responsável"
         verbose_name_plural = "Responsáveis"
@@ -92,6 +108,15 @@ class Guardian(BaseModel):
 
 class StudentGuardian(BaseModel):
     """Vínculo entre aluno e responsável."""
+
+    origin_import_batch = models.ForeignKey(
+        "students.AssistedImportBatch",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,  # Proveniência e histórico da carga não podem desaparecer.
+        related_name="%(class)s_imported_objects",
+        editable=False,
+    )
 
     student = models.ForeignKey(
         "students.Student",

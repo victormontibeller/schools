@@ -99,6 +99,8 @@ class ChangePasswordForm(forms.Form):
 class UserEditForm(forms.Form):
     """Formulário das informações editáveis no perfil do usuário."""
 
+    version = forms.IntegerField(min_value=0, widget=forms.HiddenInput())
+
     first_name = forms.CharField(
         max_length=150,
         label="Nome",

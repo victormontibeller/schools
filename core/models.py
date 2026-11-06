@@ -186,6 +186,9 @@ class CustomUser(AbstractBaseUser, PermissionsMixin, BaseModel):
         db_index=True,
     )
     email_verified_at = models.DateTimeField(null=True, blank=True)
+    invitation_nonce = models.UUIDField(null=True, blank=True)
+    invitation_sent_at = models.DateTimeField(null=True, blank=True)
+    invitation_expires_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     USERNAME_FIELD = "email"

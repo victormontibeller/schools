@@ -19,19 +19,23 @@ class TestDashboardViews:
         assert response.status_code == 302  # redirect to admin login
 
     def test_home_dashboard_renders_teacher_shortcuts_and_operational_widgets(self, client, user):
+        from teachers.models import Teacher
+
         role, _ = Role.objects.get_or_create(
             name=Role.Name.TEACHER,
             defaults={"created_by": user, "updated_by": user},
         )
         user.role = role
-        user.save(update_fields=["role"])
+        user.is_superuser = False
+        user.save(update_fields=["role", "is_superuser"])
+        Teacher.objects.create(user=user, registration_number="DASHBOARD-TEACHER")
         client.force_login(user)
 
         response = client.get(reverse("dashboard"))
 
         content = response.content.decode()
         assert response.status_code == 200
-        assert "Minhas disciplinas" in content
+        assert "Minhas turmas" in content
         assert "Lançar frequência" in content
         assert "Atenção necessária" in content
         assert "Alunos ativos" in content
@@ -95,3 +99,24 @@ class TestDashboardViews:
         assert "Pendências de revisão" in content
         assert str(sheet.class_obj) in content
         assert f"class_id={sheet.class_obj_id}" in content
+
+
+@pytest.mark.django_db
+def test_dashboard_shortcuts_follow_real_coordinator_permissions(client, user):
+    from django.urls import resolve
+
+    from core.models import CustomUser
+    from core.permissions import can_access, resolve_view_access
+
+    coordinator = CustomUser.objects.create_user(
+        email="coordinator@example.test", role=Role.objects.get(name="COORDINATOR")
+    )
+    client.force_login(coordinator)
+    response = client.get(reverse("dashboard"))
+    assert response.status_code == 200
+    for action in response.context["quick_actions"]:
+        match = resolve(reverse(action["url"]))
+        module, capability = resolve_view_access(match.func, match.url_name, "GET", {})
+        assert can_access(coordinator, module, capability)
+    assert 'href="' + reverse("student_create") + '"' not in response.content.decode()
+    assert 'href="' + reverse("teacher_create") + '"' not in response.content.decode()

@@ -4,12 +4,12 @@ from unittest.mock import patch
 from urllib.parse import urlencode
 
 import pytest
-from django.contrib.auth.tokens import default_token_generator
 from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from playwright.sync_api import expect
 
+from accounts.recovery_tokens import recovery_token_generator
 from accounts.services import AccountService
 from core.models import CustomUser, Role
 from guardians.invitation_services import GuardianInvitationService
@@ -20,17 +20,31 @@ PASSWORD = "CoralHorizon842"
 
 
 def _token_form(flow, actor):
+    import datetime as dt
+
+    from guardians.models import StudentGuardian
+    from notifications.models import MessageLog
+    from students.models import Student
+    from tenancy.models import School
+
+    School.objects.get_or_create(schema_name="test_school", defaults={"name": "Fictícia"})
     if flow == "guardian":
         Role.objects.get_or_create(name=Role.Name.GUARDIAN)
         guardian = Guardian.objects.create(
             first_name="Família", last_name="Teste", email="browser-guardian@test.local"
         )
-        captured = {}
-        with patch("guardians.tasks.send_guardian_invitation_task.delay"):
-            account = GuardianInvitationService(user=actor).send_invitation(
-                guardian.pk, lambda token: captured.setdefault("token", token)
-            )
-        token = captured["token"]
+        student = Student.objects.create(
+            first_name="Criança",
+            last_name="Fictícia",
+            birth_date=dt.date(2022, 1, 1),
+            enrollment_number="BROWSER-CHILD",
+        )
+        StudentGuardian.objects.create(student=student, guardian=guardian, has_custody=True)
+        with patch("notifications.outbox_services.publish_task_after_commit"):
+            account = GuardianInvitationService(user=actor).send_invitation(guardian.pk)
+        token = MessageLog.objects.get(source_type="account_invitation", recipient=account).payload[
+            "scope"
+        ]["invitation_token"]
         path = reverse("guardian_invitation") + "?" + urlencode({"token": token})
     else:
         account = CustomUser.objects.create_user(
@@ -39,11 +53,17 @@ def _token_form(flow, actor):
             is_active=flow == "reset",
         )
         if flow == "teacher":
+            account.role = Role.objects.get_or_create(name="TEACHER")[0]
+            account.save()
             Teacher.objects.create(user=account, registration_number="BROWSER-INVITE")
-            token = AccountService().create_teacher_invitation_token(account.pk)
+            with patch("notifications.outbox_services.publish_task_after_commit"):
+                token = AccountService().create_teacher_invitation_token(account.pk)
             path = reverse("teacher_invitation", args=[token])
         else:
-            token = default_token_generator.make_token(account)
+            from tenancy.models import School
+
+            School.objects.get_or_create(schema_name="test_school", defaults={"name": "Fictícia"})
+            token = recovery_token_generator.make_token(account)
             path = reverse(
                 "password_reset_confirm",
                 args=[urlsafe_base64_encode(force_bytes(account.pk)), token],

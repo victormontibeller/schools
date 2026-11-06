@@ -55,7 +55,11 @@ shell:
 # ============================================================
 # Database
 # ============================================================
-.PHONY: migrate
+.PHONY: migrate migrate-all
+migrate-all:
+	$(VENV_BIN)/python manage.py migrate_schemas --shared
+	$(VENV_BIN)/python manage.py migrate_schemas --tenant
+
 migrate:
 	$(VENV_BIN)/python manage.py migrate_schemas --shared
 

@@ -89,6 +89,7 @@ class SecurityHeadersMiddleware:
         ) or getattr(match, "url_name", "") in {
             "demo_verify",
             "teacher_invitation",
+            "staff_invitation",
             "guardian_invitation",
             "password_reset_confirm",
         }:

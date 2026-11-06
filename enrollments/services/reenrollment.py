@@ -45,6 +45,11 @@ class ReenrollmentService(BaseService):
         source_metadata = list(
             Enrollment.objects.filter(pk__in=source_ids).values("pk", "student_id", "class_obj_id")
         )
+        from students.contracts import ImportUsageService
+
+        ImportUsageService(user=self.user).seal_for_use(
+            student_ids=[item["student_id"] for item in source_metadata]
+        )
         list(
             Student.objects.select_for_update()
             .filter(pk__in=sorted(str(item["student_id"]) for item in source_metadata))

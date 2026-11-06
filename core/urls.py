@@ -57,6 +57,7 @@ urlpatterns = [
     path("", include("academic_calendar.urls")),
     path("", include("attendance.urls")),
     path("", include("student_diary.urls")),
+    path("", include("service_requests.urls")),
     path("", include("enrollments.urls")),
     path("", include("financeiro.urls")),
     path("", include("notifications.urls")),
@@ -77,6 +78,7 @@ if settings.DEBUG:
     try:
         import debug_toolbar
 
-        urlpatterns = [path("__debug__/", include(debug_toolbar.urls))] + urlpatterns
+        if "debug_toolbar" in settings.INSTALLED_APPS:
+            urlpatterns = [path("__debug__/", include(debug_toolbar.urls))] + urlpatterns
     except ImportError:
         pass

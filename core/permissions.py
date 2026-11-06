@@ -55,6 +55,7 @@ PUBLIC_VIEW_NAMES = frozenset(
         "demo_signup",
         "demo_verify",
         "teacher_invitation",
+        "staff_invitation",
         "guardian_invitation",
         "web_app_manifest",
         "service_worker",
@@ -70,6 +71,8 @@ SELF_SERVICE_METHODS = frozenset(
         "mark_all_as_read",
         "submit_justification",
         "mark_entry_viewed",
+        "mark_announcement_viewed",
+        "acknowledge_announcement",
     }
 )
 SELF_SERVICE_VIEW_NAMES = frozenset(
@@ -81,6 +84,7 @@ SELF_SERVICE_VIEW_NAMES = frozenset(
         "notification_mark_all_read",
         "unread_count",
         "diary_publication_mark_viewed",
+        "announcement_acknowledge",
     }
 )
 GUARDIAN_VIEW_NAMES = frozenset(
@@ -102,7 +106,17 @@ GUARDIAN_VIEW_NAMES = frozenset(
         "diary_student_history",
         "diary_publication_detail",
         "diary_publication_mark_viewed",
+        "announcement_acknowledge",
         "notification_list",
+        "announcement_list",
+        "announcement_detail",
+        "announcement_attachment",
+        "service_request_list",
+        "service_request_detail",
+        "service_request_create",
+        "service_request_respond",
+        "service_request_action",
+        "service_request_attachment",
         "notification_mark_read",
         "notification_mark_all_read",
         "unread_count",
@@ -119,12 +133,15 @@ GUARDIAN_VIEW_NAMES = frozenset(
 )
 
 _SERVICE_CLASS_MODULES = {
+    "SchoolExportService": "school_export",
     "SubjectService": "subjects",
     "ScheduleService": "schedule",
     "AccessConfigurationService": "__admin__",
     "BusinessUnitService": "__admin__",
     "SchoolService": "__admin__",
     "AccountService": "__admin__",
+    "StaffAccountService": "__admin__",
+    "ServiceConfigurationService": "__admin__",
     "PlatformSchoolService": "__admin__",
 }
 _SERVICE_METHOD_MODULES = {
@@ -139,6 +156,8 @@ _SERVICE_METHOD_MODULES = {
     ("StudentDiaryService", "set_routine_option_enabled"): "diary_configuration",
 }
 _SERVICE_METHOD_POLICIES = {
+    ("OutboxService", "request_delivery_retry"): ("communication_delivery", EDIT),
+    ("ServiceRequestService", "add_request_message"): ("service_requests", EDIT),
     ("ReenrollmentService", "confirm_batch"): (REENROLLMENT, CREATE),
     ("StudentDocumentService", "create_requirement"): (DOCUMENT_REQUIREMENTS, CREATE),
     ("StudentDocumentService", "update_requirement"): (DOCUMENT_REQUIREMENTS, EDIT),
@@ -201,6 +220,11 @@ def can_access(user, module_key: str, action: str = VIEW) -> bool:
         or action not in ACTIONS
     ):
         return False
+    if role_name(user) == "TEACHER":
+        from core.access_selectors import ObjectAccessSelector
+
+        if not ObjectAccessSelector.teacher_profile_is_current(user.pk):
+            return False
     if getattr(user, "is_superuser", False):
         return has_unrestricted_tenant_access(user) or module_key == "__admin__"
     if role_name(user) == ADMIN:

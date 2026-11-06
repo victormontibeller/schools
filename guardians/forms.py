@@ -48,7 +48,7 @@ class GuardianCreateForm(GuardianLinkForm):
         max_length=150, label="Sobrenome", widget=forms.TextInput(attrs={"class": "form-control"})
     )
     email = forms.EmailField(
-        label="E-mail", widget=forms.EmailInput(attrs={"class": "form-control"})
+        required=False, label="E-mail", widget=forms.EmailInput(attrs={"class": "form-control"})
     )
     avatar = ImageUploadField(
         required=False,
@@ -124,7 +124,6 @@ class GuardianEditForm(forms.Form):
     REQUIRED_FIELDS = (
         "first_name",
         "last_name",
-        "email",
         "birth_date",
         "gender",
         "cpf",
@@ -145,7 +144,9 @@ class GuardianEditForm(forms.Form):
         widget=forms.TextInput(attrs={"class": "form-control"}),
     )
     email = forms.EmailField(
-        required=False, label="E-mail", widget=forms.EmailInput(attrs={"class": "form-control"})
+        required=False,
+        label="E-mail",
+        widget=forms.EmailInput(attrs={"class": "form-control"}),
     )
     avatar = ImageUploadField(
         required=False,

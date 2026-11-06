@@ -198,29 +198,22 @@ class DashboardSelector(BaseSelector):
             for e in events
         ]
 
-    def get_recent_announcements(self, limit: int = 5, *, user=None) -> list[dict]:
-        """Ultimos comunicados enviados."""
-        from notifications.contracts import Announcement
+    def get_recent_announcements(self, limit=5, *, user=None):
+        """Publicações autorizadas; não reutiliza audiência global do cache escolar."""
+        if user is None:
+            return []
+        from notifications.announcement_selectors import AnnouncementSelector
 
-        qs = Announcement.objects.filter(sent_at__isnull=False).order_by("-sent_at")[:limit]
-        class_ids = self._guardian_active_class_ids(user)
-        if class_ids is not None:
-            qs = (
-                Announcement.objects.filter(sent_at__isnull=False)
-                .filter(
-                    Q(audience__in=[Announcement.Audience.ALL, Announcement.Audience.GUARDIANS])
-                    | Q(audience=Announcement.Audience.CLASS, class_obj_id__in=class_ids)
-                )
-                .order_by("-sent_at")[:limit]
-            )
         return [
             {
-                "id": str(a.pk),
-                "title": a.title,
-                "sent_at": a.sent_at.isoformat() if a.sent_at else None,
-                "audience": a.get_audience_display(),
+                "id": str(item.announcement_id),
+                "title": item.title,
+                "sent_at": item.published_at.isoformat(),
+                "audience": item.get_audience_display(),
             }
-            for a in qs
+            for item in AnnouncementSelector()
+            .visible_revisions(user)
+            .order_by("-published_at")[:limit]
         ]
 
     def get_diary_kpis(self, user) -> dict:

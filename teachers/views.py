@@ -3,9 +3,8 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
-from django.urls import reverse
+from django.views.decorators.http import require_POST
 
-from base.events import publish_task_after_commit
 from base.exceptions import (
     BusinessRuleViolationError,
     ObjectNotFoundError,
@@ -119,26 +118,7 @@ def teacher_create(request):
     form = TeacherForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
         try:
-            teacher = TeacherService(user=request.user).create_teacher(form.cleaned_data)
-            if teacher.accepts_email_notifications and not teacher.user.is_active:
-                from django.db import connection
-
-                from accounts.services import AccountService
-                from accounts.tasks import send_teacher_invitation_task
-
-                token = AccountService().create_teacher_invitation_token(teacher.user_id)
-                invitation_url = request.build_absolute_uri(
-                    reverse("teacher_invitation", kwargs={"token": token})
-                )
-                tenant_schema = connection.schema_name
-                invited_user_id = str(teacher.user_id)
-                publish_task_after_commit(
-                    send_teacher_invitation_task,
-                    tenant_schema,
-                    invited_user_id,
-                    invitation_url,
-                    tenant_schema=tenant_schema,
-                )
+            TeacherService(user=request.user).create_teacher(form.cleaned_data)
             return redirect("teachers_list")
         except ValidationError as exc:
             apply_validation_errors(form, exc)
@@ -344,3 +324,15 @@ def subject_edit(request, pk):
         "teachers/subject_form.html",
         {"form": form, "title": "Editar Disciplina", "instance": subject},
     )
+
+
+@login_required
+@require_POST
+def teacher_invite(request, pk):
+    """Solicita reemissão durável; o worker confirma elegibilidade antes do envio."""
+    try:
+        TeacherService(user=request.user).send_teacher_invitation(pk)
+        messages.success(request, "Convite registrado. O envio pode ser acompanhado nas entregas.")
+    except BusinessRuleViolationError as exc:
+        messages.error(request, exc.message)
+    return redirect("teacher_detail", pk=pk)

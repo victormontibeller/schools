@@ -260,6 +260,7 @@ def test_attendance_fill_post_returns_only_card_for_htmx(client, user):
         url,
         {
             f"status_{student.pk}": "JUSTIFIED",
+            f"version_{student.pk}": record.entries.get(student=student).version,
             f"note_{student.pk}": "Registrado pelo fallback nativo",
         },
     )
@@ -267,7 +268,7 @@ def test_attendance_fill_post_returns_only_card_for_htmx(client, user):
 
     response = client.post(
         url,
-        {f"status_{student.pk}": "ABSENT"},
+        {f"status_{student.pk}": "ABSENT", f"version_{student.pk}": entry.version},
         HTTP_HX_REQUEST="true",
     )
 

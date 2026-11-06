@@ -202,3 +202,15 @@ O sistema deverá ser protegido contra todas as vulnerabilidades do **OWASP Top 
 8. Software and Data Integrity Failures
 9. Security Logging and Monitoring Failures
 10. Server-Side Request Forgery
+
+### Recuperação de acesso no piloto
+
+A confirmação de senha passa por `PasswordRecoveryService`: conta/token/escola são revalidados
+sob lock e a alteração gera auditoria sem senha/hash legíveis. Tokens Django incorporam o schema.
+Limites Redis por escola usam apenas chaves HMAC: reset 10/IP/hora e 3/endereço/hora, confirmação
+30/IP/15 minutos, reenvio autenticado 20/IP/hora e 3/destinatário/hora. Excesso retorna 429 e falha
+do cache retorna 503, ambos com `Retry-After`. O backend de autenticação não ignora erros Redis.
+SMTP de recuperação não registra traceback nem mensagem de erro do provedor; esses textos podem
+conter destinatário/token. Contas existentes, inexistentes e inativas recebem resposta genérica.
+A preferência por alertas escolares não interfere em ativação/recuperação. Procedimento
+extraordinário, titular/substituto e limites da intervenção constam na ADR-0025.

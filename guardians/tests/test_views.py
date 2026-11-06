@@ -114,7 +114,7 @@ def test_guardian_edit_renders_with_links(force_login_client, guardian):
     assert response.status_code == 200
     assert b"Alunos vinculados" in response.content
     assert b'name="email"' in response.content
-    assert b"disabled" in response.content
+    assert not response.context["form"].fields["email"].disabled
     assert b"sm-profile-avatar-input" in response.content
     assert guardian.full_name.encode() in response.content
     assert guardian.email.encode() in response.content
@@ -155,8 +155,16 @@ def test_guardian_post_updates(force_login_client, guardian):
 
 
 @pytest.mark.django_db
-def test_guardian_edit_ignores_submitted_email_change(force_login_client, guardian):
+@pytest.mark.parametrize("linked_account", [False, True])
+def test_guardian_edit_changes_email_only_before_account_link(
+    force_login_client, guardian, linked_account
+):
     original_email = guardian.email
+    if linked_account:
+        from core.models import CustomUser
+
+        guardian.user = CustomUser.objects.create_user(email=guardian.email, password="Aurora824!")
+        guardian.save()
 
     response = force_login_client.post(
         f"/guardians/{guardian.pk}/editar/",
@@ -175,4 +183,4 @@ def test_guardian_edit_ignores_submitted_email_change(force_login_client, guardi
 
     assert response.status_code == 302
     guardian.refresh_from_db()
-    assert guardian.email == original_email
+    assert guardian.email == (original_email if linked_account else "alterado@example.com")

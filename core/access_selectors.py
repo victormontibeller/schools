@@ -59,6 +59,17 @@ class ObjectAccessSelector:
         return ActivitySelector().guardian_can_access_activity(user_id, activity_id)
 
     @staticmethod
+    def teacher_profile_is_current(user_id) -> bool:
+        from teachers.contracts import Teacher
+
+        return Teacher.objects.filter(
+            user_id=user_id,
+            is_active=True,
+            user__is_active=True,
+            user__deleted_at__isnull=True,
+        ).exists()
+
+    @staticmethod
     def teacher_classes(user_id, on_date: date | None = None) -> QuerySet:
         """Turmas ativas atribuídas a uma conta e perfil docentes válidos."""
         from classes.contracts import Class
@@ -129,7 +140,14 @@ class ObjectAccessSelector:
         """Confirma autoria da atividade pelo professor."""
         from activities.contracts import Activity
 
-        return Activity.objects.filter(pk=activity_id, teacher__user_id=user_id).exists()
+        return Activity.objects.filter(
+            pk=activity_id,
+            teacher__user_id=user_id,
+            teacher__is_active=True,
+            teacher__deleted_at__isnull=True,
+            teacher__user__is_active=True,
+            teacher__user__deleted_at__isnull=True,
+        ).exists()
 
     @staticmethod
     def teacher_can_access_subject(user_id, subject_id) -> bool:
@@ -140,6 +158,10 @@ class ObjectAccessSelector:
             pk=subject_id,
             deleted_at__isnull=True,
             teachers__user_id=user_id,
+            teachers__is_active=True,
+            teachers__deleted_at__isnull=True,
+            teachers__user__is_active=True,
+            teachers__user__deleted_at__isnull=True,
         ).exists()
 
     @staticmethod
@@ -147,7 +169,14 @@ class ObjectAccessSelector:
         """Confirma que a chamada pertence ao professor."""
         from attendance.contracts import AttendanceRecord
 
-        return AttendanceRecord.objects.filter(pk=record_id, teacher__user_id=user_id).exists()
+        return AttendanceRecord.objects.filter(
+            pk=record_id,
+            teacher__user_id=user_id,
+            teacher__is_active=True,
+            teacher__deleted_at__isnull=True,
+            teacher__user__is_active=True,
+            teacher__user__deleted_at__isnull=True,
+        ).exists()
 
     @staticmethod
     def teacher_can_access_student(user_id, student_id) -> bool:

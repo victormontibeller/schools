@@ -75,51 +75,6 @@ class MessageTransport:
         self._record_result(delivery.pk, result)
         return 1 if result.success else 0
 
-    def send_announcement_batch(self, announcement) -> tuple[int, int]:
-        """Envia comunicado para a audiência respeitando consentimentos."""
-        from notifications.services import AnnouncementService
-
-        recipients = AnnouncementService().get_audience_users(
-            announcement.audience, announcement.class_obj_id
-        )
-        success = 0
-        failed = 0
-        for user in recipients:
-            if not self._allows_channel(user):
-                continue
-            address = self._resolve_address(user)
-            if not address:
-                self._record_pre_send_failure(user, announcement=announcement)
-                failed += 1
-                continue
-            delivery = self._prepare_delivery(
-                user=user,
-                address=address,
-                announcement=announcement,
-            )
-            result = self.channel.send(
-                recipient_address=delivery.recipient_address,
-                subject=announcement.title,
-                body=announcement.body,
-                tenant_schema=getattr(connection, "schema_name", "public"),
-                message_log_id=str(delivery.pk),
-                idempotency_key=f"message-log/{delivery.pk}",
-                category="announcement",
-            )
-            self._record_result(delivery.pk, result)
-            success += int(result.success)
-            failed += int(not result.success)
-        logger.info(
-            "message_batch_completed",
-            extra={
-                "channel": self.channel.channel_name,
-                "announcement_id": str(announcement.pk),
-                "success_count": success,
-                "failure_count": failed,
-            },
-        )
-        return success, failed
-
     def _prepare_delivery(
         self,
         *,

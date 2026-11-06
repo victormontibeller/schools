@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from core import finance_access_catalog
+from core import finance_access_catalog, request_access_catalog
 
 FINANCE_BILLINGS = finance_access_catalog.FINANCE_BILLINGS
 FINANCE_CONTRACTS = finance_access_catalog.FINANCE_CONTRACTS
@@ -79,6 +79,9 @@ _STAFF_AND_TEACHER = STAFF_ROLES | {TEACHER}
 _PEDAGOGICAL = STAFF_ROLES | {TEACHER, GUARDIAN}
 
 MODULES = (
+    ModuleDefinition(
+        "school_export", "Exportação da escola", "Administração", frozenset(), frozenset({CREATE})
+    ),
     ModuleDefinition(
         "dashboard",
         "Visão geral",
@@ -191,9 +194,10 @@ MODULES = (
         "notifications",
         "Comunicados",
         "Coordenação",
-        _PEDAGOGICAL,
+        frozenset({*STAFF_ROLES, TEACHER, GUARDIAN}),
         scoped_roles=frozenset({GUARDIAN}),
     ),
+    *request_access_catalog.build_request_modules(ModuleDefinition),
     *build_finance_modules(
         ModuleDefinition,
         staff_roles=STAFF_ROLES,
@@ -272,10 +276,13 @@ DEFAULT_ACCESS: dict[str, dict[str, frozenset[str]]] = {
     "holidays": {COORDINATOR: frozenset({VIEW, CREATE, EDIT})},
     "academic_years": {COORDINATOR: frozenset({VIEW, CREATE, EDIT})},
     "notifications": {
+        SECRETARY: frozenset({VIEW}),
+        FINANCE: frozenset({VIEW}),
         COORDINATOR: frozenset({VIEW, CREATE, EDIT}),
         TEACHER: frozenset({VIEW}),
         GUARDIAN: frozenset({VIEW}),
     },
+    **request_access_catalog.REQUEST_DEFAULT_ACCESS,
     **finance_default_access(finance=FINANCE, view=VIEW, create=CREATE, edit=EDIT),
 }
 
@@ -293,6 +300,7 @@ APP_MODULES = {
     "notifications": "notifications",
     "rooms": "rooms",
     "student_diary": "student_diary",
+    "service_requests": "service_requests",
     "students": "students",
     "teachers": "teachers",
 }
@@ -373,7 +381,6 @@ def action_for_operation(operation_name: str, *, is_post: bool = True) -> str:
 
 
 def department_defaults(department: str, role_name: str) -> frozenset[str]:
-    """Define a herança segura aplicada a módulos futuros."""
     if department == "Acadêmico" and role_name in {COORDINATOR, TEACHER}:
         return frozenset({VIEW, CREATE, EDIT})
     if department == "Secretaria":

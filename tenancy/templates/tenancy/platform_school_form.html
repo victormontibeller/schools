@@ -5,6 +5,7 @@
 {% block breadcrumb %}
 <li class="breadcrumb-item"><a href="{% url 'platform_dashboard' %}">Plataforma</a></li>
 <li class="breadcrumb-item"><a href="{% url 'platform_school_list' %}">Escolas</a></li>
+{% if school %}<li class="breadcrumb-item"><a href="{% url 'platform_school_bootstrap' school.pk %}">Primeiro administrador</a></li>{% endif %}
 {% endblock %}
 
 {% block cancel_url %}{% url 'platform_school_list' %}{% endblock %}

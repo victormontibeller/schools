@@ -14,13 +14,13 @@ from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError
 from base.image_services import image_updates
 from base.repositories import BaseRepository
 from base.services import BaseService, service_command
+from guardians.identity import guardian_identity_write
 
 logger = logging.getLogger(__name__)
 
 GUARDIAN_REQUIRED_FIELDS = [
     "first_name",
     "last_name",
-    "email",
     "birth_date",
     "gender",
     "cpf",
@@ -43,7 +43,7 @@ class _GuardianRepo(BaseRepository):
 class GuardianService(BaseService):
     """Serviço de regras de negócio para responsáveis e vínculos com alunos."""
 
-    def create_guardian(self, data: dict) -> Guardian:
+    def create_guardian(self, data: dict, *, _import_batch=None) -> Guardian:
         """Cria um responsável como contato; a conta é vinculada por fluxo próprio."""
         from guardians.models import Guardian
 
@@ -53,6 +53,7 @@ class GuardianService(BaseService):
         cpf_cleaned = self._validate_cpf(data)
 
         guardian = Guardian(
+            origin_import_batch=_import_batch,
             user=None,
             first_name=data["first_name"].strip(),
             last_name=data["last_name"].strip(),
@@ -73,15 +74,25 @@ class GuardianService(BaseService):
         )
         for key, value in image_updates(guardian, data, "avatar").items():
             setattr(guardian, key, value)
-        guardian.save()
+        with guardian_identity_write():
+            guardian.save()
         self._record_audit("INSERT", guardian)
         self._log("Responsavel criado", guardian_id=str(guardian.pk))
         return guardian
 
     def update_guardian(self, guardian_id, data: dict) -> Guardian:
         """Atualiza dados do responsável e registra auditoria com valores antigos."""
+        from students.contracts import ImportUsageService
+
+        ImportUsageService(user=self.user).seal_for_use(guardian_ids=[guardian_id])
         repo = _GuardianRepo()
         guardian = repo.get_by_id(guardian_id)
+        if (
+            guardian.user_id
+            and "email" in data
+            and data["email"].strip().casefold() != guardian.email.casefold()
+        ):
+            raise BusinessRuleViolationError("Altere o e-mail vinculado pelo cadastro da conta.")
 
         self.validate_required(data, GUARDIAN_EDIT_REQUIRED_FIELDS)
 
@@ -115,11 +126,12 @@ class GuardianService(BaseService):
         updates.pop("avatar", None)
         updates.update(image_updates(guardian, data, "avatar"))
         updates["updated_by"] = self.user
-        guardian = repo.update(
-            guardian,
-            expected_version=data.get("version", guardian.version),
-            **updates,
-        )
+        with guardian_identity_write():
+            guardian = repo.update(
+                guardian,
+                expected_version=data.get("version", guardian.version),
+                **updates,
+            )
         self._record_audit("UPDATE", guardian, old_values=old)
         self._log("Responsavel atualizado", guardian_id=str(guardian.pk))
         return guardian
@@ -127,7 +139,9 @@ class GuardianService(BaseService):
     def deactivate_guardian(self, guardian_id) -> Guardian:
         """Aplica exclusão lógica no responsável e registra auditoria."""
         from guardians.models import Guardian
+        from students.contracts import ImportUsageService
 
+        ImportUsageService(user=self.user).seal_for_use(guardian_ids=[guardian_id])
         return self._deactivate(Guardian, guardian_id, "Guardian")
 
     @transaction.atomic
@@ -140,12 +154,19 @@ class GuardianService(BaseService):
         return self.link_student(guardian.pk, student_id, link_data)
 
     @service_command
-    def link_student(self, guardian_id, student_id, data: dict | None = None):
+    def link_student(
+        self, guardian_id, student_id, data: dict | None = None, *, _import_batch=None
+    ):
         """Vincula um aluno a um responsável com metadados (principal, guarda, etc.)."""
         if data is None:
             data = {}
         from guardians.models import Guardian, StudentGuardian
-        from students.contracts import Student
+        from students.contracts import ImportUsageService, Student
+
+        if _import_batch is None:
+            ImportUsageService(user=self.user).seal_for_use(
+                student_ids=[student_id], guardian_ids=[guardian_id]
+            )
 
         try:
             guardian = Guardian.objects.get(pk=guardian_id)
@@ -172,6 +193,7 @@ class GuardianService(BaseService):
         operation = "INSERT"
         if existing is None:
             link = StudentGuardian.objects.create(
+                origin_import_batch=_import_batch,
                 guardian=guardian,
                 student=student,
                 is_primary=is_primary,
@@ -208,7 +230,9 @@ class GuardianService(BaseService):
     def update_link(self, link_id, data: dict):
         """Atualiza as permissões e o parentesco de um vínculo."""
         from guardians.models import StudentGuardian
+        from students.contracts import ImportUsageService
 
+        ImportUsageService(user=self.user).seal_for_use(link_ids=[link_id])
         try:
             link = StudentGuardian.objects.get(pk=link_id)
         except StudentGuardian.DoesNotExist:
@@ -231,7 +255,11 @@ class GuardianService(BaseService):
     def unlink_student(self, guardian_id, student_id):
         """Remove o vínculo entre responsável e aluno (soft-delete)."""
         from guardians.models import StudentGuardian
+        from students.contracts import ImportUsageService
 
+        ImportUsageService(user=self.user).seal_for_use(
+            student_ids=[student_id], guardian_ids=[guardian_id]
+        )
         try:
             link = StudentGuardian.objects.get(guardian_id=guardian_id, student_id=student_id)
         except StudentGuardian.DoesNotExist:

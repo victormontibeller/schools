@@ -116,3 +116,139 @@ no contexto do tenant também quando o consumidor interrompe a leitura.
 Os testes Chromium com `live_server` usam arquivos fonte via `StaticFilesStorage`, pois o handler
 de estáticos do Django intercepta as URLs antes do middleware. O manifesto local de `collectstatic`
 não altera essa suíte; testes de produção continuam exigindo WhiteNoise e assets com hash.
+
+## Piloto fictício reproduzível e acesso local
+
+Consulte ADR-0026. Nunca ative `FICTITIOUS_MODE` em produção ou com dados reais. Configure um
+**banco novo**, diretório 0700 em `/tmp`, `DEBUG=true`, `FICTITIOUS_MODE=true`,
+`FICTITIOUS_DIRECTORY`, `FICTITIOUS_HTTP_PORT`, `MEDIA_ROOT` dentro desse diretório,
+`PLATFORM_DOMAIN=platform.localhost`, `TENANT_BASE_DOMAIN=localhost`, DB de prefixo
+`schools_pilot_` em loopback e Redis exclusivo do exercício. Proteja o arquivo de ambiente com
+0600. Não copie senhas, tokens nem mensagens capturadas para tickets, logs ou repositório.
+
+```sh
+make migrate-all VENV_BIN=/caminho/venv/bin
+python manage.py setup_fictitious_pilot
+python manage.py runserver 127.0.0.1:18080 --noreload
+python scripts/verify_fictitious_pilot.py
+```
+
+O comando cria Escola Piloto Ipê (duas turmas, três crianças, docentes, equipe, irmãos, guarda e
+pessoa de retirada) e uma escola de comparação, usando bootstrap/convites/carga/matrícula
+canônicos. Crianças não têm contas, e-mails ou documentos inventados. Não usa `seed_dev` nem
+contas DEMO. `access.json` contém somente credenciais fictícias e referências; `messages/` contém
+capturas privadas. Configuração concluída é reconhecida; configuração parcial exige investigação
+ou outro banco novo, não limpeza silenciosa. A porta faz parte das URLs geradas canonicamente.
+
+Sem RabbitMQ, o comando drena intenções explicitamente pelo mesmo service. Isso comprova a
+persistência e revalidação, mas **não** homologa worker/Beat/broker reais.
+
+## Portabilidade e saída de uma escola
+
+1. Registrar solicitação, escopo, destinatário autorizado e referência de atendimento.
+2. Obter aprovação do administrador escolar; o operador público não acessa conteúdo por sessão
+   de outro usuário. O comando operacional recebe a identidade autorizada do tenant.
+3. Suspender novas escritas em janela coordenada, sem parar outras escolas se desnecessário.
+4. Executar com pasta de saída privada 0700 e caminho inexistente:
+
+```sh
+python manage.py export_school --schema ESCOLA --actor-id UUID_ADMIN --output /privado/escola.zip
+```
+
+5. Conferir manifesto, contagens, hashes e mídia. O pacote inclui dados pessoais necessários à
+   portabilidade: transferir por canal autenticado/criptografado, sem anexá-lo ao chamado.
+6. Registrar recebimento e prazo de retenção/eliminação conforme política aprovada. Suspender
+   escola pela plataforma revoga consulta e novas entregas; não remove outros tenants nem
+   apaga automaticamente histórico. Encerramento definitivo depende da política real documentada.
+
+## Backup, frescor, restauração e rollback
+
+O procedimento abaixo exige **todos os escritores parados**: web, workers, Beat, jobs e uploads;
+aguardar transações/tarefas em andamento. Confirmar a quiescência antes de passar a opção.
+Executar em host com PostgreSQL cliente compatível e credenciais via ambiente/secret, nunca CLI.
+Saída deve estar fora da árvore de mídia, em pasta 0700. Não usar `reset_dev.sh` como recuperação.
+
+```sh
+python scripts/pilot_backup.py backup --database DB_ORIGEM --media /midia \
+  --output /backups/ponto-UTC.zip --writers-stopped
+python scripts/pilot_backup.py check --source /backups/ponto-UTC.zip
+python scripts/pilot_backup.py restore --source /backups/ponto-UTC.zip \
+  --database DB_NOVO --directory /restauracoes/NOVA_PASTA
+```
+
+Automação produtiva deve criar um ponto consistente a cada **30 minutos**, com máximo observado
+menor ou igual a uma hora, checar resultado/frescor e alertar falhas independentemente da fila.
+O procedimento de quiescência deve ser homologado para esse agendamento; se interrupções forem
+inaceitáveis, implementar e ensaiar snapshot coordenado ou PITR+versionamento da mídia antes da
+entrada real. Um cron que só copia mídia enquanto há escrita não atende ao requisito.
+
+Definir retenção diária/semanal, armazenamento externo criptografado, chave fora do backup,
+acesso mínimo, capacidade e testes periódicos de restore. Estes controles dependem do operador
+real: não foram provisionados pelo ensaio local. Usar nomes novos por execução, verificar SHA-256
+e testar de fato a cópia externa. Monitor externo deve verificar frescor pelo menos a cada cinco
+minutos; o próprio backup vencido não pode depender de Celery para alertar.
+
+Após restauração: apontar configuração a banco e mídia novos; usar Redis separado ou prefixo
+novo e reconstruir/inativar apenas chaves desse ambiente. Conferir todas as escolas, contagens,
+histórico financeiro, ciência, documentos e abertura de mídia privada; testar login/permissões.
+Reconciliar o intervalo entre ponto recuperado e incidente: guarda revogada, desativações,
+permissões, convites, pagamentos/estornos e documentos. Reaplicar correções por serviços auditados
+com evidência externa. Não reabrir por simples sucesso de `pg_restore` ou checksum. Registrar
+quem autorizou a reabertura. Rollback mantém origem preservada; bloquear escrita antes de trocar
+configuração e reconciliar qualquer escrita ocorrida no destino.
+
+## Monitor independente e contatos de operação
+
+```sh
+python manage.py check_pilot_operations --backup /backups/ponto-UTC.zip \
+  --service-url https://escola.exemplo/health/ --alert-url https://receptor.exemplo/alertas \
+  --state-file /privado/monitor-state.json
+```
+
+Configure `MONITOR_ALERT_TOKEN` em secret. O receptor recebe somente códigos, referência opaca e
+estado; redirecionamentos são recusados. Banco indisponível, backup inválido/vencido, serviço fora
+e fila/outbox atrasada produzem sinais operacionais. A sonda TCP do broker não substitui `inspect
+ping` nem processamento real. O estado deduplica repetição; definir escalonamento humano e
+recorrência externa. HTTPS/rotas auth Traefik usam rate limit próprio, além do Axes e limite
+compartilhado do reset. `/metrics` usa o token canônico da aplicação, sem placeholder Basic Auth.
+
+| Responsabilidade | Titular | Substituto | Contato imediato e janela |
+|---|---|---|---|
+| Suporte técnico/restore/alertas | A definir antes de dados reais | A definir | A definir |
+| Administração escolar | A definir pela escola | A definir | A definir |
+| Secretaria, Coordenação e Financeiro | Configurar por setor | Configurar vínculo autorizado | Calendário administrativo |
+
+Recuperação extraordinária de administrador exige chamado, prova de identidade e vínculo com a
+escola, validação do titular/substituto técnico e registro de executor/aprovação. Preferir outro
+ADMIN ativo e recuperação nativa. Se ambos inacessíveis, intervenção técnica controlada por
+comando auditado, sem impersonação, senha compartilhada ou bootstrap repetido; testar o fluxo
+antes da entrada real e invalidar acesso comprometido.
+
+## Treinamento, transição e decisão de liberação
+
+| Perfil | Exercício obrigatório |
+|---|---|
+| Operador | Provisionar escola, bootstrap e Agenda; suspender sem afetar outra escola |
+| Administrador | Ativar, cadastrar substituto/equipe, corrigir convite, configurar setores/acessos |
+| Secretaria | Prévia/carga, conferir guarda/retirada, matrícula/documentos e atendimento |
+| Coordenação | Turmas/calendário, devolver/revisar/publicar Agenda, comunicado/ciência/correção |
+| Professor | Somente suas turmas; frequência/rotina, reenvio após devolução |
+| Financeiro | Contrato/cobrança, pagamento, recibo, estorno e solicitação financeira |
+| Responsável | Ativar/recuperar, vários filhos, Agenda/ciência, solicitação privada e cobranças permitidas |
+| Retirada/criança | Cadastro sem conta; conferência no portão permanece operacional |
+| Suporte | Referência opaca, alerta, recuperação em destino novo e reconciliação |
+
+| Processo | Fonte oficial durante a transição |
+|---|---|
+| Cadastro, guarda e matrícula aprovados/importados | School Manager após reconciliação e aceite escolar |
+| Agenda, comunicados e atendimento habilitados | School Manager; e-mail é aviso, não registro oficial |
+| Contratos/cobranças/baixas migrados e conferidos | School Manager; instituição financeira comprova recebimento externo |
+| Retirada, ficha de cuidados, assinatura, documentos ainda não substituídos | Procedimento externo vigente da escola, a identificar no aceite |
+
+Antes de dados reais: registrar fonte específica de cada processo, responsáveis, treinamento e
+contato imediato; reconciliar **todas** as turmas/alunos/guardas; validar jornadas e negativos;
+aprovar testes, cobertura, scans e infraestrutura real; ensaiar recuperação e alerta recebido por
+pessoa responsável; assinar ADR encerrando política descartável. Qualquer falha conhecida de
+acesso, perda de dados ou integridade financeira bloqueia liberação. A escola fictícia não é esse
+aceite. Após entrada real, acompanhar quatro semanas de ativação, leitura/ciência, falhas,
+atendimentos atrasados e dificuldades antes de expandir para até três escolas.

@@ -73,6 +73,10 @@ class AccessConfigurationService(BaseService):
             role_name: self._validate_role_matrix(role_name, access_matrix[role_name])
             for role_name in CONFIGURABLE_ROLES
         }
+        from accounts.user_guards import lock_and_refresh_administrator
+        from service_requests.selectors import ServiceStaffSelector
+
+        lock_and_refresh_administrator(self)
         locked_roles = {
             role.name: role
             for role in Role.objects.select_for_update().filter(name__in=CONFIGURABLE_ROLES)
@@ -93,6 +97,7 @@ class AccessConfigurationService(BaseService):
             if changed_modules:
                 changed_roles += 1
             self._finish_role_update(role, changed_modules)
+        ServiceStaffSelector.validate_departments_staffed()
         if changed_roles:
             self._log("access_matrix_updated", changed_role_count=changed_roles)
         return tuple(locked_roles[role_name] for role_name in CONFIGURABLE_ROLES)

@@ -101,7 +101,8 @@ def test_student_edit_get_returns_only_component_for_htmx(force_login_client, st
     assert b"sm-profile-avatar-input" in response.content
     assert student.get_full_name().encode() in response.content
     assert student.email.encode() in response.content
-    assert response.content.count(b'class="col-12 col-md-6"') == 2
+    assert b'name="accepts_email_notifications"' not in response.content
+    assert b'name="user"' not in response.content
     assert b"<html" not in response.content
 
 

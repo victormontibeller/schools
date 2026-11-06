@@ -37,6 +37,9 @@ class ApplicationCreationMixin:
         notes = self._normalize_notes(data.get("notes", ""))
         self._reject_inconsistent_fields(data, application_type)
         student_id = self._normalize_uuid(data["student_id"], "student_id")
+        from students.contracts import ImportUsageService
+
+        ImportUsageService(user=self.user).seal_for_use(student_ids=[student_id])
         try:
             student = Student.objects.select_for_update().get(pk=student_id)
         except Student.DoesNotExist:

@@ -72,10 +72,6 @@ def attendance_records_list(request):
     from core.access_catalog import VIEW
 
     class_id = request.GET.get("class_obj") or None
-    teacher_id = None
-    if getattr(getattr(request.user, "role", None), "name", "") == "TEACHER":
-        teacher = getattr(request.user, "teacher_profile", None)
-        teacher_id = teacher.pk if teacher else None
     state = resolve_listing_state(
         request,
         scope="attendance_records_list",
@@ -112,7 +108,7 @@ def attendance_records_list(request):
     context = {
         "result": AttendanceSelector().list_records(
             class_id=class_id,
-            teacher_id=teacher_id,
+            user=request.user,
             search=search,
             order_by=RECORD_SORTS[sort],
             page=state["page"],
@@ -235,19 +231,10 @@ def student_attendance(request, student_id, class_id=None):
 @login_required
 def students_at_risk(request):
     """Tela de alunos em risco (abaixo de 75%), filtro por turma."""
-    from classes.selectors import ClassSelector
-
-    classes = ClassSelector().list_ordered()
-    selected = request.GET.get("class_obj")
-    at_risk: list = []
-    cls = None
-    if selected:
-        cls = ClassSelector().get_by_id(selected)
-        at_risk = AttendanceSelector().get_students_at_risk(cls.pk)
     return render(
         request,
         "attendance/at_risk.html",
-        {"classes": classes, "selected": selected, "cls": cls, "at_risk": at_risk},
+        AttendanceSelector().risk_context(request.user, request.GET.get("class_obj")),
     )
 
 

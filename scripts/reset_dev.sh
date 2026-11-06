@@ -1,7 +1,17 @@
 #!/usr/bin/env sh
 set -eu
 
+if [ "${DJANGO_ENV:-development}" = "production" ] || [ "${REAL_DATA_PRESENT:-false}" != "false" ]; then
+    echo "Reset recusado: ambiente de produção ou dados reais. Use restauração em destino novo." >&2
+    exit 1
+fi
+
 python_bin="${PYTHON_BIN:-./.venv/bin/python}"
+"$python_bin" -c '
+from decouple import config
+import sys
+sys.exit(1 if config("DJANGO_ENV", default="development") == "production" or config("REAL_DATA_PRESENT", default=False, cast=bool) else 0)
+' || { echo "Reset recusado pela configuração efetiva (.env/ambiente)." >&2; exit 1; }
 
 if [ "${CONFIRM_RESET_DEV:-}" != "RESET" ]; then
     printf 'Esta operação apaga schools_db, schools_test_db, mídia, cache e filas locais. Digite RESET: '

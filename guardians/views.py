@@ -1,11 +1,8 @@
 """Views de responsáveis e vínculos com alunos."""
 
-from urllib.parse import urlencode
-
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
-from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from base.exceptions import (
@@ -89,12 +86,7 @@ def guardian_invite(request, pk):
     from guardians.invitation_services import GuardianInvitationService
 
     try:
-        GuardianInvitationService(user=request.user).send_invitation(
-            pk,
-            lambda token: request.build_absolute_uri(reverse("guardian_invitation"))
-            + "?"
-            + urlencode({"token": token}),
-        )
+        GuardianInvitationService(user=request.user).send_invitation(pk)
         messages.success(request, "Convite de acesso enviado.")
     except (ValidationError, BusinessRuleViolationError) as exc:
         messages.error(request, str(exc))
@@ -135,7 +127,7 @@ def guardian_edit(request, pk):
         request.FILES or None,
         initial=initial,
         require_version=True,
-        email_editable=False,
+        email_editable=not guardian.user_id,
     )
     if request.method == "POST" and form.is_valid():
         try:

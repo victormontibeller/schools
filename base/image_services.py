@@ -16,11 +16,11 @@ logger = logging.getLogger(__name__)
 _journal = ContextVar("image_command_journal", default=None)
 
 
-def _discard(storage, name: str) -> None:
+def _discard(storage, name: str, check_references=True) -> None:
     try:
         from base.ports import media_is_referenced
 
-        if not media_is_referenced(storage, name):
+        if not check_references or not media_is_referenced(storage, name):
             storage.delete(name)
     except Exception:
         logger.warning("image_cleanup_failed", extra={"reason_code": "storage_delete"})
@@ -35,9 +35,9 @@ def image_command_scope():
     try:
         yield
     except BaseException:
-        for storage, name, committed in reversed(entries):
+        for storage, name, committed, check_references in reversed(entries):
             if not committed[0]:
-                _discard(storage, name)
+                _discard(storage, name, check_references)
         raise
     else:
         if parent is not None:
@@ -90,7 +90,7 @@ def image_updates(instance, data: dict, field_name: str) -> dict:
     name = f"{directory}/optimized/v1/{uuid.uuid4().hex}.webp"
     committed = [False]
     # Registra antes da escrita para compensar também falhas parciais do backend.
-    entry = [field.storage, name, committed]
+    entry = [field.storage, name, committed, True]
     entries.append(entry)
     try:
         entry[1] = field.storage.save(name, normalized, max_length=field.max_length)
@@ -103,3 +103,17 @@ def image_updates(instance, data: dict, field_name: str) -> dict:
 
         delete_replaced_file_after_commit(field.storage, old_name, entry[1], check_references=True)
     return {field_name: entry[1]}
+
+
+def register_command_artifact(storage, name):
+    """Compensa arquivo privado temporário se o próprio comando/commit falhar.
+
+    O chamador não pode aceitar transação externa: Django não oferece callback
+    de rollback para um atomic arbitrário que englobe o comando.
+    """
+    entries = _journal.get()
+    if entries is None:
+        raise BusinessRuleViolationError("Artefato exige comando transacional.")
+    committed = [False]
+    entries.append((storage, name, committed, False))
+    transaction.on_commit(lambda: committed.__setitem__(0, True))

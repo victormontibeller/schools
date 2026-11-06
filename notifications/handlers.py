@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from base.events import DomainEvent, dispatcher, publish_task_after_commit
+from base.events import DomainEvent, dispatcher
 
 logger = logging.getLogger(__name__)
 
@@ -41,40 +41,6 @@ def _notify_guardians(
                 "type": notif_type,
                 "source": source,
                 "action_url": action_url,
-                "correlation_id": correlation_id,
-            }
-        )
-
-
-def _notify_class_students(
-    class_obj,
-    user,
-    title: str,
-    message: str,
-    notif_type: str,
-    source: str,
-    action_url_prefix: str,
-    correlation_id: str,
-) -> None:
-    """Envia notificacao para alunos ativos de uma turma."""
-    from classes.contracts import Enrollment
-    from notifications.services import NotificationService
-
-    student_user_ids = Enrollment.objects.filter(
-        class_obj=class_obj, status=Enrollment.Status.ACTIVE
-    ).values_list("student__user_id", flat=True)
-
-    for user_id in student_user_ids:
-        if user_id is None:
-            continue
-        NotificationService(user=user).create_notification(
-            {
-                "recipient_id": user_id,
-                "title": title,
-                "message": message,
-                "type": notif_type,
-                "source": source,
-                "action_url": action_url_prefix,
                 "correlation_id": correlation_id,
             }
         )
@@ -135,52 +101,31 @@ def _handle_attendance_threshold(event: DomainEvent) -> None:
     )
 
 
-def _handle_activity_created(event: DomainEvent) -> None:
-    activity = event.instance
-    _notify_class_students(
-        activity.class_obj,
-        event.user,
-        title="Nova Atividade",
-        message=f"Nova atividade em {activity.subject.name}: {activity.title}.",
-        notif_type="INFO",
-        source="activities",
-        action_url_prefix=f"/activities/{activity.pk}/",
-        correlation_id=event.correlation_id,
-    )
+def _handle_pilot_communication(event: DomainEvent) -> None:
+    from notifications.domain_event_services import DomainCommunicationService
 
-
-def _handle_calendar_event_created(event: DomainEvent) -> None:
-    cal_event = event.instance
-    audience = getattr(cal_event, "audience", "ALL")
-    title = f"Novo evento: {cal_event.title}"
-    msg = cal_event.description or f"Evento em {cal_event.start_date}."
-
-    if audience == "ALL":
-        from django.db import connection
-
-        from base import context
-        from notifications.tasks import notify_audience_all_task
-
-        schema_name = getattr(connection, "schema_name", context.current_tenant.get())
-        publish_task_after_commit(
-            notify_audience_all_task,
-            schema_name,
-            title=title,
-            message=msg,
-            correlation_id=event.correlation_id,
-            tenant_schema=schema_name,
+    instance = event.instance
+    name = type(instance).__name__
+    if (name, event.operation) not in _REQUIRED_EVENTS:
+        return
+    old = event.old_values or {}
+    kind = None
+    if name == "Activity" and event.operation == "INSERT":
+        kind = "activity_published"
+    elif name == "CalendarEvent" and (
+        event.operation == "INSERT" or (not old.get("is_public") and instance.is_public)
+    ):
+        kind = "calendar_published"
+    elif name == "PaymentRecord" and old.get("status") != instance.status:
+        kind = {"CONFIRMED": "payment_confirmed", "REVERSED": "payment_reversed"}.get(
+            instance.status
         )
-    elif audience == "CLASS" and cal_event.class_obj:
-        _notify_class_students(
-            cal_event.class_obj,
-            event.user,
-            title=title,
-            message=msg,
-            notif_type="INFO",
-            source="calendar",
-            action_url_prefix=f"/calendar/{cal_event.pk}/",
-            correlation_id=event.correlation_id,
+    elif name == "EnrollmentApplication" and old.get("status") != instance.status:
+        kind = {"ENROLLED": "enrollment_confirmed", "CORRECTION_REQUIRED": "document_action"}.get(
+            instance.status
         )
+    if kind:
+        DomainCommunicationService(user=event.user).emit_domain_event(instance, kind)
 
 
 # ── Registro ─────────────────────────────────────────────────────────────────
@@ -190,8 +135,15 @@ _SPECIFIC_HANDLERS = {
     ("Student", "INSERT"): _handle_student_created,
     ("Student", "ALERT"): _handle_attendance_threshold,
     ("Student", "CRITICAL"): _handle_attendance_threshold,
-    ("Activity", "INSERT"): _handle_activity_created,
-    ("CalendarEvent", "INSERT"): _handle_calendar_event_created,
+}
+
+
+_REQUIRED_EVENTS = {
+    ("Activity", "INSERT"),
+    ("CalendarEvent", "INSERT"),
+    ("CalendarEvent", "UPDATE"),
+    ("PaymentRecord", "UPDATE"),
+    ("EnrollmentApplication", "UPDATE"),
 }
 
 
@@ -200,6 +152,7 @@ def register_event_handlers() -> None:
     global _HANDLERS_REGISTERED
     if _HANDLERS_REGISTERED:
         return
+    dispatcher.register(DomainEvent, _handle_pilot_communication, required=True)
     dispatcher.register(DomainEvent, _on_domain_event)
     _HANDLERS_REGISTERED = True
     logger.info("Handlers de notificacao registrados no dispatcher global.")

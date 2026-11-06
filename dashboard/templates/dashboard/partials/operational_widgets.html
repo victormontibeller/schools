@@ -1,3 +1,4 @@
+{% load ui_helpers %}
 <div id="dashboard-widgets"
      hx-get="{% url 'school_dashboard_partial' %}"
      hx-trigger="every 60s"
@@ -5,15 +6,15 @@
     {% if data.diary_kpis %}<section class="card mb-3" aria-labelledby="diary-workflow-title">
         <div class="card-header d-flex justify-content-between align-items-center gap-2">
             <div><h6 id="diary-workflow-title" class="card-title mb-1">Agenda escolar</h6><p class="text-muted small mb-0">Publicações unidirecionais para as famílias.</p></div>
-            {% if data.diary_kpis.role != "GUARDIAN" %}<a href="{% url 'diary_daily' %}" class="btn btn-outline-primary btn-sm">Abrir agenda</a>{% endif %}
+            {% if data.diary_kpis.role != "GUARDIAN" %}{% can_access_url "diary_daily" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'diary_daily' %}"{% endif %} class="btn btn-outline-primary btn-sm">Abrir agenda</a>{% endif %}
         </div>
         <div class="card-body"><div class="sm-dashboard-summary-grid">
             {% if data.diary_kpis.role == "GUARDIAN" %}
-            <a href="{% url 'notification_list' %}" class="sm-dashboard-summary-item"><span>Novas agendas</span><strong>{{ data.diary_kpis.unread }}</strong></a>
-            <a href="{% url 'notification_list' %}" class="sm-dashboard-summary-item"><span>Publicações recebidas</span><strong>{{ data.diary_kpis.published }}</strong></a>
+            {% can_access_url "notification_list" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'notification_list' %}"{% endif %} class="sm-dashboard-summary-item"><span>Novas agendas</span><strong>{{ data.diary_kpis.unread }}</strong></a>
+            {% can_access_url "notification_list" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'notification_list' %}"{% endif %} class="sm-dashboard-summary-item"><span>Publicações recebidas</span><strong>{{ data.diary_kpis.published }}</strong></a>
             {% else %}
-            {% with first_pending=data.diary_pending_reviews.0 %}<a href="{% url 'diary_daily' %}{% if first_pending %}?class_id={{ first_pending.class_obj_id }}&date={{ first_pending.date|date:'Y-m-d' }}{% endif %}" class="sm-dashboard-summary-item"><span>Em revisão</span><strong>{{ data.diary_kpis.pending_review }}</strong></a>{% endwith %}
-            <a href="{% url 'diary_daily' %}" class="sm-dashboard-summary-item"><span>Devolvidas</span><strong>{{ data.diary_kpis.changes_requested }}</strong></a>
+            {% with first_pending=data.diary_pending_reviews.0 %}{% can_access_url "diary_daily" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'diary_daily' %}{% if first_pending %}?class_id={{ first_pending.class_obj_id }}&date={{ first_pending.date|date:'Y-m-d' }}{% endif %}"{% endif %} class="sm-dashboard-summary-item"><span>Em revisão</span><strong>{{ data.diary_kpis.pending_review }}</strong></a>{% endwith %}
+            {% can_access_url "diary_daily" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'diary_daily' %}"{% endif %} class="sm-dashboard-summary-item"><span>Devolvidas</span><strong>{{ data.diary_kpis.changes_requested }}</strong></a>
             <div class="sm-dashboard-summary-item"><span>Visualizadas em 24h</span><strong>{% if data.diary_kpis.view_rate_24h is not None %}{{ data.diary_kpis.view_rate_24h|floatformat:1 }}%{% else %}—{% endif %}</strong></div>
             <div class="sm-dashboard-summary-item"><span>Dias/turmas publicados</span><strong>{% if data.diary_kpis.publication_completion_rate is not None %}{{ data.diary_kpis.publication_completion_rate|floatformat:1 }}%{% else %}—{% endif %}</strong></div>
             <div class="sm-dashboard-summary-item"><span>Mediana até publicação</span><strong>{% if data.diary_kpis.approval_median_hours is not None %}{{ data.diary_kpis.approval_median_hours|floatformat:1 }}h{% else %}—{% endif %}</strong></div>
@@ -28,7 +29,7 @@
                     <tbody>
                     {% for pending in data.diary_pending_reviews %}
                     <tr>
-                        <td><a class="fw-semibold" href="{% url 'diary_daily' %}?class_id={{ pending.class_obj_id }}&date={{ pending.date|date:'Y-m-d' }}">{{ pending.class_obj }}</a></td>
+                        <td>{% can_access_url "diary_daily" as can_open_widget %}<a class="fw-semibold" {% if can_open_widget %}href="{% url 'diary_daily' %}?class_id={{ pending.class_obj_id }}&date={{ pending.date|date:'Y-m-d' }}"{% endif %}>{{ pending.class_obj }}</a></td>
                         <td>{{ pending.date|date:'d/m/Y' }}</td>
                         <td>{{ pending.submitted_at|date:'d/m/Y H:i'|default:'—' }}</td>
                         <td><span class="badge bg-soft-warning text-warning">Em revisão</span></td>
@@ -48,7 +49,7 @@
             {% if data.is_guardian %}
             <div class="card sm-dashboard-kpi h-100">
             {% else %}
-            <a href="{% url 'students_list' %}" class="card sm-dashboard-kpi h-100 text-decoration-none">
+            {% can_access_url "students_list" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'students_list' %}"{% endif %} class="card sm-dashboard-kpi h-100 text-decoration-none">
             {% endif %}
                 <div class="card-body">
                     <div class="sm-dashboard-kpi-icon bg-soft-primary text-primary"><i class="feather-users" aria-hidden="true"></i></div>
@@ -68,7 +69,7 @@
             {% if data.is_guardian %}
             <div class="card sm-dashboard-kpi h-100">
             {% else %}
-            <a href="{% url 'classes_list' %}" class="card sm-dashboard-kpi h-100 text-decoration-none">
+            {% can_access_url "classes_list" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'classes_list' %}"{% endif %} class="card sm-dashboard-kpi h-100 text-decoration-none">
             {% endif %}
                 <div class="card-body">
                     <div class="sm-dashboard-kpi-icon bg-soft-info text-info"><i class="feather-layers" aria-hidden="true"></i></div>
@@ -88,7 +89,7 @@
             {% if data.is_guardian %}
             <div class="card sm-dashboard-kpi h-100">
             {% else %}
-            <a href="{% url 'attendance_records_list' %}" class="card sm-dashboard-kpi h-100 text-decoration-none">
+            {% can_access_url "attendance_records_list" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'attendance_records_list' %}"{% endif %} class="card sm-dashboard-kpi h-100 text-decoration-none">
             {% endif %}
                 <div class="card-body">
                     <div class="sm-dashboard-kpi-icon bg-soft-success text-success"><i class="feather-check-circle" aria-hidden="true"></i></div>
@@ -108,7 +109,7 @@
             {% if data.is_guardian %}
             <div class="card sm-dashboard-kpi h-100{% if data.students_at_risk %} is-alert{% endif %}">
             {% else %}
-            <a href="{% url 'students_at_risk' %}" class="card sm-dashboard-kpi h-100 text-decoration-none{% if data.students_at_risk %} is-alert{% endif %}">
+            {% can_access_url "students_at_risk" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'students_at_risk' %}"{% endif %} class="card sm-dashboard-kpi h-100 text-decoration-none{% if data.students_at_risk %} is-alert{% endif %}">
             {% endif %}
                 <div class="card-body">
                     <div class="sm-dashboard-kpi-icon bg-soft-warning text-warning"><i class="feather-alert-triangle" aria-hidden="true"></i></div>
@@ -144,7 +145,7 @@
                             <span><strong>{{ data.students_at_risk }} aluno{{ data.students_at_risk|pluralize }} vinculado{{ data.students_at_risk|pluralize }} em risco</strong><small>Frequência abaixo do limite recomendado.</small></span>
                         </div>
                         {% else %}
-                        <a href="{% url 'students_at_risk' %}" class="sm-dashboard-attention-item">
+                        {% can_access_url "students_at_risk" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'students_at_risk' %}"{% endif %} class="sm-dashboard-attention-item">
                             <span class="sm-dashboard-attention-icon bg-soft-warning text-warning"><i class="feather-alert-triangle" aria-hidden="true"></i></span>
                             <span><strong>{{ data.students_at_risk }} aluno{{ data.students_at_risk|pluralize }} em risco</strong><small>Frequência abaixo do limite recomendado.</small></span>
                             <i class="feather-chevron-right ms-auto" aria-hidden="true"></i>
@@ -152,14 +153,14 @@
                         {% endif %}
                         {% endif %}
                         {% if data.financial_kpis.total_vencido and can_view_overdue %}
-                        <a href="{% url 'finance_overdue_report' %}" class="sm-dashboard-attention-item">
+                        {% can_access_url "finance_overdue_report" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'finance_overdue_report' %}"{% endif %} class="sm-dashboard-attention-item">
                             <span class="sm-dashboard-attention-icon bg-soft-danger text-danger"><i class="feather-credit-card" aria-hidden="true"></i></span>
                             <span><strong>R$ {{ data.financial_kpis.total_vencido|floatformat:2 }} em atraso</strong><small>Cobranças vencidas aguardando acompanhamento.</small></span>
                             <i class="feather-chevron-right ms-auto" aria-hidden="true"></i>
                         </a>
                         {% endif %}
                         {% for activity in data.pending_activities %}
-                        <a href="{% url 'activity_detail' activity.id %}" class="sm-dashboard-attention-item">
+                        {% can_access_action "activities" "view" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'activity_detail' activity.id %}"{% endif %} class="sm-dashboard-attention-item">
                             <span class="sm-dashboard-attention-icon bg-soft-primary text-primary"><i class="feather-edit-3" aria-hidden="true"></i></span>
                             <span><strong>{{ activity.title }}</strong><small>{{ activity.subject }} · {{ activity.class_obj }} · entrega {{ activity.due_date }}</small></span>
                             <i class="feather-chevron-right ms-auto" aria-hidden="true"></i>
@@ -184,14 +185,14 @@
                         <h6 id="agenda-title" class="card-title mb-1">Agenda</h6>
                         <p class="text-muted small mb-0">Próximos 7 dias.</p>
                     </div>
-                    <a href="{% url 'calendar_month' %}" class="btn btn-outline-secondary btn-sm">Ver calendário</a>
+                    {% can_access_url "calendar_month" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'calendar_month' %}"{% endif %} class="btn btn-outline-secondary btn-sm">Ver calendário</a>
                 </div>
                 <div class="card-body p-0">
                     {% for event in data.upcoming_events %}
                     {% if data.is_guardian %}
                     <div class="sm-dashboard-event">
                     {% else %}
-                    <a href="{% url 'event_detail' event.id %}" class="sm-dashboard-event">
+                    {% can_access_action "academic_calendar" "view" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'event_detail' event.id %}"{% endif %} class="sm-dashboard-event">
                     {% endif %}
                         <span class="sm-dashboard-event-date"><strong>{{ event.start_date|slice:"8:10" }}</strong><small>{{ event.start_date|slice:"5:7" }}/{{ event.start_date|slice:"0:4" }}</small></span>
                         <span><strong>{{ event.title }}</strong><small>{{ event.type }}</small></span>
@@ -225,24 +226,24 @@
                 <div class="card-body">
                     <div class="sm-dashboard-summary-grid">
                         {% if data.is_guardian %}
-                        <a href="{% url 'students_list' %}" class="sm-dashboard-summary-item">
+                        {% can_access_url "students_list" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'students_list' %}"{% endif %} class="sm-dashboard-summary-item">
                             <span>Alunos vinculados</span><strong>{{ data.total_students|default_if_none:"—" }}</strong>
                         </a>
                         <div class="sm-dashboard-summary-item">
                             <span>Turmas atuais</span><strong>{{ data.total_classes|default_if_none:"—" }}</strong>
                         </div>
                         {% else %}
-                        <a href="{% url 'teachers_list' %}" class="sm-dashboard-summary-item">
+                        {% can_access_url "teachers_list" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'teachers_list' %}"{% endif %} class="sm-dashboard-summary-item">
                             <span>Professores ativos</span><strong>{{ data.total_teachers|default_if_none:"—" }}</strong>
                         </a>
-                        <a href="{% url 'guardians_list' %}" class="sm-dashboard-summary-item">
+                        {% can_access_url "guardians_list" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'guardians_list' %}"{% endif %} class="sm-dashboard-summary-item">
                             <span>Responsáveis ativos</span><strong>{{ data.total_guardians|default_if_none:"—" }}</strong>
                         </a>
                         {% endif %}
-                        <a href="{% url 'activities_list' %}" class="sm-dashboard-summary-item">
+                        {% can_access_url "activities_list" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'activities_list' %}"{% endif %} class="sm-dashboard-summary-item">
                             <span>Atividades próximas</span><strong>{{ data.pending_activities|length }}</strong>
                         </a>
-                        <a href="{% url 'calendar_month' %}" class="sm-dashboard-summary-item">
+                        {% can_access_url "calendar_month" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'calendar_month' %}"{% endif %} class="sm-dashboard-summary-item">
                             <span>Eventos próximos</span><strong>{{ data.upcoming_events|length }}</strong>
                         </a>
                     </div>
@@ -258,9 +259,9 @@
                         <p class="text-muted small mb-0">Últimos sete dias.</p>
                     </div>
                     {% if data.is_guardian %}
-                    <a href="{% url 'students_list' %}" class="btn btn-outline-secondary btn-sm">Detalhes</a>
+                    {% can_access_url "students_list" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'students_list' %}"{% endif %} class="btn btn-outline-secondary btn-sm">Detalhes</a>
                     {% else %}
-                    <a href="{% url 'attendance_records_list' %}" class="btn btn-outline-secondary btn-sm">Detalhes</a>
+                    {% can_access_url "attendance_records_list" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'attendance_records_list' %}"{% endif %} class="btn btn-outline-secondary btn-sm">Detalhes</a>
                     {% endif %}
                 </div>
                 <div class="card-body">
@@ -289,7 +290,7 @@
                         <h6 id="financial-title" class="card-title mb-1">Panorama financeiro</h6>
                         <p class="text-muted small mb-0">Posição atual das cobranças.</p>
                     </div>
-                    <a href="{% url 'finance_dashboard' %}" class="btn btn-outline-secondary btn-sm">Abrir</a>
+                    {% can_access_url "finance_dashboard" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'finance_dashboard' %}"{% endif %} class="btn btn-outline-secondary btn-sm">Abrir</a>
                 </div>
                 <div class="card-body">
                     <dl class="sm-dashboard-financial mb-0">
@@ -307,7 +308,7 @@
                         <p class="text-muted small mb-0">Últimas publicações da escola.</p>
                     </div>
                     {% if not data.is_guardian %}
-                    <a href="{% url 'announcement_list' %}" class="btn btn-outline-secondary btn-sm">Ver todos</a>
+                    {% can_access_url "announcement_list" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'announcement_list' %}"{% endif %} class="btn btn-outline-secondary btn-sm">Ver todos</a>
                     {% endif %}
                 </div>
                 <div class="card-body p-0">
@@ -326,7 +327,7 @@
                 <p class="text-muted small mb-0">Últimas publicações enviadas à comunidade escolar.</p>
             </div>
             {% if not data.is_guardian %}
-            <a href="{% url 'announcement_list' %}" class="btn btn-outline-secondary btn-sm">Ver todos</a>
+            {% can_access_url "announcement_list" as can_open_widget %}<a {% if can_open_widget %}href="{% url 'announcement_list' %}"{% endif %} class="btn btn-outline-secondary btn-sm">Ver todos</a>
             {% endif %}
         </div>
         <div class="card-body p-0">

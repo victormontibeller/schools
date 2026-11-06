@@ -22,6 +22,9 @@ class BillingLifecycleMixin:
         from students.contracts import Student
 
         self.validate_required(data, ["student_id", "description", "amount", "due_date"])
+        from students.contracts import ImportUsageService
+
+        ImportUsageService(user=self.user).seal_for_use(student_ids=[data["student_id"]])
         try:
             student = Student.objects.get(pk=data["student_id"])
         except Student.DoesNotExist:
@@ -169,9 +172,43 @@ class BillingLifecycleMixin:
         self._assess_late_charges(billing, reference_date or timezone.localdate())
         return billing
 
+    def _reconcile_first_payment_charges(self, billing, reference: date) -> None:
+        """Ajusta apuração antecipada somente sem qualquer baixa histórica."""
+        from financeiro.models import PaymentAllocation
+
+        if not billing.interest_calculated_until or reference >= billing.interest_calculated_until:
+            return
+        if (
+            billing.paid_value
+            or PaymentAllocation.all_objects.filter(
+                billing=billing, payment__status__in=["CONFIRMED", "REVERSED"]
+            ).exists()
+        ):
+            raise BusinessRuleViolationError(
+                "Pagamento retroativo com baixas históricas exige reconciliação assistida."
+            )
+        old = self._snapshot(
+            billing, ["late_fee_value", "interest_value", "interest_calculated_until"]
+        )
+        billing.late_fee_value = ZERO
+        billing.interest_value = ZERO
+        billing.interest_calculated_until = None
+        billing.updated_by = self.user
+        billing.save()
+        self._record_audit("UPDATE", billing, old_values=old)
+        self._log(
+            "first_payment_charges_reconciled",
+            billing_id=str(billing.pk),
+            reference_date=reference.isoformat(),
+        )
+
     def _assess_late_charges(self, billing, reference: date) -> None:
         if billing.status == billing.Status.CANCELLED or billing.is_settled:
             return
+        if billing.interest_calculated_until and reference < billing.interest_calculated_until:
+            raise BusinessRuleViolationError(
+                "Não é possível apurar pagamento anterior à última apuração de juros."
+            )
         if reference <= billing.due_date or (
             billing.late_fee_percent == ZERO and billing.daily_interest_percent == ZERO
         ):

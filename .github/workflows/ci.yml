@@ -86,7 +86,7 @@ jobs:
       - name: Enforce critical-flow coverage
         run: >-
           coverage report
-          --include='accounts/*,tenancy/*,core/permissions.py,base/media.py,audit/*,financeiro/*'
+          --include='accounts/*,tenancy/*,core/permissions.py,base/media.py,audit/*,financeiro/*,service_requests/*'
           --fail-under=90
           --skip-empty
 

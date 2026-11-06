@@ -65,10 +65,18 @@ services:
       DB_PASSWORD_FILE: /run/secrets/db_password
       METRICS_TOKEN_FILE: /run/secrets/metrics_token
       READINESS_TOKEN_FILE: /run/secrets/readiness_token
+      RESEND_API_KEY_FILE: /run/secrets/resend_api_key
+      RESEND_WEBHOOK_SECRET_FILE: /run/secrets/resend_webhook_secret
+      EMAIL_HOST_PASSWORD_FILE: /run/secrets/smtp_password
+      EMAIL_HOST: ${EMAIL_HOST}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL}
+      REAL_DATA_PRESENT: "true"
       OTEL_SERVICE_NAME: schools-web
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       TRUSTED_PROXY_IPS: ${TRAEFIK_PROXY_IP:-10.0.0.2}
-    secrets: [django_secret_key, db_password, redis_password, rabbitmq_password, metrics_token, readiness_token]
+    secrets: [django_secret_key, db_password, redis_password, rabbitmq_password, metrics_token, readiness_token, resend_api_key, resend_webhook_secret, smtp_password]
     volumes: ["media:/app/media"]
     networks: [backend, proxy]
     deploy:
@@ -91,6 +99,13 @@ services:
         - traefik.http.routers.schools.tls.domains[0].sans=*.${TENANT_BASE_DOMAIN}
         - traefik.http.routers.schools.tls.domains[1].main=${PLATFORM_DOMAIN}
         - traefik.http.routers.schools.middlewares=security-headers@file
+        - traefik.http.routers.schools-auth.rule=(Host(`${PLATFORM_DOMAIN}`) || HostRegexp(`[a-z0-9-]+\\.${TENANT_BASE_DOMAIN}`)) && (Path(`/login/`) || PathPrefix(`/password-reset/`) || PathPrefix(`/convite-`))
+        - traefik.http.routers.schools-auth.entrypoints=websecure
+        - traefik.http.routers.schools-auth.priority=150
+        - traefik.http.routers.schools-auth.tls=true
+        - traefik.http.routers.schools-auth.tls.certresolver=le
+        - traefik.http.routers.schools-auth.service=schools
+        - traefik.http.routers.schools-auth.middlewares=security-headers@file,rate-limit-auth@file
         - traefik.http.services.schools.loadbalancer.server.port=8000
 
   worker:
@@ -105,7 +120,7 @@ services:
     environment:
       <<: *app_environment
       OTEL_SERVICE_NAME: schools-worker
-    secrets: [django_secret_key, db_password, redis_password, rabbitmq_password, metrics_token, readiness_token]
+    secrets: [django_secret_key, db_password, redis_password, rabbitmq_password, metrics_token, readiness_token, resend_api_key, resend_webhook_secret, smtp_password]
     volumes: ["media:/app/media"]
     networks: [backend]
     deploy:
@@ -119,7 +134,7 @@ services:
     environment:
       <<: *app_environment
       OTEL_SERVICE_NAME: schools-beat
-    secrets: [django_secret_key, db_password, redis_password, rabbitmq_password, metrics_token, readiness_token]
+    secrets: [django_secret_key, db_password, redis_password, rabbitmq_password, metrics_token, readiness_token, resend_api_key, resend_webhook_secret, smtp_password]
     networks: [backend]
     deploy:
       replicas: 1
@@ -229,6 +244,9 @@ secrets:
   db_password: {external: true}
   redis_password: {external: true}
   rabbitmq_password: {external: true}
+  resend_api_key: {external: true}
+  resend_webhook_secret: {external: true}
+  smtp_password: {external: true}
   metrics_token: {external: true}
   readiness_token: {external: true}
   grafana_admin_password: {external: true}

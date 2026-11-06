@@ -335,11 +335,11 @@ class AcademicEnrollmentService(BaseService):
             )
         return clean_reason
 
-    @staticmethod
-    def _lock_student(student_id):
+    def _lock_student(self, student_id):
         """Bloqueia o aluno antes dos demais agregados, mantendo ordem determinística."""
-        from students.contracts import Student
+        from students.contracts import ImportUsageService, Student
 
+        ImportUsageService(user=self.user).seal_for_use(student_ids=[student_id])
         try:
             return Student.objects.select_for_update().get(pk=student_id)
         except Student.DoesNotExist:

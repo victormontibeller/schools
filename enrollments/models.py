@@ -273,7 +273,7 @@ class EnrollmentReminder(BaseModel):
 
     class Status(models.TextChoices):
         PENDING = "PENDING", "Pendente"
-        SENDING = "SENDING", "Enviando"
+        SKIPPED = "SKIPPED", "Não enviado"
         SENT = "SENT", "Enviado"
         FAILED = "FAILED", "Falhou"
 

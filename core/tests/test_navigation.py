@@ -11,6 +11,17 @@ from core.navigation import build_school_navigation
 
 
 def _user(role_name: str, *, is_staff: bool = False):
+    if role_name == Role.Name.TEACHER:
+        from core.models import CustomUser
+        from teachers.models import Teacher
+
+        actor = CustomUser.objects.create_user(
+            email="navigation-teacher@example.test",
+            role=Role.objects.get(name=Role.Name.TEACHER),
+            is_staff=is_staff,
+        )
+        Teacher.objects.create(user=actor, registration_number="NAV-CATALOG")
+        return actor
     return SimpleNamespace(
         is_authenticated=True,
         is_superuser=False,
@@ -62,9 +73,15 @@ def school_tenant_context():
         ("GUARDIAN", {"Acompanhamento"}),
     ],
 )
+@pytest.mark.django_db
 def test_build_school_navigation_filters_groups_by_role(role_name, expected_groups):
     navigation = build_school_navigation(_user(role_name), "dashboard")
 
+    expected_groups = set(expected_groups)
+    if role_name != "TEACHER":
+        expected_groups.add("Atendimento")
+    if role_name in {"SECRETARY", "FINANCE"}:
+        expected_groups.add("Coordenação")
     assert set(_labels(navigation)) == expected_groups
 
 
@@ -75,6 +92,8 @@ def test_build_school_navigation_hides_unauthorized_items():
         "Acadêmico": ["Turmas"],
         "Secretaria": ["Alunos"],
         "Financeiro": FINANCE_ITEMS,
+        "Atendimento": ["Solicitações", "Entregas"],
+        "Coordenação": ["Comunicados"],
     }
 
 
@@ -101,7 +120,7 @@ def test_build_school_navigation_separates_calendar_management_capabilities(user
     navigation = build_school_navigation(user, "holidays_list")
     labels = _labels(navigation)
 
-    assert labels["Coordenação"] == ["Feriados"]
+    assert labels["Coordenação"] == ["Feriados", "Comunicados"]
     coordination = next(group for group in navigation["groups"] if group["label"] == "Coordenação")
     assert coordination["expanded"] is True
     assert coordination["items"][0]["active"] is True
@@ -228,7 +247,17 @@ def test_guardian_finance_links_follow_independent_capabilities(user):
         ),
     ],
 )
+@pytest.mark.django_db
 def test_build_school_navigation_uses_exact_taxonomy(role_name, expected):
+    expected = {key: list(value) for key, value in expected.items()}
+    if role_name != "TEACHER":
+        expected["Atendimento"] = (
+            ["Solicitações"] if role_name == "GUARDIAN" else ["Solicitações", "Entregas"]
+        )
+    if role_name == "SECRETARY":
+        expected["Coordenação"] = ["Comunicados"]
+    if role_name == "GUARDIAN":
+        expected["Acompanhamento"].append("Comunicados")
     assert _labels(build_school_navigation(_user(role_name), "dashboard")) == expected
 
 
@@ -395,6 +424,7 @@ def test_enrollment_navigation_follows_independent_view_capabilities(user):
 
 
 @pytest.mark.parametrize("role_name", ["ADMIN", "TEACHER"])
+@pytest.mark.django_db
 def test_schedule_navigation_uses_canonical_class_selection(role_name):
     navigation = build_school_navigation(_user(role_name), "schedule_weekly")
     schedule_items = [
@@ -409,6 +439,7 @@ def test_schedule_navigation_uses_canonical_class_selection(role_name):
     assert schedule_items[0]["active"] is True
 
 
+@pytest.mark.django_db
 def test_periods_navigation_is_in_secretary_and_owns_its_route_family():
     admin_navigation = build_school_navigation(_user("ADMIN"), "time_slots_list")
     teacher_navigation = build_school_navigation(_user("TEACHER"), "time_slots_list")
@@ -456,10 +487,10 @@ def test_build_school_navigation_adds_executive_only_for_staff():
     assert staff["direct_links"][1]["active"] is True
 
 
-def test_guardian_navigation_does_not_expose_announcements():
+def test_guardian_navigation_exposes_authorized_announcements():
     labels = _labels(build_school_navigation(_user("GUARDIAN"), "calendar_month"))
 
-    assert "Comunicados" not in labels["Acompanhamento"]
+    assert "Comunicados" in labels["Acompanhamento"]
 
 
 @pytest.mark.django_db
@@ -481,6 +512,10 @@ def test_rendered_navigation_destinations_are_authorized(client, user, role, url
     user.is_superuser = False
     user.is_staff = False
     user.save(update_fields=["role", "is_superuser", "is_staff"])
+    if role == Role.Name.TEACHER:
+        from teachers.models import Teacher
+
+        Teacher.objects.create(user=user, registration_number="NAV-TEACHER")
     client.force_login(user)
 
     assert client.get(reverse(url_name)).status_code == 200
@@ -499,7 +534,7 @@ def test_school_navigation_renders_accessible_accordion(client, user):
     content = response.content.decode()
 
     assert response.status_code == 200
-    assert content.count('class="nxl-link sm-nav-group-toggle"') == 3
+    assert content.count('class="nxl-link sm-nav-group-toggle"') == 4
     assert content.count("active nxl-trigger") == 1
     assert 'aria-expanded="true"' in content
     assert 'aria-controls="school-nav-group-0"' in content
@@ -557,7 +592,7 @@ def test_school_navigation_boosted_response_keeps_full_fallback_document(client,
     assert "<!DOCTYPE html>" in content
     assert 'id="app-main"' in content
     assert 'id="school-navigation"' in content
-    assert 'data-nav-group-id="school-nav-group-0"' in content
+    assert 'data-nav-group-id="school-nav-group-1"' in content
     assert 'data-nav-url-name="activities_list"' in content
     assert content.count("active nxl-trigger") == 1
     assert 'aria-current="page"' in content

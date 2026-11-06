@@ -15,6 +15,14 @@ class GridContract:
 
 
 LIST_TEMPLATE_CONTRACTS: dict[str, tuple[str, str]] = {
+    "communication_delivery_list": (
+        "notifications/templates/notifications/delivery_list.html",
+        "notifications/templates/notifications/partials/deliveries_table.html",
+    ),
+    "service_request_list": (
+        "service_requests/templates/service_requests/request_list.html",
+        "service_requests/templates/service_requests/partials/requests_table.html",
+    ),
     "academic_years_list": (
         "academic_calendar/templates/academic_calendar/academic_years_list.html",
         "academic_calendar/templates/academic_calendar/partials/academic_years_table.html",
@@ -235,6 +243,7 @@ MANUAL_SHELL_ALLOWLIST = {
 }
 
 SECONDARY_TABLE_ALLOWLIST = {
+    "notifications/templates/notifications/announcement_detail.html",
     "classes/templates/classes/class_detail.html",
     "dashboard/templates/dashboard/executive.html",
     "dashboard/templates/dashboard/partials/operational_widgets.html",

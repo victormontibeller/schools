@@ -1,0 +1,5 @@
+<div class="table-responsive sm-scroll-region" tabindex="0" aria-label="Solicitações privadas">
+<table class="table table-hover mb-0 sm-sticky-table sm-sticky-table--first-column">
+<thead><tr><th>Protocolo</th><th>Assunto</th><th>Setor</th><th>Estado</th><th>Primeira resposta até</th></tr></thead>
+<tbody>{% for ticket in result.items %}<tr><td><a class="fw-semibold" href="{% url 'service_request_detail' ticket.pk %}">{{ ticket.protocol }}</a></td><td>{{ ticket.subject }}</td><td>{{ ticket.department }}</td><td>{{ ticket.get_status_display }}</td><td>{{ ticket.response_due_at|date:"d/m/Y H:i" }}{% if ticket.first_response_at %} · Respondida{% elif ticket.response_overdue %}<br><span class="badge bg-danger">Prazo vencido</span>{% endif %}</td></tr>{% empty %}<tr><td colspan="5" class="text-center text-muted py-4">Nenhuma solicitação no seu escopo.</td></tr>{% endfor %}</tbody>
+</table></div>{% include "partials/list_pagination.html" with pagination_target="#requests-table" %}

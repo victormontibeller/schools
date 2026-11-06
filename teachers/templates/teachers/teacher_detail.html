@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load ui_helpers %}
 
 {% block title %}{{ teacher.full_name }} — School Manager{% endblock %}
 
@@ -17,6 +18,12 @@
 </div>
 
 <div class="main-content">
+    {% can_access_action "teachers" "edit" as can_invite %}
+    {% if can_invite and not teacher.user.is_active %}
+    <form method="post" action="{% url 'teacher_invite' teacher.pk %}" class="mb-3">
+        {% csrf_token %}<button class="btn btn-primary" type="submit">Reenviar convite de acesso</button>
+    </form>
+    {% endif %}
     <div class="row g-3 align-items-start">
         <div class="col-12 col-xl-5">
             {% include "teachers/partials/teacher_information_card.html" %}

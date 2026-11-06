@@ -6,6 +6,23 @@ from django.conf import settings
 from django.db import models
 
 from base.models import BaseModel
+from notifications.announcement_models import (
+    Announcement,
+    AnnouncementAttachment,
+    AnnouncementRecipient,
+    AnnouncementRevision,
+)
+
+__all__ = [
+    "Announcement",
+    "AnnouncementRevision",
+    "AnnouncementRecipient",
+    "AnnouncementAttachment",
+    "MessageTemplate",
+    "MessageLog",
+    "Notification",
+    "WebhookEventReceipt",
+]
 
 
 class MessageTemplate(BaseModel):
@@ -46,57 +63,6 @@ class MessageTemplate(BaseModel):
 
     def __str__(self) -> str:
         return f"{self.name} ({self.get_channel_display()})"
-
-
-class Announcement(BaseModel):
-    """Comunicado institucional enviado a um grupo de destinatarios."""
-
-    class Audience(models.TextChoices):
-        ALL = "ALL", "Todos"
-        TEACHERS = "TEACHERS", "Professores"
-        STUDENTS = "STUDENTS", "Alunos"
-        GUARDIANS = "GUARDIANS", "Responsaveis"
-        CLASS = "CLASS", "Turma especifica"
-
-    title: str = models.CharField(max_length=200, verbose_name="Titulo")
-    body: str = models.TextField(verbose_name="Mensagem")
-    audience: str = models.CharField(
-        max_length=20, choices=Audience.choices, default=Audience.ALL, verbose_name="Publico-alvo"
-    )
-    class_obj: models.ForeignKey | None = models.ForeignKey(
-        "classes.Class",
-        null=True,
-        blank=True,
-        on_delete=models.CASCADE,
-        related_name="announcements",
-        verbose_name="Turma",
-    )
-    author: models.ForeignKey = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="announcements",
-        verbose_name="Autor",
-    )
-    send_email: bool = models.BooleanField(default=False, verbose_name="Enviar por E-mail")
-    send_whatsapp: bool = models.BooleanField(default=False, verbose_name="Enviar por WhatsApp")
-    scheduled_at: models.DateTimeField | None = models.DateTimeField(
-        null=True, blank=True, verbose_name="Agendado para"
-    )
-    sent_at: models.DateTimeField | None = models.DateTimeField(
-        null=True, blank=True, verbose_name="Enviado em"
-    )
-
-    class Meta:
-        ordering = ["-created_at"]
-        verbose_name = "Comunicado"
-        verbose_name_plural = "Comunicados"
-
-    def __str__(self) -> str:
-        return f"{self.title} ({self.get_audience_display()})"
-
-    @property
-    def is_sent(self) -> bool:
-        return self.sent_at is not None
 
 
 class Notification(BaseModel):
@@ -171,6 +137,71 @@ class MessageLog(BaseModel):
         COMPLAINED = "COMPLAINED", "Marcado como spam"
         FAILED = "FAILED", "Falhou"
 
+    class DispatchState(models.TextChoices):
+        PENDING = "PENDING", "Pendente"
+        PROCESSING = "PROCESSING", "Processando"
+        RETRY = "RETRY", "Aguardando retentativa"
+        COMPLETE = "COMPLETE", "Processado"
+        SKIPPED = "SKIPPED", "Não enviado"
+        FAILED = "FAILED", "Falha definitiva"
+        REVOKED = "REVOKED", "Acesso revogado"
+
+    class Reason(models.TextChoices):
+        PREVIOUS_SUCCESS = (
+            "previous_delivery_succeeded",
+            "Envio anterior confirmado; repetição evitada",
+        )
+        TRANSIENT = "transient_failure", "Falha temporária; nova tentativa automática programada"
+        PERMANENT = "permanent_failure", "Falha definitiva; corrija a causa antes de reprocessar"
+        PROVIDER = "provider_failure", "Provedor informou falha; confira configuração e endereço"
+        EXHAUSTED = (
+            "attempts_exhausted",
+            "Tentativas esgotadas; confira a entrega antes de reprocessar",
+        )
+        PREFERENCE = "preference_disabled", "Alertas por e-mail desabilitados pela pessoa"
+        ADDRESS = "address_missing", "Endereço ausente; atualize o cadastro"
+        REVOKED = "access_revoked", "Acesso revogado; confira conta e vínculos"
+        SCHOOL = "school_inactive", "Escola suspensa; novas entregas foram interrompidas"
+        PENDING_ACCOUNT = "account_not_activated", "Conta ainda não ativada"
+        CHANGED_ADDRESS = (
+            "recipient_address_changed",
+            "Endereço alterado; reprocessamento exige novo envio",
+        )
+        DOMAIN = "school_domain_missing", "Domínio da escola ausente; corrija a configuração"
+        UNSUPPORTED = "unsupported_source", "Evento indisponível; contate o suporte"
+
+    previous_delivery = models.OneToOneField(
+        "self", null=True, blank=True, on_delete=models.PROTECT, related_name="successor"
+    )  # Geração humana preserva a entrega anterior.
+    generation = models.PositiveIntegerField(default=1)
+
+    dedupe_key = models.CharField(max_length=220, null=True, blank=True, unique=True)
+    source_type = models.CharField(max_length=40, blank=True, default="")
+    source_id = models.CharField(max_length=80, blank=True, default="")
+    payload = models.JSONField(default=dict)
+    dispatch_state = models.CharField(
+        max_length=16, choices=DispatchState.choices, default=DispatchState.PENDING
+    )
+    reason_code = models.CharField(max_length=60, choices=Reason.choices, blank=True, default="")
+    attempts = models.PositiveSmallIntegerField(default=0)
+    next_attempt_at = models.DateTimeField(null=True, blank=True)
+    lease_until = models.DateTimeField(null=True, blank=True)
+    lease_token = models.UUIDField(null=True, blank=True)
+    announcement_recipient = models.ForeignKey(
+        "notifications.AnnouncementRecipient",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="deliveries",
+    )
+    notification = models.ForeignKey(
+        "notifications.Notification",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="deliveries",
+    )
+
     announcement: models.ForeignKey | None = models.ForeignKey(
         Announcement,
         null=True,
@@ -232,6 +263,7 @@ class MessageLog(BaseModel):
         verbose_name_plural = "Logs de Envio"
         indexes = [
             models.Index(fields=["channel", "status"]),
+            models.Index(fields=["dispatch_state", "next_attempt_at"]),
             models.Index(fields=["announcement"]),
             models.Index(fields=["diary_publication", "channel", "status"]),
         ]

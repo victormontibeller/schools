@@ -1,5 +1,5 @@
 Django==5.2.17
-Pillow==12.3.0
+Pillow==13.0.0
 django-tenants==3.10.2
 psycopg2-binary==2.9.12
 redis==5.2.1
@@ -9,14 +9,18 @@ python-decouple==3.8
 argon2-cffi==23.1.0
 python-json-logger==3.2.1
 django-prometheus==2.3.1
-opentelemetry-sdk==1.29.0
-opentelemetry-distro==0.50b0
-opentelemetry-exporter-otlp==1.29.0
+opentelemetry-sdk==1.45.1
+opentelemetry-distro==0.66b1
+opentelemetry-exporter-otlp==1.45.1
 gunicorn==23.0.0
 django-axes==7.0.1
-pypdf==6.16.1
+pypdf==6.21.4
 reportlab==4.4.9
 resend==2.33.0
 svix==1.96.1
 sqlparse==0.6.0
 whitenoise==6.12.0
+
+# Security floors for runtime transitive dependencies.
+certifi==2026.10.19
+urllib3==2.8.0

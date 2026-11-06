@@ -82,7 +82,6 @@ class CalendarEvent(BaseModel):
     class Audience(models.TextChoices):
         ALL = "ALL", "Todos"
         TEACHERS = "TEACHERS", "Professores"
-        STUDENTS = "STUDENTS", "Alunos"
         GUARDIANS = "GUARDIANS", "Responsáveis"
         CLASS = "CLASS", "Turma específica"
 

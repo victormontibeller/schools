@@ -4,14 +4,18 @@ import pytest
 
 from accounts.services import AccountService
 from base.exceptions import BusinessRuleViolationError, ObjectNotFoundError
-from core.models import CustomUser
+from core.models import CustomUser, Role
 from teachers.models import Teacher
 
 
 @pytest.mark.django_db
 def test_activate_teacher_invitation_sets_password_and_consumes_token(user):
     invited = CustomUser.objects.create_user(
-        email="invited@example.com", first_name="Prof", last_name="Convidado", is_active=False
+        email="invited@example.com",
+        first_name="Prof",
+        last_name="Convidado",
+        is_active=False,
+        role=Role.objects.get_or_create(name="TEACHER")[0],
     )
     invited.set_unusable_password()
     invited.save(update_fields=["password"])
@@ -21,6 +25,9 @@ def test_activate_teacher_invitation_sets_password_and_consumes_token(user):
         created_by=user,
         updated_by=user,
     )
+    from tenancy.models import School
+
+    School.objects.create(schema_name="test_school", name="Fictícia")
     token = AccountService().create_teacher_invitation_token(invited.pk)
 
     activated = AccountService().activate_teacher_invitation(token, "Violeta824")
@@ -38,12 +45,11 @@ def test_activate_teacher_invitation_rejects_invalid_token():
 
 
 @pytest.mark.django_db
-def test_activate_teacher_invitation_rejects_missing_user_and_non_teacher():
+def test_activate_teacher_invitation_rejects_missing_user_and_non_teacher(user):
     import uuid
 
-    missing_token = AccountService().create_teacher_invitation_token(uuid.uuid4())
     with pytest.raises(ObjectNotFoundError):
-        AccountService().activate_teacher_invitation(missing_token, "Violeta824")
+        AccountService().create_teacher_invitation_token(uuid.uuid4())
 
     non_teacher = CustomUser.objects.create_user(
         email="non-teacher@example.com", password=None, is_active=False

@@ -137,3 +137,77 @@ OFX/CSV bancário, PIX/boleto, webhooks financeiros e documentos fiscais.
 - O e-mail exibido na edição do aluno é somente leitura e tentativas adulteradas de alteração são
   recusadas também pelo service. Observações internas permanecem editáveis, limitadas e protegidas
   pela allowlist de escrita e pela redação canônica da auditoria.
+
+## Piloto de Educação Infantil — implantação e identidades
+
+O escopo consolidado do piloto e a implantação assistida são acompanhados em
+[37_PILOT_IMPLEMENTATION.md](37_PILOT_IMPLEMENTATION.md). A ADR-0022 define bootstrap público
+sem impersonação, equipe por convite com validade de sete dias, proteção do último administrador,
+carga integral e reversível antes do uso e preservação da cronologia financeira. Crianças não
+recebem conta no piloto; guarda, autorização de retirada e consentimento de alertas são distintos.
+A primeira homologação usa escola fictícia e não equivale à entrada em produção.
+
+## Piloto — comunicação institucional
+
+Administração e Coordenação redigem, conferem a prévia, publicam, agendam, cancelam o agendamento
+e abrem correções. Seleção: famílias da escola, famílias de várias turmas, equipe ou pessoas
+específicas; a opção individual aceita contexto da criança. A prévia informa total, contas ainda
+não ativadas e ausência de e-mail. PDF/imagens são privados. A correção gera revisão imutável e
+nova pendência de ciência quando exigida, preservando o histórico.
+
+Cada pessoa consulta somente revisões destinadas a ela e ainda autorizadas pelos vínculos
+atuais. Responsável com irmãos recebe uma entrega coletiva por revisão. Visualização e ciência
+explícita têm registros separados da entrega de e-mail e da leitura da notificação. Ciência pode
+ter prazo e nunca substitui assinatura, autorização de passeio ou consentimento geral.
+
+A ficha mostra os estados por destinatário e canal, incluindo não ativado, sem endereço,
+preferência desabilitada, revogado, falha transitória e falha terminal. E-mail falho não retira o
+comunicado do sistema. Após corrigir a causa, a equipe pode criar um novo envio apenas para o
+destinatário afetado, preservando tentativas anteriores. Agenda e comunicados usam intenções
+persistidas e recuperação periódica, com mensagens externas genéricas e link autenticado.
+
+## Piloto — atendimento privado e avisos de operação
+
+Famílias abrem uma solicitação para uma criança sob sua guarda e escolhem Secretaria,
+Coordenação ou Financeiro. A conversa mostra protocolo, mensagens, anexos privados, estado,
+prazo e contato imediato. Apenas o autor e a equipe autorizada consultam o conteúdo. Outros
+responsáveis pela criança não são incluídos automaticamente. Correções são novas mensagens.
+
+Atendentes precisam de vínculo no setor e capacidade do papel. Administração supervisiona e
+transfere preservando o prazo; o setor anterior perde acesso. Setor habilitado exige pelo menos
+um atendente ativo e capaz, inclusive após desligamentos e mudanças de permissões. Acesso ao
+atendimento financeiro não concede acesso às cobranças.
+
+A primeira resposta humana pública vence no encerramento do próximo dia administrativo após a
+data de abertura, em São Paulo. Padrão: segunda a sexta, 8h–18h, com feriados/fechamentos
+configuráveis. Mudança de estado não cumpre esse prazo. A família pode reabrir uma solicitação
+resolvida e recebe novo prazo. Atrasos são sinalizados à equipe e Administração sem repetir
+cobranças automáticas à família.
+
+Atividades e eventos públicos chegam aos responsáveis elegíveis; matrícula e ação documental
+ao principal; baixa, estorno e lembretes a responsáveis autorizados ao financeiro. Contas de
+crianças não são necessárias. Todos usam intenções persistidas, recuperação individual e
+revalidação de acesso. E-mails são genéricos e os detalhes permanecem autenticados no sistema.
+
+### Cadastro inicial infantil e recuperação de carga
+
+No piloto infantil, criança é cadastro escolar sem conta. Nome, sobrenome e data de nascimento
+são obrigatórios; CPF/RG/tipo sanguíneo e contato digital podem estar desconhecidos. Documentos
+faltantes seguem o atendimento da Secretaria, sem exigir dados inventados para importar.
+Identificadores de origem fazem a ligação entre os CSVs; CPF é validado quando informado.
+Responsável e pessoa autorizada à retirada podem ser cadastrados sem e-mail. Convite digital
+continua condicionado a endereço disponível, e retirada não concede guarda nem conta.
+
+Primeiro uso operacional torna a carga não reversível. Uma carga desfeita pode ser recuperada
+integralmente por comando explícito e auditado, com os mesmos IDs e sem conflitos de identidade;
+após recuperar, a equipe faz correções normais. O CSV não restaura silenciosamente pessoas.
+
+### Preparação operacional do piloto
+
+Homologação fictícia usa escola inteira, crianças sem conta/contato digital obrigatório e canais
+locais explicitamente identificados. Convites persistem na mesma outbox dos eventos, com validade
+original e recuperação por destinatário, independentemente de alertas consentidos. Exportação
+privada por ADMIN inclui histórico e mídia sem segredos. Backup/restauração exigem consistência,
+reconciliação do intervalo perdido e ambiente isolado antes de reabrir. O exercício local não
+substitui entrada real, SLA contínuo nem quatro semanas de acompanhamento. Runbook: documento 36;
+evidência e gates: documento 37; decisões: ADR-0026.

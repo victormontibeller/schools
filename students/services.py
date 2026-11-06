@@ -17,17 +17,7 @@ from base.services import BaseService
 
 logger = logging.getLogger(__name__)
 
-STUDENT_REQUIRED_FIELDS = [
-    "first_name",
-    "last_name",
-    "birth_date",
-    "gender",
-    "blood_type",
-    "cpf",
-    "rg_number",
-    "phone_mobile",
-    "email",
-]
+STUDENT_REQUIRED_FIELDS = ["first_name", "last_name", "birth_date"]
 
 
 class _StudentRepo(BaseRepository):
@@ -44,11 +34,13 @@ class StudentService(BaseService):
     """Serviço de regras de negócio para alunos."""
 
     @transaction.atomic
-    def create_student(self, data: dict) -> Student:
+    def create_student(self, data: dict, *, _import_batch=None) -> Student:
         """Cria um aluno validando obrigatórios e matrícula única, registrando auditoria."""
         from students.models import Student
 
         self.validate_required(data, STUDENT_REQUIRED_FIELDS)
+        if data.get("user") or data.get("user_id"):
+            raise ValidationError(errors={"user": ["Crianças não recebem conta no piloto."]})
 
         from core.services import RegistrationSequenceService
 
@@ -58,20 +50,21 @@ class StudentService(BaseService):
 
         cpf_cleaned = self._validate_cpf(data)
         student = Student(
+            origin_import_batch=_import_batch,
             first_name=data["first_name"].strip(),
             last_name=data["last_name"].strip(),
             birth_date=data["birth_date"],
             enrollment_number=enrollment,
-            gender=data.get("gender", Student.Gender.NOT_INFORMED),
+            gender=data.get("gender") or Student.Gender.NOT_INFORMED,
             blood_type=data.get("blood_type", ""),
             observations=data.get("observations", ""),
-            user=data.get("user"),
+            user=None,
             cpf=cpf_cleaned,
             rg_number=data.get("rg_number", ""),
             phone_mobile=data.get("phone_mobile", ""),
             email=data.get("email", ""),
-            accepts_email_notifications=bool(data.get("accepts_email_notifications")),
-            accepts_whatsapp_notifications=bool(data.get("accepts_whatsapp_notifications")),
+            accepts_email_notifications=False,
+            accepts_whatsapp_notifications=False,
             created_by=self.user,
             updated_by=self.user,
         )
@@ -87,6 +80,9 @@ class StudentService(BaseService):
         from core.access_selectors import ObjectAccessSelector
 
         ObjectAccessSelector.require_student_access(self.user, student_id)
+        from students.import_usage_services import ImportUsageService
+
+        ImportUsageService(user=self.user).seal_for_use(student_ids=[student_id])
         repo = _StudentRepo()
         student = repo.get_by_id(student_id)
 
@@ -97,15 +93,6 @@ class StudentService(BaseService):
         }
         self.validate_required(validation_data, STUDENT_REQUIRED_FIELDS)
 
-        if (
-            "email" in data
-            and str(data.get("email") or "").strip().casefold()
-            != str(student.email or "").strip().casefold()
-        ):
-            raise ValidationError(
-                errors={"email": ["O e-mail do aluno não pode ser alterado por este formulário."]}
-            )
-
         allowed = {
             "first_name",
             "last_name",
@@ -114,10 +101,9 @@ class StudentService(BaseService):
             "blood_type",
             "rg_number",
             "phone_mobile",
+            "email",
             "observations",
             "photo",
-            "accepts_email_notifications",
-            "accepts_whatsapp_notifications",
         }
         old = self._snapshot(student, [*allowed, "enrollment_number", "cpf"])
         updates = {k: v for k, v in data.items() if k in allowed}
@@ -159,6 +145,9 @@ class StudentService(BaseService):
 
         ObjectAccessSelector.require_student_access(self.user, student_id)
 
+        from students.import_usage_services import ImportUsageService
+
+        ImportUsageService(user=self.user).seal_for_use(student_ids=[student_id])
         return self._deactivate(Student, student_id, "Student")
 
     def restore_student(self, student_id) -> Student:
@@ -168,6 +157,11 @@ class StudentService(BaseService):
 
         ObjectAccessSelector.require_student_access(self.user, student_id)
 
+        from students.import_usage_services import ImportUsageService
+
+        ImportUsageService(user=self.user).seal_for_use(
+            student_ids=[student_id], allow_inactive=True
+        )
         try:
             student = Student.all_objects.get(pk=student_id)
         except Student.DoesNotExist:

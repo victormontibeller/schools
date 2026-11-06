@@ -64,6 +64,13 @@ class ActivityCoreService(BaseService):
 
         from activities.models import ActivitySubmission
         from classes.contracts import Enrollment
+        from students.contracts import ImportUsageService
+
+        ImportUsageService(user=self.user).seal_for_use(
+            student_ids=Enrollment.objects.filter(class_obj=class_obj, status="ACTIVE").values_list(
+                "student_id", flat=True
+            )
+        )
 
         with transaction.atomic():
             activity = Activity.objects.create(

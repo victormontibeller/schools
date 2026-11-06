@@ -99,6 +99,7 @@ class DashboardService(BaseService):
                 }
                 self._safe_cache_set(cache_key, data, CACHE_TTL["school_dashboard"])
         result = dict(data)
+        result["recent_announcements"] = selector.get_recent_announcements(user=self.user)
         result["is_guardian"] = is_guardian
         from core.permissions import VIEW, can_access
 

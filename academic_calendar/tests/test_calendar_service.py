@@ -189,7 +189,9 @@ class TestUpdateEventErrors:
             created_by=user,
             updated_by=user,
         )
-        updated = CalendarService(user=user).update_event(event.pk, {"class_obj_id": cls.pk})
+        updated = CalendarService(user=user).update_event(
+            event.pk, {"class_obj_id": cls.pk, "audience": CalendarEvent.Audience.CLASS}
+        )
         assert updated.class_obj == cls
 
     def test_unset_class_obj(self, user):
@@ -209,9 +211,12 @@ class TestUpdateEventErrors:
                 "end_date": dt.date(2025, 3, 15),
                 "type": CalendarEvent.Type.SCHOOL_EVENT,
                 "class_obj_id": cls.pk,
+                "audience": CalendarEvent.Audience.CLASS,
             }
         )
-        updated = CalendarService(user=user).update_event(event.pk, {"class_obj_id": None})
+        updated = CalendarService(user=user).update_event(
+            event.pk, {"class_obj_id": None, "audience": CalendarEvent.Audience.ALL}
+        )
         assert updated.class_obj is None
 
     def test_invalid_class_obj(self, user):
@@ -226,7 +231,9 @@ class TestUpdateEventErrors:
             }
         )
         with pytest.raises(ValidationError):
-            CalendarService(user=user).update_event(event.pk, {"class_obj_id": uuid.uuid4()})
+            CalendarService(user=user).update_event(
+                event.pk, {"class_obj_id": uuid.uuid4(), "audience": CalendarEvent.Audience.CLASS}
+            )
 
 
 @pytest.mark.django_db
@@ -376,6 +383,7 @@ class TestCreateEventErrors:
                     "end_date": dt.date(2025, 3, 15),
                     "type": CalendarEvent.Type.SCHOOL_EVENT,
                     "class_obj_id": uuid.uuid4(),
+                    "audience": CalendarEvent.Audience.CLASS,
                 }
             )
 

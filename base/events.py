@@ -16,6 +16,14 @@ def publish_task_safely(task, *args, tenant_schema: str | None = None, **kwargs)
     from base import context
 
     tenant = tenant_schema or context.current_tenant.get() or "public"
+    from base.ports import task_publication_enabled
+
+    if not task_publication_enabled(tenant):
+        logger.info(
+            "fictitious_task_requires_explicit_drain",
+            extra={"tenant": tenant, "task": getattr(task, "name", type(task).__name__)},
+        )
+        return False
     try:
         task.delay(*args, **kwargs)
     except Exception as exc:
@@ -100,17 +108,24 @@ EventHandler = Callable[[Event], None]
 
 
 class EventDispatcher:
-    """Despachante de eventos in-process com isolamento de falhas por handler."""
+    """Produtores obrigatórios transacionais e observadores opcionais isolados."""
 
     def __init__(self) -> None:
         self._handlers: dict[type[Event], list[EventHandler]] = defaultdict(list)
+        self._required_handlers: dict[type[Event], list[EventHandler]] = defaultdict(list)
 
-    def register(self, event_type: type[Event], handler: EventHandler) -> None:
-        """Inscreve um handler para o tipo de evento informado."""
-        self._handlers[event_type].append(handler)
+    def register(
+        self, event_type: type[Event], handler: EventHandler, *, required: bool = False
+    ) -> None:
+        """Inscreve produtor obrigatório ou observador opcional para um tipo de evento."""
+        registry = self._required_handlers if required else self._handlers
+        registry[event_type].append(handler)
 
     def dispatch(self, event: Event) -> None:
-        """Despacha o evento a todos os handlers inscritos, isolando exceções."""
+        """Executa obrigatórios primeiro; somente observadores opcionais isolam exceções."""
+        # Intenções duráveis pertencem à transação do produtor; falhas devem revertê-la.
+        for handler in self._required_handlers.get(type(event), []):
+            handler(event)
         for handler in self._handlers.get(type(event), []):
             try:
                 handler(event)

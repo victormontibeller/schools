@@ -1,0 +1,5 @@
+{% extends "entity_form_base.html" %}
+{% block form_enctype %}enctype="multipart/form-data"{% endblock %}
+{% block title %}Nova solicitação{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{% url 'service_request_list' %}">Solicitações</a></li>{% endblock %}
+{% block cancel_url %}{% url 'service_request_list' %}{% endblock %}

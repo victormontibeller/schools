@@ -228,36 +228,44 @@ class TestSchoolKPIs:
             created_by=user,
             updated_by=user,
         )
-        own_announcement = Announcement.objects.create(
-            title="Comunicado do filho",
-            body="Conteúdo permitido",
-            audience=Announcement.Audience.CLASS,
-            class_obj=own_activity.class_obj,
-            author=user,
-            sent_at=timezone.now(),
-            created_by=user,
-            updated_by=user,
+        from notifications.models import AnnouncementRecipient, AnnouncementRevision
+
+        def publication(title, class_obj, published_at, recipient=None):
+            announcement = Announcement.objects.create(
+                title=title,
+                body="Conteúdo",
+                audience="CLASSES",
+                class_ids=[str(class_obj.pk)],
+                author=user,
+            )
+            revision = AnnouncementRevision.objects.create(
+                announcement=announcement,
+                number=1,
+                title=title,
+                body="Conteúdo",
+                audience="CLASSES",
+                published_by=user,
+                published_at=published_at,
+            )
+            if recipient:
+                AnnouncementRecipient.objects.create(
+                    revision=revision,
+                    guardian=recipient,
+                    user=recipient.user,
+                    student_ids=[str(child.pk)],
+                )
+            return announcement
+
+        own_announcement = publication(
+            "Comunicado do filho", own_activity.class_obj, timezone.now(), guardian
         )
-        older_announcement = Announcement.objects.create(
-            title="Comunicado anterior do filho",
-            body="Conteúdo permitido anterior",
-            audience=Announcement.Audience.CLASS,
-            class_obj=own_activity.class_obj,
-            author=user,
-            sent_at=timezone.now() - dt.timedelta(days=1),
-            created_by=user,
-            updated_by=user,
+        older_announcement = publication(
+            "Comunicado anterior",
+            own_activity.class_obj,
+            timezone.now() - dt.timedelta(days=1),
+            guardian,
         )
-        Announcement.objects.create(
-            title="Comunicado externo",
-            body="Conteúdo oculto",
-            audience=Announcement.Audience.CLASS,
-            class_obj=other_class,
-            author=user,
-            sent_at=timezone.now(),
-            created_by=user,
-            updated_by=user,
-        )
+        publication("Comunicado externo", other_class, timezone.now())
 
         selector = DashboardSelector()
 

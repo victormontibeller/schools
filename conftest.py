@@ -118,3 +118,13 @@ def ui_source_staticfiles(request, settings):
             **settings.STORAGES,
             "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
         }
+
+
+@pytest.fixture(autouse=True)
+def isolated_authentication_limits():
+    """Each test receives isolated shared counters; production uses Redis across processes."""
+    from django.core.cache import caches
+
+    caches["authentication"].clear()
+    yield
+    caches["authentication"].clear()

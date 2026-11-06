@@ -12,8 +12,10 @@ Ver ADR-0001 — Bifurcação TESTING.
 import sys
 from pathlib import Path
 
-from celery.schedules import crontab
 from decouple import Csv, config
+
+from core import celery_schedule
+from core.cache_settings import build_caches
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -85,6 +87,7 @@ TENANT_SPECIFIC_APPS = [
     "academic_calendar",
     "attendance",
     "student_diary",
+    "service_requests",
     "enrollments",
     "notifications",
     "dashboard",
@@ -134,6 +137,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "core.middleware.HtmxBoostMiddleware",
     "core.middleware.ExceptionHandlerMiddleware",
+    "accounts.authentication_limits.AuthenticationLimitMiddleware",
     "core.middleware.PermissionPolicyMiddleware",
     "core.middleware.AuditContextMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -141,7 +145,7 @@ MIDDLEWARE = [
     *([] if TESTING else ["django_prometheus.middleware.PrometheusAfterMiddleware"]),
 ]
 
-if DEBUG and not TESTING:
+if DEBUG and not TESTING and not config("FICTITIOUS_MODE", default=False, cast=bool):
     try:
         import debug_toolbar  # noqa: F401
 
@@ -169,6 +173,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "core.context_processors.current_school",
+                "core.context_processors.fictitious_environment",
                 "core.context_processors.accessible_modules",
                 "core.context_processors.school_navigation",
                 "core.context_processors.canonical_page_layout",
@@ -233,6 +238,7 @@ LOGIN_URL = "login"
 # Ver docs/04_SECURITY.md §33. Axes bloqueia por IP+username após N tentativas
 # falhas; usa o cache (Redis em prod, DummyCache em testes) para não exigir
 # round-trip no banco a cada request.
+AXES_CLIENT_STR_CALLABLE = "core.authentication_logging.axes_client_reference"
 AUTHENTICATION_BACKENDS = [
     "axes.backends.AxesStandaloneBackend",
     "core.auth_backends.TenantAuthenticationBackend",
@@ -259,7 +265,7 @@ STATICFILES_DIRS = [
     ("css", BASE_DIR / "design_system" / "refs" / "duralux" / "css"),
 ]
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = Path(config("MEDIA_ROOT", default=str(BASE_DIR / "media")))
 STORAGES = {
     "default": {
         "BACKEND": "base.media.PrivateMediaStorage",
@@ -281,22 +287,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ── Cache (Redis) ──────────────────────────────────────────────────────────────
 REDIS_URL = config("REDIS_URL", default="redis://localhost:6379/0")
 
-CACHES = (
-    {
-        "default": {
-            "BACKEND": (
-                "django_redis.cache.RedisCache"
-                if not (TESTING or TEST_PG)
-                else "django.core.cache.backends.dummy.DummyCache"
-            ),
-            "LOCATION": REDIS_URL,
-            "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
-            "KEY_PREFIX": "schools",
-        }
-    }
-    if not (TESTING or TEST_PG)
-    else {"default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}}
-)
+CACHES = build_caches(testing=TESTING or TEST_PG, redis_url=REDIS_URL)
 
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
 SESSION_COOKIE_SAMESITE = "Lax"
@@ -309,16 +300,7 @@ CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_BEAT_SCHEDULE = {
-    "reconcile-stale-enrollment-reminders": {
-        "task": "enrollments.dispatch_stale_document_reminder_recovery",
-        "schedule": 300.0,
-    },
-    "dispatch-daily-collection-reminders": {
-        "task": "financeiro.dispatch_collection_reminders",
-        "schedule": crontab(hour=8, minute=0),
-    },
-}
+CELERY_BEAT_SCHEDULE = celery_schedule.BEAT_SCHEDULE
 DEMO_SCHEMA_NAME = config("DEMO_SCHEMA_NAME", default="demo")
 DEV_PLATFORM_ADMIN_PASSWORD = config("DEV_PLATFORM_ADMIN_PASSWORD", default="")
 DEV_DEMO_ADMIN_PASSWORD = config("DEV_DEMO_ADMIN_PASSWORD", default="")
@@ -360,13 +342,11 @@ LOGGING = {
 
 # ── E-mail ─────────────────────────────────────────────────────────────────────
 # Exclusivo da recuperação de senha nativa do Django. Notificações usam Resend.
-# Em dev, os e-mails de senha aparecem no terminal; em produção usam SMTP.
+# Desenvolvimento não envia por padrão; modo fictício captura em arquivo privado.
 if TESTING or TEST_PG:
     EMAIL_BACKEND = "django.core.mail.backends.dummy.DummyBackend"
 elif DEBUG:
-    EMAIL_BACKEND = config(
-        "EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend"
-    )
+    EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.dummy.DummyBackend")
 else:
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
@@ -397,3 +377,21 @@ if DJANGO_ENV == "production":
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# Ensaio local explicitamente fictício; nenhum fallback automático em produção.
+from core.fictitious import validate_configuration  # noqa: E402
+
+FICTITIOUS_MODE = config("FICTITIOUS_MODE", default=False, cast=bool)
+FICTITIOUS_DIRECTORY = config("FICTITIOUS_DIRECTORY", default="")
+FICTITIOUS_HTTP_PORT = config("FICTITIOUS_HTTP_PORT", default=18080, cast=int)
+validate_configuration(
+    enabled=FICTITIOUS_MODE,
+    environment=DJANGO_ENV,
+    debug=DEBUG,
+    database=DATABASES["default"],
+    directory=FICTITIOUS_DIRECTORY,
+    media_root=MEDIA_ROOT,
+    port=FICTITIOUS_HTTP_PORT,
+    platform_domain=PLATFORM_DOMAIN,
+    base_domain=TENANT_BASE_DOMAIN,
+)

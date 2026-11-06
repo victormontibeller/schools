@@ -27,6 +27,7 @@
                         <th scope="row" class="sm-attendance-student-column">
                             <a href="{% url 'student_attendance_class' entry.student.pk record.class_obj.pk %}" class="fw-semibold">{{ entry.student.get_full_name }}</a>
                             <div class="text-muted small">{{ entry.student.enrollment_number }}</div>
+                            <input type="hidden" name="version_{{ entry.student_id }}" value="{{ entry.version }}">
                         </th>
                         <td class="sm-attendance-status-column">
                             <div class="dropdown sm-attendance-dropdown"

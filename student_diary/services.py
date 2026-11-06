@@ -32,6 +32,9 @@ class StudentDiaryService(RoutineConfigurationServiceMixin, BaseService):
             raise ObjectNotFoundError("Class", str(class_id)) from None
         self._assert_eligible_class(class_obj)
         teacher = self._get_authorized_teacher(class_obj)
+        from students.contracts import ImportUsageService
+
+        ImportUsageService(user=self.user).seal_for_use(student_ids=entries_data)
         sheet = (
             DiarySheet.objects.select_for_update()
             .filter(class_obj=class_obj, date=diary_date)

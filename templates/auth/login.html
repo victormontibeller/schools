@@ -16,7 +16,8 @@
                 <!-- Logo / Título -->
                 <div class="text-center mb-4">
                     <h3 class="fw-bold text-primary mb-1">School Manager</h3>
-                    <p class="text-muted">Plataforma de Gestão Escolar</p>
+                    <p class="text-muted">{% if fictitious_school %}{{ fictitious_school.name }}{% else %}Plataforma de Gestão Escolar{% endif %}</p>
+                    {% if fictitious_environment %}<div class="alert alert-warning py-2" role="status">Ambiente fictício — dados para treinamento.</div>{% endif %}
                 </div>
 
                 <h5 class="fw-semibold mb-4">{% block auth_title %}Entrar na conta{% endblock %}</h5>

@@ -256,3 +256,17 @@ class TestBaseServiceLogGuardPII:
             student_id="00000000-0000-0000-0000-000000000000",
             profile_avatar_id="00000000-0000-0000-0000-000000000000",
         )
+
+
+def test_required_handler_failure_propagates_before_optional_observers():
+    dispatcher = EventDispatcher()
+    called = []
+
+    def required(event):
+        raise RuntimeError("durable intent failed")
+
+    dispatcher.register(DomainEvent, lambda event: called.append(event))
+    dispatcher.register(DomainEvent, required, required=True)
+    with pytest.raises(RuntimeError, match="durable intent"):
+        dispatcher.dispatch(DomainEvent())
+    assert called == []

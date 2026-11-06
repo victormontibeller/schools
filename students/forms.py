@@ -15,22 +15,11 @@ class StudentForm(VersionedModelForm):
         widget=forms.FileInput(attrs={"class": "sm-profile-avatar-input"}),
     )
 
-    REQUIRED_FIELDS = (
-        "first_name",
-        "last_name",
-        "birth_date",
-        "gender",
-        "blood_type",
-        "cpf",
-        "rg_number",
-        "phone_mobile",
-        "email",
-    )
+    REQUIRED_FIELDS = ("first_name", "last_name", "birth_date")
 
     class Meta:
         model = Student
         fields = [
-            "user",
             "enrollment_number",
             "first_name",
             "last_name",
@@ -43,11 +32,8 @@ class StudentForm(VersionedModelForm):
             "email",
             "observations",
             "photo",
-            "accepts_email_notifications",
-            "accepts_whatsapp_notifications",
         ]
         widgets = {
-            "user": forms.Select(attrs={"class": "form-select"}),
             "enrollment_number": forms.TextInput(
                 attrs={"class": "form-control", "readonly": True, "placeholder": "Gerada ao salvar"}
             ),
@@ -68,13 +54,8 @@ class StudentForm(VersionedModelForm):
                 attrs={"class": "form-control", "rows": 3, "maxlength": 250}
             ),
             "photo": forms.ClearableFileInput(attrs={"class": "sm-profile-avatar-input"}),
-            "accepts_email_notifications": forms.CheckboxInput(attrs={"class": "form-check-input"}),
-            "accepts_whatsapp_notifications": forms.CheckboxInput(
-                attrs={"class": "form-check-input"}
-            ),
         }
         labels = {
-            "user": "Usuário do Sistema (opcional)",
             "enrollment_number": "Matrícula",
             "first_name": "Nome",
             "last_name": "Sobrenome",
@@ -91,6 +72,7 @@ class StudentForm(VersionedModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["gender"].required = False
         for field_name in self.REQUIRED_FIELDS:
             if field_name in self.fields:
                 self.fields[field_name].required = True
@@ -113,17 +95,8 @@ class StudentEditForm(StudentForm):
             "email",
             "observations",
             "photo",
-            "accepts_email_notifications",
-            "accepts_whatsapp_notifications",
         ]
         widgets = {
             **StudentForm.Meta.widgets,
-            "email": forms.EmailInput(attrs={"class": "form-control", "readonly": True}),
             "photo": forms.ClearableFileInput(attrs={"class": "sm-profile-avatar-input"}),
-            "accepts_email_notifications": forms.CheckboxInput(
-                attrs={"class": "form-check-input", "data_grid": "col-12 col-md-6"}
-            ),
-            "accepts_whatsapp_notifications": forms.CheckboxInput(
-                attrs={"class": "form-check-input", "data_grid": "col-12 col-md-6"}
-            ),
         }

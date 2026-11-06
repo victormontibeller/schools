@@ -18,6 +18,7 @@ class AttendanceSelector(BaseSelector):
         self,
         class_id=None,
         teacher_id=None,
+        user=None,
         date_from=None,
         date_to=None,
         search="",
@@ -29,6 +30,16 @@ class AttendanceSelector(BaseSelector):
         from attendance.models import AttendanceRecord
 
         qs = AttendanceRecord.objects.select_related("class_obj", "subject", "teacher")
+        if user is not None:
+            from core.permissions import role_name
+
+            if role_name(user) == "TEACHER":
+                qs = qs.filter(
+                    teacher__user_id=user.pk,
+                    teacher__is_active=True,
+                    teacher__deleted_at__isnull=True,
+                    teacher__user__is_active=True,
+                )
         if class_id:
             qs = qs.filter(class_obj_id=class_id)
         if teacher_id:
@@ -53,6 +64,25 @@ class AttendanceSelector(BaseSelector):
             page=page,
             page_size=page_size,
         )
+
+    def risk_context(self, user, selected=None) -> dict:
+        """Resolve filtro e relatório respeitando o mesmo escopo docente."""
+        from base.exceptions import PermissionDeniedError
+        from classes.selectors import ClassSelector
+        from core.access_selectors import ObjectAccessSelector
+        from core.permissions import role_name
+
+        classes = ClassSelector().list_ordered()
+        if role_name(user) == "TEACHER":
+            classes = ObjectAccessSelector.teacher_classes(user.pk).order_by("name")
+        selected_class = None
+        at_risk = []
+        if selected:
+            selected_class = ClassSelector().get_by_id(selected)
+            if role_name(user) == "TEACHER" and not classes.filter(pk=selected_class.pk).exists():
+                raise PermissionDeniedError("Turma fora do escopo do professor.")
+            at_risk = self.get_students_at_risk(selected_class.pk)
+        return {"classes": classes, "selected": selected, "cls": selected_class, "at_risk": at_risk}
 
     def get_class_attendance_summary(self, class_id, *, student_ids=None):
         """Resumo por aluno da turma: presenças, ausências, justificadas, %."""

@@ -27,6 +27,7 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+{% if fictitious_environment %}<div class="alert alert-warning mb-0 text-center" role="status">Ambiente fictício local — dados de teste e e-mails simulados.</div>{% endif %}
     <!--! [Start] Navigation -->
     <nav class="nxl-navigation sm-fixed-sidebar">
         <div class="navbar-wrapper">

@@ -5,6 +5,8 @@ from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+import pytest
+
 from financeiro.gateway import GatewayChargeResult, ManualGateway, get_payment_gateway
 from financeiro.tasks import charge_via_gateway_task
 
@@ -25,7 +27,11 @@ def test_manual_gateway_implements_complete_contract():
     assert gateway.cancel_charge(created.external_id).success is True
 
 
+@pytest.mark.django_db
 def test_charge_gateway_task_returns_external_id_and_handles_failure():
+    from tenancy.models import School
+
+    School.objects.create(schema_name="test_school", name="Escola fictícia")
     billing = SimpleNamespace(
         pk="billing-2",
         outstanding_value=Decimal("42.00"),
@@ -40,7 +46,7 @@ def test_charge_gateway_task_returns_external_id_and_handles_failure():
         patch("financeiro.selectors.BillingSelector.get_billing_by_id", return_value=billing),
         patch("financeiro.gateway.get_payment_gateway", return_value=gateway),
     ):
-        result = charge_via_gateway_task.run("public", "billing-2")
+        result = charge_via_gateway_task.run("test_school", "billing-2")
 
     assert result == "external-2"
     gateway.create_charge.assert_called_once_with(

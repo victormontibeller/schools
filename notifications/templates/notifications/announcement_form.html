@@ -1,0 +1,4 @@
+{% extends "entity_form_base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{% url 'announcement_list' %}">Comunicados</a></li>{% endblock %}
+{% block cancel_url %}{% url 'announcement_list' %}{% endblock %}

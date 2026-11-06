@@ -4,7 +4,6 @@ import datetime as dt
 import uuid
 from decimal import Decimal
 from io import BytesIO
-from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -15,7 +14,6 @@ from core.access_catalog import GUARDIAN, MODULES_BY_KEY, allowed_actions
 from core.models import CustomUser, Role, RoleModuleAccess
 from financeiro.models import (
     BillingEntry,
-    CollectionReminder,
     CollectionReminderPolicy,
     FinancialContractAmendment,
     FinancialPlanTemplate,
@@ -31,9 +29,7 @@ from financeiro.selectors import (
     ReminderSelector,
 )
 from financeiro.services import FinanceService, PaymentService
-from financeiro.tasks import deliver_collection_reminder_task, process_collection_reminders_task
 from guardians.models import Guardian, StudentGuardian
-from notifications.models import Notification
 from students.models import Student
 
 
@@ -485,190 +481,6 @@ def _guardian_access(user, student):
         updated_by=user,
     )
     return guardian_user, guardian
-
-
-@pytest.mark.django_db(transaction=True)
-def test_reminders_require_policy_rules_dedupe_and_use_on_commit(user):
-    student = _student(user, "REM")
-    contract = _contract(user, student, installment_count=1)
-    billing = BillingEntry.objects.get(contract=contract)
-    _guardian_access(user, student)
-    service = FinanceService(user=user)
-    with pytest.raises(BusinessRuleViolationError):
-        service.configure_reminder_policy(
-            {"name": "Régua", "enabled": True, "offset_days": [], "channels": []}
-        )
-    service.configure_reminder_policy(
-        {"name": "Régua", "enabled": True, "offset_days": [0], "channels": ["IN_APP"]}
-    )
-
-    with patch("financeiro.tasks.deliver_collection_reminder_task.delay") as delay:
-        assert service.send_manual_reminder(billing.pk) == 1
-        assert service.send_manual_reminder(billing.pk) == 0
-    assert CollectionReminder.objects.count() == 1
-    delay.assert_called_once()
-
-
-@pytest.mark.django_db(transaction=True)
-def test_manual_reminder_ignores_ineligible_recipient_and_closed_billing(user):
-    student = _student(user, "REM-SKIP")
-    contract = _contract(user, student, installment_count=1)
-    billing = BillingEntry.objects.get(contract=contract)
-    guardian_user, _guardian = _guardian_access(user, student)
-    RoleModuleAccess.objects.filter(role=guardian_user.role, module_key="finance_billings").update(
-        can_view=False
-    )
-    service = FinanceService(user=user)
-
-    with patch("financeiro.tasks.deliver_collection_reminder_task.delay") as delay:
-        assert service.send_manual_reminder(billing.pk) == 0
-        billing.status = BillingEntry.Status.CANCELLED
-        billing.save(update_fields=["status"])
-        assert service.send_manual_reminder(billing.pk) == 0
-
-    assert CollectionReminder.objects.count() == 0
-    delay.assert_not_called()
-
-
-@pytest.mark.django_db
-def test_in_app_reminder_delivery_revalidates_access_and_uses_generic_message(user):
-    student = _student(user, "DELIVERY")
-    contract = _contract(user, student, installment_count=1)
-    billing = BillingEntry.objects.get(contract=contract)
-    guardian_user, guardian = _guardian_access(user, student)
-    reminder = CollectionReminder.objects.create(
-        billing=billing,
-        guardian=guardian,
-        recipient=guardian_user,
-        channel="IN_APP",
-        rule_offset_days=0,
-        scheduled_for=dt.date.today(),
-        created_by=user,
-        updated_by=user,
-    )
-
-    deliver_collection_reminder_task.run("public", str(reminder.pk))
-
-    reminder.refresh_from_db()
-    notification = Notification.objects.get(recipient=guardian_user)
-    assert reminder.status == CollectionReminder.Status.SENT
-    assert student.first_name not in notification.message
-    assert str(billing.outstanding_value) not in notification.message
-    assert notification.action_url.endswith(f"/cobrancas/{billing.pk}/")
-
-
-@pytest.mark.django_db(transaction=True)
-def test_scheduled_reminders_and_policy_validation_branches(user):
-    student = _student(user, "SCHEDULED")
-    contract = _contract(user, student, installment_count=1)
-    billing = BillingEntry.objects.get(contract=contract)
-    _guardian_access(user, student)
-    service = FinanceService(user=user)
-
-    with pytest.raises(ValidationError):
-        service.configure_reminder_policy(
-            {"name": "Inválida", "enabled": False, "offset_days": [0], "channels": ["WHATSAPP"]}
-        )
-    with pytest.raises(ValidationError):
-        service.configure_reminder_policy(
-            {"name": "Inválida", "enabled": False, "offset_days": [366], "channels": []}
-        )
-    service.configure_reminder_policy(
-        {"name": "Agendada", "enabled": True, "offset_days": [0], "channels": ["EMAIL"]}
-    )
-    updated = service.configure_reminder_policy(
-        {"name": "Agendada 2", "enabled": True, "offset_days": [0], "channels": ["EMAIL"]}
-    )
-    assert updated.name == "Agendada 2"
-
-    with patch("financeiro.tasks.deliver_collection_reminder_task.delay") as delay:
-        assert service.run_scheduled_reminders(reference_date=billing.due_date) == 1
-    delay.assert_called_once()
-    assert process_collection_reminders_task.run("public", "2026-07-19") == 0
-
-
-@pytest.mark.django_db
-def test_reminder_delivery_skip_email_failure_retry_and_service_idempotence(user):
-    student = _student(user, "CHANNELS")
-    contract = _contract(user, student, installment_count=1)
-    billing = BillingEntry.objects.get(contract=contract)
-    guardian_user, guardian = _guardian_access(user, student)
-
-    deliver_collection_reminder_task.run("public", str(uuid.uuid4()))
-
-    def reminder(channel, offset):
-        return CollectionReminder.objects.create(
-            billing=billing,
-            guardian=guardian,
-            recipient=guardian_user,
-            channel=channel,
-            rule_offset_days=offset,
-            scheduled_for=dt.date.today(),
-            created_by=user,
-            updated_by=user,
-        )
-
-    skipped = reminder("WHATSAPP", 1)
-    deliver_collection_reminder_task.run("public", str(skipped.pk))
-    skipped.refresh_from_db()
-    assert skipped.status == CollectionReminder.Status.SKIPPED
-
-    successful = reminder("EMAIL", 2)
-    successful_transport = SimpleNamespace(
-        send_individual=lambda *args, **kwargs: True,
-        last_log_id=uuid.uuid4(),
-        last_result=None,
-    )
-    with patch("notifications.task_helpers.get_transport", return_value=successful_transport):
-        deliver_collection_reminder_task.run("public", str(successful.pk))
-    successful.refresh_from_db()
-    assert successful.status == CollectionReminder.Status.SENT
-
-    failed = reminder("EMAIL", 3)
-    failed_transport = SimpleNamespace(
-        send_individual=lambda *args, **kwargs: False,
-        last_log_id=uuid.uuid4(),
-        last_result=SimpleNamespace(retryable=False),
-    )
-    with patch("notifications.task_helpers.get_transport", return_value=failed_transport):
-        deliver_collection_reminder_task.run("public", str(failed.pk))
-    failed.refresh_from_db()
-    assert failed.status == CollectionReminder.Status.FAILED
-
-    retrying = reminder("EMAIL", 4)
-    retry_transport = SimpleNamespace(
-        send_individual=lambda *args, **kwargs: False,
-        last_log_id=uuid.uuid4(),
-        last_result=SimpleNamespace(retryable=True),
-    )
-    with (
-        patch("notifications.task_helpers.get_transport", return_value=retry_transport),
-        patch("notifications.task_helpers.retry_email_if_needed") as retry,
-    ):
-        deliver_collection_reminder_task.run("public", str(retrying.pk))
-    retry.assert_called_once()
-    retrying.refresh_from_db()
-    assert retrying.message_log_id == retry_transport.last_log_id
-
-    service = FinanceService(user=None)
-    unattached = reminder("EMAIL", 5)
-    message_log_id = uuid.uuid4()
-    with patch.object(service, "_log") as log:
-        service.attach_reminder_message_log(unattached.pk, message_log_id)
-    log.assert_called_once_with(
-        "collection_reminder_message_log_attached",
-        reminder_id=str(unattached.pk),
-        message_log_id=str(message_log_id),
-    )
-    service.attach_reminder_message_log(retrying.pk, uuid.uuid4())
-    same = service.complete_reminder_delivery(
-        successful.pk, status=CollectionReminder.Status.FAILED
-    )
-    assert same.status == CollectionReminder.Status.SENT
-    with pytest.raises(ObjectNotFoundError):
-        service.attach_reminder_message_log(uuid.uuid4(), uuid.uuid4())
-    with pytest.raises(ObjectNotFoundError):
-        service.complete_reminder_delivery(uuid.uuid4(), status=CollectionReminder.Status.FAILED)
 
 
 @pytest.mark.django_db

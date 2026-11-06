@@ -86,6 +86,11 @@ class PlatformSchoolEditForm(forms.Form):
         label="Domínio confirmado como verificado na Resend",
         widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
     )
+    diary_enabled = forms.BooleanField(
+        required=False,
+        label="Habilitar Agenda infantil nesta escola",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
     is_active = forms.BooleanField(
         required=False,
         label="Escola ativa",

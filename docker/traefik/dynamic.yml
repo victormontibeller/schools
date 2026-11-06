@@ -15,22 +15,8 @@ http:
         average: 10
         burst: 20
         period: 1m
-    # Protege o endpoint /metrics/ com basic auth ( credencial em .env )
-    metrics-auth:
-      basicAuth:
-        users:
-          - "${METRICS_BASIC_AUTH:-metrics:$apr1$xyz$placeholderReplaceMe}"
 
-  routers:
-    metrics:
-      rule: "Host(`localhost`) && Path(`/metrics`)"
-      entrypoints:
-        - websecure
-      middlewares:
-        - security-headers
-        - metrics-auth
-      service: schools
-      tls: {}
+# /metrics/ usa o token canônico do aplicativo; não há router ou basic auth paralelo.
 
 tls:
   options:

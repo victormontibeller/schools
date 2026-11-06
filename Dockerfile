@@ -1,4 +1,4 @@
-FROM python:3.13-slim@sha256:eb43ff125d8d58d7449dcba7d336c23bcac412f526d861db493b9994d8010280 AS builder
+FROM python:3.13-slim@sha256:d98cc29d3266e535dd9da1099688d9cb3ca4753813571e071763d17725460962 AS builder
 
 ENV PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
@@ -11,10 +11,11 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.lock /tmp/requirements.lock
-RUN pip install --require-hashes -r /tmp/requirements.lock
+RUN pip install --require-hashes -r /tmp/requirements.lock \
+    && /opt/venv/bin/python -m pip uninstall --yes pip
 
 
-FROM python:3.13-slim@sha256:eb43ff125d8d58d7449dcba7d336c23bcac412f526d861db493b9994d8010280 AS runtime
+FROM python:3.13-slim@sha256:d98cc29d3266e535dd9da1099688d9cb3ca4753813571e071763d17725460962 AS runtime
 
 ENV OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=django,logging \
     OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=false \
@@ -31,6 +32,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system --gid "${APP_GID}" schools \
     && useradd --system --uid "${APP_UID}" --gid schools --home-dir /app schools
+
+RUN /usr/local/bin/python -m pip uninstall --yes pip
 
 WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv

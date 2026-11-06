@@ -49,6 +49,41 @@ class SafeHttpLogFilter(logging.Filter):
 
     def filter(self, record: logging.LogRecord) -> bool:
         """Mantém status, rota canônica e tipo de erro, nunca URLs ou mensagens brutas."""
+        if record.name.startswith("axes"):
+            original = str(record.msg).lower()
+            record.event_type = next(
+                (
+                    event
+                    for text, event in (
+                        ("successful login", "login_succeeded"),
+                        ("login failed", "login_failed"),
+                        ("locking", "login_locked"),
+                        ("logout", "logout"),
+                    )
+                    if text in original
+                ),
+                "control",
+            )
+            record.route = (
+                "logout"
+                if "logout" in original
+                else "login" if "login" in original else "unresolved"
+            )
+            record.msg = "authentication_control_event"
+            record.args = ()
+            record.exc_info = None
+            record.exc_text = None
+            record.stack_info = None
+            for key in (
+                "username",
+                "ip_address",
+                "user_agent",
+                "path_info",
+                "credentials",
+                "request",
+                "message",
+            ):
+                record.__dict__.pop(key, None)
         if record.name.startswith(("django.request", "django.security", "django.server")):
             request = getattr(record, "request", None)
             record.route = getattr(

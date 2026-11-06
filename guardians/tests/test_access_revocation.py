@@ -6,7 +6,6 @@ from unittest.mock import patch
 import pytest
 from django.http import HttpResponse
 from django.urls import reverse
-from django.utils import timezone
 
 from core.models import CustomUser, Role, RoleModuleAccess
 from guardians.models import Guardian, StudentGuardian
@@ -57,17 +56,17 @@ def test_unlink_revokes_students_dashboard_photo_and_finance_in_same_session(cli
         created_by=user,
         updated_by=user,
     )
-    from notifications.models import Announcement
+    from notifications.announcement_services import AnnouncementService
+    from tenancy.models import Domain, School
 
-    Announcement.objects.create(
-        title="Comunicado familiar sem destino falso",
-        body="Conteúdo permitido",
-        audience=Announcement.Audience.GUARDIANS,
-        author=user,
-        sent_at=timezone.now(),
-        created_by=user,
-        updated_by=user,
-    )
+    school = School.objects.create(schema_name="test_school", name="Escola fictícia")
+    Domain.objects.create(tenant=school, domain="school.example.test", is_primary=True)
+    with patch("notifications.outbox_services.publish_task_after_commit"):
+        service = AnnouncementService(user=user)
+        announcement = service.create_announcement(
+            {"title": "Comunicado familiar", "body": "Conteúdo permitido", "audience": "FAMILIES"}
+        )
+        service.publish_announcement(announcement.pk, version=announcement.version)
     client.force_login(guardian_user)
 
     students_before = client.get(reverse("students_list"))
@@ -91,13 +90,15 @@ def test_unlink_revokes_students_dashboard_photo_and_finance_in_same_session(cli
     assert reverse("students_at_risk").encode() not in dashboard_before.content
     assert reverse("teachers_list").encode() not in dashboard_before.content
     assert reverse("guardians_list").encode() not in dashboard_before.content
-    assert reverse("announcement_list").encode() not in dashboard_before.content
+    assert reverse("announcement_list").encode() in dashboard_before.content
     assert reverse("notification_list").encode() in dashboard_before.content
     false_announcement_link = (
         f'<a href="{reverse("notification_list")}" class="sm-dashboard-announcement">'
     ).encode()
     assert false_announcement_link not in dashboard_before.content
-    assert b'<div class="sm-dashboard-announcement">' in dashboard_before.content
+    assert (
+        reverse("announcement_detail", args=[announcement.pk]).encode() in dashboard_before.content
+    )
     assert partial_before.status_code == 200
     assert partial_before.context["data"]["total_students"] == 1
     assert statement_before.status_code == 200

@@ -120,6 +120,10 @@ class PlatformSchoolService(BaseService):
             }
         )
         school_settings["email"] = email_settings
+        if "diary_enabled" in data:
+            diary_settings = dict(school_settings.get("student_diary", {}))
+            diary_settings["interactive_enabled"] = bool(data["diary_enabled"])
+            school_settings["student_diary"] = diary_settings
         school.settings = school_settings
         school.updated_by = self.user
         school.save()
@@ -135,6 +139,49 @@ class PlatformSchoolService(BaseService):
             self._record_audit("UPDATE", domain, old_values=old_domain)
         self._log("platform_school_updated", school_id=str(school.pk))
         return school
+
+    def create_school_administrator(self, school_id, data: dict):
+        """Entrega o primeiro acesso escolar sem autenticar o operador no tenant."""
+        from accounts.staff_services import StaffAccountService
+        from base.context import tenant_schema_context
+        from tenancy.models import School
+
+        self._validate_platform_operator()
+        try:
+            school = School.objects.select_for_update().get(pk=school_id, is_active=True)
+        except School.DoesNotExist:
+            raise ObjectNotFoundError("School", str(school_id)) from None
+        if school.schema_name == "public":
+            raise BusinessRuleViolationError("Bootstrap indisponível no catálogo público.")
+        email_config = (school.settings or {}).get("email", {})
+        if settings.FICTITIOUS_MODE:
+            from core.fictitious import require_fictitious
+
+            require_fictitious(schema=school.schema_name, recipient=data.get("email", ""))
+        elif not email_config.get("resend_verified") or not email_config.get("from_email"):
+            raise BusinessRuleViolationError("Configure e verifique o remetente antes do convite.")
+        domain = school.domains.filter(is_primary=True).first()
+        if domain is None:
+            raise BusinessRuleViolationError("Configure o domínio principal da escola.")
+        previous = dict(school.settings or {})
+        existing_id = previous.get("bootstrap_admin_id")
+        with tenant_schema_context(school.schema_name):
+            administrator = StaffAccountService().bootstrap_administrator(
+                data,
+                tenant_schema=school.schema_name,
+                existing_user_id=existing_id,
+            )
+            administrator_id = str(administrator.pk)
+        school.settings = {**previous, "bootstrap_admin_id": administrator_id}
+        school.updated_by = self.user
+        school.save(update_fields=["settings", "updated_by"])
+        self._record_audit("UPDATE", school, old_values={"settings": previous})
+        self._log(
+            "school_administrator_bootstrapped",
+            school_id=str(school.pk),
+            account_id=administrator_id,
+        )
+        return administrator_id
 
     def _validate_platform_operator(self) -> None:
         """Restringe provisionamento a superusuários do schema público."""

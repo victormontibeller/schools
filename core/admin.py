@@ -56,4 +56,16 @@ class CustomUserAdmin(UserAdmin):
             },
         ),
     )
-    readonly_fields = ["created_at", "updated_at", "deleted_at"]
+    readonly_fields = [field.name for field in CustomUser._meta.fields]
+    actions = None
+
+    def has_add_permission(self, request):
+        """Identidades são criadas somente pelos services canônicos."""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Evita contornar convites, auditoria e proteção do último administrador."""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

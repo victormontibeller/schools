@@ -68,6 +68,9 @@ class MessageDeliveryService(BaseService):
             ["status", "provider_message_id", "error_message", "sent_at"],
         )
         update_fields = set()
+        if str(result.provider_message_id).startswith("local-"):
+            message_log.provider = "LOCAL_FIXTURE"
+            update_fields.add("provider")
         if result.provider_message_id and not message_log.provider_message_id:
             message_log.provider_message_id = result.provider_message_id
             update_fields.add("provider_message_id")
@@ -119,6 +122,8 @@ class MessageDeliveryService(BaseService):
             )
         except MessageLog.DoesNotExist:
             raise ObjectNotFoundError("MessageLog", str(message_log_id)) from None
+        if WebhookEventReceipt.objects.filter(external_event_id=external_event_id).exists():
+            return False
         if message_log.provider_message_id not in {None, "", provider_message_id}:
             raise ObjectNotFoundError("MessageLog", str(message_log_id))
 
@@ -153,9 +158,22 @@ class MessageDeliveryService(BaseService):
                 message_log.sent_at = message_log.sent_at or occurred_at
             if event_type == "email.delivered":
                 message_log.delivered_at = occurred_at
+        if message_log.dedupe_key and message_log.last_event:
+            message_log.dispatch_state = (
+                "FAILED"
+                if message_log.status in {"FAILED", "BOUNCED", "SUPPRESSED"}
+                else "COMPLETE"
+            )
+            message_log.reason_code = (
+                "provider_failure" if message_log.dispatch_state == "FAILED" else ""
+            )
+            message_log.lease_until = None
         message_log.updated_by = self.user
         message_log.save()
         self._record_audit("UPDATE", message_log, old_values=old)
+        from notifications.projection_services import DeliveryProjectionService
+
+        DeliveryProjectionService().synchronize_delivery(message_log)
         self._log(
             "resend_webhook_processed",
             message_log_id=str(message_log.pk),

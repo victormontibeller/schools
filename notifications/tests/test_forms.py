@@ -2,7 +2,8 @@
 
 import pytest
 
-from notifications.forms import AnnouncementForm, MessageTemplateForm
+from notifications.announcement_forms import AnnouncementForm
+from notifications.forms import MessageTemplateForm
 
 
 @pytest.mark.django_db
@@ -31,14 +32,12 @@ class TestAnnouncementForm:
             data={
                 "title": "Aviso",
                 "body": "Conteudo do aviso.",
-                "audience": "ALL",
+                "audience": "FAMILIES",
             }
         )
         assert form.is_valid()
-        assert form.fields["send_whatsapp"].disabled is True
-        assert form.fields["send_whatsapp"].help_text == "Provedor ainda não configurado."
 
     def test_blank_title(self):
-        form = AnnouncementForm(data={"title": "", "body": "Corpo", "audience": "ALL"})
+        form = AnnouncementForm(data={"title": "", "body": "Corpo", "audience": "FAMILIES"})
         assert not form.is_valid()
         assert "title" in form.errors

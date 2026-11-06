@@ -177,3 +177,43 @@ Toda operação de escrita deverá gerar um registro no módulo de auditoria, co
 - Valores anteriores (old values)
 - Valores novos (new values)
 - Data, hora, IP e navegador
+
+## Implantação assistida do piloto
+
+`CustomUser` registra `invitation_nonce`, `invitation_sent_at` e `invitation_expires_at` para
+revogar emissões anteriores e consumir convites atomicamente. O nonce não é uma credencial em
+texto puro; somente o token assinado é aceito no schema identificado.
+
+`students.AssistedImportBatch` herda `BaseModel` e guarda chave única de origem, hash SHA-256 dos
+arquivos, estado `IMPORTED`/`REVERTED`, contagens e manifesto de IDs/versões criados. O manifesto
+não copia o conteúdo dos arquivos. Reversão não apaga o lote nem os cadastros fisicamente.
+Campos novos entram na regeneração global das migrations iniciais da entrega consolidada,
+conforme ADR-0019 e ADR-0022; não há migration evolutiva provisória.
+
+## Comunicação institucional e outbox
+
+`Announcement` guarda apenas o estado de autoria; `AnnouncementRevision` é o snapshot publicado,
+único por comunicado/número. `AnnouncementRecipient` congela destinatário e IDs de crianças,
+com unicidade por revisão/responsável ou revisão/usuário. Suas datas de visualização e ciência
+são independentes. `AnnouncementAttachment` guarda arquivo privado, relação com o rascunho e
+vínculos com as revisões imutáveis que o publicaram.
+
+`MessageLog` guarda origem, chave única de deduplicação, payload, estado de despacho, motivo,
+tentativas, próximo processamento e lease com token. Os campos de status/ID do provedor e
+`WebhookEventReceipt` continuam sendo a única verdade da entrega externa. `previous_delivery`
+é OneToOne para a geração sucessora de reprocessamento humano; retry automático não cria log.
+A FK `diary_publication` continua preservando a origem dos avisos da Agenda. Consulte ADR-0023.
+
+### Atendimento privado do piloto (ADR-0024)
+
+`service_requests` é tenant-specific. `ServiceRequest` liga autor, criança, setor e atendente,
+com protocolo único e versão otimista. `RequestMessage`, `RequestAttachment` e
+`RequestTransition` preservam mensagens, arquivos privados e histórico. `ServiceDepartment` e
+`DepartmentMembership` representam os três setores fixos e os vínculos; `AdministrativeCalendar`
+guarda dias/horários/fechamentos administrativos, e `RequestSequence` serializa a numeração anual.
+As relações usam proteção de histórico; exclusão operacional é lógica. O ciclo e os timestamps
+separam primeira resposta humana de prazo, transferência e reabertura.
+
+Lembretes de matrícula e financeiro apontam para a geração vigente de `MessageLog`; seus estados
+são projeções do outbox. Novas gerações preservam logs antigos. Nenhum segundo pipeline de
+transporte ou fila de recuperação pertence a esses domínios.

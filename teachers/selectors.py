@@ -82,7 +82,13 @@ class SubjectSelector(BaseSelector):
         if filters:
             queryset = queryset.filter(**filters)
         if role_name == "TEACHER":
-            queryset = queryset.filter(teachers__user_id=user_id).distinct()
+            queryset = queryset.filter(
+                teachers__user_id=user_id,
+                teachers__is_active=True,
+                teachers__deleted_at__isnull=True,
+                teachers__user__is_active=True,
+                teachers__user__deleted_at__isnull=True,
+            ).distinct()
         return self._paginate(queryset.order_by(order_by), page=page, page_size=page_size)
 
     def get_by_id(self, subject_id):
@@ -95,6 +101,6 @@ class SubjectSelector(BaseSelector):
     @staticmethod
     def teacher_can_access_subject(user_id, subject_id) -> bool:
         """Confirma atribuição da disciplina ao professor autenticado."""
-        from teachers.models import Subject
+        from core.access_selectors import ObjectAccessSelector
 
-        return Subject.objects.filter(pk=subject_id, teachers__user_id=user_id).exists()
+        return ObjectAccessSelector.teacher_can_access_subject(user_id, subject_id)
