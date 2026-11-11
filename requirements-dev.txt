@@ -11,7 +11,7 @@ freezegun==1.5.1
 
 # Linting & Formatting
 black==26.10.1
-ruff==0.8.4
+ruff==0.17.4
 
 # Dev Tools
 django-debug-toolbar==4.4.6
