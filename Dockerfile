@@ -1,4 +1,4 @@
-FROM python:3.13-slim@sha256:d98cc29d3266e535dd9da1099688d9cb3ca4753813571e071763d17725460962 AS builder
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928 AS builder
 
 ENV PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
@@ -17,7 +17,7 @@ RUN pip install --require-hashes -r /tmp/requirements.lock \
     && /opt/venv/bin/python -m pip uninstall --yes pip
 
 
-FROM python:3.13-slim@sha256:d98cc29d3266e535dd9da1099688d9cb3ca4753813571e071763d17725460962 AS runtime
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928 AS runtime
 
 ENV OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=django,logging \
     OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=false \
