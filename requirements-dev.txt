@@ -21,6 +21,6 @@ pip==26.2.2
 pip-tools==7.6.2
 
 # Security floors for packaging dependencies.
-filelock==4.2.1
+filelock==4.2.9
 msgpack==1.2.3
 setuptools==84.1.0
